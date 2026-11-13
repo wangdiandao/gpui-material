@@ -1,5 +1,7 @@
 # P3 验收记录
 
+简体中文 · [English](P03-evidence.en.md)
+
 本地环境为 Windows 11 x64（build 26200）、Rust/Cargo 1.99.1、MSVC。纯主题和 xtask 共用主检出的开发构建目录。PR 关联 [P3-02](https://github.com/wangdiandao/gpui-material/issues/75)，托管结果在 PR 的 Windows MSVC 检查中核对。
 
 | 检查 | 固定来源、期望和观察 | 状态 |

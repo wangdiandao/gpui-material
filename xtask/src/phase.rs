@@ -226,12 +226,14 @@ impl Status {
         let updates_maintenance_scope = paths
             .iter()
             .any(|path| is_p1_experiment_path(path) || is_github_maintenance_path(path));
+        let updates_token_index = paths.contains(&"docs/theme/token-index.md");
         let denied = paths
             .into_iter()
             .filter(|path| {
                 !is_maintenance_path(path, moves_evidence)
                     && !is_p1_experiment_path(path)
                     && !(updates_maintenance_scope && *path == "xtask/src/phase.rs")
+                    && !(updates_token_index && *path == "xtask/src/tokens.rs")
             })
             .collect::<Vec<_>>();
         if !denied.is_empty() {
@@ -390,5 +392,26 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn frozen_token_index_maintenance_preserves_token_scope() {
+        let base: Status = toml::from_str(include_str!("../../status.toml")).unwrap();
+        let index_and_generator = ["docs/theme/token-index.md", "xtask/src/tokens.rs"];
+        base.check_frozen_maintenance(&base, index_and_generator.into_iter())
+            .unwrap();
+        assert!(
+            base.check_frozen_maintenance(&base, ["xtask/src/tokens.rs"].into_iter())
+                .is_err()
+        );
+        for path in ["tokens/material.json", "crates/theme/src/generated.rs"] {
+            assert!(
+                base.check_frozen_maintenance(
+                    &base,
+                    index_and_generator.into_iter().chain([path]),
+                )
+                .is_err()
+            );
+        }
     }
 }

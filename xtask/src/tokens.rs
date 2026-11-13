@@ -244,8 +244,11 @@ fn generate(manifest: &Manifest) -> Result<(String, String)> {
         .map(|(i, s)| (s, i + 1))
         .collect();
     let mut index = String::from(
-        "# Material token index\n\nGenerated from the token manifest by cargo xtask tokens.\n\n\
-         | Token | Rust constant | Upstream symbol | Source |\n| --- | --- | --- | --- |\n",
+        "# Material token index / Material Token 索引\n\n\
+         Generated from the token manifest by \x60cargo xtask tokens\x60.\n\n\
+         由 \x60cargo xtask tokens\x60 从 Token 数据清单生成。\n\n\
+         | Token | Rust constant / Rust 常量 | Upstream symbol / 上游符号 | Source / 来源 |\n\
+         | --- | --- | --- | --- |\n",
     );
     for &(token, source) in tokens.values() {
         writeln!(

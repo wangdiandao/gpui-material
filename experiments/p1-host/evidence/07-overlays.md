@@ -1,5 +1,7 @@
 # P1-07 浮层、滚动与窗口
 
+简体中文 · [English](07-overlays.en.md)
+
 2026-11-13，Windows 11 x64 build 26200，Rust/Cargo 1.99.1，使用此 PR 的代码与已锁定的 crates.io 依赖。
 
 ```sh

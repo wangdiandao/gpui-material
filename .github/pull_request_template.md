@@ -1,24 +1,24 @@
-## 关联 Issue
+## Related issue
 
-<!-- Closes #编号。分步交付可用 Refs #编号。 -->
+<!-- Use Closes #123 when this PR resolves the issue, or Refs #123 for partial work. -->
 
-## 变更
+## Changes
 
-<!-- 每个 PR 聚焦一个问题，说明改动、涉及的模块以及阶段范围（如适用）。 -->
+<!-- Focus on one problem. Describe the change, the affected modules, and any relevant phase scope. -->
 
-## 公共 API 与迁移
+## Public API and migration
 
-<!-- 按 crate 列出新增、修改或删除的公开接口，附签名和用途。若调用方式变化，给出迁移前后的示例。无相关改动时可删本节。 -->
+<!-- Group added, changed, or removed public APIs by crate and give each signature and purpose. Show before-and-after examples when callers need to migrate. Remove this section if it does not apply. -->
 
-## 验证
+## Verification
 
-<!-- 记录环境、复现步骤或命令及实际结果。适用时链接阶段证据，说明原生路径和依赖变化。 -->
+<!-- Record the environment, reproduction steps or commands, and observed results. Where relevant, link phase evidence and describe native paths or dependency changes. -->
 
-## 界面截图或录屏
+## Screenshots or recordings
 
-<!-- 界面改动附 Gallery 入口和前后对比。无界面改动时可删本节。 -->
+<!-- For UI changes, identify the Gallery scenario and show the before and after. Remove this section if it does not apply. -->
 
-## 自查
+## Checklist
 
-- [ ] 已检查变更范围、文件归属和相关依赖。
-- [ ] 已运行受影响的测试或 Gallery 场景，并记录结果。
+- [ ] I reviewed the change scope, file ownership, and affected dependencies.
+- [ ] I ran the relevant tests or Gallery scenarios and recorded the results.

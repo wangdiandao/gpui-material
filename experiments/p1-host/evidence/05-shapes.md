@@ -1,5 +1,7 @@
 # P1-05 形状、绘制与 ripple
 
+简体中文 · [English](05-shapes.en.md)
+
 2026-11-13，Windows 11 x64 build 26200，Rust/Cargo 1.99.1，使用此 PR 的代码与已锁定的 crates.io 依赖。实窗缩放 100%，UIA 和截图工具为 winapp 0.7.1。
 
 ```sh

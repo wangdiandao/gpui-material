@@ -1,5 +1,7 @@
 # 架构与依赖
 
+简体中文 · [English](architecture.en.md)
+
 gpui-material 提供 Material 的 Token、主题、视觉状态、布局和组合。gpui-base 提供可复用的行为、焦点、输入、滚动、状态和基础设施。P1 用[探针](phases/P01.md)确认实际能力、必要适配与依赖图。准确版本见[设计依据](design-sources.md#gpui-与-base)。
 
 ## Crate 依赖方向

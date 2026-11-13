@@ -1,5 +1,7 @@
 # P2 验收记录
 
+简体中文 · [English](P02-evidence.en.md)
+
 验收日期为 2026-11-13。首版工程验收平台为 Windows 11 x64 MSVC。
 
 ## Windows 实窗

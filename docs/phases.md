@@ -1,5 +1,7 @@
 # 阶段推进与返修
 
+简体中文 · [English](phases.en.md)
+
 [status.toml](../status.toml)是机器可读阶段状态源。阶段按 P0–P9 顺序推进。上一阶段通过验收并冻结后，下一阶段进入实现。只有一个阶段可处于 active 或 review。planned 表示待进入，blocked 表示有具名阻塞，frozen 表示证据与接受提交已记录。
 
 | 阶段 | 范围 | 退出条件 |
@@ -28,6 +30,8 @@ Issue 记录独立交付、前置任务、文件范围、通过条件和验证�
 两阶段之间可通过独立 Issue 与 PR 更新 Markdown 工作流和文档链接。迁移证据文件时在 `status.toml` 的 `evidence_locations` 将冻结提交中的原路径映射到当前路径。验收提交、证据原路径和交付记录保持可追溯。迁移涉及的状态登记与校验代码纳入同一 PR。改动已冻结契约或行为时走返修流程。
 
 GitHub 工程维护可更新 `.github/workflows/ci.yml`、PR 模板及 `.github/ISSUE_TEMPLATE/` 中的 Markdown 模板。同一 PR 可更新对应的阶段路径检查，冻结记录仍须通过校验。
+
+维护生成的 Token 索引时，可在同一 PR 更新索引的生成器。Token 数据和生成的 Rust 表按原归属阶段或返修流程变更。
 
 已结束的隔离实验可以通过维护 PR 退役一次性验证。历史结果和对应提交记在阶段证据中。路径门禁允许维护 P1 实验文件，以及同一 PR 中为实验维护调整门禁的代码。
 

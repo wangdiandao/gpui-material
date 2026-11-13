@@ -1,5 +1,7 @@
 # P1-01 构建与包身份
 
+简体中文 · [English](01-build.en.md)
+
 2026-11-13，Windows 11 x64 build 26200，MSVC，Rust/Cargo 1.99.1，winapp 0.7.1。窗口使用 GPUI Windows 后端，缩放 100%。下列命令在 [P1 接受提交](https://github.com/wangdiandao/gpui-material/tree/b0250f5f120ab2fbadfe41b5529612e984358295)的仓库根目录执行。
 
 ```sh

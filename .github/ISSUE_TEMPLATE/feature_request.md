@@ -1,17 +1,17 @@
 ---
-name: 功能提议
-about: 提议新增组件、能力或改进现有行为
+name: Feature request
+about: Propose a new component or capability, or an improvement to existing behavior
 title: ""
 ---
 
-## 使用场景
+## Use case
 
-<!-- 谁在什么场景需要这项能力？当前做法遇到什么问题？ -->
+<!-- Who needs this capability, in what situation, and where does the current approach fall short? -->
 
-## 期望行为
+## Proposed behavior
 
-<!-- 描述调用者和用户可观察的行为。适用时附 Material 规范、设计参考、变体或交互状态。 -->
+<!-- Describe what callers and users should observe. Include relevant Material guidance, design references, variants, or interaction states. -->
 
-## 验收方式
+## Acceptance criteria
 
-<!-- 说明如何复现或验证结果，以及涉及的平台或无障碍要求。 -->
+<!-- Explain how to verify the result and identify any platform or accessibility requirements. -->

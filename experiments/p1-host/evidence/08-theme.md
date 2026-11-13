@@ -1,5 +1,7 @@
 # P1-08 两窗口主题投影与 Base Calendar
 
+简体中文 · [English](08-theme.en.md)
+
 2026-11-13，Windows 11 x64 build 26200，Rust/Cargo 1.99.1，使用此 PR 的代码与已锁定的 crates.io 依赖。
 
 ```sh

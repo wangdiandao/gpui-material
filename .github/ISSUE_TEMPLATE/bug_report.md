@@ -1,23 +1,23 @@
 ---
-name: 缺陷报告
-about: 报告可复现的错误或回归
+name: Bug report
+about: Report a reproducible bug or regression
 title: ""
 ---
 
-## 问题
+## Problem
 
-<!-- 描述遇到的问题和受影响的组件或入口。 -->
+<!-- Describe the problem and identify the affected component or entry point. -->
 
-## 环境
+## Environment
 
-<!-- 填写 gpui-material 版本或提交、操作系统版本与架构。适用时注明 Rust、GPUI/Base、窗口后端与显示缩放。 -->
+<!-- Include the gpui-material version or commit, OS version, and architecture. Where relevant, include Rust and GPUI/Base versions, the window backend, and display scaling. -->
 
-## 复现步骤
+## Steps to reproduce
 
-<!-- 提供最小示例或 Gallery 场景、操作步骤及复现频率。 -->
+<!-- Provide a minimal example or Gallery scenario, the steps, and how often the issue occurs. -->
 
-## 预期行为
+## Expected behavior
 
-## 实际行为
+## Actual behavior
 
-<!-- 可附截图、录屏或日志。若已定位回归范围，请注明最后正常的版本或提交。 -->
+<!-- Attach screenshots, a recording, or logs if helpful. Include the last known good version or commit if available. -->

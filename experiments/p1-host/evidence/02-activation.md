@@ -1,5 +1,7 @@
 # P1-02 激活、焦点与取消
 
+简体中文 · [English](02-activation.en.md)
+
 2026-11-13，Windows 11 x64 build 26200，Rust/Cargo 1.99.1，使用此 PR 的代码与已锁定的 crates.io 依赖。实窗缩放 100%，UIA 和截图工具为 winapp 0.7.1。
 
 ```sh

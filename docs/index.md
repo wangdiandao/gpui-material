@@ -1,5 +1,7 @@
 # 文档索引
 
+简体中文 · [English](index.en.md)
+
 1. [P0 需求与来源冻结](phases/P00.md)记录范围、工作单元与验收证据。
 2. [设计依据与版本基线](design-sources.md)记录设计快照、实现参考与冲突裁决规则。
 3. [组件覆盖矩阵](component-coverage.md)记录变体、状态、平台、首次实现阶段与验收方向。

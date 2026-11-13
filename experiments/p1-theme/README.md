@@ -1,5 +1,7 @@
 # P1-08 纯算法证据
 
+简体中文 · [English](README.en.md)
+
 2026-11-13，Windows 11 x64，Rust/Cargo 1.99.1，固定的 crates.io 解析。
 
 ```sh

@@ -1,6 +1,23 @@
 schema_version = 1
-current_phase = "P4"
-allowed_paths = []
+current_phase = "P5"
+allowed_paths = [
+    "status.toml",
+    "Cargo.toml",
+    "Cargo.lock",
+    "crates/components/",
+    "crates/material/",
+    "apps/gallery/Cargo.toml",
+    "apps/gallery/src/",
+    "README.md",
+    "README.zh.md",
+    "README.i18n.yaml",
+    "THIRD_PARTY_NOTICES.md",
+    "THIRD_PARTY_NOTICES.zh.md",
+    "THIRD_PARTY_NOTICES.i18n.yaml",
+    "docs/phases/P05.md",
+    "docs/phases/P05.zh.md",
+    "docs/phases/P05.i18n.yaml",
+]
 blockers = []
 repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }]
 frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac", P4 = "6fa5ecdb43570a61e546f896a45223ccc497f19a" }
@@ -68,7 +85,8 @@ merged_deliverables = [
 ]
 
 [phases.P5]
-status = "planned"
+status = "active"
+entry_conditions = ["P4 is frozen", "Pinned Material sources and verified Foundation adapters are available"]
 
 [phases.P6]
 status = "planned"

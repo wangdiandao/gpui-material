@@ -1,6 +1,6 @@
 use gpui::{
     AppContext, ClickEvent, Context, FocusHandle, IntoElement, KeyBinding, Render, Role, Styled,
-    TitlebarOptions, Window, WindowOptions, div, prelude::*,
+    Subscription, TitlebarOptions, Window, WindowOptions, div, prelude::*,
 };
 use gpui_base::{Button, Radio, RadioGroup, TestSupportExt, Theme};
 use p1_host::open_probe;
@@ -28,6 +28,9 @@ struct Activation {
     counts: Counts,
     radios: [FocusHandle; 2],
     selected_radio: usize,
+    drag_generation: usize,
+    drag_status: &'static str,
+    _activation: Subscription,
 }
 
 struct DragPreview;
@@ -39,14 +42,86 @@ impl Render for DragPreview {
 }
 
 impl Activation {
-    fn new(cx: &mut Context<Self>) -> Self {
+    fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let activation = cx.observe_window_activation(window, |this, window, cx| {
+            if !window.is_window_active() {
+                this.cancel_drag("窗口已失焦", window, cx);
+            }
+        });
         Self {
             focus: std::array::from_fn(|_| cx.focus_handle()),
             disabled: false,
             counts: Counts::default(),
             radios: std::array::from_fn(|_| cx.focus_handle()),
             selected_radio: 0,
+            drag_generation: 0,
+            drag_status: "待拖动",
+            _activation: activation,
         }
+    }
+
+    fn cancel_drag(&mut self, reason: &'static str, window: &mut Window, cx: &mut Context<Self>) {
+        if self.drag_status == "拖动中" {
+            window.release_pointer();
+            cx.stop_active_drag(window);
+            self.drag_status = reason;
+            cx.notify();
+        }
+    }
+
+    fn toggle_disabled(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.disabled = !self.disabled;
+        if self.disabled {
+            self.cancel_drag("禁用已取消拖动", window, cx);
+        }
+        cx.notify();
+    }
+
+    #[cfg(target_os = "windows")]
+    fn observe_native_capture(&self, window: &Window, cx: &Context<Self>) {
+        use std::time::Duration;
+        use windows::Win32::UI::Input::KeyboardAndMouse::{GetCapture, ReleaseCapture};
+
+        // Both the GPUI handler and this task run on the window's UI thread.
+        let capture = unsafe { GetCapture() };
+        if capture.is_invalid() {
+            return;
+        }
+        let generation = self.drag_generation;
+        let exercise_capture_loss = std::env::var_os("P1_ACTIVATION_RELEASE_CAPTURE").is_some();
+        let executor = cx.background_executor().clone();
+        cx.spawn_in(window, async move |view, cx| {
+            let mut held_frames = 0;
+            loop {
+                executor.timer(Duration::from_millis(16)).await;
+                let still_dragging = cx.update(|window, cx| {
+                    view.update(cx, |this, cx| {
+                        if this.drag_generation != generation
+                            || this.drag_status != "拖动中"
+                            || !cx.has_active_drag()
+                        {
+                            return false;
+                        }
+                        if unsafe { GetCapture() } != capture {
+                            this.cancel_drag("系统捕获已丢失", window, cx);
+                            return false;
+                        }
+                        held_frames += 1;
+                        if exercise_capture_loss && held_frames == 12 {
+                            // Exercise the OS transition independently of focus and mouse-up.
+                            unsafe { ReleaseCapture() }
+                                .expect("release the probe's native capture");
+                        }
+                        true
+                    })
+                    .unwrap_or(false)
+                });
+                if !still_dragging.unwrap_or(false) {
+                    break;
+                }
+            }
+        })
+        .detach();
     }
 }
 
@@ -56,10 +131,9 @@ impl Render for Activation {
         let status = format!("指针 {} · 键盘 {}", self.counts.mouse, self.counts.keyboard);
         div()
             .key_context("ActivationProbe")
-            .on_action(|_: &CancelDrag, window, cx| {
-                window.release_pointer();
-                cx.stop_active_drag(window);
-            })
+            .on_action(cx.listener(|this, _: &CancelDrag, window, cx| {
+                this.cancel_drag("Esc 已取消拖动", window, cx);
+            }))
             .size_full()
             .tab_group()
             .flex()
@@ -87,15 +161,14 @@ impl Render for Activation {
                         })),
                     Button::new("toggle-disabled")
                         .track_focus(&self.focus[1])
-                        .accessibility_label("切换计数可用性")
+                        .accessibility_label("切换计数与拖动可用性")
                         .child(if self.disabled {
-                            "启用计数"
+                            "启用计数与拖动"
                         } else {
-                            "禁用计数"
+                            "禁用计数与拖动"
                         })
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.disabled = !this.disabled;
-                            cx.notify();
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.toggle_disabled(window, cx);
                         })),
                     Button::new("end")
                         .track_focus(&self.focus[2])
@@ -159,16 +232,56 @@ impl Render for Activation {
                             }),
                     ),
             )
-            .child(
-                div()
+            .child({
+                let mut source = div()
                     .id("drag-source")
                     .test_support()
+                    .role(Role::Group)
+                    .aria_label("拖动此处")
                     .border_1()
                     .border_color(colors.border)
                     .px_3()
                     .py_2()
-                    .child("拖动此处")
-                    .on_drag((), |_, _, _, cx| cx.new(|_| DragPreview)),
+                    .child("拖动此处");
+                if !self.disabled {
+                    let view = cx.entity().downgrade();
+                    source = source.on_drag((), move |_, _, window, cx| {
+                        let _ = view.update(cx, |this, cx| {
+                            this.drag_generation += 1;
+                            this.drag_status = "拖动中";
+                            #[cfg(target_os = "windows")]
+                            this.observe_native_capture(window, cx);
+                            cx.notify();
+                        });
+                        cx.new(|_| DragPreview)
+                    });
+                }
+                source
+            })
+            .on_mouse_up_out(
+                gpui::MouseButton::Left,
+                cx.listener(|this, _, _, cx| {
+                    if this.drag_status == "拖动中" {
+                        this.drag_status = "拖动已结束";
+                        cx.notify();
+                    }
+                }),
+            )
+            .on_mouse_up(
+                gpui::MouseButton::Left,
+                cx.listener(|this, _, _, cx| {
+                    if this.drag_status == "拖动中" {
+                        this.drag_status = "拖动已结束";
+                        cx.notify();
+                    }
+                }),
+            )
+            .child(
+                div()
+                    .id("drag-status")
+                    .role(Role::Status)
+                    .aria_label(self.drag_status)
+                    .child(self.drag_status),
             )
             .child(
                 div()
@@ -191,7 +304,10 @@ fn main() {
             }),
             ..Default::default()
         };
-        open_probe(cx, options, |_, cx| cx.new(Activation::new)).expect("open activation probe");
+        open_probe(cx, options, |window, cx| {
+            cx.new(|cx| Activation::new(window, cx))
+        })
+        .expect("open activation probe");
     });
 }
 
@@ -231,9 +347,14 @@ mod tests {
     fn pointer_keyboard_repeat_cancellation_and_focus(cx: &mut TestAppContext) {
         let (window, view) = cx.update(|cx| {
             init(cx);
-            let view = cx.new(Activation::new);
-            let window = open_probe(cx, WindowOptions::default(), |_, _| view.clone()).unwrap();
-            (window, view)
+            let mut view = None;
+            let window = open_probe(cx, WindowOptions::default(), |window, cx| {
+                let entity = cx.new(|cx| Activation::new(window, cx));
+                view = Some(entity.clone());
+                entity
+            })
+            .unwrap();
+            (window, view.unwrap())
         });
 
         cx.update_window(window.into(), |_, window, cx| {
@@ -309,12 +430,14 @@ mod tests {
             key(window, cx, "left", 0);
             assert_eq!(view.read(cx).selected_radio, 0);
             assert!(view.read(cx).radios[0].is_focused(window));
+            view.update(cx, |this, cx| this.toggle_disabled(window, cx));
+            frame(window, cx);
 
             let drag = test_support::find(window, &[], &"drag-source".into()).unwrap();
             let start = drag.bounds().center();
             let moved = start + point(px(24.), px(0.));
             let modifiers = window.modifiers();
-            for _ in 0..2 {
+            for cancel_with_disable in [false, true, false] {
                 window.dispatch_event(
                     MouseDownEvent {
                         button: MouseButton::Left,
@@ -338,7 +461,15 @@ mod tests {
                 );
                 frame(window, cx);
                 assert!(cx.has_active_drag());
-                key(window, cx, "escape", 0);
+                if cancel_with_disable {
+                    view.update(cx, |this, cx| this.toggle_disabled(window, cx));
+                    frame(window, cx);
+                    assert!(view.read(cx).disabled);
+                    assert_eq!(view.read(cx).drag_status, "禁用已取消拖动");
+                } else {
+                    key(window, cx, "escape", 0);
+                    assert_eq!(view.read(cx).drag_status, "Esc 已取消拖动");
+                }
                 assert!(!cx.has_active_drag());
                 assert!(window.captured_hitbox().is_none());
                 window.dispatch_event(
@@ -352,6 +483,10 @@ mod tests {
                     cx,
                 );
                 frame(window, cx);
+                if cancel_with_disable {
+                    view.update(cx, |this, cx| this.toggle_disabled(window, cx));
+                    frame(window, cx);
+                }
             }
         })
         .unwrap();

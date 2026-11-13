@@ -18,6 +18,7 @@ evidence = [
     "docs/phases/P00.md",
     "docs/design/sources.md",
     "docs/design/material-snapshot.md",
+    "docs/components/coverage.md",
     "docs/architecture/index.md",
 ]
 

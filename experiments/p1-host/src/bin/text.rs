@@ -1,6 +1,7 @@
 use gpui::{
-    AppContext, Context, Entity, IntoElement, Render, Role, Styled, TitlebarOptions, Window,
-    WindowBounds, WindowOptions, div, prelude::*, px, size,
+    AppContext, Bounds, Context, Entity, IntoElement, Render, Role, SharedString, Styled,
+    TextAlign, TextRun, TitlebarOptions, Window, WindowBounds, WindowOptions, canvas, div, fill,
+    font, point, prelude::*, px, size,
 };
 use gpui_base::{
     Button, Popover, Theme,
@@ -12,6 +13,7 @@ struct TextProbe {
     text: Entity<InputState>,
     password: Entity<InputState>,
     popup_text: Entity<InputState>,
+    trace_metrics: bool,
 }
 
 impl TextProbe {
@@ -40,6 +42,7 @@ impl TextProbe {
             text: cx.new(|cx| input("probe-text", "中文输入", false, window, cx)),
             password: cx.new(|cx| input("probe-password", "密码", true, window, cx)),
             popup_text: cx.new(|cx| input("probe-popup-text", "浮层输入", false, window, cx)),
+            trace_metrics: std::env::var_os("P1_TEXT_METRICS").is_some(),
         }
     }
 }
@@ -91,6 +94,45 @@ impl Render for TextProbe {
                             .child(Input::new(&popup_text))
                     }),
             )
+            .when(self.trace_metrics, |this| {
+                this.child(
+                    canvas(
+                        move |_, window, cx| {
+                            let sample: SharedString = "A中文B".into();
+                            let primary = font("Consolas");
+                            let primary_id = cx.text_system().resolve_font(&primary);
+                            let run = TextRun {
+                                len: sample.len(),
+                                font: primary,
+                                color: colors.foreground,
+                                ..Default::default()
+                            };
+                            let line = window.text_system().shape_line(sample, px(24.), &[run], None);
+                            let cjk = line.font_id_for_index(1).expect("font for CJK");
+                            assert_ne!(cjk, primary_id, "CJK should use the fallback face");
+                            assert_eq!(line.font_id_for_index(0), Some(primary_id));
+                            assert!(line.x_for_index(4) > line.x_for_index(1));
+                            assert_eq!(line.x_for_index(line.len()), line.width());
+                            println!(
+                                "P1-03 scale={} primary={primary_id:?} CJK={cjk:?} advance={:?} CJK-start={:?} CJK-next={:?}",
+                                window.scale_factor(), line.width(), line.x_for_index(1), line.x_for_index(4)
+                            );
+                            line
+                        },
+                        move |bounds, line, window, cx| {
+                            line.paint(bounds.origin, px(32.), TextAlign::Left, None, window, cx)
+                                .expect("paint shaped fallback line");
+                            let end = point(bounds.origin.x + line.width(), bounds.origin.y);
+                            window.paint_quad(fill(
+                                Bounds::new(end, size(px(1.), px(32.))),
+                                colors.ring,
+                            ));
+                        },
+                    )
+                    .w_full()
+                    .h(px(32.)),
+                )
+            })
     }
 }
 

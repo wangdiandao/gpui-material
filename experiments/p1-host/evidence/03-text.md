@@ -21,3 +21,11 @@ cargo +1.99.1 run --locked --manifest-path experiments/p1-host/Cargo.toml --bin 
 - 通过 Base 输入框的选择、复制、删除和粘贴快捷键，`中文🙂` 从探针剪贴板往返。对预填非空值的密码框执行复制时，剪贴板不含密码样本。
 - 通过指针打开 Popover，浮层内的 InputHandler 预编辑并提交「中」。候选锚点的处理器矩形在输入框起点之后，Esc 关闭后焦点回到触发按钮并保留输入。
 - 实机可用「打开浮层输入…」复测原生候选框、确认、取消、滚动或缩放后的定位。无头测试的剪贴板和候选锚点属于 GPUI 测试平台。
+
+## Windows DirectWrite 字体回退与度量
+
+2026-11-13，Windows 11 x64 build 26200，Rust 1.99.1，agent-desktop 1.2.0。以 `P1_TEXT_METRICS=1` 启动同一文本探针。Canvas prepaint 用 Consolas 24 px 排 `A中文B`，同一 `ShapedLine` 用于画字、字符位置量测和行尾标记。
+
+- 拉丁段使用 FontId(1)，中文段使用回退 FontId(0)。两字起点为 13.1953125 px 和 37.195313 px，整行 advance 为 74.390625 px。
+- GPUI 断言末尾索引与 advance 相同。100% 缩放的 [Windows 截图](03-windows-metrics.png) 可见完整中英文和绘制在末尾的标记。
+- 结合输入处理器回归与 [Windows 实机确认](../../../docs/phases/P01-evidence.md#windows-实机验收)，记录 P1-03 通过。

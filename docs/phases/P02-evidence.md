@@ -29,7 +29,7 @@ Windows 11 家庭版 build 26200，x86_64，GPUI Windows DirectX 后端。设备
 | `cargo check` | 47.723 s | 0.585 s |
 | `cargo build` | 62.664 s | 0.611 s |
 
-冷检查和冷构建各处理 418 个编译单元。Cargo 时间线中的 Gallery 二进制检查单元为 0.2 秒，构建单元为 1.9 秒，后者包含代码生成与链接。另在热缓存上通过 `cargo rustc` 为 Gallery 二进制指定计时转发器，单次调用 MSVC `link.exe` 耗时 1.257 秒，Cargo 总耗时 2.22 秒。四份时间线保存在实机的 `target/timings/p2-baseline/`，同一命令可重建报告。
+冷检查和冷构建各处理 418 个编译单元。Cargo 时间线中的 Gallery 二进制检查单元为 0.2 秒，构建单元为 1.9 秒，后者包含代码生成与链接。另在热缓存上通过 `cargo rustc` 为 Gallery 二进制指定计时转发器，单次调用 MSVC `link.exe` 耗时 1.257 秒，Cargo 总耗时 2.22 秒。四份时间线与摘要归档在验收机的 `%LOCALAPPDATA%/gpui-material/evidence/p2/timings/`，同一命令可重建报告。
 
 ## GitHub Actions 与门禁
 

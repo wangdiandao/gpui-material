@@ -10,14 +10,20 @@ struct Status {
     current_phase: String,
     allowed_paths: Vec<String>,
     blockers: Vec<toml::Value>,
+    #[serde(default)]
+    repairs: Vec<toml::Value>,
     frozen_commits: BTreeMap<String, String>,
+    #[serde(default)]
+    evidence_locations: BTreeMap<String, String>,
     phases: BTreeMap<String, Phase>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, PartialEq)]
 struct Phase {
     status: Stage,
     frozen_on: Option<toml::value::Datetime>,
+    #[serde(default)]
+    entry_conditions: Vec<String>,
     #[serde(default)]
     evidence: Vec<String>,
     #[serde(default)]
@@ -34,7 +40,7 @@ enum Stage {
     Frozen,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, PartialEq)]
 struct Deliverable {
     task: String,
     issue: u64,
@@ -119,6 +125,15 @@ impl Status {
         if self.frozen_commits.len() != frozen {
             return Err("frozen_commits must record exactly the frozen phases".into());
         }
+        for path in self.evidence_locations.keys() {
+            if !self
+                .phases
+                .values()
+                .any(|phase| phase.status == Stage::Frozen && phase.evidence.contains(path))
+            {
+                return Err(format!("unknown historical evidence path: {path}").into());
+            }
+        }
         Ok(())
     }
 
@@ -135,8 +150,9 @@ impl Status {
         }
         check_commit(accepted, "HEAD")?;
         for path in &phase.evidence {
-            if !is_repo_path(path) || !Path::new(path).is_file() {
-                return Err(format!("{name} evidence file missing: {path}").into());
+            let location = self.evidence_locations.get(path).unwrap_or(path);
+            if !is_repo_path(path) || !is_repo_path(location) || !Path::new(location).is_file() {
+                return Err(format!("{name} evidence file missing: {location}").into());
             }
             output("git", &["cat-file", "-e", &format!("{accepted}:{path}")])?;
         }
@@ -155,6 +171,12 @@ impl Status {
     fn check_paths<'a>(&self, base: &Self, paths: impl Iterator<Item = &'a str>) -> Result {
         let stage = self.current()?.status;
         let previous_stage = base.current()?.status;
+        if self.current_phase == base.current_phase
+            && stage == Stage::Frozen
+            && previous_stage == Stage::Frozen
+        {
+            return self.check_frozen_maintenance(base, paths);
+        }
         if self.current_phase == base.current_phase && previous_stage != Stage::Frozen {
             if stage == Stage::Frozen {
                 return require_paths(paths, &["status.toml".into()]);
@@ -179,13 +201,45 @@ impl Status {
                 &[
                     "status.toml".into(),
                     "docs/index.md".into(),
-                    "docs/phases/index.md".into(),
+                    "docs/phases.md".into(),
                     format!("docs/phases/P0{index}.md"),
                 ],
             );
         }
         require_paths(paths, &[])
     }
+
+    fn check_frozen_maintenance<'a>(
+        &self,
+        base: &Self,
+        paths: impl Iterator<Item = &'a str>,
+    ) -> Result {
+        if self.schema_version != base.schema_version
+            || self.frozen_commits != base.frozen_commits
+            || self.phases != base.phases
+            || self.repairs != base.repairs
+        {
+            return Err("maintenance must preserve frozen phase records".into());
+        }
+        let moves_evidence = self.evidence_locations != base.evidence_locations;
+        let denied = paths
+            .filter(|path| !is_maintenance_path(path, moves_evidence))
+            .collect::<Vec<_>>();
+        if !denied.is_empty() {
+            return Err(format!(
+                "paths outside frozen maintenance scope: {}",
+                denied.join(", ")
+            )
+            .into());
+        }
+        Ok(())
+    }
+}
+
+fn is_maintenance_path(path: &str, moves_evidence: bool) -> bool {
+    matches!(path, "README.md" | "THIRD_PARTY_NOTICES.md")
+        || (path.starts_with("docs/") && path.ends_with(".md") && is_repo_path(path))
+        || (moves_evidence && matches!(path, "status.toml" | "xtask/src/phase.rs"))
 }
 
 fn check_commit(commit: &str, descendant: &str) -> Result {
@@ -259,5 +313,18 @@ mod tests {
             assert!(!is_repo_path(path), "{path}");
         }
         assert!(is_repo_path("docs/phases/"));
+    }
+
+    #[test]
+    fn frozen_maintenance_is_limited_to_docs_and_evidence_relocations() {
+        assert!(is_maintenance_path("docs/architecture.md", false));
+        assert!(is_maintenance_path("README.md", false));
+        assert!(is_maintenance_path("status.toml", true));
+        assert!(is_maintenance_path("xtask/src/phase.rs", true));
+        assert!(!is_maintenance_path("status.toml", false));
+        assert!(!is_maintenance_path("xtask/src/phase.rs", false));
+        assert!(!is_maintenance_path("docs/../README.md", true));
+        assert!(!is_maintenance_path(".github/workflows/ci.yml", true));
+        assert!(!is_maintenance_path("apps/gallery/src/main.rs", true));
     }
 }

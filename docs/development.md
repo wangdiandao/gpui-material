@@ -32,7 +32,7 @@ cargo fetch --locked --target x86_64-pc-windows-msvc
 cargo xtask timings target/timings/p2-baseline
 ```
 
-每次传入新的报告目录。Cargo 的注册表和源码缓存已预取，冷检查与冷构建各使用自己的空目标目录。随后用同一命令与同一目录测热结果。工具保存四次 wall time、HTML 时间线、Git 提交、目标和工具链。时间线中的 Gallery 最后一个编译单元包含代码生成和链接，可用于定位构建成本。测量使用普通 Gallery feature、开发 profile、无并行 Cargo 作业。比较结果时记录 OS、CPU、运行环境与缓存策略。报告保留两个 Cargo 目标目录供复查，体积随依赖增长。
+每次传入新的报告目录。Cargo 的注册表和源码缓存已预取，冷检查与冷构建各使用自己的空目标目录。随后用同一命令与同一目录测热结果。工具保存四次 wall time、HTML 时间线、Git 提交、目标和工具链。时间线中的 Gallery 最后一个编译单元包含代码生成和链接，可用于定位构建成本。测量使用普通 Gallery feature、开发 profile、无并行 Cargo 作业。比较结果时记录 OS、CPU、运行环境与缓存策略。验收后归档 `summary.md` 和四份 HTML，再清理报告目录里的 `check-target/` 与 `build-target/`。
 
 ## 持续集成与合并
 
@@ -41,3 +41,27 @@ cargo xtask timings target/timings/p2-baseline
 Windows 下载制品使用 `cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings`。此 profile 关闭 debug assertions，GPUI 通过 Windows SDK 的 x64 `fxc.exe` 在构建时嵌入 DirectX 着色器。CI 通过 `GPUI_FXC_PATH` 指定 SDK 中的编译器。常规 `cargo gallery` 在开发机上从 Cargo 缓存读取着色器。
 
 提交 PR 时关联阶段 Issue，按模板记录环境、命令和结果。GitHub 要求通过 PR 更新 `main`、基于最新主线、解决评审对话，并通过 GitHub Actions 的 `Windows MSVC` 检查。评审核对文件归属、阶段范围、验证证据和集成顺序。
+
+## PR 合并后收尾
+
+每个任务结束时由交付人收尾。日常开发在主检出中切换分支即可。并行工作使用按 Issue 编号命名的 worktree，集中放在本机约定的工作区目录，例如 `E:/repos/worktrees/gpui-material/66`。源码 worktree 放在 Cargo 目标目录之外。
+
+1. **归档证据。** 将验收结论与必要截图提交到对应阶段文档。较大的日志、报告和可执行文件使用有明确保留期限的制品，长期需要的原始记录统一存放在 `%LOCALAPPDATA%/gpui-material/evidence/` 的阶段或 Issue 子目录。对照验收记录核对已归档内容，再清理本机生成物。
+2. **同步主线。** 在主检出运行 `git fetch --prune origin`、`git switch main` 和 `git pull --ff-only origin main`。对待清理分支运行 `git merge-base --is-ancestor <branch> origin/main`，退出码 0 表示该分支的提交都在主线历史中。Squash 或 rebase 合并后，先核对 PR 的合并记录、合并时的 head 和本地分支有无新增提交。存在未交付提交、打开的 PR 或仍被下游使用时保留分支。
+3. **移除 worktree。** 用 `git worktree list` 确认路径，用 `git -C <worktree> status --short --untracked-files=all` 和 `git -C <worktree> ls-files --others --ignored --exclude-standard --directory` 检查未提交与忽略文件。归档证据并清理确认可重建的缓存后，从主检出执行 `git worktree remove <worktree>`。遇到脏工作区先查明内容。手动丢失目录后用 `git worktree prune --dry-run` 检查登记，再用 `git worktree prune` 清除失效登记。
+4. **删除已交付分支。** worktree 移除后，在 `main` 上执行 `git branch -d <branch>`。常规短期 PR 分支可在 GitHub 删除远端分支，仓库也可启用合并后自动删除。随后 `git fetch --prune origin` 清掉本地的远端跟踪引用。受保护分支、发布分支与仍有用途的验证分支按各自生命周期处理。
+
+### Cargo 目标目录
+
+日常保留主检出的 `target/`，用于下一次增量构建。临时 worktree 使用独立默认缓存，或将该任务 shell 的 `CARGO_TARGET_DIR` 指向主检出下独立的 `target/worktrees/<issue>`。目录归属随任务记录，清理时先关闭相关程序和 Cargo 进程。共享缓存由主检出统一清理，单个 PR 合并时继续复用。
+
+需要释放空间时，先核对目标目录，预览并清理指定缓存。根 Workspace 的清理只针对自己的目标目录，P1 探针使用独立清单和缓存。以下命令在主检出根目录运行。
+
+```powershell
+cargo clean --dry-run
+cargo clean
+cargo clean --dry-run --manifest-path experiments/p1-host/Cargo.toml --target-dir experiments/p1-host/target
+cargo clean --manifest-path experiments/p1-host/Cargo.toml --target-dir experiments/p1-host/target
+```
+
+前两条命令使用 Cargo 的默认目标目录，运行前核对当前 shell 的 `CARGO_TARGET_DIR` 和本机 Cargo 配置。同样可为 `p1-theme`、`p1-shapes` 或指定的 worktree 缓存使用对应清单和目标路径。显式指定的目录须是 Cargo 创建并标记的缓存目录。全量 `cargo clean` 会一起删除目标目录内的自定义日志、截图和报告，先完成归档。Rust 工具链及全局 Cargo 下载缓存可供后续任务复用。

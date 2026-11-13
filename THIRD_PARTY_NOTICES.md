@@ -11,4 +11,4 @@
 | [Material Color Utilities](https://github.com/material-foundation/material-color-utilities)、[material-color-utils](https://github.com/RuurdBijlsma/material-color-utilities-rs) 与 [polymorpher](https://github.com/Aiving/polymorpher) | Apache-2.0 算法参考或候选依赖。移植时保留原有版权、许可证和适用的 NOTICE。 |
 | [Material Symbols](https://developers.google.com/fonts/docs/material_symbols) | Apache-2.0 图标候选。纳入资产时记录文件、修改和许可副本。 |
 
-引入第三方源码、图标、字体或文档节选时，在其归属阶段记录精确来源、版本、修改与再分发条款。源版本和 Cargo 候选见[设计依据](docs/design/sources.md)及[架构与依赖](docs/architecture/index.md)。
+引入第三方源码、图标、字体或文档节选时，在其归属阶段记录精确来源、版本、修改与再分发条款。源版本和 Cargo 候选见[设计依据](docs/design-sources.md)及[架构与依赖](docs/architecture.md)。

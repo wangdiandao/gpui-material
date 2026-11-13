@@ -52,22 +52,14 @@ impl Progress {
             .value
             .filter(|value| value.is_finite())
             .map(|value| value.clamp(0., 1.));
-        let settled = animate(
-            ElementId::from((self.id.clone(), "value")),
-            value.unwrap_or(0.),
-            policy,
-            window,
-            cx,
-        )
-        .clamp(0., 1.);
         let animated = value.is_none() && !reduced;
         let phase = if animated {
             (now.saturating_duration_since(epoch).as_secs_f32() / 1.6).fract()
         } else {
             0.
         };
-        let segment = match value {
-            Some(_) => (0., settled),
+        let target = match value {
+            Some(value) => (0., value),
             None if circular => (phase, phase + 0.25 + 0.12 * (phase * TAU).sin()),
             None if reduced => (0.25, 0.65),
             None => {
@@ -76,6 +68,27 @@ impl Progress {
                 (start, (start + 0.24 + 0.08 * t.sin()).min(1.))
             }
         };
+        let transition = if animated {
+            gpui_material_theme::MotionSpec::Instant
+        } else {
+            policy
+        };
+        let start = animate(
+            ElementId::from((self.id.clone(), "start")),
+            target.0.rem_euclid(1.),
+            transition,
+            window,
+            cx,
+        );
+        let extent = animate(
+            ElementId::from((self.id.clone(), "value")),
+            target.1 - target.0,
+            transition,
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
+        let segment = (start, start + extent);
         let side = if circular {
             if wavy { 48. } else { 40. }
         } else if wavy {
@@ -101,7 +114,18 @@ impl Progress {
                             });
                         center + point(radius * angle.cos(), radius * angle.sin())
                     };
-                    stroke(0., 1., track, |f| sample(f, false), window);
+                    let gap = (px(4.) / (radius * TAU)).clamp(0., 0.12);
+                    if extent == 0. {
+                        stroke(0., 1., track, |f| sample(f, false), window);
+                    } else {
+                        stroke(
+                            segment.1 + gap,
+                            segment.0 + 1. - gap,
+                            track,
+                            |f| sample(f, false),
+                            window,
+                        );
+                    }
                     stroke(segment.0, segment.1, active, |f| sample(f, wavy), window);
                 } else {
                     let sample = |fraction: f32, wave: bool| {
@@ -118,8 +142,30 @@ impl Progress {
                         };
                         point(bounds.left() + x, bounds.center().y + wave)
                     };
-                    stroke(0., 1., track, |f| sample(f, false), window);
-                    stroke(segment.0, segment.1, active, |f| sample(f, wavy), window);
+                    let gap = (px(4.) / bounds.size.width.max(px(4.))).clamp(0., 0.12);
+                    let start = segment.0.clamp(0., 1.);
+                    let end = segment.1.clamp(0., 1.);
+                    if end <= start {
+                        stroke(0., 1., track, |f| sample(f, false), window);
+                    } else {
+                        stroke(0., start - gap, track, |f| sample(f, false), window);
+                        stroke(end + gap, 1., track, |f| sample(f, false), window);
+                        stroke(start, end, active, |f| sample(f, wavy), window);
+                    }
+                    if end < 1. - gap {
+                        let stop = sample(1., false);
+                        window.paint_quad(gpui::quad(
+                            Bounds::from_corners(
+                                stop - point(px(2.), px(2.)),
+                                stop + point(px(2.), px(2.)),
+                            ),
+                            px(2.),
+                            active,
+                            px(0.),
+                            active,
+                            gpui::BorderStyle::Solid,
+                        ));
+                    }
                 }
                 if animated && window.is_window_active() {
                     window.request_animation_frame();
@@ -329,6 +375,10 @@ impl RenderOnce for LoadingIndicator {
             element = element
                 .role(Role::Status)
                 .aria_label(self.label)
+                .a11y_synthetic_children(|node| {
+                    node.parent_node().set_live(gpui::accesskit::Live::Polite);
+                    node.parent_node().set_live_atomic();
+                })
                 .child(icon);
             if self.contained {
                 element = element.rounded_full().bg(background);

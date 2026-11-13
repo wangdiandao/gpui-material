@@ -32,8 +32,7 @@ impl Text {
         }
     }
 
-    /// Gives this label a stable accessibility node. Omit this for text
-    /// whose parent already supplies the same accessible name.
+    /// Supplies a stable ID for this label within its parent.
     pub fn id(mut self, id: impl Into<ElementId>) -> Self {
         self.id = Some(id.into());
         self
@@ -140,14 +139,9 @@ impl RenderOnce for Text {
                 )
                 .size_full(),
             );
-        match self.id {
-            Some(id) => text
-                .id(id)
-                .role(Role::Label)
-                .aria_label(self.value)
-                .into_any_element(),
-            None => text.into_any_element(),
-        }
+        text.id(self.id.unwrap_or_else(|| "material-text".into()))
+            .role(Role::Label)
+            .aria_label(self.value)
     }
 }
 

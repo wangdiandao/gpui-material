@@ -220,15 +220,19 @@ impl ListItem {
             .flex_1()
             .min_w_0()
             .overflow_hidden()
-            .children(
-                self.overline
-                    .map(|text| Text::new(text).role(TypeRole::LabelSmall).color(secondary)),
-            )
-            .child(Text::new(self.label.clone()).color(foreground))
-            .children(
-                self.supporting
-                    .map(|text| Text::new(text).role(TypeRole::BodyMedium).color(secondary)),
-            );
+            .children(self.overline.map(|text| {
+                Text::new(text)
+                    .id("overline")
+                    .role(TypeRole::LabelSmall)
+                    .color(secondary)
+            }))
+            .child(Text::new(self.label.clone()).id("label").color(foreground))
+            .children(self.supporting.map(|text| {
+                Text::new(text)
+                    .id("supporting")
+                    .role(TypeRole::BodyMedium)
+                    .color(secondary)
+            }));
         let background = tone(background, cx);
         let state_layer = tone(foreground, cx);
         let focus = tone(ColorRole::Secondary, cx);

@@ -16,6 +16,9 @@ frozen_commits = {}
 status = "review"
 evidence = [
     "docs/phases/P00.md",
+    "docs/design/sources.md",
+    "docs/design/material-snapshot.md",
+    "docs/architecture/index.md",
 ]
 
 [phases.P1]

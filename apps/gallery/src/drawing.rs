@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
     ClickEvent, Context, FocusHandle, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    Render, StatefulInteractiveElement, Styled, Window, canvas, div,
+    Render, Role, StatefulInteractiveElement, Styled, Window, canvas, div,
 };
 use gpui_base::Button;
 use gpui_material_foundation::{
@@ -162,10 +162,17 @@ impl Render for Drawing {
                         .size_full(),
                     ),
             )
-            .child(if self.expanded {
-                "Rounded square"
-            } else {
-                "Rounded triangle"
+            .child({
+                let label = if self.expanded {
+                    "Rounded square"
+                } else {
+                    "Rounded triangle"
+                };
+                div()
+                    .id("shape-status")
+                    .role(Role::Status)
+                    .aria_label(label)
+                    .child(label)
             })
     }
 }

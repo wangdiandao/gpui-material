@@ -33,3 +33,9 @@ cargo xtask timings target/timings/p2-baseline
 ```
 
 每次传入新的报告目录。Cargo 的注册表和源码缓存已预取，冷检查与冷构建各使用自己的空目标目录。随后用同一命令与同一目录测热结果。工具保存四次 wall time、HTML 时间线、Git 提交、目标和工具链。时间线中的 Gallery 最后一个编译单元包含代码生成和链接，可用于定位构建成本。测量使用普通 Gallery feature、开发 profile、无并行 Cargo 作业。比较结果时记录 OS、CPU、运行环境与缓存策略。报告保留两个 Cargo 目标目录供复查，体积随依赖增长。
+
+## 持续集成与合并
+
+[Engineering CI](../.github/workflows/ci.yml) 在面向 `main` 的 PR、`main` 更新和手动触发时运行。托管的 `Windows MSVC` 作业执行格式、阶段、文档、依赖、Clippy、测试和普通 Gallery 构建。GitHub Actions 的 `gallery-windows-x64-msvc` 制品包含可执行文件、Cargo 时间线及许可记录，供 Windows 实机复验。正式发布由对应交付阶段启动。
+
+提交 PR 时关联阶段 Issue，按模板记录环境、命令和结果。GitHub 要求 PR 基于最新 `main`，且 GitHub Actions 的 `Windows MSVC` 检查成功。评审核对文件归属、阶段范围、验证证据和集成顺序。

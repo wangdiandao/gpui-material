@@ -250,10 +250,12 @@ mod tests {
             window.draw(cx).clear(cx);
             let theme = material_theme(cx);
             let style = TypeRole::BodyLarge.style(TypographyEmphasis::Baseline);
+            let mut typography = theme.typography.clone();
+            typography.plain.primary = "An unavailable Material test font".into();
             let line = shape_text(
                 "A中文B",
                 style,
-                &theme.typography,
+                &typography,
                 1.25,
                 color(theme.colors.color(ColorRole::OnSurface)),
                 window,
@@ -262,6 +264,7 @@ mod tests {
             .unwrap();
             assert_eq!(line.line_height(), px(style.line_height * 1.25));
             assert_eq!(line.line().len(), "A中文B".len());
+            assert!(line.line().font_id_for_index(1).is_some());
             assert!(line.line().x_for_index(4) > line.line().x_for_index(1));
             assert_eq!(
                 line.line().x_for_index(line.line().len()),

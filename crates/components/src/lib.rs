@@ -15,3 +15,6 @@ pub use selection::{Checkbox, CheckboxState, Radio, RadioGroup, Switch};
 
 mod chip;
 pub use chip::{Chip, ChipVariant};
+
+mod slider;
+pub use slider::{Slider, SliderEvent, SliderKind, SliderScale, SliderState, SliderValue};

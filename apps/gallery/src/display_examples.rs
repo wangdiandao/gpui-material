@@ -1,9 +1,9 @@
 use gpui::{Context, IntoElement, ParentElement, Render, Styled, Window, div, px};
-use gpui_material_components::{
+use gpui_material::theme::TypeRole;
+use gpui_material::{
     Badge, Button, ButtonVariant, Card, CardVariant, CircularProgress, Divider, Icon,
     LinearProgress, List, ListItem, ListVariant, LoadingIndicator, ProgressShape, Text,
 };
-use gpui_material_theme::TypeRole;
 
 pub(crate) struct DisplayExamples {
     progress: f32,
@@ -178,7 +178,7 @@ mod tests {
         AppContext, InputEvent, MouseButton, MouseDownEvent, MouseUpEvent, TestAppContext, size,
     };
     use gpui_base::test_support::find;
-    use gpui_material_foundation::MaterialRoot;
+    use gpui_material::foundation::MaterialRoot;
 
     #[gpui::test]
     fn nested_card_action_does_not_activate_its_parent(cx: &mut TestAppContext) {

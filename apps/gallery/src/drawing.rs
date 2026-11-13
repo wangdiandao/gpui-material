@@ -5,11 +5,11 @@ use gpui::{
     Render, Role, StatefulInteractiveElement, Styled, Window, canvas, div,
 };
 use gpui_base::Button;
-use gpui_material_foundation::{
+use gpui_material::foundation::{
     InteractionFeedback, InteractionState, PolygonMorph, Ripple, Shape, animate, color,
     material_theme,
 };
-use gpui_material_theme::{ColorRole, MotionKind, MotionSpeed, PolygonRole};
+use gpui_material::theme::{ColorRole, MotionKind, MotionSpeed, PolygonRole};
 
 pub(crate) struct Drawing {
     morph: Rc<PolygonMorph>,
@@ -222,9 +222,9 @@ mod tests {
     #[gpui::test]
     fn shape_activates_inside_the_mesh_and_motion_settles(cx: &mut TestAppContext) {
         let (window, drawing) = cx.update(|cx| {
-            gpui_material_foundation::MaterialRoot::init(Default::default(), cx);
+            gpui_material::foundation::MaterialRoot::init(Default::default(), cx);
             let drawing = gpui::AppContext::new(cx, Drawing::new);
-            let window = gpui_material_foundation::MaterialRoot::open_window(
+            let window = gpui_material::foundation::MaterialRoot::open_window(
                 gpui::WindowOptions {
                     window_bounds: Some(gpui::WindowBounds::centered(size(px(400.), px(150.)), cx)),
                     ..Default::default()

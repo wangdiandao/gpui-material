@@ -1,9 +1,9 @@
 use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
-    AnyElement, App, BorderStyle, Bounds, ClickEvent, Corners, ElementId, FocusHandle, Hsla,
-    IntoElement, MouseButton, ParentElement, Pixels, Point, Styled, Window, canvas, div,
-    prelude::FluentBuilder, px, quad,
+    AccessibleAction, AnyElement, App, BorderStyle, Bounds, ClickEvent, Corners, ElementId,
+    FocusHandle, Hsla, IntoElement, MouseButton, ParentElement, Pixels, Point,
+    StatefulInteractiveElement, Styled, Window, canvas, div, prelude::FluentBuilder, px, quad,
 };
 use gpui_base::{Button, Toggle, box_shadow};
 use gpui_material_foundation::{
@@ -208,15 +208,20 @@ impl ActionControl {
                     .disabled(disabled)
                     .accessibility_label(label);
                 let control = match on_activate {
-                    Some(on_activate) => {
+                    Some(on_activate) if enabled => {
                         let feedback = feedback.clone();
-                        control.on_click(move |event, window, cx| {
-                            activate_feedback(event, &feedback, window, cx);
-                            cx.stop_propagation();
-                            on_activate(window, cx);
-                        })
+                        let invoke = on_activate.clone();
+                        control
+                            .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
+                                invoke(window, cx)
+                            })
+                            .on_click(move |event, window, cx| {
+                                activate_feedback(event, &feedback, window, cx);
+                                cx.stop_propagation();
+                                on_activate(window, cx);
+                            })
                     }
-                    None => control,
+                    _ => control,
                 };
                 decorate(
                     control,
@@ -238,15 +243,20 @@ impl ActionControl {
                     .disabled(disabled)
                     .accessibility_label(label);
                 let control = match on_change {
-                    Some(on_change) => {
+                    Some(on_change) if enabled => {
                         let feedback = feedback.clone();
-                        control.on_change(move |selected, event, window, cx| {
-                            activate_feedback(event, &feedback, window, cx);
-                            cx.stop_propagation();
-                            on_change(selected, window, cx);
-                        })
+                        let toggle = on_change.clone();
+                        control
+                            .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
+                                toggle(!selected, window, cx)
+                            })
+                            .on_change(move |selected, event, window, cx| {
+                                activate_feedback(event, &feedback, window, cx);
+                                cx.stop_propagation();
+                                on_change(selected, window, cx);
+                            })
                     }
-                    None => control,
+                    _ => control,
                 };
                 decorate(
                     control,

@@ -1,9 +1,9 @@
 use std::rc::Rc;
 
 use gpui::{
-    AnyElement, App, Axis, Div, ElementId, FocusHandle, Hsla, InteractiveElement, IntoElement,
-    ParentElement, PathBuilder, RenderOnce, SharedString, StatefulInteractiveElement, Styled,
-    Window, canvas, div, point, prelude::FluentBuilder, px,
+    AccessibleAction, AnyElement, App, Axis, Div, ElementId, FocusHandle, Hsla, InteractiveElement,
+    IntoElement, ParentElement, PathBuilder, RenderOnce, SharedString, StatefulInteractiveElement,
+    Styled, Window, canvas, div, point, prelude::FluentBuilder, px,
 };
 use gpui_base::{
     Checkbox as BaseCheckbox, Radio as BaseRadio, RadioGroup as BaseRadioGroup,
@@ -197,10 +197,20 @@ impl RenderOnce for Checkbox {
                     .child(label),
             );
         match self.on_change {
-            Some(handler) => {
-                control.on_change(move |value, _, window, cx| handler(value, window, cx))
+            Some(handler) if !self.disabled => {
+                let change = handler.clone();
+                let next = if self.state == CheckboxState::Checked {
+                    CheckboxState::Unchecked
+                } else {
+                    CheckboxState::Checked
+                };
+                control
+                    .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
+                        change(next, window, cx)
+                    })
+                    .on_change(move |value, _, window, cx| handler(value, window, cx))
             }
-            None => control,
+            _ => control,
         }
     }
 }
@@ -281,8 +291,17 @@ impl Radio {
                 radio.set_position(position, size)
             });
         match self.on_select {
-            Some(handler) => radio.on_change(move |_, _, window, cx| handler(window, cx)),
-            None => radio,
+            Some(handler) if !self.disabled => {
+                let select = handler.clone();
+                radio
+                    .when(!self.selected, |radio| {
+                        radio.on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
+                            select(window, cx)
+                        })
+                    })
+                    .on_change(move |_, _, window, cx| handler(window, cx))
+            }
+            _ => radio,
         }
     }
 }
@@ -565,10 +584,15 @@ impl RenderOnce for Switch {
                     .child(self.label),
             );
         match self.on_change {
-            Some(handler) => {
-                control.on_change(move |checked, _, window, cx| handler(checked, window, cx))
+            Some(handler) if !self.disabled => {
+                let change = handler.clone();
+                control
+                    .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
+                        change(!self.checked, window, cx)
+                    })
+                    .on_change(move |checked, _, window, cx| handler(checked, window, cx))
             }
-            None => control,
+            _ => control,
         }
     }
 }

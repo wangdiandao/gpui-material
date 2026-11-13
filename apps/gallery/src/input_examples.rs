@@ -8,11 +8,11 @@ use gpui_base::{
     input::{Input, InputAccessibility, InputState},
     slider::{SliderIndicator, SliderState, SliderThumb, SliderTrack},
 };
-use gpui_material_foundation::{
+use gpui_material::foundation::{
     DragCapture, RangeThumb, Surface, isolated_scroll, logical_anchor, material_theme,
     move_roving_focus, range_semantics, scrim_color, value_label,
 };
-use gpui_material_theme::{ColorRole, Direction, Elevation};
+use gpui_material::theme::{ColorRole, Direction, Elevation};
 
 gpui::actions!(foundation_gallery, [CancelDrag]);
 
@@ -497,7 +497,7 @@ mod tests {
         point, size,
     };
     use gpui_base::test_support::find;
-    use gpui_material_foundation::MaterialRoot;
+    use gpui_material::foundation::MaterialRoot;
 
     #[gpui::test]
     fn focus_range_drag_and_dialog_use_the_production_adapters(cx: &mut TestAppContext) {

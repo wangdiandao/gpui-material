@@ -1,9 +1,7 @@
 use gpui::{
     Axis, Context, ElementId, FocusHandle, IntoElement, ParentElement, Render, Styled, Window, div,
 };
-use gpui_material_components::{
-    Checkbox, CheckboxState, Chip, ChipVariant, Radio, RadioGroup, Switch,
-};
+use gpui_material::{Checkbox, CheckboxState, Chip, ChipVariant, Radio, RadioGroup, Switch};
 
 pub(crate) struct SelectionExamples {
     colors: [CheckboxState; 2],
@@ -117,8 +115,8 @@ impl Render for SelectionExamples {
                     .gap_2()
                     .child({
                         let owner = cx.entity();
-                        gpui_material_components::Button::new("restore-chip", "Restore tag")
-                            .variant(gpui_material_components::ButtonVariant::Text)
+                        gpui_material::Button::new("restore-chip", "Restore tag")
+                            .variant(gpui_material::ButtonVariant::Text)
                             .track_focus(&self.restore)
                             .on_activate(move |_, cx| {
                                 owner.update(cx, |this, cx| {
@@ -179,7 +177,7 @@ mod tests {
         AppContext, InputEvent, MouseButton, MouseDownEvent, MouseUpEvent, TestAppContext, px, size,
     };
     use gpui_base::test_support::find;
-    use gpui_material_foundation::MaterialRoot;
+    use gpui_material::foundation::MaterialRoot;
 
     #[gpui::test]
     fn controlled_selection_and_chip_removal(cx: &mut TestAppContext) {

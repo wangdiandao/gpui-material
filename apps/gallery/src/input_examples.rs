@@ -169,6 +169,7 @@ impl Render for InputExamples {
                 .child(
                     SliderThumb::new(&self.range)
                         .absolute()
+                        .top_0()
                         .left(relative(position))
                         .ml(px(-8.))
                         .size_4()
@@ -542,6 +543,9 @@ mod tests {
                 find(window, &[], &"level-label".into()).unwrap().label(),
                 Some("Level 4")
             );
+            let track = find(window, &[], &"slider-bar-container".into()).unwrap();
+            let thumb = find(window, &[], &("slider-thumb", 0_u32).into()).unwrap();
+            assert_eq!(track.bounds().center().y, thumb.bounds().center().y);
             let source = find(window, &[], &"drag-source".into())
                 .unwrap()
                 .bounds()

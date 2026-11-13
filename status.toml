@@ -1,6 +1,6 @@
 schema_version = 1
-current_phase = "P0"
-allowed_paths = []
+current_phase = "P1"
+allowed_paths = ["experiments/**", "docs/phases/P01-evidence.md", "docs/architecture/index.md", "status.toml"]
 blockers = []
 repairs = []
 frozen_commits = { P0 = "3447ff140a873afe9583659b52275f4e7b5abd82" }
@@ -25,7 +25,7 @@ merged_deliverables = [
 ]
 
 [phases.P1]
-status = "planned"
+status = "active"
 entry_conditions = ["P0 is frozen", "Pinned P0 sources and probe plan are available"]
 
 [phases.P2]

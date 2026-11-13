@@ -1,0 +1,8 @@
+[package]
+name = "p1-shapes"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+polymorpher = { version = "=0.1.4", default-features = false }

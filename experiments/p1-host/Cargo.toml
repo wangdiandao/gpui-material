@@ -17,5 +17,7 @@ gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features =
     "runtime_shaders",
 ] }
 
+polymorpher = { version = "=0.1.4", default-features = false }
+
 [profile.dev]
 debug = 0

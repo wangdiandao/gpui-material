@@ -1,23 +1,9 @@
 schema_version = 1
 current_phase = "P3"
-allowed_paths = [
-    "status.toml",
-    "Cargo.toml",
-    "Cargo.lock",
-    "crates/theme/",
-    "tokens/",
-    "xtask/",
-    "docs/index.md",
-    "docs/architecture.md",
-    "docs/development.md",
-    "docs/theme/",
-    "docs/phases/P03.md",
-    "docs/phases/P03-evidence.md",
-    "THIRD_PARTY_NOTICES.md",
-]
+allowed_paths = []
 blockers = []
 repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", evidence = "docs/phases/P00.md", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }]
-frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f" }
+frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac" }
 
 [evidence_locations]
 "docs/architecture/index.md" = "docs/architecture.md"
@@ -85,8 +71,22 @@ merged_deliverables = [
 ]
 
 [phases.P3]
-status = "active"
+status = "frozen"
+frozen_on = 2026-11-13
 entry_conditions = ["P2 is frozen", "Pinned Material sources and pure algorithm probes are available"]
+evidence = [
+    "docs/phases/P03.md",
+    "docs/phases/P03-evidence.md",
+    "docs/theme/theme.md",
+    "docs/theme/token-index.md",
+    "tokens/material.json",
+    "crates/theme/tests/mcu-spec-2021.json",
+]
+merged_deliverables = [
+    { task = "P3-01", issue = 74, pull_request = 76, commit = "b0291c31cff428f1bc6deb44bd00974a56bc5eb1" },
+    { task = "P3-02", issue = 75, pull_request = 78, commit = "17204dda9b85e02e85c8f1ccfc2c4ab26fddeb08" },
+    { task = "P3-03", issue = 77, pull_request = 79, commit = "0cd78a309c45335664cdb3b26f5592a096e8b0ac" },
+]
 
 [phases.P4]
 status = "planned"

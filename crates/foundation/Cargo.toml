@@ -10,3 +10,4 @@ publish.workspace = true
 gpui.workspace = true
 gpui-base.workspace = true
 gpui-material-theme = { path = "../theme" }
+polymorpher = { version = "=0.1.4", default-features = false }

@@ -1,3 +1,5 @@
+mod drawing;
+
 use gpui::{
     App, AppContext, Context, InteractiveElement, IntoElement, ParentElement, QuitMode, Render,
     Role, StatefulInteractiveElement, Styled, TextAlign, TitlebarOptions, Window, WindowBounds,
@@ -45,15 +47,21 @@ fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Roo
             ),
             ..Default::default()
         }),
-        window_bounds: Some(WindowBounds::centered(size(px(580.), px(360.)), cx)),
+        window_bounds: Some(WindowBounds::centered(size(px(580.), px(440.)), cx)),
         window_min_size: Some(size(px(320.), px(240.))),
         ..Default::default()
     };
-    MaterialRoot::open_window(options, cx, |_, cx| cx.new(|_| Gallery { local_dark }))
+    MaterialRoot::open_window(options, cx, |_, cx| {
+        cx.new(|cx| Gallery {
+            local_dark,
+            drawing: cx.new(drawing::Drawing::new),
+        })
+    })
 }
 
 struct Gallery {
     local_dark: bool,
+    drawing: gpui::Entity<drawing::Drawing>,
 }
 
 impl Render for Gallery {
@@ -133,6 +141,7 @@ impl Render for Gallery {
                             .child(status),
                     ),
             )
+            .child(self.drawing.clone())
             .child(
                 Button::new("toggle-theme")
                     .px_4()

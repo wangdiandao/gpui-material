@@ -18,3 +18,10 @@ pub use chip::{Chip, ChipVariant};
 
 mod slider;
 pub use slider::{Slider, SliderEvent, SliderKind, SliderScale, SliderState, SliderValue};
+
+mod display;
+mod progress;
+mod text;
+pub use display::{Badge, Card, CardVariant, Divider, List, ListItem, ListVariant};
+pub use progress::{CircularProgress, LinearProgress, LoadingIndicator, ProgressShape};
+pub use text::{Icon, Text};

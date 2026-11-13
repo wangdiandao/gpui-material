@@ -1,4 +1,5 @@
 mod action_examples;
+mod display_examples;
 mod drawing;
 mod input_examples;
 mod selection_examples;
@@ -67,6 +68,7 @@ fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Roo
     MaterialRoot::open_window(options, cx, |window, cx| {
         cx.new(|cx| Gallery {
             local_dark,
+            display: cx.new(|_| display_examples::DisplayExamples::default()),
             sliders: cx.new(slider_examples::SliderExamples::new),
             selection: cx.new(selection_examples::SelectionExamples::new),
             actions: cx.new(|_| action_examples::ActionExamples::default()),
@@ -78,6 +80,7 @@ fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Roo
 
 struct Gallery {
     local_dark: bool,
+    display: gpui::Entity<display_examples::DisplayExamples>,
     sliders: gpui::Entity<slider_examples::SliderExamples>,
     selection: gpui::Entity<selection_examples::SelectionExamples>,
     actions: gpui::Entity<action_examples::ActionExamples>,
@@ -178,6 +181,7 @@ impl Render for Gallery {
                     .child(self.drawing.clone())
                     .child(self.input.clone())
                     .child(self.actions.clone())
+                    .child(self.display.clone())
                     .child(self.sliders.clone())
                     .child(self.selection.clone())
                     .child(

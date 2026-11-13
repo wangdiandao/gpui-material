@@ -212,6 +212,7 @@ impl ActionControl {
                         let feedback = feedback.clone();
                         control.on_click(move |event, window, cx| {
                             activate_feedback(event, &feedback, window, cx);
+                            cx.stop_propagation();
                             on_activate(window, cx);
                         })
                     }
@@ -241,6 +242,7 @@ impl ActionControl {
                         let feedback = feedback.clone();
                         control.on_change(move |selected, event, window, cx| {
                             activate_feedback(event, &feedback, window, cx);
+                            cx.stop_propagation();
                             on_change(selected, window, cx);
                         })
                     }

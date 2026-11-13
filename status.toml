@@ -1,26 +1,9 @@
 schema_version = 1
 current_phase = "P2"
-allowed_paths = [
-    "status.toml",
-    "README.md",
-    ".gitignore",
-    "Cargo.toml",
-    "Cargo.lock",
-    "rust-toolchain.toml",
-    ".cargo/",
-    ".github/",
-    "apps/gallery/",
-    "xtask/",
-    "docs/index.md",
-    "docs/development.md",
-    "docs/phases/index.md",
-    "docs/phases/P02.md",
-    "docs/phases/P02-evidence.md",
-    "docs/phases/p02/",
-]
+allowed_paths = []
 blockers = []
 repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", evidence = "docs/phases/P00.md", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }]
-frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295" }
+frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f" }
 
 [phases.P0]
 status = "frozen"
@@ -63,8 +46,23 @@ merged_deliverables = [
 ]
 
 [phases.P2]
-status = "active"
+status = "frozen"
+frozen_on = 2026-11-13
 entry_conditions = ["P1 is frozen", "Windows probes and pinned Base/GPUI identities are recorded"]
+evidence = [
+    "docs/phases/P02.md",
+    "docs/phases/P02-evidence.md",
+    "docs/development.md",
+    ".github/workflows/ci.yml",
+]
+merged_deliverables = [
+    { task = "P2-01", issue = 53, pull_request = 58, commit = "7a337c70d03974bee804cfe228dde2b8db3bb231" },
+    { task = "P2-02", issue = 54, pull_request = 59, commit = "802fb8b5afacffaf562972a6d827d92079c131ed" },
+    { task = "P2-03", issue = 55, pull_request = 60, commit = "2d4b1dcff4aa11885f3d356771d748b7394a830a" },
+    { task = "P2-04", issue = 56, pull_request = 61, commit = "a1eb24abd979cc2d82bd18d7e7af78c50d54cd16" },
+    { task = "P2-04", issue = 56, pull_request = 63, commit = "63bec6f893621d105efaed89cd51a22878404d3b" },
+    { task = "P2-05", issue = 57, pull_request = 64, commit = "74c526928fc31331b937441577887252aaf19d2f" },
+]
 
 [phases.P3]
 status = "planned"

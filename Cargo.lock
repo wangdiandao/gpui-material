@@ -2187,10 +2187,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpui-material-foundation"
+version = "0.0.0"
+dependencies = [
+ "gpui-base",
+ "gpui-material-theme",
+ "gpui-pre",
+]
+
+[[package]]
 name = "gpui-material-gallery"
 version = "0.0.0"
 dependencies = [
  "gpui-base",
+ "gpui-material-foundation",
+ "gpui-material-theme",
  "gpui-pre",
  "gpui-pre-platform",
 ]

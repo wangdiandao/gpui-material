@@ -21,5 +21,7 @@ cargo +1.99.1 tree --locked --manifest-path experiments/p1-theme/Cargo.toml --ed
 
 [固定官方越界样本][vector]和[夹取语义][clamp]确认了候选库差异。最小复现为 `Contrast::ratio_of_tones(-10., 110.)`。如将来升级到提供相同夹取语义的上游发布版，先复跑参考向量再去掉适配。当前结果只覆盖候选可行性。
 
+表中的 chrono 日期边界来自 [P1 接受提交](https://github.com/wangdiandao/gpui-material/tree/b0250f5f120ab2fbadfe41b5529612e984358295)。当前探针保留颜色参考向量，Base Calendar 的禁用闰日行为由宿主的 `theme` 探针验证。
+
 [vector]: https://github.com/material-foundation/material-color-utilities/blob/194144d75ed7d34f06264a625e086db81a7ab9aa/dart/test/contrast_test.dart#L15-L18
 [clamp]: https://github.com/material-foundation/material-color-utilities/blob/194144d75ed7d34f06264a625e086db81a7ab9aa/typescript/contrast/contrast.ts#L36-L47

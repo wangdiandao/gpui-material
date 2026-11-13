@@ -25,7 +25,6 @@ impl Render for WindowProbe {
             .child(label)
     }
 }
-
 fn options(cx: &App) -> WindowOptions {
     WindowOptions {
         titlebar: Some(TitlebarOptions {
@@ -53,27 +52,4 @@ fn main() {
             })
             .expect("inspect native window");
     });
-}
-
-#[cfg(all(test, feature = "test-support"))]
-#[gpui::test]
-fn renders_base_root_in_test_window(cx: &mut gpui::TestAppContext) {
-    use gpui_base::test_support;
-
-    let handle = cx.update(|cx| {
-        gpui_base::init(cx);
-        open_probe(cx, options(cx), |_, cx| cx.new(|_| WindowProbe)).expect("open test Base Root")
-    });
-
-    cx.update_window(handle.into(), |_, window, cx| {
-        window.refresh();
-        window.draw(cx).clear(cx);
-        let status = test_support::find(window, &[], &"window-probe".into())
-            .expect("painted Base Root must contain the status");
-        assert_eq!(status.role(), Some(Role::Status));
-        assert!(status.label().unwrap().contains(std::env::consts::OS));
-        assert!(status.visible());
-        assert!(status.bounds().size.width > px(0.));
-    })
-    .unwrap();
 }

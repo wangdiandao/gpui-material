@@ -1,6 +1,6 @@
 # P1-01 构建与包身份
 
-2026-11-13，Windows 11 x64 build 26200，MSVC，Rust/Cargo 1.99.1，winapp 0.7.1。窗口使用 GPUI Windows 后端，缩放 100%。下列命令从仓库根目录执行。
+2026-11-13，Windows 11 x64 build 26200，MSVC，Rust/Cargo 1.99.1，winapp 0.7.1。窗口使用 GPUI Windows 后端，缩放 100%。下列命令在 [P1 接受提交](https://github.com/wangdiandao/gpui-material/tree/b0250f5f120ab2fbadfe41b5529612e984358295)的仓库根目录执行。
 
 ```sh
 python experiments/p1-host/check_graph.py +1.99.1
@@ -17,6 +17,8 @@ cargo +1.99.1 run --locked --manifest-path experiments/p1-host/Cargo.toml --bin 
 | Linux 原生窗口与测试窗口 | 待在 Ubuntu 24.04 GNOME 的 Wayland 和 X11 会话验证。 | pending |
 
 `check_graph.py` 对每个目标和两种 feature 模式读取 `cargo metadata --filter-platform`，再检查普通与构建依赖树。带 test-support 的 metadata 会列出弱 feature 引用的可选 gpui-fast 包，`cargo tree --edges normal,build` 和 Windows 编译均未启用该包。
+
+当前 Workspace 的依赖回归使用 `cargo xtask graph`。Base Root 渲染回归由 Gallery 的 UI 集成测试覆盖，P1 窗口入口仍供原生平台探查。当前命令见[开发与验证](../../../docs/development.md)。
 
 第一次用隐藏窗口样式启动时进程成功打开 GPUI 窗口，UIA 枚举不到可见 HWND。以 `cargo run` 从普通终端启动后捕获截图和系统树。截图使用 `winapp ui screenshot -a <探针 PID>`。
 

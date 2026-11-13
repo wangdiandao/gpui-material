@@ -1,4 +1,3 @@
-use chrono::{Datelike, Days, Months, NaiveDate, Weekday};
 use material_color_utils::{
     contrast::contrast_utils::Contrast, dynamic::color_spec::SpecVersion,
     palettes::tonal_palette::TonalPalette, scheme::SchemeTonalSpot, utils::color_utils::Argb,
@@ -47,23 +46,6 @@ fn tonal_spot_preserves_fixed_roles_and_responds_to_contrast() {
         assert!(values.windows(2).all(|pair| pair[0] < pair[1]));
         assert!(values[1] >= 4.5);
     }
-}
-
-#[test]
-fn dates_handle_leap_days_year_boundaries_and_range_limits() {
-    let jan31 = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
-    let feb29 = NaiveDate::from_ymd_opt(2024, 2, 29).unwrap();
-    let dec31 = NaiveDate::from_ymd_opt(2024, 12, 31).unwrap();
-
-    assert_eq!(jan31.checked_add_months(Months::new(1)), Some(feb29));
-    assert!(NaiveDate::from_ymd_opt(2023, 2, 29).is_none());
-    assert_eq!(feb29.weekday(), Weekday::Thu);
-    assert_eq!(
-        dec31.checked_add_days(Days::new(1)),
-        NaiveDate::from_ymd_opt(2025, 1, 1)
-    );
-    assert_eq!(NaiveDate::MIN.pred_opt(), None);
-    assert_eq!(NaiveDate::MAX.succ_opt(), None);
 }
 
 fn ratio_of_tones(first: f64, second: f64) -> f64 {

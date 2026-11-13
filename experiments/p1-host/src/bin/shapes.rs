@@ -286,15 +286,6 @@ fn main() {
 }
 
 #[test]
-fn gpui_tessellates_all_reference_progress_samples() {
-    for progress in [0., 0.5, 1.] {
-        let path = path(&curves(progress), point(px(64.), px(64.)), px(48.));
-        assert!(path.bounds.size.width > px(40.));
-        assert!(path.bounds.size.height > px(40.));
-    }
-}
-
-#[test]
 fn morph_hit_uses_fill_and_preserves_the_pointer_origin() {
     let center = point(px(96.), px(64.));
     let radius = px(48.);

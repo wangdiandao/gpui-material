@@ -1,8 +1,8 @@
 schema_version = 1
 current_phase = "P5"
-allowed_paths = []
-blockers = []
-repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }]
+allowed_paths = ["apps/gallery/src/input_examples.rs"]
+blockers = [118]
+repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }, { phase = "P4", issue = 118, status = "open", scope = "Foundation Gallery slider alignment" }]
 frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac", P4 = "6fa5ecdb43570a61e546f896a45223ccc497f19a", P5 = "00eccf43c304e3587047b8a98bf120cb64e50304" }
 
 [phases.P0]
@@ -68,7 +68,7 @@ merged_deliverables = [
 ]
 
 [phases.P5]
-status = "frozen"
+status = "blocked"
 frozen_on = 2026-11-13
 entry_conditions = ["P4 is frozen", "Pinned Material sources and verified Foundation adapters are available"]
 merged_deliverables = [

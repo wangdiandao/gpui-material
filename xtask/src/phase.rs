@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::{Result, output};
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 struct Status {
     schema_version: u8,
     current_phase: String,
@@ -16,7 +16,7 @@ struct Status {
     phases: BTreeMap<String, Phase>,
 }
 
-#[derive(Deserialize, PartialEq)]
+#[derive(Clone, Deserialize, PartialEq)]
 struct Phase {
     status: Stage,
     frozen_on: Option<toml::value::Datetime>,
@@ -36,7 +36,7 @@ enum Stage {
     Frozen,
 }
 
-#[derive(Deserialize, PartialEq)]
+#[derive(Clone, Deserialize, PartialEq)]
 struct Deliverable {
     task: String,
     issue: u64,
@@ -86,6 +86,14 @@ impl Status {
             return Err("status.toml must use schema 1 and record P0 through P9".into());
         }
         let current = self.current()?;
+        let open_repairs = self
+            .repairs
+            .iter()
+            .filter(|repair| repair.get("status").and_then(toml::Value::as_str) == Some("open"))
+            .count();
+        if open_repairs > 1 || (open_repairs == 1 && current.status != Stage::Blocked) {
+            return Err("only one repair may be open while the current phase is blocked".into());
+        }
         if current.status == Stage::Planned {
             return Err("the current phase must have started".into());
         }
@@ -113,7 +121,9 @@ impl Status {
             if !valid {
                 return Err(format!("{name} is out of stage order").into());
             }
-            if phase.status == Stage::Frozen {
+            if phase.status == Stage::Frozen
+                || (phase.status == Stage::Blocked && self.open_repair().is_some())
+            {
                 frozen += 1;
                 self.check_frozen(&name, phase)?;
             }
@@ -148,6 +158,9 @@ impl Status {
     fn check_paths<'a>(&self, base: &Self, paths: impl Iterator<Item = &'a str>) -> Result {
         let stage = self.current()?.status;
         let previous_stage = base.current()?.status;
+        if self.open_repair().is_some() || base.open_repair().is_some() {
+            return self.check_repair_paths(base, paths);
+        }
         if self.current_phase == base.current_phase
             && stage == Stage::Frozen
             && previous_stage == Stage::Frozen
@@ -191,6 +204,98 @@ impl Status {
             );
         }
         require_paths(paths, &[])
+    }
+
+    fn open_repair(&self) -> Option<&toml::Table> {
+        self.repairs
+            .iter()
+            .find(|repair| repair.get("status").and_then(toml::Value::as_str) == Some("open"))
+    }
+
+    fn check_repair_paths<'a>(&self, base: &Self, paths: impl Iterator<Item = &'a str>) -> Result {
+        let mut phases = base.phases.clone();
+        phases.get_mut(&base.current_phase).unwrap().status = self.current()?.status;
+        let mut commits = base.frozen_commits.clone();
+        let mut repairs = base.repairs.clone();
+        if self.current_phase != base.current_phase || self.phases != phases {
+            return Err("a repair must preserve phase history".into());
+        }
+        if base.open_repair().is_none() && base.current()?.status != Stage::Frozen {
+            return Err("a frozen-phase repair requires an existing freeze".into());
+        }
+        if self.repairs == repairs {
+            if self.allowed_paths != base.allowed_paths
+                || self.blockers != base.blockers
+                || self.frozen_commits != commits
+            {
+                return Err("repair changes must preserve their registered scope".into());
+            }
+            return require_paths(paths, &base.allowed_paths);
+        }
+
+        if let Some(repair) = base.open_repair() {
+            let phase = repair
+                .get("phase")
+                .and_then(toml::Value::as_str)
+                .ok_or("repair phase must be a string")?;
+            let accepted = self
+                .frozen_commits
+                .get(phase)
+                .ok_or("missing repair acceptance commit")?;
+            let prior = commits
+                .get(phase)
+                .ok_or("repair phase must have been frozen")?;
+            check_commit(prior, accepted)?;
+            if accepted == prior {
+                return Err("a completed repair needs a new acceptance commit".into());
+            }
+            commits.insert(phase.into(), accepted.clone());
+            let entry = repairs.iter_mut().find(|entry| *entry == repair).unwrap();
+            entry.insert("status".into(), toml::Value::String("completed".into()));
+            entry.insert("commit".into(), toml::Value::String(accepted.clone()));
+        }
+        if let Some(repair) = self.open_repair() {
+            let phase = repair
+                .get("phase")
+                .and_then(toml::Value::as_str)
+                .ok_or("repair phase must be a string")?;
+            let issue = repair
+                .get("issue")
+                .and_then(toml::Value::as_integer)
+                .ok_or("repair issue must be an integer")?;
+            if !commits.contains_key(phase)
+                || issue <= 0
+                || repairs
+                    .iter()
+                    .any(|entry| entry.get("issue") == repair.get("issue"))
+                || self.blockers.as_slice() != [toml::Value::Integer(issue)]
+                || self.current()?.status != Stage::Blocked
+                || !repair
+                    .get("scope")
+                    .and_then(toml::Value::as_str)
+                    .is_some_and(|scope| !scope.trim().is_empty())
+                || repair.get("commit").is_some()
+                || self.allowed_paths.iter().any(|path| {
+                    matches!(
+                        path.as_str(),
+                        "status.toml" | "xtask/" | "xtask/src/" | "xtask/src/phase.rs"
+                    )
+                })
+            {
+                return Err("invalid open repair, blocker or scope".into());
+            }
+            repairs.push(repair.clone());
+        } else if self.current()?.status != Stage::Frozen {
+            return Err("completing the last repair must restore the freeze".into());
+        }
+        if self.repairs != repairs || self.frozen_commits != commits {
+            return Err("a repair transition must preserve unrelated acceptance records".into());
+        }
+        let mut allowed = vec!["status.toml".into()];
+        if base.open_repair().is_none() {
+            allowed.push("xtask/src/phase.rs".into());
+        }
+        require_paths(paths, &allowed)
     }
 
     fn check_frozen_maintenance<'a>(

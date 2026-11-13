@@ -2,9 +2,9 @@ use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
     Along, AnyElement, App, AppContext, Axis, Bounds, DragMoveEvent, ElementId, Entity,
-    FocusHandle, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement, Pixels, Point,
-    Render, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Window, canvas,
-    div, point, prelude::FluentBuilder, px, relative,
+    FocusHandle, HitboxBehavior, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement,
+    Pixels, Point, Render, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
+    TouchDragEvent, TouchPhase, Window, canvas, div, point, prelude::FluentBuilder, px, relative,
 };
 use gpui_base::{
     AxisExt, TestSupportExt,
@@ -182,14 +182,15 @@ impl RenderOnce for Slider {
         } else {
             start
         };
-        let thickness: f32 = match self.size {
-            ControlSize::ExtraSmall => 8.,
-            ControlSize::Small => 16.,
-            ControlSize::Medium => 24.,
-            ControlSize::Large => 40.,
-            ControlSize::ExtraLarge => 56.,
-        };
-        let thumb_extent = thickness.max(20.) + 20.;
+        // Material slider specs, expressive track and handle sizes.
+        let (thickness, thumb_extent, track_radius, icon_size): (f32, f32, f32, Option<f32>) =
+            match self.size {
+                ControlSize::ExtraSmall => (16., 44., 8., None),
+                ControlSize::Small => (24., 44., 8., None),
+                ControlSize::Medium => (40., 52., 12., Some(24.)),
+                ControlSize::Large => (56., 68., 16., Some(24.)),
+                ControlSize::ExtraLarge => (96., 108., 28., Some(32.)),
+            };
         let target = thumb_extent.max(48.);
         let resolve = |role| color(material_theme(cx).colors.color(role));
         let disabled = resolve(ColorRole::OnSurface);
@@ -238,7 +239,7 @@ impl RenderOnce for Slider {
                             if rect.size.width > px(0.) && rect.size.height > px(0.) {
                                 window.paint_quad(gpui::quad(
                                     rect,
-                                    half,
+                                    px(track_radius),
                                     tint,
                                     px(0.),
                                     tint,
@@ -261,10 +262,12 @@ impl RenderOnce for Slider {
         let thumb = |which, position, name, focus: &FocusHandle| {
             let keyboard_state = self.state.clone();
             let engaged = dragging == Some(which);
+            let handle_width = if engaged { 2. } else { 4. };
+            let half_handle = px(handle_width / 2.);
             let (width, height) = if horizontal {
-                (4., thumb_extent)
+                (handle_width, thumb_extent)
             } else {
-                (thumb_extent, 4.)
+                (thumb_extent, handle_width)
             };
             let label = value_label(&self.state, which, cx, |value| format!("{value:.2}").into());
             let label_style = div()
@@ -285,11 +288,13 @@ impl RenderOnce for Slider {
                         .when(horizontal, |thumb| {
                             thumb
                                 .top(px((target - height) / 2.))
-                                .ml(px(-2.))
-                                .when(geometry.reversed(), |thumb| thumb.ml(px(0.)).mr(px(-2.)))
+                                .ml(-half_handle)
+                                .when(geometry.reversed(), |thumb| {
+                                    thumb.ml(px(0.)).mr(-half_handle)
+                                })
                         })
                         .when(!horizontal, |thumb| {
-                            thumb.left(px((target - width) / 2.)).mb(px(-2.))
+                            thumb.left(px((target - width) / 2.)).mb(-half_handle)
                         }),
                     position,
                 )
@@ -366,12 +371,14 @@ impl RenderOnce for Slider {
                 self.range_end_name.unwrap_or(self.name),
                 &end_focus,
             ));
-        if let Some(icon) = self.icon {
+        if let (Some(icon), Some(icon_size)) = (self.icon, icon_size) {
             root = root.child(
                 div()
                     .absolute()
-                    .left_3()
+                    .when(geometry.reversed(), |icon| icon.right_3())
+                    .when(!geometry.reversed(), |icon| icon.left_3())
                     .top_1()
+                    .text_size(px(icon_size))
                     .text_color(active)
                     .child(icon),
             );
@@ -396,6 +403,73 @@ impl RenderOnce for Slider {
             };
         }
 
+        let touch = gesture.clone();
+        let touch_state = self.state.clone();
+        let touch_focus = [start_focus.clone(), end_focus.clone()];
+        let touch_layer = canvas(
+            |bounds, window, _| window.insert_hitbox(bounds, HitboxBehavior::Normal),
+            move |_, hitbox, window, _| {
+                let gesture = touch.clone();
+                let state = touch_state.clone();
+                let focus = touch_focus.clone();
+                window.on_mouse_event(move |event: &TouchDragEvent, phase, window, cx| {
+                    if !phase.bubble() {
+                        return;
+                    }
+                    if event.phase == TouchPhase::Started {
+                        if window.default_prevented()
+                            || !hitbox.is_hovered_at(event.start_position, window)
+                        {
+                            return;
+                        }
+                        let bounds = state.read(cx).bounds();
+                        if bounds.size.along(geometry.axis) <= px(0.) {
+                            return;
+                        }
+                        let fraction = geometry.fraction(bounds, event.start_position);
+                        let current = state.read(cx).percentage();
+                        let which = if range && current.start == current.end {
+                            choose_thumb(
+                                true,
+                                fraction,
+                                fraction,
+                                geometry.fraction(bounds, event.position),
+                            )
+                        } else {
+                            choose_thumb(range, current.start, current.end, fraction)
+                        };
+                        window.prevent_default();
+                        let mut gesture = gesture.borrow_mut();
+                        gesture.origin = Some(event.start_position);
+                        gesture.thumb = Some(which);
+                        focus[usize::from(which == RangeThumb::End)].focus(window, cx);
+                    }
+                    let which = {
+                        let gesture = gesture.borrow();
+                        if gesture.origin != Some(event.start_position) || gesture.capture.is_some()
+                        {
+                            return;
+                        }
+                        let Some(which) = gesture.thumb else {
+                            return;
+                        };
+                        which
+                    };
+                    match event.phase {
+                        TouchPhase::Started | TouchPhase::Moved => {
+                            update(&state, geometry, which, event.position, window, cx);
+                        }
+                        TouchPhase::Ended | TouchPhase::Cancelled => {
+                            finish(&state, &gesture, window, cx, false);
+                        }
+                    }
+                    cx.stop_propagation();
+                });
+            },
+        )
+        .absolute()
+        .inset_0()
+        .size_full();
         let down = gesture.clone();
         let begin = gesture.clone();
         let drag = gesture.clone();
@@ -411,88 +485,90 @@ impl RenderOnce for Slider {
         let release_state = self.state.clone();
         let outside_state = self.state.clone();
         let escape_state = self.state;
-        root.on_mouse_down(MouseButton::Left, move |event, window, cx| {
-            let bounds = down_state.read(cx).bounds();
-            if bounds.size.along(geometry.axis) <= px(0.) {
-                return;
-            }
-            let fraction = geometry.fraction(bounds, event.position);
-            let which = choose_thumb(range, start, end, fraction);
-            {
-                let mut down = down.borrow_mut();
-                down.thumb = Some(which);
-                down.origin = Some(event.position);
-            }
-            if which == RangeThumb::Start {
-                start_focus.focus(window, cx);
-            } else {
-                end_focus.focus(window, cx);
-            }
-            update(&down_state, geometry, which, event.position, window, cx);
-        })
-        .on_drag(SliderDrag(drag_source), move |payload, _, window, cx| {
-            let gesture = Rc::downgrade(&begin);
-            let state = begin_state.clone();
-            begin.borrow_mut().capture = Some(DragCapture::watch(window, cx, move |window, cx| {
-                if let Some(gesture) = gesture.upgrade() {
-                    finish(&state, &gesture, window, cx, false);
+        root.child(touch_layer)
+            .on_mouse_down(MouseButton::Left, move |event, window, cx| {
+                let bounds = down_state.read(cx).bounds();
+                if bounds.size.along(geometry.axis) <= px(0.) {
+                    return;
                 }
-            }));
-            cx.stop_propagation();
-            cx.new(|_| SliderDrag(payload.0.clone()))
-        })
-        .on_drag_move(move |event: &DragMoveEvent<SliderDrag>, window, cx| {
-            if event.drag(cx).0.entity_id() != drag_state.entity_id() {
-                return;
-            }
-            let mut gesture = drag.borrow_mut();
-            let Some(mut which) = gesture.thumb else {
-                return;
-            };
-            if range
-                && start == end
-                && let Some(origin) = gesture.origin.take()
-            {
-                let bounds = drag_state.read(cx).bounds();
-                which = if geometry.fraction(bounds, event.event.position)
-                    < geometry.fraction(bounds, origin)
+                let fraction = geometry.fraction(bounds, event.position);
+                let which = choose_thumb(range, start, end, fraction);
                 {
-                    RangeThumb::Start
+                    let mut down = down.borrow_mut();
+                    down.thumb = Some(which);
+                    down.origin = Some(event.position);
+                }
+                if which == RangeThumb::Start {
+                    start_focus.focus(window, cx);
                 } else {
-                    RangeThumb::End
+                    end_focus.focus(window, cx);
+                }
+                update(&down_state, geometry, which, event.position, window, cx);
+            })
+            .on_drag(SliderDrag(drag_source), move |payload, _, window, cx| {
+                let gesture = Rc::downgrade(&begin);
+                let state = begin_state.clone();
+                begin.borrow_mut().capture =
+                    Some(DragCapture::watch(window, cx, move |window, cx| {
+                        if let Some(gesture) = gesture.upgrade() {
+                            finish(&state, &gesture, window, cx, false);
+                        }
+                    }));
+                cx.stop_propagation();
+                cx.new(|_| SliderDrag(payload.0.clone()))
+            })
+            .on_drag_move(move |event: &DragMoveEvent<SliderDrag>, window, cx| {
+                if event.drag(cx).0.entity_id() != drag_state.entity_id() {
+                    return;
+                }
+                let mut gesture = drag.borrow_mut();
+                let Some(mut which) = gesture.thumb else {
+                    return;
                 };
-                gesture.thumb = Some(which);
-                drag_focus[usize::from(which == RangeThumb::End)].focus(window, cx);
-            }
-            update(
-                &drag_state,
-                geometry,
-                which,
-                event.event.position,
-                window,
-                cx,
-            );
-            cx.stop_propagation();
-        })
-        .on_mouse_up(MouseButton::Left, move |_, window, cx| {
-            finish(&release_state, &release, window, cx, false)
-        })
-        .on_mouse_up_out(MouseButton::Left, move |_, window, cx| {
-            finish(&outside_state, &release_out, window, cx, false)
-        })
-        .capture_key_down(move |event, window, cx| {
-            if event.keystroke.key == "escape" && escape.borrow().thumb.is_some() {
-                finish(&escape_state, &escape, window, cx, true);
+                if range
+                    && start == end
+                    && let Some(origin) = gesture.origin.take()
+                {
+                    let bounds = drag_state.read(cx).bounds();
+                    which = if geometry.fraction(bounds, event.event.position)
+                        < geometry.fraction(bounds, origin)
+                    {
+                        RangeThumb::Start
+                    } else {
+                        RangeThumb::End
+                    };
+                    gesture.thumb = Some(which);
+                    drag_focus[usize::from(which == RangeThumb::End)].focus(window, cx);
+                }
+                update(
+                    &drag_state,
+                    geometry,
+                    which,
+                    event.event.position,
+                    window,
+                    cx,
+                );
                 cx.stop_propagation();
-            }
-        })
-        .on_scroll(move |_, _, cx| {
-            // Wheel events over the active range gesture stay with it.
-            if scroll.borrow().thumb.is_some() {
-                cx.stop_propagation();
-            }
-        })
-        .into_any_element()
+            })
+            .on_mouse_up(MouseButton::Left, move |_, window, cx| {
+                finish(&release_state, &release, window, cx, false)
+            })
+            .on_mouse_up_out(MouseButton::Left, move |_, window, cx| {
+                finish(&outside_state, &release_out, window, cx, false)
+            })
+            .capture_key_down(move |event, window, cx| {
+                if event.keystroke.key == "escape" && escape.borrow().thumb.is_some() {
+                    finish(&escape_state, &escape, window, cx, true);
+                    cx.stop_propagation();
+                }
+            })
+            .on_scroll(move |_, _, cx| {
+                // Wheel events over the active range gesture stay with it.
+                if scroll.borrow().thumb.is_some() {
+                    cx.stop_propagation();
+                }
+            })
+            .into_any_element()
     }
 }
 

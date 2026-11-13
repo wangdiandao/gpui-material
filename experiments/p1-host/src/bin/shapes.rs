@@ -1,10 +1,12 @@
 use gpui::{
-    AppContext, Context, IntoElement, Path, PathBuilder, Pixels, Point, Render, Styled,
-    TitlebarOptions, Window, WindowBounds, WindowOptions, canvas, div, point, prelude::*, px, size,
+    AppContext, Bounds, Context, IntoElement, Path, PathBuilder, Pixels, Point, Render, Styled,
+    TitlebarOptions, Window, WindowBounds, WindowOptions, canvas, div, fill, point, prelude::*, px,
+    size,
 };
-use gpui_base::Theme;
+use gpui_base::{TestSupportExt, Theme};
 use p1_host::open_probe;
 use polymorpher::{CornerRounding, Cubic, Morph, RoundedPolygon};
+use std::{cell::Cell, rc::Rc};
 
 fn curves(progress: f32) -> Vec<Cubic> {
     let rounding = Some(CornerRounding::smoothed(0.2, 0.5));
@@ -30,7 +32,51 @@ fn path(cubics: &[Cubic], center: Point<Pixels>, radius: Pixels) -> Path<Pixels>
     builder.build().expect("tessellate morph path")
 }
 
-struct ShapesProbe([Vec<Cubic>; 3]);
+struct ShapesProbe {
+    samples: [Vec<Cubic>; 3],
+    ripple: Option<(usize, Point<Pixels>)>,
+}
+
+impl ShapesProbe {
+    fn new() -> Self {
+        Self {
+            samples: [0., 0.5, 1.].map(curves),
+            ripple: None,
+        }
+    }
+}
+
+fn contains_fill(path: &Path<Pixels>, position: Point<Pixels>) -> bool {
+    fn cross(a: Point<Pixels>, b: Point<Pixels>) -> f32 {
+        f32::from(a.x) * f32::from(b.y) - f32::from(a.y) * f32::from(b.x)
+    }
+
+    path.bounds.contains(&position)
+        && path.vertices.as_chunks::<3>().0.iter().any(|triangle| {
+            let a = triangle[0].xy_position;
+            let b = triangle[1].xy_position;
+            let c = triangle[2].xy_position;
+            let area = cross(b - a, c - a);
+            if area.abs() <= f32::EPSILON {
+                return false;
+            }
+            let signs = [
+                cross(b - a, position - a),
+                cross(c - b, position - b),
+                cross(a - c, position - c),
+            ];
+            signs.into_iter().all(|sign| sign * area >= 0.)
+        })
+}
+
+fn pointer_origin(
+    cubics: &[Cubic],
+    center: Point<Pixels>,
+    radius: Pixels,
+    position: Point<Pixels>,
+) -> Option<Point<Pixels>> {
+    contains_fill(&path(cubics, center, radius), position).then_some(position)
+}
 
 impl Render for ShapesProbe {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -42,8 +88,13 @@ impl Render for ShapesProbe {
             .justify_center()
             .gap_4()
             .bg(colors.background)
-            .children(self.0.iter().zip(["0", "0.5", "1"]).map(|(cubics, label)| {
-                let cubics = cubics.clone();
+            .children(self.samples.iter().enumerate().map(|(index, cubics)| {
+                let label = ["0", "0.5", "1"][index];
+                let paint_curves = cubics.clone();
+                let hit_curves = cubics.clone();
+                let ripple = self.ripple.filter(|(active, _)| *active == index);
+                let center = Rc::new(Cell::new(Point::default()));
+                let painted_center = center.clone();
                 div()
                     .flex()
                     .flex_col()
@@ -51,13 +102,45 @@ impl Render for ShapesProbe {
                     .gap_2()
                     .text_color(colors.foreground)
                     .child(
-                        canvas(
-                            |bounds, _, _| bounds.center(),
-                            move |_, center, window, _| {
-                                window.paint_path(path(&cubics, center, px(48.)), colors.primary);
-                            },
-                        )
-                        .size(px(128.)),
+                        div()
+                            .id(("shape", index))
+                            .test_support()
+                            .size(px(128.))
+                            .on_mouse_down(
+                                gpui::MouseButton::Left,
+                                cx.listener(move |this, event: &gpui::MouseDownEvent, _, cx| {
+                                    this.ripple = pointer_origin(
+                                        &hit_curves,
+                                        center.get(),
+                                        px(48.),
+                                        event.position,
+                                    )
+                                    .map(|origin| (index, origin));
+                                    cx.notify();
+                                }),
+                            )
+                            .child(
+                                canvas(
+                                    move |bounds, _, _| {
+                                        let center = bounds.center();
+                                        painted_center.set(center);
+                                        center
+                                    },
+                                    move |_, center, window, _| {
+                                        window.paint_path(
+                                            path(&paint_curves, center, px(48.)),
+                                            colors.primary,
+                                        );
+                                        if let Some((_, origin)) = ripple {
+                                            let mark =
+                                                Bounds::centered_at(origin, size(px(3.), px(3.)));
+                                            window
+                                                .paint_quad(fill(mark, colors.primary_foreground));
+                                        }
+                                    },
+                                )
+                                .size_full(),
+                            ),
                     )
                     .child(label)
             }))
@@ -84,10 +167,7 @@ fn main() {
             }),
             ..Default::default()
         };
-        open_probe(cx, options, |_, cx| {
-            cx.new(|_| ShapesProbe([0., 0.5, 1.].map(curves)))
-        })
-        .unwrap();
+        open_probe(cx, options, |_, cx| cx.new(|_| ShapesProbe::new())).unwrap();
     });
 }
 
@@ -98,6 +178,68 @@ fn gpui_tessellates_all_reference_progress_samples() {
         assert!(path.bounds.size.width > px(40.));
         assert!(path.bounds.size.height > px(40.));
     }
+}
+
+#[test]
+fn morph_hit_uses_fill_and_preserves_the_pointer_origin() {
+    let center = point(px(96.), px(64.));
+    let radius = px(48.);
+    for progress in [0., 0.5, 1.] {
+        let cubics = curves(progress);
+        let fill = path(&cubics, center, radius);
+        let inside = center + point(px(4.), px(2.));
+        let empty_corner = fill.bounds.origin + point(px(1.), px(1.));
+        assert!(fill.bounds.contains(&empty_corner));
+        assert_eq!(
+            pointer_origin(&cubics, center, radius, inside),
+            Some(inside)
+        );
+        assert_eq!(pointer_origin(&cubics, center, radius, empty_corner), None);
+    }
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn rendered_shape_accepts_the_press_at_fractional_scale(cx: &mut gpui::TestAppContext) {
+    use gpui::{InputEvent, MouseButton, MouseDownEvent};
+    use gpui_base::test_support;
+
+    let (window, probe) = cx.update(|cx| {
+        gpui_base::init(cx);
+        let probe = cx.new(|_| ShapesProbe::new());
+        let window = open_probe(cx, WindowOptions::default(), |_, _| probe.clone()).unwrap();
+        (window, probe)
+    });
+
+    cx.simulate_window_resize(window.into(), size(px(480.), px(280.)));
+    cx.simulate_window_scale_factor_change(window.into(), 1.5);
+    cx.update_window(window.into(), |_, window, cx| {
+        window.activate_window();
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let shape = test_support::find(window, &[], &("shape", 1_usize).into()).unwrap();
+        let bounds = shape.bounds();
+        let inside = bounds.center() + point(px(3.), px(4.));
+        let outside = bounds.origin + point(px(2.), px(2.));
+        assert_eq!(window.scale_factor(), 1.5);
+        for (position, expected) in [(inside, Some((1, inside))), (outside, None)] {
+            window.dispatch_event(
+                MouseDownEvent {
+                    button: MouseButton::Left,
+                    position,
+                    modifiers: window.modifiers(),
+                    click_count: 1,
+                    first_mouse: false,
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.refresh();
+            window.draw(cx).clear(cx);
+            assert_eq!(probe.read(cx).ripple, expected);
+        }
+    })
+    .unwrap();
 }
 
 #[cfg(all(
@@ -116,7 +258,7 @@ fn native_renderer_draws_morph_samples(output: &std::ffi::OsStr) {
     cx.update(gpui_base::init);
     let handle = cx
         .open_window(size(px(480.), px(280.)), |window, cx| {
-            let view = cx.new(|_| ShapesProbe([0., 0.5, 1.].map(curves)));
+            let view = cx.new(|_| ShapesProbe::new());
             cx.new(|cx| gpui_base::Root::new(view, window, cx))
         })
         .expect("open GPU-backed test window");

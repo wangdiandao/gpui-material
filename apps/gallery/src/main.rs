@@ -1,3 +1,4 @@
+mod action_examples;
 mod drawing;
 mod input_examples;
 
@@ -64,6 +65,7 @@ fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Roo
     MaterialRoot::open_window(options, cx, |window, cx| {
         cx.new(|cx| Gallery {
             local_dark,
+            actions: cx.new(|_| action_examples::ActionExamples::default()),
             drawing: cx.new(drawing::Drawing::new),
             input: cx.new(|cx| input_examples::InputExamples::new(window, cx)),
         })
@@ -72,6 +74,7 @@ fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Roo
 
 struct Gallery {
     local_dark: bool,
+    actions: gpui::Entity<action_examples::ActionExamples>,
     drawing: gpui::Entity<drawing::Drawing>,
     input: gpui::Entity<input_examples::InputExamples>,
 }
@@ -168,6 +171,7 @@ impl Render for Gallery {
                     )
                     .child(self.drawing.clone())
                     .child(self.input.clone())
+                    .child(self.actions.clone())
                     .child(
                         Button::new("toggle-theme")
                             .px_4()

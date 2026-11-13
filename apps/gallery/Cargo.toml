@@ -15,3 +15,4 @@ gpui-base.workspace = true
 gpui_platform.workspace = true
 gpui-material-foundation = { path = "../../crates/foundation" }
 gpui-material-theme = { path = "../../crates/theme" }
+gpui-material-components = { path = "../../crates/components" }

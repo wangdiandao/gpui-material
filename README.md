@@ -9,6 +9,7 @@ The initial release targets light and dark themes, brand and dynamic color, keyb
 Run `cargo gallery` on Windows 11 x64/MSVC to open the minimal Gallery window. Component examples ship alongside their production components. [Toolchain, tests, and CI artifacts](docs/development.md)
 
 - [Documentation index](docs/index.md)
+- [Contribution guide](CONTRIBUTION.md)
 - [Component coverage matrix](docs/component-coverage.md)
 - [Phase status](status.toml)
 

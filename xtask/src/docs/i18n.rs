@@ -74,7 +74,12 @@ pub(crate) fn write_records(paths: &[&str]) -> Result {
 fn in_scope(path: &str) -> bool {
     matches!(
         path,
-        "README.md" | "README.zh.md" | "THIRD_PARTY_NOTICES.md" | "THIRD_PARTY_NOTICES.zh.md"
+        "README.md"
+            | "README.zh.md"
+            | "CONTRIBUTION.md"
+            | "CONTRIBUTION.zh.md"
+            | "THIRD_PARTY_NOTICES.md"
+            | "THIRD_PARTY_NOTICES.zh.md"
     ) || path.starts_with("docs/")
         || path.starts_with("experiments/")
 }

@@ -11,51 +11,89 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  windows:
-    name: Windows MSVC
-    runs-on: windows-2025
-    timeout-minutes: 30
-    env:
-      CARGO_TERM_COLOR: always
+  checks:
+    name: Repository checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          # xtask verifies that every frozen acceptance commit is an ancestor.
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Verify toolchain and runner
-        run: |
-          Get-CimInstance Win32_OperatingSystem | Format-List Caption,Version,BuildNumber
-          $rust = rustc -vV
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          $rust
-          if ($rust -notcontains 'host: x86_64-pc-windows-msvc') {
-            throw 'Expected x64 MSVC Rust'
-          }
 
       - name: Check formatting
         run: cargo fmt --all --check
 
-      - name: Check phase, documents and dependency graphs
+      - name: Check phase, documents, generated tokens and dependency graphs
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
         run: |
-          $base = if ($env:PR_BASE) { $env:PR_BASE } else { $env:PUSH_BEFORE }
-          if ($base -and $base -notmatch '^0+$') {
-            git diff --check $base HEAD
-            if ($LASTEXITCODE) { exit $LASTEXITCODE }
-            cargo xtask check $base
-          } else {
+          base=${PR_BASE:-$PUSH_BEFORE}
+          if [[ -z "$base" || "$base" =~ ^0+$ ]]; then
             cargo xtask check
-          }
+          else
+            git diff --check "$base" HEAD
+            cargo xtask check "$base"
+          fi
 
       - name: Check default workspace
         run: cargo check --locked
+
+  native:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows MSVC
+            runner: windows-2025
+            target: x86_64-pc-windows-msvc
+          - name: macOS ARM64
+            runner: macos-15
+            target: aarch64-apple-darwin
+          - name: Linux x64
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Verify native Rust toolchain
+        env:
+          RUST_HOST: ${{ matrix.target }}
+        run: |
+          rust=$(rustc -vV)
+          printf '%s\n' "$rust"
+          grep -Fx "host: $RUST_HOST" <<< "$rust"
+
+      - name: Install Linux platform dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang pkg-config libfontconfig-dev libwayland-dev \
+            libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev libvulkan1
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: ${{ matrix.target }}
+          save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
       - name: Check Clippy
         run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
@@ -63,7 +101,13 @@ jobs:
       - name: Run workspace and Gallery UI tests
         run: cargo test --locked --workspace --all-features
 
-      - name: Build native Gallery
+      - name: Build native Gallery on macOS and Linux
+        if: runner.os != 'Windows'
+        run: cargo build --locked -p gpui-material-gallery
+
+      - name: Build native Gallery with embedded DirectX shaders
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: |
           $sdk = (Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows Kits\Installed Roots').KitsRoot10
           $fxc = Get-ChildItem -Directory (Join-Path $sdk 'bin') |
@@ -77,6 +121,7 @@ jobs:
           cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings
 
       - name: Upload Windows engineering build
+        if: runner.os == 'Windows'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: gallery-windows-x64-msvc
@@ -86,3 +131,18 @@ jobs:
             target/cargo-timings/cargo-timing.html
             LICENSE
             THIRD_PARTY_NOTICES.md
+
+  required:
+    name: CI required
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    needs: [checks, native]
+    if: ${{ always() }}
+    env:
+      REPOSITORY_CHECKS: ${{ needs.checks.result }}
+      NATIVE_CHECKS: ${{ needs.native.result }}
+    steps:
+      - name: Require repository and native checks to pass
+        run: |
+          printf 'Repository checks: %s\nNative matrix: %s\n' "$REPOSITORY_CHECKS" "$NATIVE_CHECKS"
+          [[ "$REPOSITORY_CHECKS" == success && "$NATIVE_CHECKS" == success ]]

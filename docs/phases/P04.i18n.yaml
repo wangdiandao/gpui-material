@@ -1,0 +1,7 @@
+# Section fingerprints for the English and Chinese pages.
+/p4-foundation-primitives:
+  en: "ab837f313408d267"
+  zh: "5bc0a8c2e638cb08"
+/p4-foundation-primitives/acceptance-criteria:
+  en: "facd01e1dfd3b6bb"
+  zh: "e3b96021c7359f70"

@@ -13,5 +13,6 @@ English | [中文](index.zh.md)
 9. [Development and verification](development.md) covers coding, testing, upstream contributions, builds, timings, and CI.
 10. [P3 Pure theme](phases/P03.md) records the scope of tokens, the theme, and offline verification.
 11. [Pure theme](theme/theme.md) records theme values, defaults, and data sources.
+12. [P4 Foundation primitives](phases/P04.md) records the adapters and Windows acceptance criteria.
 
 Add design, component, and phase documents to this index when the corresponding work starts. Git preserves the history.

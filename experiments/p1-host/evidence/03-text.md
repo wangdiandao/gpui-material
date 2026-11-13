@@ -13,3 +13,11 @@ cargo +1.99.1 run --locked --manifest-path experiments/p1-host/Cargo.toml --bin 
 | Windows 原生密码字段 | 使用非空固定样本 `P1-sample`。[截图](03-windows.png)显示掩码，`winapp ui get-property probe-password -p IsPassword` 返回 True，`get-value` 返回可访问名称“密码”。 | pass |
 | Windows 中文 IME | Microsoft Pinyin 已安装。winapp 的点击与 SendInput 都因前台焦点检查而退出。 | pending |
 | macOS 与 Linux 中文 IME、各平台候选定位、失焦、浮层、剪贴板及字形度量 | 待在对应会话和真实控件上运行。 | pending |
+
+## 补充编辑回归
+
+2026-11-13，Windows 11 x64，Rust 1.99.1。用同一测试命令验证三项。
+
+- 通过 Base 输入框的选择、复制、删除和粘贴快捷键，`中文🙂` 从探针剪贴板往返。对预填非空值的密码框执行复制时，剪贴板不含密码样本。
+- 通过指针打开 Popover，浮层内的 InputHandler 预编辑并提交「中」。候选锚点的处理器矩形在输入框起点之后，Esc 关闭后焦点回到触发按钮并保留输入。
+- 实机可用「打开浮层输入…」复测原生候选框、确认、取消、滚动或缩放后的定位。无头测试的剪贴板和候选锚点属于 GPUI 测试平台。

@@ -2,6 +2,7 @@ mod action_examples;
 mod drawing;
 mod input_examples;
 mod selection_examples;
+mod slider_examples;
 
 use gpui::{
     App, AppContext, Context, InteractiveElement, IntoElement, ParentElement, QuitMode, Render,
@@ -66,6 +67,7 @@ fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Roo
     MaterialRoot::open_window(options, cx, |window, cx| {
         cx.new(|cx| Gallery {
             local_dark,
+            sliders: cx.new(slider_examples::SliderExamples::new),
             selection: cx.new(selection_examples::SelectionExamples::new),
             actions: cx.new(|_| action_examples::ActionExamples::default()),
             drawing: cx.new(drawing::Drawing::new),
@@ -76,6 +78,7 @@ fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Roo
 
 struct Gallery {
     local_dark: bool,
+    sliders: gpui::Entity<slider_examples::SliderExamples>,
     selection: gpui::Entity<selection_examples::SelectionExamples>,
     actions: gpui::Entity<action_examples::ActionExamples>,
     drawing: gpui::Entity<drawing::Drawing>,
@@ -175,6 +178,7 @@ impl Render for Gallery {
                     .child(self.drawing.clone())
                     .child(self.input.clone())
                     .child(self.actions.clone())
+                    .child(self.sliders.clone())
                     .child(self.selection.clone())
                     .child(
                         Button::new("toggle-theme")

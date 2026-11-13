@@ -5,7 +5,7 @@ use gpui::{
     Pixels, Point, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Window,
     canvas, div, point, px,
 };
-use gpui_material_foundation::{animate, color, material_theme};
+use gpui_material_foundation::{animate, color, window_material_theme};
 use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpeed};
 use polymorpher::{Morph, shapes};
 
@@ -40,7 +40,7 @@ impl Progress {
             .use_keyed_state(ElementId::from((self.id.clone(), "phase")), cx, |_, _| now)
             .read(cx);
         let reduced = cx.reduce_motion();
-        let theme = material_theme(cx);
+        let theme = window_material_theme(window, cx);
         let policy = theme
             .motion
             .spec(MotionKind::Spatial, MotionSpeed::Default, reduced);
@@ -310,7 +310,7 @@ impl Default for LoadingMotion {
 
 impl RenderOnce for LoadingIndicator {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = material_theme(cx);
+        let theme = window_material_theme(window, cx);
         let fill = color(theme.colors.color(if self.contained {
             ColorRole::OnPrimaryContainer
         } else {

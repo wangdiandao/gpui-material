@@ -7,7 +7,7 @@ use gpui::{
 };
 use gpui_base::{Button, Toggle, box_shadow};
 use gpui_material_foundation::{
-    InteractionFeedback, InteractionState, Ripple, Shape, animate, color, material_theme,
+    InteractionFeedback, InteractionState, Ripple, Shape, animate, color, window_material_theme,
 };
 use gpui_material_theme::{ColorRole, CornerRole, CornerShape, Elevation, MotionKind, MotionSpeed};
 
@@ -66,7 +66,7 @@ impl ActionControl {
             .clone();
         let focus = self.focus.unwrap_or(focus);
         let style = self.style;
-        let theme = material_theme(cx);
+        let theme = window_material_theme(window, cx);
         let density = theme.layout.density;
         let direction = theme.layout.direction;
         let reduced = cx.reduce_motion();

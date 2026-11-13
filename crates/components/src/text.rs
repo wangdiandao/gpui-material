@@ -1,10 +1,10 @@
 use gpui::{
-    AnyElement, App, ElementId, InteractiveElement, IntoElement, ParentElement, RenderOnce, Role,
-    SharedString, StatefulInteractiveElement, Styled, TextAlign, Transformation, Window, canvas,
-    div, prelude::FluentBuilder, px, size, svg,
+    AnyElement, App, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels,
+    RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, TextAlign, Transformation,
+    Window, canvas, div, prelude::FluentBuilder, px, size, svg,
 };
-use gpui_material_foundation::{color, material_theme, shape_text};
-use gpui_material_theme::{ColorRole, Direction, TypeRole, TypographyEmphasis};
+use gpui_material_foundation::{color, shape_text, window_material_theme};
+use gpui_material_theme::{ColorRole, Direction, TypeRole, TypeStyle, TypographyEmphasis};
 
 /// Single-line Material text. Measurement and painting share Foundation's
 /// shaped glyphs, including font fallback and letter spacing.
@@ -70,79 +70,104 @@ impl Text {
 
 impl RenderOnce for Text {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = material_theme(cx);
-        let role = self.role.style(self.emphasis);
-        let tint = color(theme.colors.color(self.color));
-        let clean = if self.value.contains(['\r', '\n']) {
-            SharedString::from(self.value.replace(['\r', '\n'], " "))
-        } else {
-            self.value.clone()
-        };
-        let shape = |value: SharedString| {
-            shape_text(
-                value,
-                role,
-                &theme.typography,
-                self.font_scale,
-                tint,
-                window,
-                cx,
-            )
-            .expect("one line")
-        };
-        let mut shaped = shape(clean.clone());
-        if let Some(maximum) = self.max_width
-            && shaped.line().width > maximum
-        {
-            let ellipsis = shape("…".into());
-            if ellipsis.line().width > maximum {
-                shaped = shape("".into());
-            } else {
-                // Use shaped cluster boundaries, so truncation cannot split a
-                // ligature or a combining sequence.
-                let mut ends = shaped
-                    .line()
-                    .runs
-                    .iter()
-                    .flat_map(|run| run.glyphs.iter())
-                    .map(|glyph| glyph.index)
-                    .filter(|&ix| clean.is_char_boundary(ix))
-                    .collect::<Vec<_>>();
-                ends.push(0);
-                ends.sort_unstable();
-                ends.dedup();
-                let fits =
-                    |end| shape(format!("{}…", &clean[..end]).into()).line().width <= maximum;
-                let ix = ends.partition_point(|&end| fits(end)).saturating_sub(1);
-                shaped = shape(format!("{}…", &clean[..ends[ix]]).into());
-            }
-        }
-        let width = shaped.line().width;
-        let height = shaped.line_height();
-        let align = if theme.layout.direction == Direction::Rtl {
-            TextAlign::Right
-        } else {
-            TextAlign::Left
-        };
-        let text = div()
-            .w(width)
-            .max_w_full()
-            .h(height)
-            .overflow_hidden()
-            .child(
-                canvas(
-                    |_, _, _| (),
-                    move |bounds, _, window, cx| {
+        let tint = color(window_material_theme(window, cx).colors.color(self.color));
+        single_line(
+            self.value.clone(),
+            self.role.style(self.emphasis),
+            self.font_scale,
+            tint,
+            (self.max_width, 1.),
+            window,
+            cx,
+        )
+        .id(self.id.unwrap_or_else(|| "material-text".into()))
+        .role(Role::Label)
+        .aria_label(self.value)
+    }
+}
+
+pub(crate) fn single_line(
+    value: SharedString,
+    style: TypeStyle,
+    font_scale: f32,
+    tint: Hsla,
+    (max_width, expansion): (Option<Pixels>, f32),
+    window: &Window,
+    cx: &App,
+) -> gpui::Div {
+    let clean = if value.contains(['\r', '\n']) {
+        SharedString::from(value.replace(['\r', '\n'], " "))
+    } else {
+        value
+    };
+    let theme = window_material_theme(window, cx);
+    let typography = theme.typography.clone();
+    let align = if theme.layout.direction == Direction::Rtl {
+        TextAlign::Right
+    } else {
+        TextAlign::Left
+    };
+    let shaped = shape_text(
+        clean.clone(),
+        style,
+        &typography,
+        font_scale,
+        tint,
+        window,
+        cx,
+    )
+    .expect("single-line text");
+    let width = shaped.line().width.ceil();
+    let height = shaped.line_height();
+    div()
+        .min_w_0()
+        .w(max_width.map_or(width, |max| width.min(max)) * expansion)
+        .max_w_full()
+        .h(height)
+        .overflow_hidden()
+        .opacity(expansion)
+        .child(
+            canvas(
+                move |bounds, window, cx| {
+                    let maximum = bounds.size.width;
+                    if shaped.line().width <= maximum {
+                        return Some(shaped);
+                    }
+                    let shape = |value: SharedString| {
+                        shape_text(value, style, &typography, font_scale, tint, window, cx)
+                            .expect("single-line text")
+                    };
+                    let ellipsis = shape("…".into());
+                    if ellipsis.line().width > maximum {
+                        return None;
+                    }
+                    // Use shaped cluster boundaries to preserve ligatures and combining text.
+                    let mut ends = shaped
+                        .line()
+                        .runs
+                        .iter()
+                        .flat_map(|run| &run.glyphs)
+                        .map(|glyph| glyph.index)
+                        .filter(|&index| clean.is_char_boundary(index))
+                        .collect::<Vec<_>>();
+                    ends.sort_unstable();
+                    ends.dedup();
+                    ends.into_iter()
+                        .rev()
+                        .filter(|&end| end > 0)
+                        .map(|end| shape(format!("{}…", &clean[..end]).into()))
+                        .find(|line| line.line().width <= maximum)
+                        .or(Some(ellipsis))
+                },
+                move |bounds, shaped, window, cx| {
+                    if let Some(shaped) = shaped {
                         let _ =
                             shaped.paint(bounds.origin, align, Some(bounds.size.width), window, cx);
-                    },
-                )
-                .size_full(),
-            );
-        text.id(self.id.unwrap_or_else(|| "material-text".into()))
-            .role(Role::Label)
-            .aria_label(self.value)
-    }
+                    }
+                },
+            )
+            .size_full(),
+        )
 }
 
 /// A caller-provided SVG from the GPUI asset source, or a custom element.
@@ -201,8 +226,8 @@ impl Icon {
 }
 
 impl RenderOnce for Icon {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = material_theme(cx);
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let theme = window_material_theme(window, cx);
         let tint = color(theme.colors.color(self.color));
         let rtl = self.mirror && theme.layout.direction == Direction::Rtl;
         let icon = match self.content {

@@ -1,4 +1,7 @@
-use gpui::{Context, IntoElement, ParentElement, Render, Styled, Window, div, px};
+use gpui::{
+    Context, InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle,
+    StatefulInteractiveElement, Styled, Window, div, px,
+};
 use gpui_material::theme::TypeRole;
 use gpui_material::{
     Badge, Button, ButtonVariant, Card, CardVariant, CircularProgress, Divider, Icon,
@@ -11,6 +14,10 @@ pub(crate) struct DisplayExamples {
     selected: bool,
     opened: bool,
     child_count: usize,
+    indeterminate: bool,
+    selected_file: Option<usize>,
+    pinned_file: Option<usize>,
+    files_scroll: ScrollHandle,
 }
 
 impl Default for DisplayExamples {
@@ -21,6 +28,10 @@ impl Default for DisplayExamples {
             selected: false,
             opened: false,
             child_count: 0,
+            indeterminate: false,
+            selected_file: None,
+            pinned_file: None,
+            files_scroll: ScrollHandle::new(),
         }
     }
 }
@@ -32,6 +43,23 @@ impl Render for DisplayExamples {
         let list = cx.entity();
         let progress = cx.entity();
         let loading = cx.entity();
+        let mode = cx.entity();
+        let linear = |id, name, shape| {
+            let progress = LinearProgress::new(id, name).shape(shape);
+            if self.indeterminate {
+                progress
+            } else {
+                progress.value(self.progress)
+            }
+        };
+        let circular = |id, name, shape| {
+            let progress = CircularProgress::new(id, name).shape(shape);
+            if self.indeterminate {
+                progress
+            } else {
+                progress.value(self.progress)
+            }
+        };
         div()
             .flex()
             .flex_col()
@@ -49,6 +77,7 @@ impl Render for DisplayExamples {
                     .font_scale(1.25)
                     .truncate(px(350.)),
             )
+            .child(Text::new("Material typography 中文混排").id("baseline-text"))
             .child(
                 Card::new("elevated-card")
                     .variant(CardVariant::Elevated)
@@ -86,6 +115,29 @@ impl Render for DisplayExamples {
             )
             .child(Divider::horizontal().inset(px(16.), px(0.)))
             .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_3()
+                    .h_10()
+                    .child(
+                        Icon::svg(crate::FORWARD_ICON)
+                            .mirror_in_rtl(true)
+                            .label("forward", "Forward"),
+                    )
+                    .child(Divider::vertical().inset(px(4.), px(8.)))
+                    .child(Icon::svg(crate::FORWARD_ICON))
+                    .child(Badge::count(
+                        Icon::custom("▤").label("inbox", "Inbox"),
+                        8,
+                        99,
+                    ))
+                    .child(Badge::label(
+                        Icon::custom("▤").label("new-file", "Files"),
+                        "New",
+                    )),
+            )
+            .child(
                 List::new("segmented-list")
                     .variant(ListVariant::Segmented)
                     .items([
@@ -113,27 +165,32 @@ impl Render for DisplayExamples {
                         )),
                     ]),
             )
-            .child(LinearProgress::new("linear-progress", "Transfer progress").value(self.progress))
-            .child(
-                LinearProgress::new("linear-wave", "Wavy transfer progress")
-                    .value(self.progress)
-                    .shape(ProgressShape::Wavy),
-            )
+            .child(linear(
+                "linear-progress",
+                "Transfer progress",
+                ProgressShape::Straight,
+            ))
+            .child(linear(
+                "linear-wave",
+                "Wavy transfer progress",
+                ProgressShape::Wavy,
+            ))
             .child(
                 div()
                     .flex()
                     .flex_wrap()
                     .items_center()
                     .gap_3()
-                    .child(
-                        CircularProgress::new("circular-progress", "Sync progress")
-                            .value(self.progress),
-                    )
-                    .child(
-                        CircularProgress::new("circular-wave", "Wavy sync progress")
-                            .shape(ProgressShape::Wavy)
-                            .value(self.progress),
-                    )
+                    .child(circular(
+                        "circular-progress",
+                        "Sync progress",
+                        ProgressShape::Straight,
+                    ))
+                    .child(circular(
+                        "circular-wave",
+                        "Wavy sync progress",
+                        ProgressShape::Wavy,
+                    ))
                     .child(
                         LoadingIndicator::new("loading", "Loading documents").active(self.loading),
                     )
@@ -167,6 +224,65 @@ impl Render for DisplayExamples {
                             })
                         }),
                     ),
+            )
+            .child(
+                Button::new(
+                    "progress-mode",
+                    if self.indeterminate {
+                        "Use measured progress"
+                    } else {
+                        "Use indeterminate progress"
+                    },
+                )
+                .on_activate(move |_, cx| {
+                    mode.update(cx, |this, cx| {
+                        this.indeterminate = !this.indeterminate;
+                        cx.notify();
+                    })
+                }),
+            )
+            .child(
+                Text::new("Files")
+                    .id("files-title")
+                    .role(TypeRole::TitleMedium),
+            )
+            .child(
+                div()
+                    .id("files-scroll")
+                    .track_scroll(&self.files_scroll)
+                    .overflow_y_scroll()
+                    .h_48()
+                    .child(List::new("standard-list").items((1..=24).map(|file| {
+                        let select = cx.entity();
+                        let pin = cx.entity();
+                        let pinned = self.pinned_file == Some(file);
+                        ListItem::new(("file", file), format!("File {file}"))
+                            .selected(self.selected_file == Some(file))
+                            .on_activate(move |_, cx| {
+                                select.update(cx, |this, cx| {
+                                    this.selected_file = Some(file);
+                                    cx.notify();
+                                })
+                            })
+                            .trailing(
+                                Button::new(
+                                    ("pin-file", file),
+                                    if pinned {
+                                        format!("Unpin file {file}")
+                                    } else {
+                                        format!("Pin file {file}")
+                                    },
+                                )
+                                .variant(ButtonVariant::Text)
+                                .size(gpui_material::ControlSize::ExtraSmall)
+                                .on_activate(move |_, cx| {
+                                    pin.update(cx, |this, cx| {
+                                        this.pinned_file = (!pinned).then_some(file);
+                                        cx.notify();
+                                    })
+                                }),
+                            )
+                    }))),
             )
     }
 }

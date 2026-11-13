@@ -1,12 +1,16 @@
 use gpui::{
     Axis, Context, ElementId, FocusHandle, IntoElement, ParentElement, Render, Styled, Window, div,
+    prelude::FluentBuilder,
 };
+use gpui_material::foundation::window_material_theme;
+use gpui_material::theme::Direction;
 use gpui_material::{Checkbox, CheckboxState, Chip, ChipVariant, Radio, RadioGroup, Switch};
 
 pub(crate) struct SelectionExamples {
     colors: [CheckboxState; 2],
     alignment: ElementId,
     notifications: bool,
+    plain_switch: bool,
     filter: bool,
     chip_selected: bool,
     chip_visible: bool,
@@ -19,6 +23,7 @@ impl SelectionExamples {
             colors: [CheckboxState::Checked, CheckboxState::Unchecked],
             alignment: "start".into(),
             notifications: false,
+            plain_switch: false,
             filter: false,
             chip_selected: false,
             chip_visible: true,
@@ -28,8 +33,9 @@ impl SelectionExamples {
 }
 
 impl Render for SelectionExamples {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let owner = cx.entity();
+        let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
         div()
             .flex()
             .flex_col()
@@ -49,22 +55,27 @@ impl Render for SelectionExamples {
                 }),
             )
             .child(
-                div().flex().flex_wrap().gap_2().children(
-                    [("warm", "Warm"), ("cool", "Cool")]
-                        .into_iter()
-                        .enumerate()
-                        .map(|(ix, (id, label))| {
-                            let owner = cx.entity();
-                            Checkbox::new(id, label, self.colors[ix]).on_change(
-                                move |next, _, cx| {
-                                    owner.update(cx, |this, cx| {
-                                        this.colors[ix] = next;
-                                        cx.notify();
-                                    });
-                                },
-                            )
-                        }),
-                ),
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .when(rtl, Styled::flex_row_reverse)
+                    .gap_2()
+                    .children(
+                        [("warm", "Warm"), ("cool", "Cool")]
+                            .into_iter()
+                            .enumerate()
+                            .map(|(ix, (id, label))| {
+                                let owner = cx.entity();
+                                Checkbox::new(id, label, self.colors[ix]).on_change(
+                                    move |next, _, cx| {
+                                        owner.update(cx, |this, cx| {
+                                            this.colors[ix] = next;
+                                            cx.notify();
+                                        });
+                                    },
+                                )
+                            }),
+                    ),
             )
             .child(
                 Checkbox::new(
@@ -107,11 +118,24 @@ impl Render for SelectionExamples {
                         });
                     })
             })
+            .child({
+                let owner = cx.entity();
+                Switch::new("sync-switch", "Sync automatically", self.plain_switch).on_change(
+                    move |next, _, cx| {
+                        owner.update(cx, |this, cx| {
+                            this.plain_switch = next;
+                            cx.notify();
+                        })
+                    },
+                )
+            })
+            .child(Switch::new("disabled-switch", "Sync locked on", true).disabled(true))
             .child(
                 div()
                     .flex()
                     .items_center()
                     .flex_wrap()
+                    .when(rtl, Styled::flex_row_reverse)
                     .gap_2()
                     .child({
                         let owner = cx.entity();
@@ -167,6 +191,26 @@ impl Render for SelectionExamples {
                     }))
                     .child(Chip::new("suggestion", "Suggested").variant(ChipVariant::Suggestion)),
             )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .flex_wrap()
+                    .when(rtl, Styled::flex_row_reverse)
+                    .gap_2()
+                    .child(
+                        Chip::new("disabled-tag", "Locked tag")
+                            .variant(ChipVariant::Input)
+                            .selected(true)
+                            .disabled(true)
+                            .on_remove("Remove locked tag", None, |_, _| {}),
+                    )
+                    .child(
+                        Chip::new("elevated-suggestion", "Nearby")
+                            .variant(ChipVariant::Suggestion)
+                            .elevated(true),
+                    ),
+            )
     }
 }
 
@@ -199,7 +243,14 @@ mod tests {
                 window.refresh();
                 window.draw(cx).clear(cx);
             };
+            let assert_switch_centered = |window: &Window| {
+                let id = ElementId::from("notifications");
+                let track = find(window, &[], &(id.clone(), "switch-track").into()).unwrap();
+                let thumb = find(window, &[], &(id, "switch-thumb").into()).unwrap();
+                assert_eq!(track.bounds().center().y, thumb.bounds().center().y);
+            };
             draw(window, cx);
+            assert_switch_centered(window);
             for (scope, id) in [
                 (vec![], "palette-all".into()),
                 (vec![], "notifications".into()),
@@ -229,6 +280,7 @@ mod tests {
                     cx,
                 );
                 draw(window, cx);
+                assert_switch_centered(window);
                 window.dispatch_event(
                     MouseUpEvent {
                         button: MouseButton::Left,
@@ -240,6 +292,7 @@ mod tests {
                     cx,
                 );
                 draw(window, cx);
+                assert_switch_centered(window);
             }
             let state = view.read(cx);
             assert_eq!(state.colors, [CheckboxState::Checked; 2]);

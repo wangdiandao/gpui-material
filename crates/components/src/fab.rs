@@ -4,7 +4,7 @@ use gpui::{
     AnyElement, App, ElementId, FocusHandle, IntoElement, ParentElement, RenderOnce, SharedString,
     Styled, Window, anchored, deferred, div, px,
 };
-use gpui_material_foundation::{animate, logical_anchor, material_theme};
+use gpui_material_foundation::{animate, color, logical_anchor, window_material_theme};
 use gpui_material_theme::{
     ColorRole, CornerRole, Direction, Elevation, MotionKind, MotionSpeed, TypeRole,
     TypographyEmphasis,
@@ -212,8 +212,13 @@ impl RenderOnce for ExtendedFab {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let style = self.content.style();
         let (_, icon_size, _, padding, gap, role) = self.content.size.metrics();
-        let theme = material_theme(cx);
+        let theme = window_material_theme(window, cx);
         let direction = theme.layout.direction;
+        let foreground = if self.content.disabled {
+            color(theme.colors.color(ColorRole::OnSurface)).opacity(0.38)
+        } else {
+            color(theme.colors.color(style.foreground))
+        };
         let motion = theme.motion.spec(
             MotionKind::Spatial,
             MotionSpeed::Default,
@@ -228,45 +233,27 @@ impl RenderOnce for ExtendedFab {
         )
         .clamp(0., 1.);
         let typography = role.style(TypographyEmphasis::Baseline);
-        let shaped = gpui_material_foundation::shape_text(
-            self.content.name.clone(),
-            typography,
-            &material_theme(cx).typography,
-            1.,
-            gpui::black(),
-            window,
-            cx,
-        );
-        let max_label_width = (window.viewport_size().width - px(style.height + 32.)).max(px(0.));
-        let label_width = shaped
-            .map_or(px(0.), |shaped| shaped.line().width)
-            .min(max_label_width);
         let mut row = div()
             .flex()
             .items_center()
             .min_w_0()
+            .max_w_full()
             .px(px(padding * progress))
-            .gap(px(gap * progress))
-            .text_size(px(typography.size))
-            .line_height(px(typography.line_height));
+            .gap(px(gap * progress));
         if direction == Direction::Rtl {
             row = row.flex_row_reverse();
         }
         row = row.child(icon_slot(self.content.icon, icon_size));
         if progress > 0. {
-            row = row.child(
-                div()
-                    .min_w_0()
-                    .w(label_width * progress)
-                    .overflow_hidden()
-                    .opacity(progress)
-                    .child(
-                        div()
-                            .w(label_width)
-                            .truncate()
-                            .child(self.content.name.clone()),
-                    ),
-            );
+            row = row.child(crate::text::single_line(
+                self.content.name.clone(),
+                typography,
+                1.,
+                foreground,
+                (None, progress),
+                window,
+                cx,
+            ));
         }
         ActionControl {
             id: self.content.id,
@@ -306,7 +293,7 @@ impl FloatingAction {
 impl RenderOnce for FloatingAction {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let viewport = window.viewport_size();
-        let direction = material_theme(cx).layout.direction;
+        let direction = window_material_theme(window, cx).layout.direction;
         let margin = self.margin.min(viewport.width.min(viewport.height) / 4.);
         let x = if direction == Direction::Rtl {
             margin

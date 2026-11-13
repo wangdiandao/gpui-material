@@ -5,7 +5,7 @@ use gpui::{
     ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Window, div,
     prelude::FluentBuilder, px,
 };
-use gpui_material_foundation::{Surface, color, material_theme};
+use gpui_material_foundation::{color, window_material_theme};
 use gpui_material_theme::{ColorRole, CornerRole, Direction, Elevation, StateLayer, TypeRole};
 
 use crate::{Text, action::Activate};
@@ -66,20 +66,29 @@ impl ParentElement for Card {
 }
 
 impl RenderOnce for Card {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let (background, shadow, outline) = match self.variant {
             CardVariant::Elevated => (ColorRole::SurfaceContainerLow, Elevation::Level1, false),
             CardVariant::Filled => (ColorRole::SurfaceContainerHighest, Elevation::Level0, false),
             CardVariant::Outlined => (ColorRole::Surface, Elevation::Level0, true),
         };
-        let border = tone(ColorRole::OutlineVariant, cx);
-        let focus = tone(ColorRole::Secondary, cx);
-        let surface = Surface::new(background)
+        let border = tone(ColorRole::OutlineVariant, window, cx);
+        let focus = tone(ColorRole::Secondary, window, cx);
+        let background = tone(background, window, cx);
+        let foreground = tone(ColorRole::OnSurface, window, cx);
+        let state_group = SharedString::from(format!("{}-card-surface", self.id));
+        let elevation = if self.disabled { 0. } else { shadow.dp() };
+        let surface = div()
+            .id("card-surface")
             .rounded(px(12.))
-            .shadow_elevation(if self.disabled {
-                Elevation::Level0
-            } else {
-                shadow
+            .bg(background)
+            .text_color(foreground)
+            .when(elevation > 0., |surface| {
+                let shadow = tone(ColorRole::Shadow, window, cx);
+                surface.shadow(vec![
+                    gpui_base::box_shadow(0., elevation * 0.4, elevation, 0., shadow.opacity(0.18)),
+                    gpui_base::box_shadow(0., 1., elevation * 0.5, 0., shadow.opacity(0.13)),
+                ])
             })
             .border_1()
             .border_color(if outline {
@@ -93,11 +102,15 @@ impl RenderOnce for Card {
             .flex()
             .flex_col()
             .gap_2()
-            .children(self.children);
+            .children(self.children)
+            .when(self.activation.is_some() && !self.disabled, |surface| {
+                surface_feedback(surface, state_group.clone(), background, foreground)
+            });
         match self.activation {
             Some((name, activate)) => {
                 let invoke = activate.clone();
                 gpui_base::Button::new(self.id)
+                    .group(state_group)
                     .w_full()
                     .accessibility_label(name)
                     .disabled(self.disabled)
@@ -193,7 +206,7 @@ impl ListItem {
         self
     }
 
-    fn row(self, corners: [f32; 4], cx: &App) -> AnyElement {
+    fn row(self, corners: [f32; 4], window: &Window, cx: &App) -> AnyElement {
         let background = if self.selected {
             ColorRole::SecondaryContainer
         } else {
@@ -233,10 +246,12 @@ impl ListItem {
                     .role(TypeRole::BodyMedium)
                     .color(secondary)
             }));
-        let background = tone(background, cx);
-        let state_layer = tone(foreground, cx);
-        let focus = tone(ColorRole::Secondary, cx);
+        let background = tone(background, window, cx);
+        let state_layer = tone(foreground, window, cx);
+        let focus = tone(ColorRole::Secondary, window, cx);
+        let state_group = SharedString::from(format!("{}-list-surface", self.id));
         let row = div()
+            .id("list-surface")
             .min_h(px(height))
             .w_full()
             .flex()
@@ -245,7 +260,7 @@ impl ListItem {
             .px_4()
             .py(px(10.))
             .when(
-                material_theme(cx).layout.direction == Direction::Rtl,
+                window_material_theme(window, cx).layout.direction == Direction::Rtl,
                 Styled::flex_row_reverse,
             )
             .rounded_tl(px(corners[0]))
@@ -253,6 +268,9 @@ impl ListItem {
             .rounded_br(px(corners[2]))
             .rounded_bl(px(corners[3]))
             .bg(background)
+            .when(self.activation.is_some() && !self.disabled, |row| {
+                surface_feedback(row, state_group.clone(), background, state_layer)
+            })
             .when(self.disabled, |row| row.opacity(0.55))
             .children(self.leading)
             .child(content)
@@ -261,6 +279,7 @@ impl ListItem {
             Some(activate) => {
                 let invoke = activate.clone();
                 gpui_base::Button::new((self.id.clone(), "activate"))
+                    .group(state_group)
                     .w_full()
                     .accessibility_label(self.label)
                     .disabled(self.disabled)
@@ -269,15 +288,6 @@ impl ListItem {
                     .border_color(gpui::transparent_black())
                     .rounded_md()
                     .focus_visible(move |style| style.border_color(focus))
-                    .when(!self.disabled, |element| {
-                        element
-                            .hover(move |style| {
-                                style.bg(state_layer.opacity(StateLayer::Hover.opacity()))
-                            })
-                            .active(move |style| {
-                                style.bg(state_layer.opacity(StateLayer::Pressed.opacity()))
-                            })
-                    })
                     .when(!self.disabled, |control| {
                         control.on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
                             invoke(window, cx)
@@ -302,8 +312,8 @@ impl ListItem {
 }
 
 impl RenderOnce for ListItem {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        self.row([0.; 4], cx)
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        self.row([0.; 4], window, cx)
     }
 }
 
@@ -337,7 +347,7 @@ impl List {
 }
 
 impl RenderOnce for List {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let last = self.items.len().saturating_sub(1);
         div()
             .id(self.id)
@@ -358,7 +368,7 @@ impl RenderOnce for List {
                     let bottom = if ix == last { 16. } else { 4. };
                     [top, top, bottom, bottom]
                 };
-                item.row(corners, cx)
+                item.row(corners, window, cx)
             }))
     }
 }
@@ -395,9 +405,11 @@ impl Divider {
 }
 
 impl RenderOnce for Divider {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        let fill = tone(ColorRole::OutlineVariant, cx);
-        let (left, right) = material_theme(cx).layout.horizontal(self.start, self.end);
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let fill = tone(ColorRole::OutlineVariant, window, cx);
+        let (left, right) = window_material_theme(window, cx)
+            .layout
+            .horizontal(self.start, self.end);
         if self.axis == Axis::Vertical {
             div()
                 .w(px(1.))
@@ -452,7 +464,7 @@ impl Badge {
 }
 
 impl RenderOnce for Badge {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let large = self.text.is_some();
         let side = px(if large { 16. } else { 6. });
         let mark = div()
@@ -462,16 +474,16 @@ impl RenderOnce for Badge {
             .h(side)
             .rounded_full()
             .when(
-                material_theme(cx).layout.direction == Direction::Rtl,
+                window_material_theme(window, cx).layout.direction == Direction::Rtl,
                 |badge| badge.left(px(-3.)),
             )
             .when(
-                material_theme(cx).layout.direction == Direction::Ltr,
+                window_material_theme(window, cx).layout.direction == Direction::Ltr,
                 |badge| badge.right(px(-3.)),
             )
             .when(large, |badge| badge.px_1())
-            .bg(tone(ColorRole::Error, cx))
-            .text_color(tone(ColorRole::OnError, cx))
+            .bg(tone(ColorRole::Error, window, cx))
+            .text_color(tone(ColorRole::OnError, window, cx))
             .flex()
             .items_center()
             .justify_center()
@@ -481,6 +493,21 @@ impl RenderOnce for Badge {
     }
 }
 
-fn tone(role: ColorRole, cx: &App) -> gpui::Hsla {
-    color(material_theme(cx).colors.color(role))
+fn tone(role: ColorRole, window: &Window, cx: &App) -> gpui::Hsla {
+    color(window_material_theme(window, cx).colors.color(role))
+}
+
+fn surface_feedback(
+    surface: gpui::Stateful<gpui::Div>,
+    group: SharedString,
+    background: gpui::Hsla,
+    foreground: gpui::Hsla,
+) -> gpui::Stateful<gpui::Div> {
+    surface
+        .group_hover(group.clone(), move |style| {
+            style.bg(background.blend(foreground.opacity(StateLayer::Hover.opacity())))
+        })
+        .group_active(group, move |style| {
+            style.bg(background.blend(foreground.opacity(StateLayer::Pressed.opacity())))
+        })
 }

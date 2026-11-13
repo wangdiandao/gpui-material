@@ -12,8 +12,8 @@ use gpui_material::{
 #[derive(Default)]
 pub(crate) struct ActionExamples {
     count: usize,
-    toggles: [bool; 4],
-    icon_toggles: [bool; 4],
+    toggles: [bool; 5],
+    icon_toggles: [bool; 5],
     collapsed: bool,
 }
 
@@ -46,7 +46,14 @@ impl Render for ActionExamples {
             IconButtonVariant::Outlined,
         ];
         let fab_sizes = [FabSize::Small, FabSize::Medium, FabSize::Large];
-        let fab_colors = [FabColor::Primary, FabColor::Secondary, FabColor::Tertiary];
+        let fab_colors = [
+            FabColor::Primary,
+            FabColor::Secondary,
+            FabColor::Tertiary,
+            FabColor::PrimaryStrong,
+            FabColor::SecondaryStrong,
+            FabColor::TertiaryStrong,
+        ];
 
         div()
             .flex()
@@ -81,52 +88,80 @@ impl Render for ActionExamples {
                 })),
             )
             .child(
-                row().children(
-                    toggle_variants
-                        .into_iter()
-                        .enumerate()
-                        .map(|(ix, variant)| {
-                            let view = cx.entity();
-                            ToggleButton::new(
-                                ("toggle-variant", ix),
-                                format!("{variant:?}"),
-                                self.toggles[ix],
-                            )
-                            .variant(variant)
-                            .on_change(move |value, _, cx| {
-                                view.update(cx, |this, cx| {
-                                    this.toggles[ix] = value;
-                                    cx.notify();
-                                })
-                            })
-                        }),
-                ),
-            )
-            .child(
-                row().children(icon_variants.into_iter().enumerate().map(|(ix, variant)| {
-                    IconButton::new(("icon-variant", ix), format!("{variant:?} action"), "+")
-                        .variant(variant)
-                        .width(
-                            [
-                                IconButtonWidth::Narrow,
-                                IconButtonWidth::Uniform,
-                                IconButtonWidth::Wide,
-                                IconButtonWidth::Uniform,
-                            ][ix],
-                        )
+                row().children(sizes.into_iter().enumerate().map(|(ix, size)| {
+                    let view = cx.entity();
+                    let variant = toggle_variants[ix % toggle_variants.len()];
+                    ToggleButton::new(
+                        ("toggle-variant", ix),
+                        format!("{variant:?} {size:?}"),
+                        self.toggles[ix],
+                    )
+                    .variant(variant)
+                    .size(size)
+                    .shape(if ix % 2 == 0 {
+                        ButtonShape::Round
+                    } else {
+                        ButtonShape::Square
+                    })
+                    .on_change(move |value, _, cx| {
+                        view.update(cx, |this, cx| {
+                            this.toggles[ix] = value;
+                            cx.notify();
+                        })
+                    })
                 })),
             )
             .child(
-                row().children(icon_variants.into_iter().enumerate().map(|(ix, variant)| {
+                row().children(sizes.into_iter().enumerate().map(|(ix, size)| {
+                    let variant = icon_variants[ix % icon_variants.len()];
+                    IconButton::new(
+                        ("icon-variant", ix),
+                        format!("{variant:?} {size:?} action"),
+                        "+",
+                    )
+                    .variant(variant)
+                    .size(size)
+                    .shape(if ix % 2 == 0 {
+                        ButtonShape::Round
+                    } else {
+                        ButtonShape::Square
+                    })
+                    .width(
+                        [
+                            IconButtonWidth::Narrow,
+                            IconButtonWidth::Uniform,
+                            IconButtonWidth::Wide,
+                            IconButtonWidth::Uniform,
+                            IconButtonWidth::Narrow,
+                        ][ix],
+                    )
+                })),
+            )
+            .child(
+                row().children(sizes.into_iter().enumerate().map(|(ix, size)| {
                     let view = cx.entity();
+                    let variant = icon_variants[ix % icon_variants.len()];
                     IconToggleButton::new(
                         ("icon-toggle-variant", ix),
-                        format!("{variant:?} favorite"),
+                        format!("{variant:?} {size:?} favorite"),
                         "♡",
                         self.icon_toggles[ix],
                     )
                     .selected_icon("♥")
                     .variant(variant)
+                    .size(size)
+                    .shape(if ix % 2 == 0 {
+                        ButtonShape::Square
+                    } else {
+                        ButtonShape::Round
+                    })
+                    .width(
+                        [
+                            IconButtonWidth::Narrow,
+                            IconButtonWidth::Uniform,
+                            IconButtonWidth::Wide,
+                        ][ix % 3],
+                    )
                     .on_change(move |value, _, cx| {
                         view.update(cx, |this, cx| {
                             this.icon_toggles[ix] = value;
@@ -136,13 +171,16 @@ impl Render for ActionExamples {
                 })),
             )
             .child(
-                row().children(fab_sizes.into_iter().zip(fab_colors).enumerate().map(
-                    |(ix, (size, color))| {
-                        Fab::new(("fab-size", ix), format!("Create ({size:?})"), "+")
-                            .size(size)
-                            .color(color)
-                    },
-                )),
+                row().children(fab_colors.into_iter().enumerate().map(|(ix, color)| {
+                    let size = fab_sizes[ix % fab_sizes.len()];
+                    Fab::new(
+                        ("fab-size", ix),
+                        format!("Create {color:?} ({size:?})"),
+                        "+",
+                    )
+                    .size(size)
+                    .color(color)
+                })),
             )
             .child(
                 row().children(fab_sizes.into_iter().enumerate().map(|(ix, size)| {
@@ -165,6 +203,22 @@ impl Render for ActionExamples {
             .child(
                 row()
                     .child(Button::new("action-disabled", "Unavailable").disabled(true))
+                    .child(
+                        ToggleButton::new("toggle-disabled", "Unavailable toggle", true)
+                            .disabled(true),
+                    )
+                    .child(
+                        IconButton::new("icon-disabled", "Unavailable action", "+").disabled(true),
+                    )
+                    .child(
+                        IconToggleButton::new(
+                            "icon-toggle-disabled",
+                            "Unavailable favorite",
+                            "♥",
+                            true,
+                        )
+                        .disabled(true),
+                    )
                     .child({
                         let label = format!("Activations: {}", self.count);
                         div()
@@ -204,7 +258,7 @@ mod tests {
             .unwrap();
             (handle, view.unwrap())
         });
-        cx.simulate_window_resize(handle.into(), size(px(1000.), px(850.)));
+        cx.simulate_window_resize(handle.into(), size(px(1000.), px(1450.)));
         let draw = |window: &mut Window, cx: &mut gpui::App| {
             window.refresh();
             window.draw(cx).clear(cx);
@@ -217,14 +271,14 @@ mod tests {
                 (
                     gpui::ElementId::from(("action-variant", 0_usize)),
                     1,
-                    Some(gpui::point(px(999.), px(849.))),
+                    Some(gpui::point(px(999.), px(1449.))),
                 ),
                 (gpui::ElementId::from("action-disabled"), 1, None),
                 (gpui::ElementId::from(("toggle-variant", 0_usize)), 1, None),
             ] {
                 let target = find(window, &[], &id).unwrap();
                 assert_eq!(target.role(), Some(Role::Button));
-                assert!(target.visible());
+                assert!(target.visible(), "{id}: {:?}", target.bounds());
                 let position = target.bounds().center();
                 window.dispatch_event(
                     MouseDownEvent {

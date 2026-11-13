@@ -7,9 +7,9 @@ use gpui::{
 };
 use gpui_base::{
     Checkbox as BaseCheckbox, Radio as BaseRadio, RadioGroup as BaseRadioGroup,
-    Switch as BaseSwitch,
+    Switch as BaseSwitch, TestSupportExt,
 };
-use gpui_material_foundation::{animate, color, material_theme, move_roving_focus};
+use gpui_material_foundation::{animate, color, move_roving_focus, window_material_theme};
 use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpeed, StateLayer};
 
 use crate::action::Change;
@@ -19,17 +19,17 @@ pub use gpui_base::CheckboxState;
 type CheckboxChange = Rc<dyn Fn(CheckboxState, &mut Window, &mut App)>;
 type RadioChange = Rc<dyn Fn(&ElementId, &mut Window, &mut App)>;
 
-fn tone(role: ColorRole, cx: &App) -> Hsla {
-    color(material_theme(cx).colors.color(role))
+fn tone(role: ColorRole, window: &Window, cx: &App) -> Hsla {
+    color(window_material_theme(window, cx).colors.color(role))
 }
 
-fn selection_tone(selected: bool, disabled: bool, cx: &App) -> Hsla {
+fn selection_tone(selected: bool, disabled: bool, window: &Window, cx: &App) -> Hsla {
     if disabled {
-        tone(ColorRole::OnSurface, cx).opacity(0.38)
+        tone(ColorRole::OnSurface, window, cx).opacity(0.38)
     } else if selected {
-        tone(ColorRole::Primary, cx)
+        tone(ColorRole::Primary, window, cx)
     } else {
-        tone(ColorRole::OnSurfaceVariant, cx)
+        tone(ColorRole::OnSurfaceVariant, window, cx)
     }
 }
 
@@ -137,12 +137,12 @@ impl Checkbox {
 }
 
 impl RenderOnce for Checkbox {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let checked = self.state != CheckboxState::Unchecked;
         let accent = if self.error && !self.disabled {
-            tone(ColorRole::Error, cx)
+            tone(ColorRole::Error, window, cx)
         } else {
-            selection_tone(checked, self.disabled, cx)
+            selection_tone(checked, self.disabled, window, cx)
         };
         let on_accent = tone(
             if self.disabled {
@@ -152,6 +152,7 @@ impl RenderOnce for Checkbox {
             } else {
                 ColorRole::OnPrimary
             },
+            window,
             cx,
         );
         let mark = canvas(
@@ -196,9 +197,9 @@ impl RenderOnce for Checkbox {
             .border_2()
             .border_color(gpui::transparent_black())
             .rounded_md()
-            .focus_visible(focus_style(tone(ColorRole::Secondary, cx)))
+            .focus_visible(focus_style(tone(ColorRole::Secondary, window, cx)))
             .child(
-                row(material_theme(cx).layout.direction)
+                row(window_material_theme(window, cx).layout.direction)
                     .child(selection_target(group, indicator, accent, !self.disabled))
                     .child(label),
             );
@@ -262,9 +263,10 @@ impl Radio {
         focus: Option<&FocusHandle>,
         position: Option<(usize, usize)>,
         tab_stop: bool,
+        window: &Window,
         cx: &App,
     ) -> BaseRadio {
-        let accent = selection_tone(self.selected, self.disabled, cx);
+        let accent = selection_tone(self.selected, self.disabled, window, cx);
         let indicator = div()
             .size(px(20.))
             .rounded_full()
@@ -286,11 +288,11 @@ impl Radio {
             .border_2()
             .border_color(gpui::transparent_black())
             .rounded_md()
-            .focus_visible(focus_style(tone(ColorRole::Secondary, cx)))
+            .focus_visible(focus_style(tone(ColorRole::Secondary, window, cx)))
             .child(
-                row(material_theme(cx).layout.direction)
+                row(window_material_theme(window, cx).layout.direction)
                     .child(selection_target(group, indicator, accent, !self.disabled))
-                    .child(self.label),
+                    .child(div().min_w_0().truncate().child(self.label)),
             )
             .when_some(focus, |radio, focus| radio.track_focus(focus))
             .when_some(position, |radio, (position, size)| {
@@ -313,8 +315,8 @@ impl Radio {
 }
 
 impl RenderOnce for Radio {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        self.render_control(None, None, true, cx)
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        self.render_control(None, None, true, window, cx)
     }
 }
 
@@ -367,7 +369,7 @@ impl RadioGroup {
 
 impl RenderOnce for RadioGroup {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let direction = material_theme(cx).layout.direction;
+        let direction = window_material_theme(window, cx).layout.direction;
         let current = self
             .options
             .iter()
@@ -402,6 +404,7 @@ impl RenderOnce for RadioGroup {
             .flex()
             .gap_1()
             .when(axis == Axis::Vertical, Styled::flex_col)
+            .when(axis == Axis::Horizontal, Styled::flex_wrap)
             .when(
                 axis == Axis::Horizontal && direction == Direction::Rtl,
                 Styled::flex_row_reverse,
@@ -435,7 +438,13 @@ impl RenderOnce for RadioGroup {
                         Rc::new(move |window, cx| handler(&option_id, window, cx));
                     callback
                 });
-                radio.render_control(Some(focus), Some((ix + 1, size)), Some(ix) == tab_stop, cx)
+                radio.render_control(
+                    Some(focus),
+                    Some((ix + 1, size)),
+                    Some(ix) == tab_stop,
+                    window,
+                    cx,
+                )
             },
         ))
     }
@@ -490,7 +499,7 @@ impl Switch {
 impl RenderOnce for Switch {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         use ColorRole::*;
-        let theme = material_theme(cx);
+        let theme = window_material_theme(window, cx);
         let direction = theme.layout.direction;
         let motion = theme
             .motion
@@ -504,17 +513,21 @@ impl RenderOnce for Switch {
         )
         .clamp(0., 1.);
         let (track, thumb, outline) = match (self.checked, self.disabled) {
-            (true, false) => (tone(Primary, cx), tone(OnPrimary, cx), None),
+            (true, false) => (tone(Primary, window, cx), tone(OnPrimary, window, cx), None),
             (false, false) => (
-                tone(SurfaceContainerHighest, cx),
-                tone(Outline, cx),
-                Some(tone(Outline, cx)),
+                tone(SurfaceContainerHighest, window, cx),
+                tone(Outline, window, cx),
+                Some(tone(Outline, window, cx)),
             ),
-            (true, true) => (tone(OnSurface, cx).opacity(0.12), tone(Surface, cx), None),
+            (true, true) => (
+                tone(OnSurface, window, cx).opacity(0.12),
+                tone(Surface, window, cx),
+                None,
+            ),
             (false, true) => (
-                tone(SurfaceContainerHighest, cx).opacity(0.12),
-                tone(OnSurface, cx).opacity(0.38),
-                Some(tone(OnSurface, cx).opacity(0.12)),
+                tone(SurfaceContainerHighest, window, cx).opacity(0.12),
+                tone(OnSurface, window, cx).opacity(0.38),
+                Some(tone(OnSurface, window, cx).opacity(0.12)),
             ),
         };
         let icon = if self.checked {
@@ -528,22 +541,22 @@ impl RenderOnce for Switch {
         } else {
             16.
         };
-        let inset = px(14. + 20. * progress);
+        let offset = px(24. * progress);
         let handle = div()
             .absolute()
-            .top(px(16.))
-            .when(direction == Direction::Ltr, |handle| handle.left(inset))
-            .when(direction == Direction::Rtl, |handle| handle.right(inset))
+            .top_0()
+            .h_full()
+            .w(px(28.))
+            .flex()
+            .items_center()
+            .justify_center()
+            .when(direction == Direction::Ltr, |handle| handle.left(offset))
+            .when(direction == Direction::Rtl, |handle| handle.right(offset))
             .child(
                 div()
-                    .relative()
-                    .id("switch-thumb")
+                    .id((self.id.clone(), "switch-thumb"))
+                    .test_support()
                     .size(px(normal_size))
-                    .mt(px(-normal_size / 2.))
-                    .ml(px(-normal_size / 2.))
-                    .when(direction == Direction::Rtl, |thumb| {
-                        thumb.ml(px(0.)).mr(px(-normal_size / 2.))
-                    })
                     .rounded_full()
                     .bg(thumb)
                     .text_color(tone(
@@ -552,6 +565,7 @@ impl RenderOnce for Switch {
                         } else {
                             SurfaceContainerHighest
                         },
+                        window,
                         cx,
                     ))
                     .text_size(px(16.))
@@ -564,15 +578,24 @@ impl RenderOnce for Switch {
                     .children(icon),
             );
         let track = div()
+            .id((self.id.clone(), "switch-track"))
+            .test_support()
             .relative()
             .w(px(52.))
             .h(px(32.))
             .rounded_full()
             .bg(track)
-            .child(handle)
             .when_some(outline, |track, outline| {
-                track.border_2().border_color(outline)
-            });
+                track.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .rounded_full()
+                        .border_2()
+                        .border_color(outline),
+                )
+            })
+            .child(handle);
         let control = BaseSwitch::new(self.id)
             .checked(self.checked)
             .disabled(self.disabled)
@@ -581,7 +604,7 @@ impl RenderOnce for Switch {
             .border_2()
             .border_color(gpui::transparent_black())
             .rounded_md()
-            .focus_visible(focus_style(tone(Secondary, cx)))
+            .focus_visible(focus_style(tone(Secondary, window, cx)))
             .child(
                 row(direction)
                     .min_h(px(48.))

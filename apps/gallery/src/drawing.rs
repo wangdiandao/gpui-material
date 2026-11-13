@@ -7,7 +7,7 @@ use gpui::{
 use gpui_base::Button;
 use gpui_material::foundation::{
     InteractionFeedback, InteractionState, PolygonMorph, Ripple, Shape, animate, color,
-    material_theme,
+    window_material_theme,
 };
 use gpui_material::theme::{ColorRole, MotionKind, MotionSpeed, PolygonRole};
 
@@ -44,7 +44,7 @@ impl Drawing {
 
 impl Render for Drawing {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = material_theme(cx);
+        let theme = window_material_theme(window, cx);
         let fill = color(theme.colors.color(ColorRole::PrimaryContainer));
         let foreground = color(theme.colors.color(ColorRole::OnPrimaryContainer));
         let ring = color(theme.colors.color(ColorRole::Secondary));

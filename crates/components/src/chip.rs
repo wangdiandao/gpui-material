@@ -4,7 +4,7 @@ use gpui::{
     AnyElement, App, ElementId, FocusHandle, InteractiveElement, IntoElement, ParentElement,
     RenderOnce, SharedString, Styled, Window, div, prelude::FluentBuilder, px,
 };
-use gpui_material_foundation::material_theme;
+use gpui_material_foundation::{color, window_material_theme};
 use gpui_material_theme::{ColorRole, CornerRole, Direction, Elevation};
 
 use crate::action::{Action, ActionControl, ActionStyle, Activate, Change, icon_slot};
@@ -126,15 +126,32 @@ impl RenderOnce for Chip {
         } else {
             OnSurfaceVariant
         };
-        let direction = material_theme(cx).layout.direction;
+        let theme = window_material_theme(window, cx);
+        let direction = theme.layout.direction;
+        let split = self.variant == ChipVariant::Input && self.remove.is_some();
+        let on_surface = color(theme.colors.color(OnSurface));
+        let container = if self.disabled && background.is_some() {
+            on_surface.opacity(0.12)
+        } else {
+            background.map_or_else(gpui::transparent_black, |role| {
+                color(theme.colors.color(role))
+            })
+        };
+        let border = if self.disabled {
+            on_surface.opacity(0.12)
+        } else {
+            color(theme.colors.color(OutlineVariant))
+        };
+        let height = px(theme.layout.density.visual_size(32.));
+        let radius = px(CornerRole::Small.shape().radii(32., 32., direction)[0]);
         let style = ActionStyle {
-            background,
+            background: background.filter(|_| !split),
             foreground,
             height: 32.,
             min_width: 0.,
             corner: CornerRole::Small,
             pressed_corner: CornerRole::Small,
-            outline: f32::from(background.is_none()),
+            outline: f32::from(!split && background.is_none()),
             elevation: if elevated {
                 Elevation::Level1
             } else {
@@ -169,9 +186,27 @@ impl RenderOnce for Chip {
         };
         let row = div()
             .id(self.id.clone())
+            .relative()
             .flex()
+            .min_w_0()
             .items_center()
             .when(direction == Direction::Rtl, Styled::flex_row_reverse)
+            .when(split, |row| {
+                row.child(
+                    div()
+                        .absolute()
+                        .left_0()
+                        .right_0()
+                        .top(gpui::relative(0.5))
+                        .mt(-height / 2.)
+                        .h(height)
+                        .rounded(radius)
+                        .bg(container)
+                        .when(background.is_none(), |surface| {
+                            surface.border_1().border_color(border)
+                        }),
+                )
+            })
             .child(
                 ActionControl {
                     id: ElementId::from((self.id.clone(), "activate")),
@@ -193,13 +228,13 @@ impl RenderOnce for Chip {
                     disabled: self.disabled,
                     action: Action::Invoke(Some(on_remove)),
                     style: ActionStyle {
-                        background,
+                        background: None,
                         foreground,
                         height: 32.,
                         min_width: 32.,
                         corner: CornerRole::Small,
                         pressed_corner: CornerRole::Small,
-                        outline: f32::from(background.is_none()),
+                        outline: 0.,
                         elevation: Elevation::Level0,
                         hover_elevation: Elevation::Level0,
                     },

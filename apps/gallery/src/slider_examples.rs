@@ -7,6 +7,8 @@ pub(crate) struct SliderExamples {
     level: Entity<SliderState>,
     range: Entity<SliderState>,
     centered: Entity<SliderState>,
+    sizes: [Entity<SliderState>; 3],
+    overlap: Entity<SliderState>,
 }
 
 impl SliderExamples {
@@ -15,6 +17,14 @@ impl SliderExamples {
             level: cx.new(|_| SliderState::new().max(10.).step(1.).default_value(3.)),
             range: cx.new(|_| SliderState::new().max(10.).step(1.).default_value(3.0..7.0)),
             centered: cx.new(|_| SliderState::new().min(-1.).max(1.).default_value(0.4)),
+            sizes: std::array::from_fn(|index| {
+                cx.new(|_| {
+                    SliderState::new()
+                        .max(10.)
+                        .default_value([2., 5., 8.][index])
+                })
+            }),
+            overlap: cx.new(|_| SliderState::new().max(10.).step(1.).default_value(5.0..5.0)),
         }
     }
 }
@@ -50,7 +60,36 @@ impl Render for SliderExamples {
                 Slider::new("balance", "Balance", &self.centered)
                     .kind(SliderKind::Centered)
                     .axis(Axis::Vertical)
-                    .size(ControlSize::Medium),
+                    .size(ControlSize::Medium)
+                    .icon("±"),
+            )
+            .children(
+                [
+                    ControlSize::Small,
+                    ControlSize::Large,
+                    ControlSize::ExtraLarge,
+                ]
+                .into_iter()
+                .enumerate()
+                .map(|(index, size)| {
+                    let name = format!("{size:?} level");
+                    div().child(name.clone()).child(
+                        Slider::new(("slider-size", index), name, &self.sizes[index])
+                            .size(size)
+                            .icon("+")
+                            .disabled(size == ControlSize::ExtraLarge),
+                    )
+                }),
+            )
+            .child(div().child("Overlapping range"))
+            .child(
+                Slider::range(
+                    "overlapping-range",
+                    "Overlap start",
+                    "Overlap end",
+                    &self.overlap,
+                )
+                .size(ControlSize::Large),
             )
     }
 }

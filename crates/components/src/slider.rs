@@ -1,19 +1,20 @@
 use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
-    Along, AnyElement, App, AppContext, Axis, Bounds, DragMoveEvent, ElementId, Entity,
-    FocusHandle, HitboxBehavior, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    Pixels, Point, Render, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
-    TouchDragEvent, TouchPhase, Window, canvas, div, point, prelude::FluentBuilder, px, relative,
+    Along, AnyElement, App, AppContext, AvailableSpace, Axis, Bounds, DragMoveEvent, ElementId,
+    Entity, FocusHandle, HitboxBehavior, Hsla, InteractiveElement, IntoElement, MouseButton,
+    ParentElement, Pixels, Point, Render, RenderOnce, Role, SharedString,
+    StatefulInteractiveElement, Styled, TouchDragEvent, TouchPhase, Window, canvas, div, point,
+    prelude::FluentBuilder, px, relative,
 };
 use gpui_base::{
     AxisExt, TestSupportExt,
     slider::{Slider as BaseSlider, SliderIndicator},
 };
 use gpui_material_foundation::{
-    DragCapture, RangeThumb, color, material_theme, range_semantics, value_label,
+    DragCapture, RangeThumb, color, range_semantics, shape_text, value_label, window_material_theme,
 };
-use gpui_material_theme::{ColorRole, Direction};
+use gpui_material_theme::{ColorRole, Direction, TypeRole, TypographyEmphasis};
 
 use crate::ControlSize;
 
@@ -169,7 +170,7 @@ impl RenderOnce for Slider {
             .clone();
         let geometry = Geometry {
             axis: self.axis,
-            direction: material_theme(cx).layout.direction,
+            direction: window_material_theme(window, cx).layout.direction,
         };
         let horizontal = self.axis.is_horizontal();
         let value = self.state.read(cx).value();
@@ -192,7 +193,7 @@ impl RenderOnce for Slider {
                 ControlSize::ExtraLarge => (96., 108., 28., Some(32.)),
             };
         let target = thumb_extent.max(48.);
-        let resolve = |role| color(material_theme(cx).colors.color(role));
+        let resolve = |role| color(window_material_theme(window, cx).colors.color(role));
         let disabled = resolve(ColorRole::OnSurface);
         let active = if self.disabled {
             disabled.opacity(0.38)
@@ -206,6 +207,70 @@ impl RenderOnce for Slider {
         };
         let ring = resolve(ColorRole::Secondary);
 
+        let active_icon = resolve(ColorRole::OnPrimary);
+        let inactive_icon = resolve(ColorRole::OnSecondaryContainer);
+        let disabled_icon = resolve(ColorRole::OnSurface).opacity(0.38);
+        let disabled_control = self.disabled;
+        let first = center.min(end);
+        let last = center.max(end);
+        let track_icon = self.icon.zip(icon_size).map(|(icon, side)| {
+            canvas(
+                move |bounds, window, cx| {
+                    let side = px(side);
+                    let (offset, active) = inset_icon_position(
+                        bounds.size.along(geometry.axis),
+                        first,
+                        last,
+                        side,
+                        px(track_radius),
+                    )?;
+                    let foreground = if disabled_control {
+                        disabled_icon
+                    } else if active {
+                        active_icon
+                    } else {
+                        inactive_icon
+                    };
+                    let origin = if horizontal {
+                        let x = if geometry.reversed() {
+                            bounds.right() - offset
+                        } else {
+                            bounds.left() + offset
+                        };
+                        point(x - side / 2., bounds.center().y - side / 2.)
+                    } else {
+                        point(
+                            bounds.center().x - side / 2.,
+                            bounds.bottom() - offset - side / 2.,
+                        )
+                    };
+                    let mut icon = div()
+                        .size(side)
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .text_size(side)
+                        .line_height(side)
+                        .text_color(foreground)
+                        .child(icon)
+                        .into_any_element();
+                    let space = gpui::size(
+                        AvailableSpace::Definite(side),
+                        AvailableSpace::Definite(side),
+                    );
+                    icon.prepaint_as_root(origin, space, window, cx);
+                    Some(icon)
+                },
+                |_, icon, window, cx| {
+                    if let Some(mut icon) = icon {
+                        icon.paint(window, cx);
+                    }
+                },
+            )
+            .absolute()
+            .inset_0()
+            .size_full()
+        });
         let track = SliderIndicator::new(&self.state)
             .relative()
             .size_full()
@@ -247,8 +312,6 @@ impl RenderOnce for Slider {
                                 ));
                             }
                         };
-                        let first = center.min(end);
-                        let last = center.max(end);
                         segment(0., first, inactive, window);
                         segment(first, last, active, window);
                         segment(last, 1., inactive, window);
@@ -257,7 +320,8 @@ impl RenderOnce for Slider {
                 .absolute()
                 .inset_0()
                 .size_full(),
-            );
+            )
+            .children(track_icon);
         let dragging = gesture.borrow().thumb;
         let thumb = |which, position, name, focus: &FocusHandle| {
             let keyboard_state = self.state.clone();
@@ -269,18 +333,61 @@ impl RenderOnce for Slider {
             } else {
                 (thumb_extent, handle_width)
             };
-            let label = value_label(&self.state, which, cx, |value| format!("{value:.2}").into());
-            let label_style = div()
+            let show_value = engaged
+                || !self.disabled && focus.is_focused(window) && window.last_input_was_keyboard();
+            let label = show_value.then(|| {
+                let text =
+                    value_label(&self.state, which, cx, |value| format!("{value:.2}").into());
+                let theme = window_material_theme(window, cx);
+                let foreground = resolve(ColorRole::InverseOnSurface);
+                let background = resolve(ColorRole::InverseSurface);
+                let line = shape_text(
+                    text,
+                    TypeRole::LabelSmall.style(TypographyEmphasis::Baseline),
+                    &theme.typography,
+                    1.,
+                    foreground,
+                    window,
+                    cx,
+                )
+                .expect("numeric slider label");
+                canvas(
+                    |_, _, _| (),
+                    move |thumb, _, window, cx| {
+                        let size = gpui::size(
+                            line.line().width.ceil() + px(16.),
+                            line.line_height() + px(8.),
+                        );
+                        let visible = window.content_mask().bounds;
+                        let origin = value_label_origin(
+                            thumb,
+                            size,
+                            visible,
+                            horizontal,
+                            geometry.direction,
+                        );
+                        let bounds = Bounds::new(origin, size);
+                        window.paint_quad(gpui::quad(
+                            bounds,
+                            px(6.),
+                            background,
+                            px(0.),
+                            background,
+                            gpui::BorderStyle::Solid,
+                        ));
+                        let _ = line.paint(
+                            origin + point(px(8.), px(4.)),
+                            gpui::TextAlign::Left,
+                            None,
+                            window,
+                            cx,
+                        );
+                    },
+                )
                 .absolute()
-                .px_2()
-                .py_1()
-                .rounded_md()
-                .bg(resolve(ColorRole::InverseSurface))
-                .text_color(resolve(ColorRole::InverseOnSurface))
-                .text_xs()
-                .when(horizontal, |label| label.bottom(px(height + 8.)))
-                .when(!horizontal, |label| label.left(px(width + 8.)))
-                .child(label);
+                .inset_0()
+                .size_full()
+            });
             let element = geometry
                 .place(
                     div()
@@ -313,13 +420,7 @@ impl RenderOnce for Slider {
                 .rounded_full()
                 .bg(active)
                 .focus_visible(move |style| style.bg(ring))
-                .when(
-                    engaged
-                        || !self.disabled
-                            && focus.is_focused(window)
-                            && window.last_input_was_keyboard(),
-                    |thumb| thumb.child(label_style),
-                );
+                .children(label);
 
             let element = if self.disabled {
                 element
@@ -351,7 +452,7 @@ impl RenderOnce for Slider {
             || self.name.clone(),
             |end| format!("{} – {end}", self.name).into(),
         );
-        let mut root = div()
+        let root = div()
             .id(self.id.clone())
             .relative()
             .when(horizontal, |root| root.w_full().h(px(target)).px_2())
@@ -371,24 +472,6 @@ impl RenderOnce for Slider {
                 self.range_end_name.unwrap_or(self.name),
                 &end_focus,
             ));
-        if let (Some(icon), Some(icon_size)) = (self.icon, icon_size) {
-            root = root.child(
-                div()
-                    .absolute()
-                    .when(geometry.reversed(), |icon| icon.right_3())
-                    .when(!geometry.reversed(), |icon| icon.left_3())
-                    .top_1()
-                    .text_size(px(icon_size))
-                    .text_color(resolve(if self.disabled {
-                        ColorRole::OnSurfaceVariant
-                    } else if end > 0.15 {
-                        ColorRole::OnPrimary
-                    } else {
-                        ColorRole::OnSecondaryContainer
-                    }))
-                    .child(icon),
-            );
-        }
         if self.disabled || !window.is_window_active() && gesture.borrow().thumb.is_some() {
             if gesture.borrow().thumb.is_some() {
                 let state = self.state.clone();
@@ -576,6 +659,57 @@ impl RenderOnce for Slider {
             })
             .into_any_element()
     }
+}
+
+fn value_label_origin(
+    thumb: Bounds<Pixels>,
+    label: gpui::Size<Pixels>,
+    visible: Bounds<Pixels>,
+    horizontal: bool,
+    direction: Direction,
+) -> Point<Pixels> {
+    let gap = px(8.);
+    let x = if horizontal {
+        thumb.center().x - label.width / 2.
+    } else if direction == Direction::Ltr && thumb.right() + gap + label.width <= visible.right()
+        || thumb.left() - gap - label.width < visible.left()
+    {
+        thumb.right() + gap
+    } else {
+        thumb.left() - gap - label.width
+    };
+    let y = if horizontal && thumb.top() - gap - label.height >= visible.top() {
+        thumb.top() - gap - label.height
+    } else if horizontal {
+        thumb.bottom() + gap
+    } else {
+        thumb.center().y - label.height / 2.
+    };
+    point(
+        x.clamp(
+            visible.left(),
+            (visible.right() - label.width).max(visible.left()),
+        ),
+        y.clamp(
+            visible.top(),
+            (visible.bottom() - label.height).max(visible.top()),
+        ),
+    )
+}
+
+fn inset_icon_position(
+    length: Pixels,
+    first: f32,
+    last: f32,
+    side: Pixels,
+    radius: Pixels,
+) -> Option<(Pixels, bool)> {
+    let inset = radius.max(px(4.));
+    let center = inset + side / 2.;
+    [(0., first, false), (first, last, true), (last, 1., false)]
+        .into_iter()
+        .find(|(start, end, _)| length * (end - start) >= 2. * inset + side)
+        .map(|(start, _, active)| (length * start + center, active))
 }
 
 fn choose_thumb(range: bool, start: f32, end: f32, fraction: f32) -> RangeThumb {

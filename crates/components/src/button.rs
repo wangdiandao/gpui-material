@@ -4,7 +4,7 @@ use gpui::{
     AnyElement, App, ElementId, FocusHandle, IntoElement, ParentElement, RenderOnce, SharedString,
     Styled, Window, div, px,
 };
-use gpui_material_foundation::material_theme;
+use gpui_material_foundation::window_material_theme;
 use gpui_material_theme::{
     ColorRole, CornerRole, Direction, Elevation, TypeRole, TypographyEmphasis,
 };
@@ -299,7 +299,7 @@ impl RenderOnce for Button {
             self.common.label.clone(),
             metrics,
             window,
-            material_theme(cx).layout.direction,
+            window_material_theme(window, cx).layout.direction,
         );
         self.common
             .render(content, style, Action::Invoke(self.on_activate), window, cx)
@@ -360,7 +360,7 @@ impl RenderOnce for ToggleButton {
             self.common.label.clone(),
             metrics,
             window,
-            material_theme(cx).layout.direction,
+            window_material_theme(window, cx).layout.direction,
         );
         self.common.render(
             content,

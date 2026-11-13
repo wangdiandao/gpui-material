@@ -15,4 +15,6 @@
 
 主题的 `dynamic-color` 功能依赖 crates.io 的 [material-color-utils 0.1.3](https://crates.io/crates/material-color-utils/0.1.3)。该包的 LICENSE 为 Apache-2.0。[主题 Token 索引](docs/theme/token-index.zh.md)逐项记录取自 Compose 或固定设计页的数值与引用。
 
+Foundation crate 使用 [polymorpher 0.1.4](https://crates.io/crates/polymorpher/0.1.4) 生成圆角多边形几何。该依赖使用空默认特性集，由 polymorpher 直接依赖 euclid。发布包包含 Apache-2.0 许可证。
+
 引入第三方源码、图标、字体或文档节选时，在其归属阶段记录精确来源、版本、修改与再分发条款。源版本和 Cargo 候选见[设计依据](docs/design-sources.zh.md)及[架构与依赖](docs/architecture.zh.md)。

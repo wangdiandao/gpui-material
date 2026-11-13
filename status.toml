@@ -1,6 +1,20 @@
 schema_version = 1
-current_phase = "P2"
-allowed_paths = []
+current_phase = "P3"
+allowed_paths = [
+    "status.toml",
+    "Cargo.toml",
+    "Cargo.lock",
+    "crates/theme/",
+    "tokens/",
+    "xtask/",
+    "docs/index.md",
+    "docs/architecture.md",
+    "docs/development.md",
+    "docs/theme/",
+    "docs/phases/P03.md",
+    "docs/phases/P03-evidence.md",
+    "THIRD_PARTY_NOTICES.md",
+]
 blockers = []
 repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", evidence = "docs/phases/P00.md", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }]
 frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f" }
@@ -71,7 +85,8 @@ merged_deliverables = [
 ]
 
 [phases.P3]
-status = "planned"
+status = "active"
+entry_conditions = ["P2 is frozen", "Pinned Material sources and pure algorithm probes are available"]
 
 [phases.P4]
 status = "planned"

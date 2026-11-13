@@ -16,6 +16,8 @@ pub(crate) struct Drawing {
     mesh: Rc<RefCell<Option<Shape>>>,
     focus: FocusHandle,
     expanded: bool,
+    #[cfg(all(test, feature = "test-support"))]
+    progress: f32,
     hovered: bool,
     ripple: Option<Rc<Ripple>>,
     pressed: bool,
@@ -31,6 +33,8 @@ impl Drawing {
             mesh: Default::default(),
             focus: cx.focus_handle(),
             expanded: false,
+            #[cfg(all(test, feature = "test-support"))]
+            progress: 0.,
             hovered: false,
             ripple: None,
             pressed: false,
@@ -49,6 +53,11 @@ impl Render for Drawing {
             .motion
             .spec(MotionKind::Spatial, MotionSpeed::Default, reduced);
         let progress = animate("drawing-morph", f32::from(self.expanded), spec, window, cx);
+
+        #[cfg(all(test, feature = "test-support"))]
+        {
+            self.progress = progress;
+        }
 
         let mesh = self.mesh.clone();
         let morph = self.morph.clone();
@@ -231,6 +240,7 @@ mod tests {
         let bounds = cx
             .update_window(window.into(), |_, window, cx| {
                 window.activate_window();
+                window.set_scale_factor(1.25);
                 window.refresh();
                 window.draw(cx).clear(cx);
                 find(window, &[], &"morph-shape".into()).unwrap().bounds()
@@ -248,6 +258,26 @@ mod tests {
         .unwrap();
         cx.run_until_parked();
         assert!(cx.update(|cx| drawing.read(cx).expanded));
+        cx.executor()
+            .advance_clock(std::time::Duration::from_millis(50));
+        let sample = |cx: &mut TestAppContext| {
+            cx.update_window(window.into(), |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+                drawing.read(cx).progress
+            })
+            .unwrap()
+        };
+        let outbound = sample(cx);
+        assert!((0. ..1.).contains(&outbound));
+        cx.update_window(window.into(), |_, window, cx| {
+            click(bounds.center(), window, cx)
+        })
+        .unwrap();
+        assert!(!cx.update(|cx| drawing.read(cx).expanded));
+        assert_eq!(sample(cx), outbound);
+        cx.update(|cx| cx.set_reduce_motion(true));
+        assert_eq!(sample(cx), 0.);
         cx.executor()
             .advance_clock(std::time::Duration::from_secs(2));
         cx.update_window(window.into(), |_, window, cx| {

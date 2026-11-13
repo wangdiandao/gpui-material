@@ -1,7 +1,5 @@
-use gpui::{
-    Context, InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle,
-    StatefulInteractiveElement, Styled, Window, div, px,
-};
+use gpui::{Context, IntoElement, ParentElement, Render, ScrollHandle, Styled, Window, div, px};
+use gpui_material::foundation::isolated_scroll;
 use gpui_material::theme::TypeRole;
 use gpui_material::{
     Badge, Button, ButtonVariant, Card, CardVariant, CircularProgress, Divider, Icon,
@@ -247,10 +245,7 @@ impl Render for DisplayExamples {
                     .role(TypeRole::TitleMedium),
             )
             .child(
-                div()
-                    .id("files-scroll")
-                    .track_scroll(&self.files_scroll)
-                    .overflow_y_scroll()
+                isolated_scroll("files-scroll", &self.files_scroll)
                     .h_48()
                     .child(List::new("standard-list").items((1..=24).map(|file| {
                         let select = cx.entity();

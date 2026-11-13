@@ -65,6 +65,15 @@ impl Render for ShapesProbe {
 }
 
 fn main() {
+    #[cfg(all(
+        feature = "test-support",
+        any(target_os = "macos", target_os = "linux")
+    ))]
+    if let Some(output) = std::env::var_os("P1_SHAPES_SCREENSHOT") {
+        native_renderer_draws_morph_samples(&output);
+        return;
+    }
+
     gpui_platform::application().run(|cx| {
         gpui_base::init(cx);
         let options = WindowOptions {
@@ -89,4 +98,59 @@ fn gpui_tessellates_all_reference_progress_samples() {
         assert!(path.bounds.size.width > px(40.));
         assert!(path.bounds.size.height > px(40.));
     }
+}
+
+#[cfg(all(
+    feature = "test-support",
+    any(target_os = "macos", target_os = "linux")
+))]
+fn native_renderer_draws_morph_samples(output: &std::ffi::OsStr) {
+    use gpui::HeadlessAppContext;
+    use std::sync::Arc;
+
+    let mut cx = HeadlessAppContext::with_platform(
+        gpui_platform::current_platform(true).text_system(),
+        Arc::new(()),
+        gpui_platform::current_headless_renderer,
+    );
+    cx.update(gpui_base::init);
+    let handle = cx
+        .open_window(size(px(480.), px(280.)), |window, cx| {
+            let view = cx.new(|_| ShapesProbe([0., 0.5, 1.].map(curves)));
+            cx.new(|cx| gpui_base::Root::new(view, window, cx))
+        })
+        .expect("open GPU-backed test window");
+
+    let scale = cx
+        .update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            window.scale_factor()
+        })
+        .unwrap();
+    let image = cx
+        .capture_screenshot(handle.into())
+        .expect("capture native GPU pixels");
+    let device_pixel = |logical: u32| (logical as f32 * scale).round() as u32;
+    assert_eq!(image.dimensions(), (device_pixel(480), device_pixel(280)));
+
+    let background = image.get_pixel(0, 0);
+    for x in [96, 240, 384].map(device_pixel) {
+        assert_ne!(
+            image.get_pixel(x, device_pixel(128)),
+            background,
+            "fill at x={x}"
+        );
+        assert_eq!(
+            image.get_pixel(x, device_pixel(52)),
+            background,
+            "background above x={x}"
+        );
+    }
+    image.save(output).expect("save native GPU screenshot");
+    println!(
+        "{} native renderer: {:?}, scale={scale}, three interior and three exterior samples",
+        std::env::consts::OS,
+        image.dimensions()
+    );
 }

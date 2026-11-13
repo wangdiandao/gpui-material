@@ -10,5 +10,6 @@
 8. [P2 工程基线](phases/P02.md)记录 Workspace、Windows Gallery、工程检查及合并门禁。
 9. [开发与验证](development.md)记录编码、测试、上游贡献规范，以及构建、测量与持续集成。
 10. [P3 纯主题](phases/P03.md)记录 Token、主题与离线验证范围。
+11. [纯主题](theme/theme.md)记录主题值、默认策略和数据来源。
 
 后续设计、组件和阶段文档在所属工作开始时加入本索引，历史由 Git 保留。

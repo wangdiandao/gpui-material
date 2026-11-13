@@ -2,9 +2,9 @@ use std::rc::Rc;
 
 use gpui::{
     AnyElement, App, ElementId, FocusHandle, IntoElement, ParentElement, RenderOnce, SharedString,
-    Styled, Window, div, px,
+    Styled, Window, anchored, deferred, div, px,
 };
-use gpui_material_foundation::{animate, material_theme};
+use gpui_material_foundation::{animate, logical_anchor, material_theme};
 use gpui_material_theme::{
     ColorRole, CornerRole, Direction, Elevation, MotionKind, MotionSpeed, TypeRole,
     TypographyEmphasis,
@@ -272,5 +272,51 @@ impl RenderOnce for ExtendedFab {
             content: row.into_any_element(),
         }
         .render(window, cx)
+    }
+}
+
+/// Places a FAB inside the current window viewport at logical bottom-end.
+/// Mount this element beside the scroll owner so it stays visible while scrolling.
+#[derive(IntoElement)]
+pub struct FloatingAction {
+    action: AnyElement,
+    margin: gpui::Pixels,
+}
+
+impl FloatingAction {
+    pub fn new(action: impl IntoElement) -> Self {
+        Self {
+            action: action.into_any_element(),
+            margin: px(16.),
+        }
+    }
+
+    pub fn margin(mut self, margin: gpui::Pixels) -> Self {
+        self.margin = margin.max(px(0.));
+        self
+    }
+}
+
+impl RenderOnce for FloatingAction {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let viewport = window.viewport_size();
+        let direction = material_theme(cx).layout.direction;
+        let margin = self.margin.min(viewport.width.min(viewport.height) / 4.);
+        let x = if direction == Direction::Rtl {
+            margin
+        } else {
+            viewport.width - margin
+        };
+        deferred(
+            anchored()
+                .anchor(logical_anchor(gpui::Anchor::BottomRight, direction))
+                .position(gpui::point(x, viewport.height - margin))
+                .snap_to_window_with_margin(margin)
+                .child(
+                    div()
+                        .max_w((viewport.width - margin * 2.).max(px(0.)))
+                        .child(self.action),
+                ),
+        )
     }
 }

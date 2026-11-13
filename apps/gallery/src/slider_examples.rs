@@ -55,8 +55,8 @@ impl Render for SliderExamples {
 mod tests {
     use super::*;
     use gpui::{
-        ElementId, InputEvent, MouseButton, MouseDownEvent, MouseUpEvent, TestAppContext, point,
-        px, size,
+        ElementId, InputEvent, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
+        TestAppContext, point, px, size,
     };
     use gpui_base::test_support::find;
     use gpui_material::foundation::MaterialRoot;
@@ -117,5 +117,60 @@ mod tests {
         cx.simulate_keystrokes(handle.into(), "right");
         cx.run_until_parked();
         cx.update(|cx| assert_eq!(view.read(cx).range.read(cx).value(), (5.0, 7.0).into()));
+
+        cx.update_window(handle.into(), |_, window, cx| {
+            let state = view.read(cx).range.clone();
+            let bounds = state.read(cx).bounds();
+            let at = |fraction| {
+                point(
+                    bounds.left() + bounds.size.width * fraction,
+                    bounds.center().y,
+                )
+            };
+            let draw = |window: &mut Window, cx: &mut gpui::App| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+            };
+            window.dispatch_event(
+                MouseDownEvent {
+                    button: MouseButton::Left,
+                    position: at(0.5),
+                    click_count: 1,
+                    first_mouse: false,
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+            draw(window, cx);
+            for fraction in [0.45, 0.3] {
+                window.dispatch_event(
+                    MouseMoveEvent {
+                        position: at(fraction),
+                        pressed_button: Some(MouseButton::Left),
+                        modifiers: Default::default(),
+                    }
+                    .to_platform_input(),
+                    cx,
+                );
+                draw(window, cx);
+            }
+            assert!(cx.has_active_drag());
+            assert_eq!(state.read(cx).value(), (3.0, 7.0).into());
+            let keystroke =
+                gpui::Keystroke::parse_with_os("escape", cx.platform_info().os).unwrap();
+            window.dispatch_event(
+                gpui::KeyDownEvent {
+                    keystroke,
+                    is_held: false,
+                    prefer_character_input: false,
+                }
+                .to_platform_input(),
+                cx,
+            );
+            draw(window, cx);
+            assert!(!cx.has_active_drag());
+        })
+        .unwrap();
     }
 }

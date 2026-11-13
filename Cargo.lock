@@ -2203,6 +2203,7 @@ dependencies = [
  "gpui-material-foundation",
  "gpui-material-theme",
  "gpui-pre",
+ "polymorpher",
 ]
 
 [[package]]

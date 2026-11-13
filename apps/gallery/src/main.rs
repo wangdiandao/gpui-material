@@ -17,6 +17,7 @@ use gpui_material::foundation::{
 use gpui_material::theme::{
     Appearance, ColorRole, Elevation, MaterialTheme, TypeRole, TypographyEmphasis,
 };
+use gpui_material::{Fab, FloatingAction};
 
 const TITLE: &str = "Material Gallery";
 
@@ -149,6 +150,7 @@ impl Render for Gallery {
                     .flex_col()
                     .p_6()
                     .gap_4()
+                    .pb(px(88.))
                     .child(
                         div()
                             .id("typography")
@@ -226,9 +228,12 @@ impl Render for Gallery {
                             }),
                     ),
             )
+            .child(FloatingAction::new(
+                Fab::new("floating-theme", "Toggle reduced motion", "◐")
+                    .on_activate(|_, cx| cx.set_reduce_motion(!cx.reduce_motion())),
+            ))
     }
 }
-
 #[cfg(all(test, feature = "test-support"))]
 mod tests {
     use super::*;

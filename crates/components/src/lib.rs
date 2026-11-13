@@ -8,7 +8,7 @@ pub use button::{
     Button, ButtonShape, ButtonVariant, ControlSize, IconButton, IconButtonVariant,
     IconButtonWidth, IconToggleButton, ToggleButton, ToggleButtonVariant,
 };
-pub use fab::{ExtendedFab, Fab, FabColor, FabSize};
+pub use fab::{ExtendedFab, Fab, FabColor, FabSize, FloatingAction};
 
 mod selection;
 pub use selection::{Checkbox, CheckboxState, Radio, RadioGroup, Switch};

@@ -1,9 +1,9 @@
 schema_version = 1
 current_phase = "P1"
-allowed_paths = ["experiments/**", "docs/phases/P01-evidence.md", "docs/architecture/index.md", "status.toml"]
+allowed_paths = []
 blockers = []
 repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", evidence = "docs/phases/P00.md", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }]
-frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55" }
+frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295" }
 
 [phases.P0]
 status = "frozen"
@@ -25,8 +25,25 @@ merged_deliverables = [
 ]
 
 [phases.P1]
-status = "active"
+status = "frozen"
+frozen_on = 2026-11-13
 entry_conditions = ["P0 is frozen", "Pinned P0 sources and probe plan are available"]
+evidence = [
+    "docs/phases/P01-evidence.md",
+    "docs/architecture/index.md",
+]
+merged_deliverables = [
+    { task = "P1-01", issue = 10, pull_request = 21, commit = "ae6591a24444c749935cb78a9199cda710ab1c16" },
+    { task = "P1-02", issue = 11, pull_request = 46, commit = "b70edaa2040f861d59f692587e7d6cd300c9bcc9" },
+    { task = "P1-03", issue = 12, pull_request = 43, commit = "0157c520649094761582c983c5cbd92e2e6ca29d" },
+    { task = "P1-04", issue = 13, pull_request = 44, commit = "1825b019cbc25badd251a57b570c3130f9c1fe4e" },
+    { task = "P1-04", issue = 13, pull_request = 50, commit = "a3b282f8d5067253356a345ffc8834b734e260ab" },
+    { task = "P1-05", issue = 14, pull_request = 45, commit = "cdc0dcbaf4d7323f098a923099605d264d9d4a40" },
+    { task = "P1-06", issue = 15, pull_request = 42, commit = "40ae0edf6641604d7e9fc7345aca61f51ab4d025" },
+    { task = "P1-07", issue = 16, pull_request = 47, commit = "43ad365280e351d363318f211248adcda0d8ea74" },
+    { task = "P1-08", issue = 17, pull_request = 38, commit = "111f4843de9b756e4b9c35e0a02aadef01194333" },
+    { task = "P1-09", issue = 18, pull_request = 51, commit = "b0250f5f120ab2fbadfe41b5529612e984358295" },
+]
 
 [phases.P2]
 status = "planned"

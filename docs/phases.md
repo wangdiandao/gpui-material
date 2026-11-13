@@ -11,7 +11,7 @@ English | [中文](phases.zh.md)
 | [P2](phases/P02.md) | Workspace, toolchain, CI/CD, minimal test window, Gallery host, xtask, templates, and merge checks | Windows builds and runs reproducibly. Initial release verification and measurement are executable. |
 | [P3](phases/P03.md) | Theme crate, tokens, color, typography, shape, MotionSpec, layout, and density | Pure crate graphs exclude GPUI. Token parsing, generation, and comparisons with official algorithms pass. |
 | [P4](phases/P04.md) | Foundation and drawing, input, focus, overlay, drag, scroll, and semantic primitives | Each primitive is verified independently on the applicable platforms and adapter paths. |
-| P5 | Basic controls, display feedback, first facade, and Gallery scenarios | Applicable variants and behaviors pass component checks. The 0.0.1 preview can ship. |
+| [P5](phases/P05.md) | Basic controls, display feedback, first facade, and Gallery scenarios | Applicable variants and behaviors pass component checks. The 0.0.1 preview can ship. |
 | P6 | Text fields and overlays | Chinese IME, nested overlays, focus restoration, and actual assistive technology pass. |
 | P7 | Navigation and adaptive layout | State survives resizing and mode changes. Keyboard, scroll, and RTL checks pass. The 0.0.2 preview can ship. |
 | P8 | Composite and extended components | All required items pass verification. Experiments have a recorded decision. The 0.0.3 candidate can ship. |

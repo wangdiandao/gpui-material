@@ -1,0 +1,7 @@
+# Section fingerprints for the English and Chinese pages.
+/p5-basic-components:
+  en: "fc47766d0a8b5363"
+  zh: "762542a47772c36f"
+/p5-basic-components/acceptance-criteria:
+  en: "da64a386384f101c"
+  zh: "c5ef89234d28bade"

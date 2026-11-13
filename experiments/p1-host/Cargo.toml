@@ -1,0 +1,21 @@
+[package]
+name = "p1-host"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[features]
+test-support = ["gpui-base/test-support", "gpui/test-support", "gpui_platform/test-support"]
+
+[dependencies]
+gpui-base = "=0.9.1"
+gpui = { package = "gpui-pre", version = "=0.3.12" }
+gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features = [
+    "font-kit",
+    "x11",
+    "wayland",
+    "runtime_shaders",
+] }
+
+[profile.dev]
+debug = 0

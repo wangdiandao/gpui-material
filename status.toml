@@ -1,0 +1,47 @@
+schema_version = 1
+current_phase = "P0"
+allowed_paths = [
+    "/.gitignore",
+    "/README.md",
+    "/LICENSE",
+    "/THIRD_PARTY_NOTICES.md",
+    "/docs/**",
+    "/status.toml",
+]
+blockers = []
+repairs = []
+frozen_commits = {}
+
+[phases.P0]
+status = "review"
+evidence = [
+    "docs/phases/P00.md",
+]
+
+[phases.P1]
+status = "planned"
+entry_conditions = ["P0 is frozen", "Pinned P0 sources and probe plan are available"]
+
+[phases.P2]
+status = "planned"
+
+[phases.P3]
+status = "planned"
+
+[phases.P4]
+status = "planned"
+
+[phases.P5]
+status = "planned"
+
+[phases.P6]
+status = "planned"
+
+[phases.P7]
+status = "planned"
+
+[phases.P8]
+status = "planned"
+
+[phases.P9]
+status = "planned"

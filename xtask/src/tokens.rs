@@ -12,6 +12,7 @@ use crate::Result;
 const INPUT: &str = "tokens/material.json";
 const RUST: &str = "crates/theme/src/generated.rs";
 const INDEX: &str = "docs/theme/token-index.md";
+const INDEX_ZH: &str = "docs/theme/token-index.zh.md";
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -135,8 +136,8 @@ impl Kind {
 
 pub(crate) fn run(check: bool) -> Result {
     let manifest = serde_json::from_str::<Manifest>(&fs::read_to_string(INPUT)?)?;
-    let (rust, index) = generate(&manifest)?;
-    for (path, contents) in [(RUST, rust), (INDEX, index)] {
+    let (rust, index, index_zh) = generate(&manifest)?;
+    for (path, contents) in [(RUST, rust), (INDEX, index), (INDEX_ZH, index_zh)] {
         if check {
             let matches = fs::read_to_string(path)
                 .is_ok_and(|current| current.replace("\r\n", "\n") == contents);
@@ -156,7 +157,7 @@ pub(crate) fn run(check: bool) -> Result {
     Ok(())
 }
 
-fn generate(manifest: &Manifest) -> Result<(String, String)> {
+fn generate(manifest: &Manifest) -> Result<(String, String, String)> {
     use std::fmt::Write as _;
 
     let mut tokens = BTreeMap::new();
@@ -243,16 +244,10 @@ fn generate(manifest: &Manifest) -> Result<(String, String)> {
         .enumerate()
         .map(|(i, s)| (s, i + 1))
         .collect();
-    let mut index = String::from(
-        "# Material token index / Material Token 索引\n\n\
-         Generated from the token manifest by \x60cargo xtask tokens\x60.\n\n\
-         由 \x60cargo xtask tokens\x60 从 Token 数据清单生成。\n\n\
-         | Token | Rust constant / Rust 常量 | Upstream symbol / 上游符号 | Source / 来源 |\n\
-         | --- | --- | --- | --- |\n",
-    );
+    let mut rows = String::from("| --- | --- | --- | --- |\n");
     for &(token, source) in tokens.values() {
         writeln!(
-            index,
+            rows,
             "| \x60{}\x60 | \x60{}\x60 | \x60{}\x60 | [S{}][s{}] |",
             token.name,
             constant(&token.name),
@@ -261,13 +256,27 @@ fn generate(manifest: &Manifest) -> Result<(String, String)> {
             sources[source]
         )?;
     }
-    writeln!(index)?;
+    let mut index = format!(
+        "# Material token index\n\nEnglish | [中文](token-index.zh.md)\n\n\
+         Generated from the token manifest by \x60cargo xtask tokens\x60.\n\n\
+         | Token | Rust constant | Upstream symbol | Source |\n{rows}\n"
+    );
+    let mut index_zh = format!(
+        "# Material Token 索引\n\n[English](token-index.md) | 中文\n\n\
+         由 \x60cargo xtask tokens\x60 从 Token 数据清单生成。\n\n\
+         | Token | Rust 常量 | 上游符号 | 来源 |\n{rows}\n"
+    );
     for (source, id) in sources {
-        let destination = source.strip_prefix("docs/theme/").unwrap_or(source);
-        writeln!(index, "[s{id}]: {destination}")?;
+        let (en, zh) = if source == "docs/theme/theme.md" {
+            ("theme.md", "theme.zh.md")
+        } else {
+            (source, source)
+        };
+        writeln!(index, "[s{id}]: {en}")?;
+        writeln!(index_zh, "[s{id}]: {zh}")?;
     }
 
-    Ok((rust, index))
+    Ok((rust, index, index_zh))
 }
 
 type Tokens<'a> = BTreeMap<&'a str, (&'a Token, &'a str)>;

@@ -1,0 +1,13 @@
+# Section fingerprints for the English and Chinese pages.
+/phase-progression-and-repairs:
+  en: "6b06a4e17e27857e"
+  zh: "cb5031f045b8842e"
+/phase-progression-and-repairs/github-workflow:
+  en: "7b55cc8dfe1bb26a"
+  zh: "4fe9882dd6d4cc6c"
+/phase-progression-and-repairs/maintenance-after-a-freeze:
+  en: "fb1afe9bfdecc6a9"
+  zh: "376e7ef8368c4b9f"
+/phase-progression-and-repairs/repairs:
+  en: "56cb53da48f19496"
+  zh: "ac081b36abbd3464"

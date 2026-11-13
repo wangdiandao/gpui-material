@@ -6,10 +6,21 @@ repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-on
 frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac" }
 
 [evidence_locations]
-"docs/architecture/index.md" = "docs/architecture.md"
-"docs/components/coverage.md" = "docs/component-coverage.md"
-"docs/design/material-snapshot.md" = "docs/material-snapshot.md"
-"docs/design/sources.md" = "docs/design-sources.md"
+"docs/architecture/index.md" = "docs/architecture.zh.md"
+"docs/components/coverage.md" = "docs/component-coverage.zh.md"
+"docs/design/material-snapshot.md" = "docs/material-snapshot.zh.md"
+"docs/design/sources.md" = "docs/design-sources.zh.md"
+"docs/development.md" = "docs/development.zh.md"
+"docs/phases/P00.md" = "docs/phases/P00.zh.md"
+"docs/phases/P01-evidence.md" = "docs/phases/P01-evidence.zh.md"
+"docs/phases/P01.md" = "docs/phases/P01.zh.md"
+"docs/phases/P02-evidence.md" = "docs/phases/P02-evidence.zh.md"
+"docs/phases/P02.md" = "docs/phases/P02.zh.md"
+"docs/phases/P03-evidence.md" = "docs/phases/P03-evidence.zh.md"
+"docs/phases/P03.md" = "docs/phases/P03.zh.md"
+"docs/theme/theme.md" = "docs/theme/theme.zh.md"
+"docs/theme/token-index.md" = "docs/theme/token-index.zh.md"
+"docs/verification.md" = "docs/verification.zh.md"
 
 [phases.P0]
 status = "frozen"

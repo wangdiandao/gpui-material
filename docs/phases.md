@@ -1,45 +1,51 @@
-# 阶段推进与返修
+# Phase progression and repairs
 
-简体中文 · [English](phases.en.md)
+English | [中文](phases.zh.md)
 
-[status.toml](../status.toml)是机器可读阶段状态源。阶段按 P0–P9 顺序推进。上一阶段通过验收并冻结后，下一阶段进入实现。只有一个阶段可处于 active 或 review。planned 表示待进入，blocked 表示有具名阻塞，frozen 表示证据与接受提交已记录。
+[status.toml](../status.toml) is the machine-readable source of phase status. Phases proceed in order from P0 through P9. A phase starts implementation after its predecessor passes acceptance and freezes. Only one phase can be `active` or in `review`. `planned` indicates a future phase, `blocked` identifies a named blocker, and `frozen` records evidence and an acceptance commit.
 
-| 阶段 | 范围 | 退出条件 |
+| Phase | Scope | Exit criteria |
 | --- | --- | --- |
-| [P0](phases/P00.md) | 需求、官方来源、覆盖矩阵、平台、依赖契约 | 必需范围与分类明确，各项有出处、归属和验收方向，P1 有可执行探针任务。 |
-| [P1](phases/P01.md) | 隔离探针、架构与依赖方向 | 必需能力有成功证据，阻塞所需的适配或补丁已验证。 |
-| [P2](phases/P02.md) | Workspace、工具链、CI/CD、最小测试窗口、Gallery 容器、xtask、Issue/PR 模板与门禁 | Windows 可重复构建和运行，首版验证路线与测量方法可执行。 |
-| [P3](phases/P03.md) | theme crate、Token、色彩、排版、形状、MotionSpec、布局和密度 | 纯 crate 图无 GPUI，Token 解析、生成和官方算法对照通过。 |
-| P4 | foundation 与绘制、输入、焦点、浮层、拖拽、滚动、语义原语 | 各原语独立验证，记录平台与适配证据。 |
-| P5 | 基础控件、展示反馈、首个门面和对应 Gallery | 各适用变体与行为通过组件门禁，可发布 0.0.1 预览。 |
-| P6 | 文本字段及浮层 | 中文 IME、嵌套浮层、焦点恢复和真实辅助技术通过。 |
-| P7 | 导航与自适应布局 | 缩放和布局模式切换保持状态，键盘、滚动和 RTL 通过，可发布 0.0.2 预览。 |
-| P8 | 复合与扩展组件 | 必需项均有 verified 证据，实验项有结论，可发布 0.0.3 候选。 |
-| P9 | 集成、支持矩阵、运行及构建回归、发布 | 支持声明、依赖/MSRV、许可、API 稳定性与迁移说明齐全，发布可重现，可发布 0.1.0。 |
+| [P0](phases/P00.md) | Requirements, official sources, coverage matrix, platforms, dependency contracts | Required scope and classifications are clear. Each item has a source, owner, and acceptance direction. P1 has runnable probe tasks. |
+| [P1](phases/P01.md) | Isolated probes, architecture, and dependency direction | Required capabilities have passing evidence. Adapters or patches needed to unblock them are verified. |
+| [P2](phases/P02.md) | Workspace, toolchain, CI/CD, minimal test window, Gallery host, xtask, templates, and merge checks | Windows builds and runs reproducibly. Initial release verification and measurement are executable. |
+| [P3](phases/P03.md) | Theme crate, tokens, color, typography, shape, MotionSpec, layout, and density | Pure crate graphs exclude GPUI. Token parsing, generation, and comparisons with official algorithms pass. |
+| P4 | Foundation and drawing, input, focus, overlay, drag, scroll, and semantic primitives | Each primitive is verified independently, with platform and adapter evidence. |
+| P5 | Basic controls, display feedback, first facade, and Gallery scenarios | Applicable variants and behaviors pass component checks. The 0.0.1 preview can ship. |
+| P6 | Text fields and overlays | Chinese IME, nested overlays, focus restoration, and actual assistive technology pass. |
+| P7 | Navigation and adaptive layout | State survives resizing and mode changes. Keyboard, scroll, and RTL checks pass. The 0.0.2 preview can ship. |
+| P8 | Composite and extended components | All required items have verified evidence. Experiments have a recorded decision. The 0.0.3 candidate can ship. |
+| P9 | Integration, support matrix, runtime and build regression, and release | Support claims, dependencies and MSRV, licensing, API stability, and migration guidance are complete. The release is reproducible and 0.1.0 can ship. |
 
-P1 探针位于 `experiments/`。生产模块在其首次实现阶段加入。一个组件的行为、变体、文档和验收由其归属阶段交付。已冻结功能与新阶段功能可共存于同一个 Cargo 包。
+P1 probes live in `experiments/`. Production modules enter the repository in their first implementation phase. The owning phase delivers a component's behavior, variants, documentation, and acceptance. A Cargo package can contain frozen and current-phase functionality.
 
-## GitHub 工作流
+<a id="github-工作流"></a>
 
-Issue 记录独立交付、前置任务、文件范围、通过条件和验证证据。PR 关联 Issue，提供对应变更与验证。阶段冻结时汇总本阶段合并结果、证据和接受提交。当前模板、分支命名与 CI 作业见[开发与验证](development.md)。审阅同时核对功能与阶段边界。
+## GitHub workflow
 
-共享契约由一个负责人修改。独立工作按 Issue 和文件所有权分配，在隔离工作区工作，按依赖顺序集成。已确认且具通用价值的上游缺陷用最小复现和补丁遵循上游贡献规则，项目 Issue 跟踪评审、合并、发布以及本项目切换证据。
+Issues record independently verifiable deliverables, prerequisites, file scope, pass criteria, and evidence. PRs link the issue and describe the change and its verification. The phase freeze collects merged deliverables, evidence, and the acceptance commit. Review both functionality and phase boundaries. [Development and verification](development.md)
 
-## 冻结后的维护
+Assign one owner to shared contracts. Split independent work by issue and file ownership, use isolated workspaces, and integrate in dependency order. Follow upstream contribution rules for verified general defects, with a minimal reproduction and patch. Track review, merge, release, and local migration evidence in the project issue.
 
-两阶段之间可通过独立 Issue 与 PR 更新 Markdown 工作流和文档链接。迁移证据文件时在 `status.toml` 的 `evidence_locations` 将冻结提交中的原路径映射到当前路径。验收提交、证据原路径和交付记录保持可追溯。迁移涉及的状态登记与校验代码纳入同一 PR。改动已冻结契约或行为时走返修流程。
+<a id="冻结后的维护"></a>
 
-GitHub 工程维护可更新 `.github/workflows/ci.yml`、PR 模板及 `.github/ISSUE_TEMPLATE/` 中的 Markdown 模板。同一 PR 可更新对应的阶段路径检查，冻结记录仍须通过校验。
+## Maintenance after a freeze
 
-维护生成的 Token 索引时，可在同一 PR 更新索引的生成器。Token 数据和生成的 Rust 表按原归属阶段或返修流程变更。
+Between phases, use a dedicated issue and PR for documentation, including Markdown, translation records, and links. When moving evidence, map the original path from the freeze commit to its current location in `status.toml` under `evidence_locations`. Keep acceptance commits, original evidence paths, and delivery records traceable. Include related status and validation changes in the same PR. Use the repair process when changing a frozen contract or behavior.
 
-已结束的隔离实验可以通过维护 PR 退役一次性验证。历史结果和对应提交记在阶段证据中。路径门禁允许维护 P1 实验文件，以及同一 PR 中为实验维护调整门禁的代码。
+GitHub maintenance can update `.github/workflows/ci.yml`, the PR template, and Markdown templates under `.github/ISSUE_TEMPLATE/`. The same PR can update the corresponding phase path check. Frozen records must still pass validation.
 
-## 返修
+Maintenance of the generated token index can update its generator in the same PR. Change token data and generated Rust tables in the owning phase or through the repair process.
 
-1. 阻塞当前阶段，保存失败证据。
-2. 在状态文件登记原归属阶段、影响范围、复现与证据，仅重开缺陷归属阶段。
-3. 修复并运行该层验证和受影响下游的回归。
-4. 更新原主题文档与验收证据，记录新的冻结提交，再恢复原阶段。
+A maintenance PR can retire one-off verification from completed isolated experiments. Keep historical results and commits in the phase evidence. The path gate permits maintenance of P1 experiments and related gate changes in the same PR.
 
-阶段验收覆盖范围、规范与实现的一致性、适用状态和平台、实际用户入口、许可与依赖变化。示例和测试使用可运行的真实实现。设计裁决直接写入对应主题文件，由 Git 追溯变化。
+<a id="返修"></a>
+
+## Repairs
+
+1. Block the current phase and record the failure evidence.
+2. In the status file, record the owning phase, scope, reproduction, and evidence. Reopen only the phase that owns the defect.
+3. Fix the defect and run verification at that layer and regressions for affected downstream behavior.
+4. Update the original topic document and acceptance evidence, record the new freeze commit, and resume the previous phase.
+
+Phase acceptance checks scope, conformance between specification and implementation, applicable states and platforms, real user entry points, licensing, and dependency changes. Examples and tests exercise runnable production implementations. Record design decisions in the corresponding topic documents and use Git for traceability.

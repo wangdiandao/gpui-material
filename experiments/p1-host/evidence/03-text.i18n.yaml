@@ -1,0 +1,10 @@
+# Section fingerprints for the English and Chinese pages.
+/p1-03-input-and-text-measurement:
+  en: "ee5b914a0ab8f200"
+  zh: "092cfaf86fb999b9"
+/p1-03-input-and-text-measurement/additional-editing-regressions:
+  en: "a11f561e878af442"
+  zh: "da6162094caa82a5"
+/p1-03-input-and-text-measurement/windows-directwrite-fallback-and-metrics:
+  en: "ffebe2e170f655a6"
+  zh: "ffc1f86fa7898cff"

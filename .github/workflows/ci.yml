@@ -131,6 +131,7 @@ jobs:
             target/cargo-timings/cargo-timing.html
             LICENSE
             THIRD_PARTY_NOTICES.md
+            THIRD_PARTY_NOTICES.zh.md
 
   required:
     name: CI required

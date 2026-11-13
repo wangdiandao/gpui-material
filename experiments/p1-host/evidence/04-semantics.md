@@ -1,29 +1,31 @@
-# P1-04 原生语义
+# P1-04 Native semantics
 
-简体中文 · [English](04-semantics.en.md)
+English | [中文](04-semantics.zh.md)
 
-2026-11-13，Windows 11 x64 build 26200，Rust/Cargo 1.99.1，使用此 PR 的代码与已锁定的 crates.io 依赖。实窗缩放 100%，UIA 和截图工具为 winapp 0.7.1。
+Recorded on 2026-11-13 with Windows 11 x64 build 26200 and Rust/Cargo 1.99.1, using the PR code and locked crates.io dependencies. The real window used 100% scaling. UIA and screenshots used winapp 0.7.1.
 
 ```sh
 cargo +1.99.1 test --locked --manifest-path experiments/p1-host/Cargo.toml --features test-support --bin semantics
 cargo +1.99.1 run --locked --manifest-path experiments/p1-host/Cargo.toml --bin semantics
 ```
 
-| 场景 | 观察 | 状态 |
+| Scenario | Observation | Status |
 | --- | --- | --- |
-| Windows 无头绘制节点 | Button、CheckBox、Slider、Status 的角色与名称符合断言，初始复选值为 false。 | pass |
-| Windows 系统 UIA 树 | `Group 操作示例` 下有 Button、CheckBox、Slider 和 StatusBar。 | pass |
-| Windows Invoke 与 Toggle | 执行一次 `winapp ui invoke '执行操作' --action invoke`，StatusBar 从 0 到 1。单次 TogglePattern 后复选状态更新为 on。winapp 0.7.1 的 `toggle-on` 即时回读为 Off，紧随的系统树已为 On。[动作后截图](04-windows.png)。 | pass |
-| 数值范围读写、编辑、浮层与读屏 | Windows UIA 验证范围、编辑和浮层。Windows 实机签收采用负责人确认，VoiceOver 和 Orca 为平台探索。 | pass |
+| Windows headless rendered nodes | Button, CheckBox, Slider, and Status matched role and name assertions. The initial checkbox value was false. | pass |
+| Windows UIA tree | `Group 操作示例` contained Button, CheckBox, Slider, and StatusBar. | pass |
+| Windows Invoke and Toggle | One `winapp ui invoke '执行操作' --action invoke` changed the StatusBar from 0 to 1. One TogglePattern call turned the checkbox on. winapp 0.7.1 immediately read Off for `toggle-on`, and the next system tree read On. [Screenshot after the actions](04-windows.png) | pass |
+| Range read and write, editing, overlays, and screen readers | Windows UIA verified ranges, editing, and overlays. The owner confirmed native Windows acceptance. VoiceOver and Orca are exploratory. | pass |
 
-## Windows RangeValue、编辑与浮层关系
+<a id="windows-rangevalue编辑与浮层关系"></a>
 
-2026-11-13，Windows 11 x64 build 26200，Rust 1.99.1，agent-desktop 1.2.0。UIA RangeValuePattern 的 SetValue 发出 AccessKit `SetValue(NumericValue)`。固定 Base Slider 只注册 Increment/Decrement。探针的范围元素补上 SetValue 与焦点绑定，通过 Base SliderState 的 `step_thumb` 更新并复用步进与边界规则。该适配仍在实验宿主。
+## Windows RangeValue, editing, and overlay relationships
 
-- 「级别」初值 3、范围 0–10、步长 1。一次 RangeValuePattern SetValue 后窗口状态为「级别 7」，获取焦点并按右键后为 8。agent-desktop 的通用 value 回读为空并报告未验证，重新读取独立的 UIA 状态节点及[截图](04-windows-range.png)验证更新。一次按钮 Invoke 后计数从 0 到 1。
-- 加入 Base SliderIndicator 记录轨道实际测量边界后，指针点击轨道 60% 位置时 UIA 状态为「级别 6」。滑块位置随状态移动，RangeValue 写入与键盘步进复测通过。
-- 普通编辑框的 ValuePattern 写入 `UIA 中文` 并回读一致。密码框为 secure，无 SetValue 与明文值。
-- 用 UIA 聚焦「打开浮层输入」后按 Enter。系统树显示对话框包含 `probe-popup-text` 编辑节点，ValuePattern 可写入并回读 `浮层 UIA 中文`。Esc 后该节点从系统树移除。
-- Narrator 实机通过由项目负责人确认，自动化只测上述系统树和动作。见 [Windows 实机记录](../../../docs/phases/P01-evidence.md#windows-实机验收)。
+Recorded on 2026-11-13 with Windows 11 x64 build 26200, Rust 1.99.1, and agent-desktop 1.2.0. UIA RangeValuePattern SetValue emits AccessKit `SetValue(NumericValue)`. Pinned Base Slider registers Increment and Decrement. The probe adds SetValue and focus binding and updates Base SliderState through `step_thumb`, reusing stepping and bounds. The adapter is in the experimental host.
 
-上游退出条件与最小复现见 [Issue #49](https://github.com/wangdiandao/gpui-material/issues/49)。
+- “级别” (Level) started at 3, with range 0–10 and step 1. One RangeValuePattern SetValue changed it to 7. Focus plus Right changed it to 8. agent-desktop's generic value read was empty and reported unverified. The independent UIA status node and [screenshot](04-windows-range.png) confirmed the update. One button Invoke changed the count from 0 to 1.
+- After adding Base SliderIndicator to measure track bounds, clicking at 60% showed level 6 in UIA. The thumb moved with the value. RangeValue writes and keyboard steps passed retesting.
+- The ordinary edit field accepted and read back `UIA 中文` through ValuePattern. The secure password field exposed neither SetValue nor plaintext.
+- Focusing “打开浮层输入” (Open overlay input) via UIA and pressing Enter opened a dialog with the `probe-popup-text` edit node. ValuePattern wrote and read back `浮层 UIA 中文`. Esc removed the node from the system tree.
+- The project owner confirmed native Narrator acceptance. Automation verified the system tree and actions above. [Native Windows record](../../../docs/phases/P01-evidence.md#native-windows-acceptance)
+
+[Issue #49](https://github.com/wangdiandao/gpui-material/issues/49) records upstream removal criteria and the minimal reproduction.

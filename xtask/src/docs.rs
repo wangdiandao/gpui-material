@@ -1,3 +1,5 @@
+mod i18n;
+
 use std::{
     collections::BTreeSet,
     fs,
@@ -7,6 +9,8 @@ use std::{
 use markdown::{ParseOptions, mdast::Node, to_mdast};
 
 use crate::{Result, output};
+
+pub(crate) use i18n::write_records;
 
 pub(crate) fn check() -> Result {
     let files = output("git", &["ls-files", "-z", "--", "*.md"])?;
@@ -23,7 +27,7 @@ pub(crate) fn check() -> Result {
         })?;
     }
     println!("Checked {count} Markdown link destinations");
-    Ok(())
+    i18n::check(&files)
 }
 
 fn parse(path: &Path) -> Result<Node> {
@@ -89,29 +93,44 @@ fn check_link(source: &Path, url: &str) -> Result {
 }
 
 fn collect_anchors(node: &Node, ids: &mut BTreeSet<String>) {
+    if let Node::Html(html) = node
+        && let Some(anchor) = html.value.trim().strip_prefix("<a id=\"")
+        && let Some((id, closing)) = anchor.split_once("\">")
+        && matches!(closing, "" | "</a>")
+    {
+        ids.insert(id.into());
+    }
     if let Node::Heading(_) = node {
-        let mut text = String::new();
-        heading_text(node, &mut text);
-        let id: String = text
-            .to_lowercase()
-            .chars()
-            .filter_map(|c| match c {
-                ' ' => Some('-'),
-                '-' | '_' => Some(c),
-                c if c.is_alphanumeric() => Some(c),
-                _ => None,
-            })
-            .collect();
-        let mut unique = id.clone();
-        let mut suffix = 1;
-        while !ids.insert(unique) {
-            unique = format!("{id}-{suffix}");
-            suffix += 1;
-        }
+        let slug = heading_slug(node);
+        ids.insert(unique_id(&slug, ids, "-"));
     }
     for child in node.children().into_iter().flatten() {
         collect_anchors(child, ids);
     }
+}
+
+fn heading_slug(node: &Node) -> String {
+    let mut text = String::new();
+    heading_text(node, &mut text);
+    text.to_lowercase()
+        .chars()
+        .filter_map(|c| match c {
+            ' ' => Some('-'),
+            '-' | '_' => Some(c),
+            c if c.is_alphanumeric() => Some(c),
+            _ => None,
+        })
+        .collect()
+}
+
+fn unique_id(id: &str, ids: &BTreeSet<String>, separator: &str) -> String {
+    let mut unique = id.to_owned();
+    let mut suffix = 1;
+    while ids.contains(&unique) {
+        unique = format!("{id}{separator}{suffix}");
+        suffix += 1;
+    }
+    unique
 }
 
 fn heading_text(node: &Node, text: &mut String) {
@@ -149,11 +168,16 @@ mod tests {
 
     #[test]
     fn handles_unicode_and_duplicate_headings() {
-        let tree = to_mdast("# GPUI 与 Base\n# `GPUI` 与 *Base*", &ParseOptions::gfm()).unwrap();
+        let tree = to_mdast(
+            "# GPUI 与 Base\n\n<a id=\"gpui-and-base\"></a>\n\n# `GPUI` 与 *Base*",
+            &ParseOptions::gfm(),
+        )
+        .unwrap();
         let mut ids = BTreeSet::new();
         collect_anchors(&tree, &mut ids);
         assert!(ids.contains("gpui-与-base"));
         assert!(ids.contains("gpui-与-base-1"));
+        assert!(ids.contains("gpui-and-base"));
         assert_eq!(decode("gpui-%E4%B8%8E-base").unwrap(), "gpui-与-base");
     }
 

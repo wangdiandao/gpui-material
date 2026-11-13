@@ -1,0 +1,10 @@
+# Section fingerprints for the English and Chinese pages.
+/p1-02-activation-focus-and-cancellation:
+  en: "64e2bff46b850c0c"
+  zh: "55158e0d50b3562a"
+/p1-02-activation-focus-and-cancellation/roving-focus-and-drag-cancellation:
+  en: "03ca91d8c6d30ed8"
+  zh: "5639c3a718bc7689"
+/p1-02-activation-focus-and-cancellation/native-windows-capture-loss:
+  en: "52b990291accd79e"
+  zh: "7be96bb55dcc8449"

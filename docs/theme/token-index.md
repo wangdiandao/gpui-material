@@ -1,10 +1,10 @@
-# Material token index / Material Token 索引
+# Material token index
+
+English | [中文](token-index.zh.md)
 
 Generated from the token manifest by `cargo xtask tokens`.
 
-由 `cargo xtask tokens` 从 Token 数据清单生成。
-
-| Token | Rust constant / Rust 常量 | Upstream symbol / 上游符号 | Source / 来源 |
+| Token | Rust constant | Upstream symbol | Source |
 | --- | --- | --- | --- |
 | `md.comp.button.small.container-height` | `MD_COMP_BUTTON_SMALL_CONTAINER_HEIGHT` | `ContainerHeight` | [S4][s4] |
 | `md.comp.button.small.container-shape-round` | `MD_COMP_BUTTON_SMALL_CONTAINER_SHAPE_ROUND` | `ContainerShapeRound` | [S4][s4] |

@@ -196,13 +196,20 @@ impl Status {
                 .is_some_and(|(next, previous)| *next == previous + 1)
         {
             let index = &self.current_phase[1..];
+            let phase = format!("docs/phases/P0{index}");
             return require_paths(
                 paths,
                 &[
                     "status.toml".into(),
                     "docs/index.md".into(),
+                    "docs/index.zh.md".into(),
+                    "docs/index.i18n.yaml".into(),
                     "docs/phases.md".into(),
-                    format!("docs/phases/P0{index}.md"),
+                    "docs/phases.zh.md".into(),
+                    "docs/phases.i18n.yaml".into(),
+                    format!("{phase}.md"),
+                    format!("{phase}.zh.md"),
+                    format!("{phase}.i18n.yaml"),
                 ],
             );
         }
@@ -259,10 +266,27 @@ fn is_p1_experiment_path(path: &str) -> bool {
 }
 
 fn is_maintenance_path(path: &str, moves_evidence: bool) -> bool {
-    matches!(path, "README.md" | "THIRD_PARTY_NOTICES.md")
-        || (path.starts_with("docs/") && path.ends_with(".md") && is_repo_path(path))
+    matches!(
+        path,
+        "README.md"
+            | "README.zh.md"
+            | "README.i18n.yaml"
+            | "THIRD_PARTY_NOTICES.md"
+            | "THIRD_PARTY_NOTICES.zh.md"
+            | "THIRD_PARTY_NOTICES.i18n.yaml"
+    ) || (path.starts_with("docs/")
+        && (path.ends_with(".md") || path.ends_with(".i18n.yaml"))
+        && is_repo_path(path))
         || is_github_maintenance_path(path)
-        || (moves_evidence && matches!(path, "status.toml" | "xtask/src/phase.rs"))
+        || (moves_evidence
+            && matches!(
+                path,
+                "status.toml"
+                    | "xtask/src/phase.rs"
+                    | "xtask/src/main.rs"
+                    | "xtask/src/docs.rs"
+                    | "xtask/src/docs/i18n.rs"
+            ))
 }
 
 fn is_github_maintenance_path(path: &str) -> bool {
@@ -351,6 +375,9 @@ mod tests {
     fn frozen_maintenance_allows_docs_ci_and_templates() {
         assert!(is_maintenance_path("docs/architecture.md", false));
         assert!(is_maintenance_path("README.md", false));
+        assert!(is_maintenance_path("README.zh.md", false));
+        assert!(is_maintenance_path("docs/architecture.i18n.yaml", false));
+        assert!(!is_maintenance_path("docs/architecture.yaml", false));
         assert!(is_maintenance_path(".github/workflows/ci.yml", false));
         assert!(is_maintenance_path(
             ".github/pull_request_template.md",

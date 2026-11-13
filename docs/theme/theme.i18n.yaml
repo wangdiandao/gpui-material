@@ -1,0 +1,10 @@
+# Section fingerprints for the English and Chinese pages.
+/pure-theme:
+  en: "d727a97431a9e775"
+  zh: "01cb51b576f08c31"
+/pure-theme/token-data:
+  en: "efffd28db244e78f"
+  zh: "cc99f8ff2511d87f"
+/pure-theme/sources-and-desktop-decisions:
+  en: "1f6f1220a8656d2f"
+  zh: "2ddd0bb164129c97"

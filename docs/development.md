@@ -1,42 +1,54 @@
-# 开发与验证
+# Development and verification
 
-简体中文 · [English](development.en.md)
+English | [中文](development.zh.md)
 
-## 贡献流程与分支命名
+<a id="贡献流程与分支命名"></a>
 
-- 从 `.github/ISSUE_TEMPLATE/` 选择缺陷报告、功能提议或阶段交付。缺陷附最小复现，提议交代场景与验收，阶段 Issue 记录前置依赖和文件归属。
-- 从最新 `main` 建分支，使用 `<类型>/<Issue 编号>-<简短主题>`，主题使用小写英文和连字符。无关联 Issue 时使用 `<类型>/<简短主题>`，如 `ci/cross-platform-workflow`。
-- 按改动目的选前缀。`feat/` 新功能，`fix/` 缺陷，`docs/` 文档，`test/` 测试，`refactor/` 重构，`ci/` CI，`chore/` 工程维护，`release/` 发布。例如 `fix/48-pointer-capture`。阶段归属由 Issue、PR 和 `status.toml` 记录。
-- 每个 PR 解决一个问题。按模板关联 Issue，列出公开 API 及迁移方式，记录可复现的验证。界面改动提供 Gallery 入口和前后截图或录屏。[GPUI Kit 贡献指南](https://github.com/longbridge/gpui-kit/blob/main/CONTRIBUTING.md)
+## Contribution workflow and branch naming
 
-## Workspace 与组件开发
+- Choose Bug report, Feature request, or Phase deliverable in `.github/ISSUE_TEMPLATE/`. Include a minimal reproduction for bugs, a use case and acceptance criteria for proposals, and dependencies and file ownership for phase tasks.
+- Branch from the latest `main` and use `<type>/<issue-number>-<short-topic>`. Write the topic in lowercase English with hyphens. For changes without an associated issue, use `<type>/<short-topic>`, such as `ci/cross-platform-workflow`.
+- Choose the prefix by purpose. Use `feat/` for features, `fix/` for fixes, `docs/` for documentation, `test/` for tests, `refactor/` for refactoring, `ci/` for CI, `chore/` for maintenance, and `release/` for releases. For example, use `fix/48-pointer-capture`. Record phase ownership in the issue, PR, and `status.toml`.
+- Keep each PR focused on one problem. Use the template to link the issue, list public API changes and migration steps, and provide reproducible verification. For UI changes, identify the Gallery scenario and include before-and-after screenshots or a recording. [GPUI Kit contribution guide](https://github.com/longbridge/gpui-kit/blob/main/CONTRIBUTING.md)
 
-- 生产库按[架构与依赖](architecture.md)放在 `crates/`，组件按族组织。Gallery 位于 `apps/gallery/`，调用生产公开 API，随组件交付可运行的演示。参照 GPUI Component 的组件库与 Story 分工。[组件库](https://github.com/longbridge/gpui-kit/tree/39ab849a93b5f15507b969164d49891db8d5b470/crates/component) · [Story](https://github.com/longbridge/gpui-kit/tree/39ab849a93b5f15507b969164d49891db8d5b470/crates/story)
-- 组件改动在所属 crate 验证公共行为，并从 Gallery 复测相关变体和交互。可独立复现的场景使用最小入口。`experiments/` 存放隔离探针，`xtask/` 存放工程检查和离线生成。
+<a id="workspace-与组件开发"></a>
 
-## 编码规范
+## Workspace and component development
 
-- 从[文档索引](index.md)定位当前规格，再查[阶段状态](../status.toml)的允许路径。已冻结契约的修订遵循[返修流程](phases.md#返修)。
-- 更新文档时在同一 PR 同步中文页和相邻的 `.en.md` 英文页，并维护页首的语言切换链接。README、第三方声明和数据索引在同一文件提供中英文内容。GitHub Issue 和 PR 模板使用英文。
-- theme 保持纯 Rust，foundation 负责 GPUI/Base 适配。应用或 Base 持有业务与输入状态，Material 持有呈现和新增组合状态。优先复用现有公共接口。[架构与依赖](architecture.md)
-- 采用 Rust 惯用命名和稳定的语义标识。注释说明不变量、生命周期与平台差异。公开文档交代状态所有权、默认值、焦点、回调和平台支持。
+- Organize production libraries under `crates/` and group components by family. Gallery lives in `apps/gallery/` and provides runnable scenarios that call the production public API. This follows the separation between GPUI Component and Story. [Architecture and dependencies](architecture.md) · [Component library](https://github.com/longbridge/gpui-kit/tree/39ab849a93b5f15507b969164d49891db8d5b470/crates/component) · [Story](https://github.com/longbridge/gpui-kit/tree/39ab849a93b5f15507b969164d49891db8d5b470/crates/story)
+- Verify public behavior in the owning crate and exercise the affected variants and interactions in Gallery. Use a minimal entry point for independently reproducible scenarios. Keep isolated probes in `experiments/` and engineering checks and offline generation in `xtask/`.
 
-## 测试规范
+<a id="编码规范"></a>
 
-- 每次变更都验证受影响的行为。先用已有测试、构建检查或最小复现。阶段规格要求、公共行为或关键不变量缺少覆盖，或可稳定复现的缺陷仍有实际复发风险时，新增长期自动化测试。仅改文档、格式或内部结构且已有覆盖足够时，运行相关检查即可。
-- 在最低有效层验证可观察结果。同一行为优先补到已有用例，只有上层存在独有风险才增加 UI、集成或原生验证。用例应可重复运行，并能说明覆盖的契约和退化时的失败表现。组件按适用场景验证真实渲染、键盘、指针、语义、焦点、取消和原生系统路径。[平台与质量要求](verification.md)
-- 单次修复验证、环境排查、迁移和阶段探测可用临时命令或脚本。重要结果和复现步骤写入对应文档。只有覆盖仍受支持且现有测试漏掉的回归时，才将最小断言纳入长期套件。
-- 修改行为或替换探针时，清理已被正式测试覆盖、失去验证对象或仅用于一次排查的用例及辅助代码。删除前核对独有覆盖与引用。
+## Coding conventions
 
-## 上游贡献
+- Find the current specification in the [documentation index](index.md) and check the allowed paths in [phase status](../status.toml). Follow the [repair process](phases.md#repairs) when revising a frozen contract.
+- Keep the English `foo.md`, Chinese `foo.zh.md`, and section fingerprints in `foo.i18n.yaml` together. Link the counterpart immediately below the title and use the current page's language for links to other paired pages. Update both pages in the same PR and run `cargo xtask docs --write path/to/foo.md` to record the reviewed pair. `cargo xtask check` verifies pairing, language links, heading depth, code samples, and fingerprints. GitHub issue and PR templates use English. [DeepSeek Harness documentation conventions](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/i18n/README.md)
+- Keep theme in pure Rust and use foundation for GPUI/Base adapters. The application or Base owns business and input state. Material owns presentation and additional composition state. Reuse existing public APIs where possible. [Architecture and dependencies](architecture.md)
+- Use idiomatic Rust naming and stable semantic identifiers. Explain invariants, lifetimes, and platform differences in comments. Document state ownership, defaults, focus, callbacks, and platform support for public APIs.
 
-- 确认通用上游缺陷时，先写最小复现并检查现有 Issue 和 PR。遵守上游贡献、测试、许可与评审规则。
-- 补丁聚焦通用缺口并附最小验证。用项目 Issue 跟踪上游评审、合并、发布和临时适配的退出条件。
-- 更新固定依赖前验证包身份、平台回归和影响范围。以对应上游发布记录核验版本、提交与源码。
+<a id="测试规范"></a>
 
-## 开发环境
+## Testing conventions
 
-在 Windows 11 x64 安装 [Rustup](https://rustup.rs/) 和 Visual Studio Build Tools 的 C++ 桌面开发工作负载，包含 MSVC x64 和 Windows SDK。根目录的工具链文件固定 Rust、rustfmt 与 Clippy。初次构建需下载锁文件所列包。
+- Verify the affected behavior for every change. Start with existing tests, build checks, or a minimal reproduction. Add a permanent test when a phase requirement, public behavior, or critical invariant lacks coverage, or when a reproducible defect has a meaningful risk of recurring. Run the relevant existing checks for documentation, formatting, or internal changes with sufficient coverage.
+- Verify observable behavior at the lowest effective layer. Extend existing cases where possible and add UI, integration, or native verification when that layer has its own risks. Tests should be repeatable and show the contract they cover and how a regression fails. Verify actual rendering, keyboard and pointer input, semantics, focus, cancellation, and native paths where applicable. [Platforms and quality requirements](verification.md)
+- Use temporary commands or scripts for one-off fixes, environment diagnosis, migrations, and phase probes. Record significant results and reproduction steps in the relevant document. Keep the smallest permanent assertion when it fills a gap in supported behavior.
+- When changing behavior or replacing a probe, remove obsolete cases and helpers after checking for unique coverage and references.
+
+<a id="上游贡献"></a>
+
+## Upstream contributions
+
+- Confirm general upstream defects with a minimal reproduction and search existing issues and PRs. Follow upstream contribution, testing, licensing, and review rules.
+- Keep patches focused on the shared defect and include a minimal verification. Track review, merge, release, and the conditions for removing any local adapter in a project issue.
+- Before changing a dependency pin, verify package identity, platform regressions, and the affected scope. Check the version, commit, and source against the upstream release record.
+
+<a id="开发环境"></a>
+
+## Development environment
+
+On Windows 11 x64, install [Rustup](https://rustup.rs/) and the Desktop development with C++ workload in Visual Studio Build Tools, including MSVC x64 and the Windows SDK. The root toolchain file pins Rust, rustfmt, and Clippy. The first build downloads the packages in the lockfile.
 
 ```powershell
 rustc -vV
@@ -45,13 +57,15 @@ cargo gallery
 cargo test --locked -p gpui-material-gallery --features test-support
 ```
 
-默认 Workspace 构建包含纯主题和工程工具。Gallery 用 `-p gpui-material-gallery` 或 `cargo gallery` 显式选择。正常 Gallery 构建采用平台默认行为，UI 集成测试启用 `test-support`。P1 的独立探针可以继续通过各自的 `--manifest-path` 运行。
+The default workspace build covers the pure theme and engineering tools. Select Gallery with `-p gpui-material-gallery` or `cargo gallery`. The normal Gallery build uses platform defaults. UI integration tests enable `test-support`. Run isolated P1 probes with their own `--manifest-path`.
 
-macOS 使用 Apple Silicon 和 Xcode 命令行工具。Linux CI 使用 Ubuntu 24.04 x64，系统依赖见[工作流](../.github/workflows/ci.yml)中的 `Install Linux platform dependencies` 步骤。两平台使用同一 Rust 工具链与 Cargo 命令。
+On macOS, use Apple Silicon and the Xcode command-line tools. Linux CI uses Ubuntu 24.04 x64. See `Install Linux platform dependencies` in the [workflow](../.github/workflows/ci.yml) for the system packages. Both platforms use the same Rust toolchain and Cargo commands.
 
-Gallery 标题栏显示「Material Gallery」。确认正文显示「Window check」及与当前显示器一致的「Display scale」。缩窄窗口时确认文字仍可见。Windows 的 UI Automation 树可检查名为「Display scale …%」的 StatusBar。使用标题栏关闭按钮或 Alt+F4，进程应正常退出。记录 Windows 版本、目标、缩放、截图、语义和退出结果。组件交互与更广的原生验收见[平台与质量要求](verification.md)。
+Check that the Gallery title bar reads “Material Gallery” and the body shows “Window check” and a “Display scale” value matching the current display. Narrow the window and confirm the text remains visible. On Windows, inspect the StatusBar named “Display scale …%” in the UI Automation tree. Close the window from the title bar or with Alt+F4 and confirm the process exits normally. Record the Windows version, target, scaling, screenshot, semantics, and exit result. [Platforms and quality requirements](verification.md)
 
-## 本地检查
+<a id="本地检查"></a>
+
+## Local checks
 
 ```powershell
 cargo fmt --all --check
@@ -61,35 +75,41 @@ cargo xtask check
 cargo xtask check origin/main
 ```
 
-`check` 校验阶段状态、冻结证据与接受提交祖先关系、已跟踪 Markdown 的仓库内链接和标题锚点，以及 GPUI/Base 的包身份与 feature。传入基线提交后，使用 Git 提交比较路径并依据基线的阶段范围校验。目录条目以斜杠结束，文件条目按完整路径匹配。冻结所需证据先合入接受提交，再以单独 PR 登记冻结。文档检查无需访问外部链接。Token 生成物检查可单独运行 `cargo xtask tokens --check`。修改数据后用 `cargo xtask tokens` 更新 Rust 表与索引。见[纯主题](theme/theme.md#token-数据)。依赖检查解析 Windows、macOS 和 Linux 的普通及测试图。
+The `check` command validates phase status, freeze evidence and acceptance commit ancestry, local links and heading anchors in tracked Markdown, and GPUI/Base package identities and features. With a base commit, it compares Git paths and checks them against the base phase's scope. A trailing slash denotes a directory. File entries match the full path. Merge freeze evidence into the acceptance commit before recording the freeze in a separate PR. The documentation check runs offline. Use `cargo xtask tokens --check` to check generated tokens or `cargo xtask tokens` to update the Rust tables and index after editing the data. The dependency check resolves normal and test graphs for Windows, macOS, and Linux. [Token data](theme/theme.md#token-data)
 
-## 冷热构建基线
+<a id="冷热构建基线"></a>
+
+## Cold and warm build baseline
 
 ```powershell
 cargo fetch --locked --target x86_64-pc-windows-msvc
 cargo xtask timings target/timings/p2-baseline
 ```
 
-每次传入新的报告目录。Cargo 的注册表和源码缓存已预取，冷检查与冷构建各使用自己的空目标目录。随后用同一命令与同一目录测热结果。工具保存四次 wall time、HTML 时间线、Git 提交、目标和工具链。时间线中的 Gallery 最后一个编译单元包含代码生成和链接，可用于定位构建成本。测量使用普通 Gallery feature、开发 profile、无并行 Cargo 作业。比较结果时记录 OS、CPU、运行环境与缓存策略。验收记录写明关键计时结果及复现命令。
+Use a new report directory for each measurement. Prefetch the Cargo registry and source caches. The cold check and cold build each start in an empty target directory. The command then reuses each target directory for the corresponding warm run. The tool records four wall-clock times, HTML timelines, the Git commit, target, and toolchain. The last Gallery build unit includes code generation and linking. Use the normal Gallery features and the development profile without overriding Cargo's job count. Record the OS, CPU, environment, and cache policy when comparing runs. Include the key timings and reproduction command in the acceptance record.
 
-## 持续集成与合并
+<a id="持续集成与合并"></a>
 
-[Engineering CI](../.github/workflows/ci.yml) 在面向 `main` 的 PR、`main` 更新和手动触发时运行。作业划分参照 [GPUI Kit CI](https://github.com/longbridge/gpui-kit/blob/main/.github/workflows/ci.yml)。
+## CI and merging
 
-| 作业 | 检查 |
+[Engineering CI](../.github/workflows/ci.yml) runs for PRs targeting `main`, pushes to `main`, and manual dispatches. The job layout follows [GPUI Kit CI](https://github.com/longbridge/gpui-kit/blob/main/.github/workflows/ci.yml).
+
+| Job | Checks |
 | --- | --- |
-| `Repository checks` | 格式、差异空白、阶段范围、文档链接、Token 生成物、三平台依赖图及默认 Workspace。PR 和主线 push 使用对应基线提交，手动运行执行无基线检查。 |
-| `Windows MSVC`、`macOS ARM64`、`Linux x64` | 在 Windows Server 2025 x64、macOS 15 ARM64 和 Ubuntu 24.04 x64 上分别运行 Clippy、工作区测试、Gallery 无头 UI 测试和原生 Gallery 构建。平台失败后其余平台继续执行。 |
-| `CI required` | 通用检查与三个原生作业全部通过时成功。 |
+| `Repository checks` | Formatting, diff whitespace, phase scope, documentation links, generated tokens, three-platform dependency graphs, and the default workspace. PRs and main pushes use the corresponding base commit. Manual runs check without a base. |
+| `Windows MSVC`, `macOS ARM64`, `Linux x64` | Clippy, workspace tests, headless Gallery UI tests, and native Gallery builds on Windows Server 2025 x64, macOS 15 ARM64, and Ubuntu 24.04 x64. Other platforms continue if one fails. |
+| `CI required` | Passes when the repository checks and all three native jobs succeed. |
 
-Rust 构建缓存按平台隔离，由 `main` 的成功 push 更新，PR 可复用。P1 探针工作流已在 GitHub 停用，并从验证分支删除。历史运行与原生探针证据见 [P1 验证记录](phases/P01-evidence.md)。[删除提交](https://github.com/wangdiandao/gpui-material/commit/c0596fede13cd4663f28b1eff8bc72ff2f1d5014)
+Rust build caches are isolated by platform. Successful pushes to `main` save the caches and PRs can restore them. The P1 workflow was disabled on GitHub and removed from the verification branch. [P1 verification record](phases/P01-evidence.md) · [Removal commit](https://github.com/wangdiandao/gpui-material/commit/c0596fede13cd4663f28b1eff8bc72ff2f1d5014)
 
-三平台托管验证覆盖构建与自动化测试，首版原生实机支持按[平台与质量要求](verification.md)验收。
+Hosted CI covers builds and automated tests on three platforms. The initial release follows the native acceptance criteria in [platforms and quality requirements](verification.md).
 
-Windows 作业上传 `gallery-windows-x64-msvc`，包含可执行文件、Cargo 时间线及许可记录，供实机复验。制品使用 `cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings`。此 profile 关闭 debug assertions，GPUI 通过 Windows SDK 的 x64 `fxc.exe` 在构建时嵌入 DirectX 着色器。CI 通过 `GPUI_FXC_PATH` 指定 SDK 中的编译器。常规 `cargo gallery` 在开发机上从 Cargo 缓存读取着色器。正式发布由对应交付阶段启动。
+The Windows job uploads `gallery-windows-x64-msvc` with the executable, Cargo timeline, and licensing information for native retesting. It runs `cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings`. This profile disables debug assertions so GPUI can embed DirectX shaders at build time using the Windows SDK's x64 `fxc.exe`. CI sets `GPUI_FXC_PATH` to the SDK compiler. Normal `cargo gallery` builds read the shader sources from the local Cargo cache. Releases follow the applicable delivery phase.
 
-GitHub 规则集要求通过 PR 更新 `main`、基于最新主线并解决评审对话。迁移期间保留现有的 `Windows MSVC` 必检项。新工作流合入主线且 `CI required` 首次成功后，将必检项切换为 GitHub Actions 的 `CI required`。
+The GitHub ruleset requires PRs to update `main`, be current with the base branch, and resolve review conversations. During migration, `Windows MSVC` remains the required check. Switch to the GitHub Actions check `CI required` after the new workflow merges and that check first succeeds on `main`.
 
-### 跨平台 CI 首次验证
+<a id="跨平台-ci-首次验证"></a>
 
-2026-11-13 在 `ci/cross-platform-workflow` 手动验证 `1a28571be2058ca237aaf04a0552f2e1d69aa098`。通用检查、Linux x64、macOS ARM64、Windows MSVC 和 `CI required` 全部通过。三个原生作业分别耗时 3 分 45 秒、4 分 37 秒、7 分 17 秒。复现命令为 `gh workflow run ci.yml --ref ci/cross-platform-workflow`。PR 基线的路径门禁在本地用 `cargo xtask check origin/main` 验证通过。[Actions 运行](https://github.com/wangdiandao/gpui-material/actions/runs/43416482503) · [Windows Gallery 制品](https://github.com/wangdiandao/gpui-material/actions/runs/43416482503/artifacts/14032242512)
+### First cross-platform CI run
+
+On 2026-11-13, a manual run on `ci/cross-platform-workflow` verified `1a28571be2058ca237aaf04a0552f2e1d69aa098`. Repository checks, Linux x64, macOS ARM64, Windows MSVC, and `CI required` passed. The native jobs took 3m 45s, 4m 37s, and 7m 17s respectively. Reproduce with `gh workflow run ci.yml --ref ci/cross-platform-workflow`. The PR path gate also passed locally with `cargo xtask check origin/main`. [Actions run](https://github.com/wangdiandao/gpui-material/actions/runs/43416482503) · [Windows Gallery artifact](https://github.com/wangdiandao/gpui-material/actions/runs/43416482503/artifacts/14032242512)

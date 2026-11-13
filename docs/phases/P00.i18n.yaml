@@ -1,0 +1,13 @@
+# Section fingerprints for the English and Chinese pages.
+/p0-requirements-and-source-freeze:
+  en: "2e05a154d2b0679c"
+  zh: "9a457926abb2a602"
+/p0-requirements-and-source-freeze/deliverables:
+  en: "596154a2997f1b42"
+  zh: "4dbb5279839c0906"
+/p0-requirements-and-source-freeze/initial-platform-revision:
+  en: "e03109b0f3019311"
+  zh: "f828591c5febf09c"
+/p0-requirements-and-source-freeze/acceptance-evidence:
+  en: "473203dbbd09ba24"
+  zh: "6f432204ea59264a"

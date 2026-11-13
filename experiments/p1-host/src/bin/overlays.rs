@@ -167,3 +167,72 @@ fn nested_popovers_keep_focus_and_fit_in_window(cx: &mut gpui::TestAppContext) {
     })
     .unwrap();
 }
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn popover_repositions_after_resize_and_dismisses_on_outside_press(cx: &mut gpui::TestAppContext) {
+    use gpui::{InputEvent, MouseButton, MouseDownEvent, point};
+    use gpui_base::test_support;
+
+    let window = cx.update(|cx| {
+        gpui_base::init(cx);
+        open_probe(cx, WindowOptions::default(), |_, cx| {
+            cx.new(OverlayProbe::new)
+        })
+        .unwrap()
+    });
+    cx.simulate_window_resize(window.into(), size(px(480.), px(320.)));
+    cx.update_window(window.into(), |_, window, cx| {
+        window.activate_window();
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let trigger = test_support::find(window, &[], &"outer-trigger".into()).unwrap();
+        let modifiers = window.modifiers();
+        window.dispatch_event(
+            MouseDownEvent {
+                button: MouseButton::Left,
+                position: trigger.bounds().center(),
+                modifiers,
+                click_count: 1,
+                first_mouse: false,
+            }
+            .to_platform_input(),
+            cx,
+        );
+    })
+    .unwrap();
+    cx.run_until_parked();
+
+    cx.simulate_window_resize(window.into(), size(px(260.), px(200.)));
+    cx.simulate_window_scale_factor_change(window.into(), 1.5);
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let panel = test_support::find(window, &[], &"outer-panel".into()).unwrap();
+        assert_eq!(window.scale_factor(), 1.5);
+        assert!(panel.bounds().left() >= px(0.));
+        assert!(panel.bounds().right() <= window.viewport_size().width);
+        assert!(panel.bounds().bottom() <= window.viewport_size().height);
+
+        window.dispatch_event(
+            MouseDownEvent {
+                button: MouseButton::Left,
+                position: point(px(8.), px(190.)),
+                modifiers: window.modifiers(),
+                click_count: 1,
+                first_mouse: false,
+            }
+            .to_platform_input(),
+            cx,
+        );
+    })
+    .unwrap();
+    cx.run_until_parked();
+
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert!(test_support::find(window, &[], &"outer-panel".into()).is_none());
+    })
+    .unwrap();
+}

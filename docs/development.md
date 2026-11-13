@@ -58,10 +58,10 @@ Windows 下载制品使用 `cargo build --locked -p gpui-material-gallery --prof
 需要释放空间时，先核对目标目录，预览并清理指定缓存。根 Workspace 的清理只针对自己的目标目录，P1 探针使用独立清单和缓存。以下命令在主检出根目录运行。
 
 ```powershell
-cargo clean --dry-run --target-dir target
-cargo clean --target-dir target
+cargo clean --dry-run
+cargo clean
 cargo clean --dry-run --manifest-path experiments/p1-host/Cargo.toml --target-dir experiments/p1-host/target
 cargo clean --manifest-path experiments/p1-host/Cargo.toml --target-dir experiments/p1-host/target
 ```
 
-同样可为 `p1-theme`、`p1-shapes` 或指定的 worktree 缓存使用对应清单和目标路径。全量 `cargo clean` 会一起删除目标目录内的自定义日志、截图和报告，先完成归档。Rust 工具链及全局 Cargo 下载缓存可供后续任务复用。
+前两条命令使用 Cargo 的默认目标目录，运行前核对当前 shell 的 `CARGO_TARGET_DIR` 和本机 Cargo 配置。同样可为 `p1-theme`、`p1-shapes` 或指定的 worktree 缓存使用对应清单和目标路径。显式指定的目录须是 Cargo 创建并标记的缓存目录。全量 `cargo clean` 会一起删除目标目录内的自定义日志、截图和报告，先完成归档。Rust 工具链及全局 Cargo 下载缓存可供后续任务复用。

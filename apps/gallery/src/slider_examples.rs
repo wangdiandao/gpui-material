@@ -174,6 +174,23 @@ mod tests {
             );
             draw(window, cx);
             assert!(!cx.has_active_drag());
+            for (phase, fraction) in [
+                (gpui::TouchPhase::Started, 0.65),
+                (gpui::TouchPhase::Moved, 0.82),
+                (gpui::TouchPhase::Ended, 0.82),
+            ] {
+                window.dispatch_event(
+                    gpui::TouchDragEvent {
+                        phase,
+                        start_position: at(0.65),
+                        position: at(fraction),
+                    }
+                    .to_platform_input(),
+                    cx,
+                );
+                draw(window, cx);
+            }
+            assert_eq!(state.read(cx).value(), (3.0, 8.0).into());
         })
         .unwrap();
     }

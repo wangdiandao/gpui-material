@@ -2,9 +2,9 @@ use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
     Along, AnyElement, App, AppContext, Axis, Bounds, DragMoveEvent, ElementId, Entity,
-    FocusHandle, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement, Pixels, Point,
-    Render, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Window, canvas,
-    div, point, prelude::FluentBuilder, px, relative,
+    FocusHandle, HitboxBehavior, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement,
+    Pixels, Point, Render, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
+    TouchDragEvent, TouchPhase, Window, canvas, div, point, prelude::FluentBuilder, px, relative,
 };
 use gpui_base::{
     AxisExt, TestSupportExt,
@@ -403,6 +403,73 @@ impl RenderOnce for Slider {
             };
         }
 
+        let touch = gesture.clone();
+        let touch_state = self.state.clone();
+        let touch_focus = [start_focus.clone(), end_focus.clone()];
+        let touch_layer = canvas(
+            |bounds, window, _| window.insert_hitbox(bounds, HitboxBehavior::Normal),
+            move |_, hitbox, window, _| {
+                let gesture = touch.clone();
+                let state = touch_state.clone();
+                let focus = touch_focus.clone();
+                window.on_mouse_event(move |event: &TouchDragEvent, phase, window, cx| {
+                    if !phase.bubble() {
+                        return;
+                    }
+                    if event.phase == TouchPhase::Started {
+                        if window.default_prevented()
+                            || !hitbox.is_hovered_at(event.start_position, window)
+                        {
+                            return;
+                        }
+                        let bounds = state.read(cx).bounds();
+                        if bounds.size.along(geometry.axis) <= px(0.) {
+                            return;
+                        }
+                        let fraction = geometry.fraction(bounds, event.start_position);
+                        let current = state.read(cx).percentage();
+                        let which = if range && current.start == current.end {
+                            choose_thumb(
+                                true,
+                                fraction,
+                                fraction,
+                                geometry.fraction(bounds, event.position),
+                            )
+                        } else {
+                            choose_thumb(range, current.start, current.end, fraction)
+                        };
+                        window.prevent_default();
+                        let mut gesture = gesture.borrow_mut();
+                        gesture.origin = Some(event.start_position);
+                        gesture.thumb = Some(which);
+                        focus[usize::from(which == RangeThumb::End)].focus(window, cx);
+                    }
+                    let which = {
+                        let gesture = gesture.borrow();
+                        if gesture.origin != Some(event.start_position) || gesture.capture.is_some()
+                        {
+                            return;
+                        }
+                        let Some(which) = gesture.thumb else {
+                            return;
+                        };
+                        which
+                    };
+                    match event.phase {
+                        TouchPhase::Started | TouchPhase::Moved => {
+                            update(&state, geometry, which, event.position, window, cx);
+                        }
+                        TouchPhase::Ended | TouchPhase::Cancelled => {
+                            finish(&state, &gesture, window, cx, false);
+                        }
+                    }
+                    cx.stop_propagation();
+                });
+            },
+        )
+        .absolute()
+        .inset_0()
+        .size_full();
         let down = gesture.clone();
         let begin = gesture.clone();
         let drag = gesture.clone();
@@ -418,88 +485,90 @@ impl RenderOnce for Slider {
         let release_state = self.state.clone();
         let outside_state = self.state.clone();
         let escape_state = self.state;
-        root.on_mouse_down(MouseButton::Left, move |event, window, cx| {
-            let bounds = down_state.read(cx).bounds();
-            if bounds.size.along(geometry.axis) <= px(0.) {
-                return;
-            }
-            let fraction = geometry.fraction(bounds, event.position);
-            let which = choose_thumb(range, start, end, fraction);
-            {
-                let mut down = down.borrow_mut();
-                down.thumb = Some(which);
-                down.origin = Some(event.position);
-            }
-            if which == RangeThumb::Start {
-                start_focus.focus(window, cx);
-            } else {
-                end_focus.focus(window, cx);
-            }
-            update(&down_state, geometry, which, event.position, window, cx);
-        })
-        .on_drag(SliderDrag(drag_source), move |payload, _, window, cx| {
-            let gesture = Rc::downgrade(&begin);
-            let state = begin_state.clone();
-            begin.borrow_mut().capture = Some(DragCapture::watch(window, cx, move |window, cx| {
-                if let Some(gesture) = gesture.upgrade() {
-                    finish(&state, &gesture, window, cx, false);
+        root.child(touch_layer)
+            .on_mouse_down(MouseButton::Left, move |event, window, cx| {
+                let bounds = down_state.read(cx).bounds();
+                if bounds.size.along(geometry.axis) <= px(0.) {
+                    return;
                 }
-            }));
-            cx.stop_propagation();
-            cx.new(|_| SliderDrag(payload.0.clone()))
-        })
-        .on_drag_move(move |event: &DragMoveEvent<SliderDrag>, window, cx| {
-            if event.drag(cx).0.entity_id() != drag_state.entity_id() {
-                return;
-            }
-            let mut gesture = drag.borrow_mut();
-            let Some(mut which) = gesture.thumb else {
-                return;
-            };
-            if range
-                && start == end
-                && let Some(origin) = gesture.origin.take()
-            {
-                let bounds = drag_state.read(cx).bounds();
-                which = if geometry.fraction(bounds, event.event.position)
-                    < geometry.fraction(bounds, origin)
+                let fraction = geometry.fraction(bounds, event.position);
+                let which = choose_thumb(range, start, end, fraction);
                 {
-                    RangeThumb::Start
+                    let mut down = down.borrow_mut();
+                    down.thumb = Some(which);
+                    down.origin = Some(event.position);
+                }
+                if which == RangeThumb::Start {
+                    start_focus.focus(window, cx);
                 } else {
-                    RangeThumb::End
+                    end_focus.focus(window, cx);
+                }
+                update(&down_state, geometry, which, event.position, window, cx);
+            })
+            .on_drag(SliderDrag(drag_source), move |payload, _, window, cx| {
+                let gesture = Rc::downgrade(&begin);
+                let state = begin_state.clone();
+                begin.borrow_mut().capture =
+                    Some(DragCapture::watch(window, cx, move |window, cx| {
+                        if let Some(gesture) = gesture.upgrade() {
+                            finish(&state, &gesture, window, cx, false);
+                        }
+                    }));
+                cx.stop_propagation();
+                cx.new(|_| SliderDrag(payload.0.clone()))
+            })
+            .on_drag_move(move |event: &DragMoveEvent<SliderDrag>, window, cx| {
+                if event.drag(cx).0.entity_id() != drag_state.entity_id() {
+                    return;
+                }
+                let mut gesture = drag.borrow_mut();
+                let Some(mut which) = gesture.thumb else {
+                    return;
                 };
-                gesture.thumb = Some(which);
-                drag_focus[usize::from(which == RangeThumb::End)].focus(window, cx);
-            }
-            update(
-                &drag_state,
-                geometry,
-                which,
-                event.event.position,
-                window,
-                cx,
-            );
-            cx.stop_propagation();
-        })
-        .on_mouse_up(MouseButton::Left, move |_, window, cx| {
-            finish(&release_state, &release, window, cx, false)
-        })
-        .on_mouse_up_out(MouseButton::Left, move |_, window, cx| {
-            finish(&outside_state, &release_out, window, cx, false)
-        })
-        .capture_key_down(move |event, window, cx| {
-            if event.keystroke.key == "escape" && escape.borrow().thumb.is_some() {
-                finish(&escape_state, &escape, window, cx, true);
+                if range
+                    && start == end
+                    && let Some(origin) = gesture.origin.take()
+                {
+                    let bounds = drag_state.read(cx).bounds();
+                    which = if geometry.fraction(bounds, event.event.position)
+                        < geometry.fraction(bounds, origin)
+                    {
+                        RangeThumb::Start
+                    } else {
+                        RangeThumb::End
+                    };
+                    gesture.thumb = Some(which);
+                    drag_focus[usize::from(which == RangeThumb::End)].focus(window, cx);
+                }
+                update(
+                    &drag_state,
+                    geometry,
+                    which,
+                    event.event.position,
+                    window,
+                    cx,
+                );
                 cx.stop_propagation();
-            }
-        })
-        .on_scroll(move |_, _, cx| {
-            // Wheel events over the active range gesture stay with it.
-            if scroll.borrow().thumb.is_some() {
-                cx.stop_propagation();
-            }
-        })
-        .into_any_element()
+            })
+            .on_mouse_up(MouseButton::Left, move |_, window, cx| {
+                finish(&release_state, &release, window, cx, false)
+            })
+            .on_mouse_up_out(MouseButton::Left, move |_, window, cx| {
+                finish(&outside_state, &release_out, window, cx, false)
+            })
+            .capture_key_down(move |event, window, cx| {
+                if event.keystroke.key == "escape" && escape.borrow().thumb.is_some() {
+                    finish(&escape_state, &escape, window, cx, true);
+                    cx.stop_propagation();
+                }
+            })
+            .on_scroll(move |_, _, cx| {
+                // Wheel events over the active range gesture stay with it.
+                if scroll.borrow().thumb.is_some() {
+                    cx.stop_propagation();
+                }
+            })
+            .into_any_element()
     }
 }
 

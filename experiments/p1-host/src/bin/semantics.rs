@@ -1,11 +1,11 @@
 use gpui::{
     AccessibleAction, AppContext, Context, Entity, FocusHandle, IntoElement, Render, Role, Styled,
     TitlebarOptions, Window, WindowBounds, WindowOptions, accesskit::ActionData, div, prelude::*,
-    px, size,
+    px, relative, size,
 };
 use gpui_base::{
     Button, Checkbox, TestSupportExt, Theme,
-    slider::{SliderState, SliderThumb, SliderTrack},
+    slider::{SliderIndicator, SliderState, SliderThumb, SliderTrack},
 };
 use p1_host::open_probe;
 
@@ -33,6 +33,7 @@ impl Render for SemanticsProbe {
         let owner = cx.entity().downgrade();
         let status = format!("已执行 {} 次", self.activations);
         let range = self.range.read(cx);
+        let position = range.percentage().end;
         let (value, min, max, step) = (
             range.value().end(),
             range.min_value(),
@@ -138,11 +139,17 @@ impl Render for SemanticsProbe {
                     })
                     .child(
                         SliderTrack::new(&self.range)
+                            .relative()
                             .w_full()
                             .h_4()
                             .bg(colors.muted)
+                            .child(SliderIndicator::new(&self.range).size_full())
                             .child(
                                 SliderThumb::new(&self.range)
+                                    .absolute()
+                                    .top_0()
+                                    .left(relative(position))
+                                    .ml(px(-8.))
                                     .size_4()
                                     .rounded_full()
                                     .bg(colors.primary),

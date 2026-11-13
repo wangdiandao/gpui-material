@@ -27,3 +27,7 @@ P1_SHAPES_SCREENSHOT=shape-morph.png cargo +1.99.1 run --locked --manifest-path 
 ```
 
 [首轮失败](https://github.com/wangdiandao/gpui-material/actions/runs/43375384962) 显示 macOS 平台要求主线程，Ubuntu 捕获图为 960×560。修正把渲染移到二进制主线程，并以窗口缩放映射逻辑坐标和图像尺寸。此轮证据覆盖填充与选定像素，裁剪、阴影、命中和 ripple 仍待验证。
+
+## 同一填充网格的命中与 ripple 起点
+
+2026-11-13，Windows 11 x64 / Rust 1.99.1。三个 morph 进度复用 GPUI 填充产生的三角网格检查命中，包围盒内的空角不触发。测试窗口模拟 1.5× 缩放，通过实际鼠标事件对中间形态验证形内按下保存原始窗口坐标，形外按下清除起点。界面以小标记显示起点。任意曲线裁剪、阴影和完整 ripple 动画仍待对应证据。

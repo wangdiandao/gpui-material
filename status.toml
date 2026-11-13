@@ -1,26 +1,9 @@
 schema_version = 1
 current_phase = "P4"
-allowed_paths = [
-    "Cargo.toml",
-    "Cargo.lock",
-    "status.toml",
-    "THIRD_PARTY_NOTICES.md",
-    "THIRD_PARTY_NOTICES.zh.md",
-    "THIRD_PARTY_NOTICES.i18n.yaml",
-    "crates/foundation/",
-    "apps/gallery/",
-    "docs/architecture.md",
-    "docs/architecture.zh.md",
-    "docs/architecture.i18n.yaml",
-    "docs/phases/P04.md",
-    "docs/phases/P04.zh.md",
-    "docs/phases/P04.i18n.yaml",
-    "xtask/src/graph.rs",
-    "xtask/src/phase.rs",
-]
+allowed_paths = []
 blockers = []
 repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", evidence = "docs/phases/P00.md", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }]
-frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac" }
+frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac", P4 = "6fa5ecdb43570a61e546f896a45223ccc497f19a" }
 
 [evidence_locations]
 "docs/architecture/index.md" = "docs/architecture.zh.md"
@@ -117,8 +100,16 @@ merged_deliverables = [
 ]
 
 [phases.P4]
-status = "active"
+status = "frozen"
+frozen_on = 2026-11-13
 entry_conditions = ["P3 is frozen", "Pinned Windows probes and pure theme APIs are available"]
+merged_deliverables = [
+    { task = "P4-01", issue = 87, pull_request = 92, commit = "2c19eb50b106c95259a1b48d3f93eca4ff5cd078" },
+    { task = "P4-02", issue = 88, pull_request = 93, commit = "263dc28cfd3693a58e4bcfb8400f9762c96e4566" },
+    { task = "P4-03", issue = 89, pull_request = 94, commit = "94687ffe05365873ffeec6f756a115ac231af13a" },
+    { task = "P4-04", issue = 90, pull_request = 95, commit = "95bbf186913f621cef5fb7f41923515796a6b31d" },
+    { task = "P4-05", issue = 91, pull_request = 96, commit = "6fa5ecdb43570a61e546f896a45223ccc497f19a" },
+]
 
 [phases.P5]
 status = "planned"

@@ -184,6 +184,12 @@ impl RenderOnce for Checkbox {
         let label = self.label;
         let control = BaseCheckbox::new(self.id)
             .state(self.state)
+            .when(self.error, |control| {
+                control.a11y_synthetic_children(|node| {
+                    node.parent_node()
+                        .set_invalid(gpui::accesskit::Invalid::True);
+                })
+            })
             .disabled(self.disabled)
             .accessibility_label(label.clone())
             .group(group.clone())

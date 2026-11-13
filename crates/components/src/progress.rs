@@ -329,6 +329,10 @@ impl RenderOnce for LoadingIndicator {
             element = element
                 .role(Role::Status)
                 .aria_label(self.label)
+                .a11y_synthetic_children(|node| {
+                    node.parent_node().set_live(gpui::accesskit::Live::Polite);
+                    node.parent_node().set_live_atomic();
+                })
                 .child(icon);
             if self.contained {
                 element = element.rounded_full().bg(background);

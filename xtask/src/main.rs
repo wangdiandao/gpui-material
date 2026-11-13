@@ -2,6 +2,7 @@ mod docs;
 mod graph;
 mod phase;
 mod timings;
+mod tokens;
 
 use std::{
     env, fs, io,
@@ -14,6 +15,7 @@ type Result<T = ()> = std::result::Result<T, Box<dyn std::error::Error>>;
 const USAGE: &str = "Usage:
   cargo xtask check [<base-commit>]
   cargo xtask graph
+  cargo xtask tokens [--check]
   cargo xtask timings <new-report-directory>";
 
 fn main() -> ExitCode {
@@ -39,6 +41,8 @@ fn run() -> Result {
         ["check"] => check(None)?,
         ["check", base] => check(Some(base))?,
         ["graph"] => graph::check()?,
+        ["tokens"] => tokens::run(false)?,
+        ["tokens", "--check"] => tokens::run(true)?,
         ["timings", path] => timings::measure(path.as_ref())?,
         _ => return Err(USAGE.into()),
     }
@@ -48,6 +52,7 @@ fn run() -> Result {
 fn check(base: Option<&str>) -> Result {
     phase::check(&fs::read_to_string("status.toml")?, base)?;
     docs::check()?;
+    tokens::run(true)?;
     graph::check()
 }
 

@@ -1,0 +1,19 @@
+[package]
+name = "gpui-material-theme"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+dynamic-color = ["dep:material-color-utils"]
+serde = ["dep:serde"]
+
+[dependencies]
+material-color-utils = { version = "=0.1.3", default-features = false, optional = true }
+serde = { version = "=1.0.229", features = ["derive"], optional = true }
+
+[dev-dependencies]
+serde_json = "=1.0.154"

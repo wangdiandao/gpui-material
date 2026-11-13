@@ -1,6 +1,6 @@
 [workspace]
-members = ["apps/gallery", "xtask"]
-default-members = ["xtask"]
+members = ["apps/gallery", "crates/theme", "xtask"]
+default-members = ["crates/theme", "xtask"]
 exclude = ["experiments/p1-host", "experiments/p1-theme", "experiments/p1-shapes"]
 resolver = "3"
 

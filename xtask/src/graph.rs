@@ -47,30 +47,80 @@ struct Node {
 }
 
 pub(crate) fn check() -> Result {
-    let default_tree = output(
-        "cargo",
-        &[
-            "tree",
-            "--locked",
-            "--edges",
-            "normal,build",
-            "--prefix",
-            "none",
-            "--format",
-            "{p}",
-        ],
-    )?;
-    if default_tree
-        .lines()
-        .any(|line| line.starts_with("gpui") || line.starts_with("p1-"))
-    {
-        return Err("the default dependency graph contains GPUI or a P1 experiment".into());
+    for (target, _, _) in TARGETS {
+        verify_pure(target, &[], false)?;
+        for features in [
+            &[][..],
+            &["dynamic-color"],
+            &["serde"],
+            &["dynamic-color,serde"],
+        ] {
+            verify_pure(target, features, true)?;
+        }
+        println!("{target}: default and theme dependency graphs verified");
     }
 
     for (target, backend, backend_features) in TARGETS {
         for test in [false, true] {
             verify(target, backend, backend_features, test)?;
         }
+    }
+    Ok(())
+}
+
+fn verify_pure(target: &str, features: &[&str], theme_only: bool) -> Result {
+    const THEME: &str = "gpui-material-theme";
+    const MCU: &str = "material-color-utils";
+
+    let mut args = vec![
+        "tree",
+        "--locked",
+        "--target",
+        target,
+        "--edges",
+        "normal,build,dev",
+        "--prefix",
+        "none",
+        "--format",
+        "{p} {f}",
+        "--no-default-features",
+    ];
+    if theme_only {
+        args.extend(["--package", THEME]);
+    }
+    if let [features] = features {
+        args.extend(["--features", features]);
+    }
+    let tree = output("cargo", &args)?;
+    let mut found_theme = false;
+    let mut found_mcu = false;
+    let mut found_serde = false;
+    for line in tree.lines() {
+        let mut fields = line.split_whitespace();
+        let package = fields.next().unwrap_or_default();
+        if (package.starts_with("gpui") && package != THEME) || package.starts_with("p1-") {
+            return Err(
+                format!("{target}: unexpected dependency in the pure graph: {line}").into(),
+            );
+        }
+        found_theme |= package == THEME;
+        found_serde |= package == "serde";
+        if package == MCU {
+            found_mcu = true;
+            if !line.trim_end_matches(" (*)").trim_end().ends_with("v0.1.3") {
+                return Err(format!("{target}: unexpected MCU version or features: {line}").into());
+            }
+        }
+        if theme_only && matches!(package, "image" | "rayon") {
+            return Err(format!("{target}: unexpected theme dependency: {line}").into());
+        }
+    }
+    let active = features.first().copied().unwrap_or_default();
+    if !found_theme
+        || found_mcu != active.contains("dynamic-color")
+        || (theme_only && found_serde != active.contains("serde"))
+    {
+        return Err(format!("{target}: unexpected pure dependency graph for {features:?}").into());
     }
     Ok(())
 }

@@ -6,7 +6,7 @@
 
 类别为 **规范**、**适配**、**实验**、**兼容**。规范和适配条目是首个完整候选版的必需范围。实验项在 P8 记录纳入或暂缓的结论。兼容项由后续串行阶段安排。类型为 `component`、`primitive` 或 `pattern`。表中生产交付均处于 `planned`，其平台验收以[平台矩阵](verification.zh.md)为准。
 
-每项在归属阶段补齐适用的尺寸、Token、视觉、交互、动效、语义和证据。首版平台列使用 **桌面**（Windows 11 x64，覆盖键盘/指针、浅深色、RTL、高 DPI 及适用的读屏）、**文本**（桌面加 Windows 中文 IME）、**触控**（桌面加实际触摸或触控板证据）。缺少触控设备的项目记录独立证据状态。macOS 与 Linux 可按同样分类记录探索结果。
+每项在归属阶段交付并验证适用的尺寸、Token、视觉、交互、动效和语义。首版平台列使用 **桌面**（Windows 11 x64，覆盖键盘/指针、浅深色、RTL、高 DPI 及适用的读屏）、**文本**（桌面加 Windows 中文 IME）、**触控**（桌面加真实触摸设备或触控板测试）。缺少设备时，在 Issue 或 PR 中注明触控未验证。macOS 与 Linux 可按同样分类记录探索结果。
 
 <a id="p4-foundation-primitives"></a>
 
@@ -84,8 +84,8 @@
 | SearchBar / SearchView | component / 规范 | [Search](https://m3.material.io/components/search/overview)、[App bars](https://m3.material.io/components/app-bars/overview)，`SearchBar.kt`、Android 实现 | 收起、contained 样式的 docked/full-screen 展开及搜索 AppBar 组合。验证空/加载/错误/结果、过期异步响应、IME、提交及焦点恢复。 | 文本 |
 | DatePicker / DateRange | component / 规范 | [Date pickers](https://m3.material.io/components/date-pickers/overview)，`DatePicker.kt`、`DateRangePicker.kt`、`DateInput.kt`、`DateRangeInput.kt` | Docked、Modal、Modal Input，单日期/区间及禁用日期。验证跨月和边界、无效文本、地区格式、日历键盘与播报。 | 文本 |
 | TimePicker / TimeInput | component / 规范 | [Time pickers](https://m3.material.io/components/time-pickers/overview)，`TimePicker.kt`、`TimePickerDialog.kt` | Dial/Input、12/24 小时、适用横竖布局。验证键盘编辑、地区格式、范围校验、确认与取消。 | 文本 |
-| Carousel | component / 规范 | [Carousel](https://m3.material.io/components/carousel/overview)，`carousel/Carousel.kt`、`carousel/Strategy.kt` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。Compose 参考已有布局；其余以官网和几何证据验收。验证吸附、缩放、焦点项可见、RTL、键盘与低动效。 | 桌面 |
-| PullToRefresh | pattern / 实验 | [Gestures](https://m3.material.io/foundations/interaction/gestures)、[Loading indicator](https://m3.material.io/components/loading-indicator/overview)，`pulltorefresh/PullToRefresh.kt` | 有实际触摸/触控板产品需求时验证滚动边界、取消、单次刷新、显式键盘动作。证据不足时维持实验状态。 | 触控 |
+| Carousel | component / 规范 | [Carousel](https://m3.material.io/components/carousel/overview)，`carousel/Carousel.kt`、`carousel/Strategy.kt` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。已有布局参考 Compose，其余依据官网并检查几何。验证吸附、缩放、焦点项可见、RTL、键盘与低动效。 | 桌面 |
+| PullToRefresh | pattern / 实验 | [Gestures](https://m3.material.io/foundations/interaction/gestures)、[Loading indicator](https://m3.material.io/components/loading-indicator/overview)，`pulltorefresh/PullToRefresh.kt` | 有实际触摸/触控板产品需求时验证滚动边界、取消、单次刷新、显式键盘动作。通过这些检查后方可结束实验。 | 触控 |
 | SwipeToDismiss | pattern / 实验 | [Gestures](https://m3.material.io/foundations/interaction/gestures)，`SwipeToDismissBox.kt` | 可关闭对象的拖动阈值、取消、RTL 与撤销；提供同一关闭命令的键盘及语义入口。 | 触控 |
 | TimeScroll | component / 实验 | `TimePicker.kt` 的 `TimeScroll`；[Time pickers](https://m3.material.io/components/time-pickers/overview)列出 Dial/Input | 独立评估滚轮、键盘、值边界和语义。首版以官网两种变体验收。 | 桌面 |
 

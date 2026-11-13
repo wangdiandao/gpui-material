@@ -9,7 +9,7 @@ English | [中文](development.zh.md)
 - Choose Bug report, Feature request, or Phase deliverable in `.github/ISSUE_TEMPLATE/`. Include a minimal reproduction for bugs, a use case and acceptance criteria for proposals, and dependencies and file ownership for phase tasks.
 - Branch from the latest `main` and use `<type>/<short-topic>`, such as `ci/cross-platform-workflow`. Write the topic in lowercase English with hyphens. Link the issue in the PR description.
 - Choose the prefix by purpose. Use `feat/` for features, `fix/` for fixes, `docs/` for documentation, `test/` for tests, `refactor/` for refactoring, `ci/` for CI, `chore/` for maintenance, and `release/` for releases. For example, use `fix/pointer-capture`. Record phase ownership in the issue, PR, and `status.toml`.
-- Keep each PR focused on one problem. Use the template to link the issue, list public API changes and migration steps, and provide reproducible verification. For UI changes, identify the Gallery scenario and include before-and-after screenshots or a recording. [GPUI Kit contribution guide](https://github.com/longbridge/gpui-kit/blob/main/CONTRIBUTING.md)
+- Keep each PR focused on one problem. Use the template to link the issue, list public API changes and migration steps, and provide reproducible verification. For UI changes, identify the affected Gallery scenario. [GPUI Kit contribution guide](https://github.com/longbridge/gpui-kit/blob/main/CONTRIBUTING.md)
 
 <a id="workspace-与组件开发"></a>
 
@@ -33,7 +33,7 @@ English | [中文](development.zh.md)
 
 - Verify the affected behavior for every change. Start with existing tests, build checks, or a minimal reproduction. Add a permanent test when a phase requirement, public behavior, or critical invariant lacks coverage, or when a reproducible defect has a meaningful risk of recurring. Run the relevant existing checks for documentation, formatting, or internal changes with sufficient coverage.
 - Verify observable behavior at the lowest effective layer. Extend existing cases where possible and add UI, integration, or native verification when that layer has its own risks. Tests should be repeatable and show the contract they cover and how a regression fails. Verify actual rendering, keyboard and pointer input, semantics, focus, cancellation, and native paths where applicable. [Platforms and quality requirements](verification.md)
-- Use temporary commands or scripts for one-off fixes, environment diagnosis, migrations, and phase probes. Record significant results and reproduction steps in the relevant document. Keep the smallest permanent assertion when it fills a gap in supported behavior.
+- Use temporary commands or scripts for one-off fixes, environment diagnosis, migrations, and phase probes. Record significant results and reproduction steps in the issue or PR. Keep the smallest permanent assertion when it fills a gap in supported behavior.
 - When changing behavior or replacing a probe, remove obsolete cases and helpers after checking for unique coverage and references.
 
 <a id="上游贡献"></a>
@@ -61,7 +61,7 @@ The default workspace build covers the pure theme and engineering tools. Select 
 
 On macOS, use Apple Silicon and the Xcode command-line tools. Linux CI uses Ubuntu 24.04 x64. See `Install Linux platform dependencies` in the [workflow](../.github/workflows/ci.yml) for the system packages. Both platforms use the same Rust toolchain and Cargo commands.
 
-Check that the Gallery title bar reads “Material Gallery” and the body shows “Window check” and a “Display scale” value matching the current display. Narrow the window and confirm the text remains visible. On Windows, inspect the StatusBar named “Display scale …%” in the UI Automation tree. Close the window from the title bar or with Alt+F4 and confirm the process exits normally. Record the Windows version, target, scaling, screenshot, semantics, and exit result. [Platforms and quality requirements](verification.md)
+Check that the Gallery title bar reads “Material Gallery” and the body shows “Window check” and a “Display scale” value matching the current display. Narrow the window and confirm the text remains visible. On Windows, inspect the StatusBar named “Display scale …%” in the UI Automation tree. Close the window from the title bar or with Alt+F4 and confirm the process exits normally. Record the environment and results in the PR. [Platforms and quality requirements](verification.md)
 
 <a id="本地检查"></a>
 
@@ -75,7 +75,7 @@ cargo xtask check
 cargo xtask check origin/main
 ```
 
-The `check` command validates phase status, freeze evidence and acceptance commit ancestry, local links and heading anchors in tracked Markdown, and GPUI/Base package identities and features. With a base commit, it compares Git paths and checks them against the base phase's scope. A trailing slash denotes a directory. File entries match the full path. Merge freeze evidence into the acceptance commit before recording the freeze in a separate PR. The documentation check runs offline. Use `cargo xtask tokens --check` to check generated tokens or `cargo xtask tokens` to update the Rust tables and index after editing the data. The dependency check resolves normal and test graphs for Windows, macOS, and Linux. [Token data](theme/theme.md#token-data)
+The `check` command validates phase status, merged deliverables and acceptance commit ancestry, local links and heading anchors in tracked Markdown, and GPUI/Base package identities and features. With a base commit, it compares Git paths and checks them against the base phase's scope. A trailing slash denotes a directory. File entries match the full path. After the deliverables merge, record the freeze in a separate PR. The documentation check runs offline. Use `cargo xtask tokens --check` to check generated tokens or `cargo xtask tokens` to update the Rust tables and index after editing the data. The dependency check resolves normal and test graphs for Windows, macOS, and Linux. [Token data](theme/theme.md#token-data)
 
 <a id="冷热构建基线"></a>
 
@@ -86,7 +86,7 @@ cargo fetch --locked --target x86_64-pc-windows-msvc
 cargo xtask timings target/timings/p2-baseline
 ```
 
-Use a new report directory for each measurement. Prefetch the Cargo registry and source caches. The cold check and cold build each start in an empty target directory. The command then reuses each target directory for the corresponding warm run. The tool records four wall-clock times, HTML timelines, the Git commit, target, and toolchain. The last Gallery build unit includes code generation and linking. Use the normal Gallery features and the development profile without overriding Cargo's job count. Record the OS, CPU, environment, and cache policy when comparing runs. Include the key timings and reproduction command in the acceptance record.
+Use a new report directory for each measurement. Prefetch the Cargo registry and source caches. The cold check and cold build each start in an empty target directory. The command then reuses each target directory for the corresponding warm run. The tool records four wall-clock times, HTML timelines, the Git commit, target, and toolchain. The last Gallery build unit includes code generation and linking. Use the normal Gallery features and the development profile without overriding Cargo's job count. Record the key timings, reproduction command, and relevant environment in the issue or PR.
 
 <a id="持续集成与合并"></a>
 
@@ -100,16 +100,10 @@ Use a new report directory for each measurement. Prefetch the Cargo registry and
 | `Windows MSVC`, `macOS ARM64`, `Linux x64` | Clippy, workspace tests, headless Gallery UI tests, and native Gallery builds on Windows Server 2025 x64, macOS 15 ARM64, and Ubuntu 24.04 x64. Other platforms continue if one fails. |
 | `CI required` | Passes when the repository checks and all three native jobs succeed. |
 
-Rust build caches are isolated by platform. Successful pushes to `main` save the caches and PRs can restore them. The P1 workflow was disabled on GitHub and removed from the verification branch. [P1 verification record](phases/P01-evidence.md) · [Removal commit](https://github.com/wangdiandao/gpui-material/commit/c0596fede13cd4663f28b1eff8bc72ff2f1d5014)
+Rust build caches are isolated by platform. Successful pushes to `main` save the caches and PRs can restore them.
 
 Hosted CI covers builds and automated tests on three platforms. The initial release follows the native acceptance criteria in [platforms and quality requirements](verification.md).
 
 The Windows job uploads `gallery-windows-x64-msvc` with the executable, Cargo timeline, and licensing information for native retesting. It runs `cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings`. This profile disables debug assertions so GPUI can embed DirectX shaders at build time using the Windows SDK's x64 `fxc.exe`. CI sets `GPUI_FXC_PATH` to the SDK compiler. Normal `cargo gallery` builds read the shader sources from the local Cargo cache. Releases follow the applicable delivery phase.
 
-The GitHub ruleset requires PRs to update `main`, be current with the base branch, and resolve review conversations. During migration, `Windows MSVC` remains the required check. Switch to the GitHub Actions check `CI required` after the new workflow merges and that check first succeeds on `main`.
-
-<a id="跨平台-ci-首次验证"></a>
-
-### First cross-platform CI run
-
-On 2026-11-13, a manual run on `ci/cross-platform-workflow` verified `1a28571be2058ca237aaf04a0552f2e1d69aa098`. Repository checks, Linux x64, macOS ARM64, Windows MSVC, and `CI required` passed. The native jobs took 3m 45s, 4m 37s, and 7m 17s respectively. Reproduce with `gh workflow run ci.yml --ref ci/cross-platform-workflow`. The PR path gate also passed locally with `cargo xtask check origin/main`. [Actions run](https://github.com/wangdiandao/gpui-material/actions/runs/43416482503) · [Windows Gallery artifact](https://github.com/wangdiandao/gpui-material/actions/runs/43416482503/artifacts/14032242512)
+The GitHub ruleset requires changes to `main` to go through a PR. The PR must be current with the base branch, resolve review conversations, and pass the GitHub Actions check `CI required`.

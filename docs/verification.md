@@ -7,14 +7,14 @@ The initial release supports Windows 11 x64 (MSVC). Required capabilities and re
 | Platform | Initial release | Environment and native checks |
 | --- | --- | --- |
 | Windows | Required | Windows 11 x64 with MSVC on a physical machine or a runner with a desktop session. Check real windows, native DPI and cross-display scaling, UI Automation, Narrator, Microsoft Pinyin composition and candidate positioning, mouse wheel, touchpad, and available touch hardware. |
-| macOS | Exploratory | Apple Silicon, Xcode/Metal, and a signed application bundle. Record Metal headless pixels, a real window, Accessibility Inspector, VoiceOver, system Pinyin, Retina, and full keyboard access where available. |
-| Linux | Exploratory | x86_64 Ubuntu 24.04 LTS with GNOME. Record WGPU pixels, real Wayland and X11 windows, AT-SPI, Orca, IBus Chinese input, and fractional scaling where available. |
+| macOS | Exploratory | Apple Silicon, Xcode/Metal, and a signed application bundle. Check Metal headless pixels, a real window, Accessibility Inspector, VoiceOver, system Pinyin, Retina, and full keyboard access where available. |
+| Linux | Exploratory | x86_64 Ubuntu 24.04 LTS with GNOME. Check WGPU pixels, real Wayland and X11 windows, AT-SPI, Orca, IBus Chinese input, and fractional scaling where available. |
 
-Record the OS, architecture, backend, toolchain, device, and tool versions for each run. Capture Windows visual evidence from a real window. macOS and Linux may use their headless renderers for pixel evidence. Record missing pixel or native evidence as unverified. [Pinned GPUI Kit testing guide][kit-test] · [Accessibility guide][kit-a11y]
+Use a real window for Windows visual checks. macOS and Linux may use headless renderers for pixel checks. Note the relevant environment and any unverified checks in the issue or PR. [Pinned GPUI Kit testing guide][kit-test] · [Accessibility guide][kit-a11y]
 
-<a id="各层证据"></a>
+<a id="各层验证"></a>
 
-## Evidence by layer
+## Verification by layer
 
 | Layer | Coverage |
 | --- | --- |
@@ -25,9 +25,9 @@ Record the OS, architecture, backend, toolchain, device, and tool versions for e
 | Integration | Complete paths such as menu activation, input inside dialogs, navigation mode changes, applying search results, and date and time editing. |
 | Performance | Active frame time and allocation, long lists, exit and idle redraw, theme updates, and build time. P1 and P2 establish repeatable baselines for later phases. |
 
-Shared scenarios cover Chinese and long labels, LTR and RTL, light and dark themes, normal and scaled fonts, narrow windows, and high DPI. High-risk combinations include disabled with hover or press, selected with focus, overlays and IME during scrolling, interrupted animations, and stale async results. Verify semantic roles, names, values, states, relationships, and actions with accessibility tools. Use actual screen readers to verify announcements and interaction, and visual evidence for visible focus.
+Shared scenarios cover Chinese and long labels, LTR and RTL, light and dark themes, normal and scaled fonts, narrow windows, and high DPI. High-risk combinations include disabled with hover or press, selected with focus, overlays and IME during scrolling, interrupted animations, and stale async results. Verify semantic roles, names, values, states, relationships, and actions with accessibility tools. Check announcements and interaction with actual screen readers and inspect visible focus in the rendered UI.
 
-Each evidence record names the commit, component and variant, input path, test or reproduction steps, environment, expected result, and observed result. Use `pending`, `pass`, `fail`, or `unsupported`. Each required item in a support claim needs passing evidence. The claim specifies the OS, architecture, backend, IME and assistive technology, and exceptions, and must pass the applicable component, native, and integration checks.
+Summarize the applicable scenarios, reproduction steps, and results in the issue or PR. A support claim specifies the OS, architecture, backend, IME and assistive technology, and exceptions. Each required item must pass the applicable component, native, and integration checks.
 
 [kit-test]: https://github.com/longbridge/gpui-kit/blob/39ab849a93b5f15507b969164d49891db8d5b470/website/docs/test.md
 [kit-a11y]: https://github.com/longbridge/gpui-kit/blob/39ab849a93b5f15507b969164d49891db8d5b470/website/docs/accessibility.md

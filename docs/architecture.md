@@ -41,7 +41,7 @@ P0 pins Base and GPUI. The owning phases evaluate other candidates and record th
 | Candidate | Admission phase | Purpose and initial constraints | Verification and replacement boundary |
 | --- | --- | --- | --- |
 | `gpui-base =0.9.1` / `gpui-pre =0.3.12` / `gpui-pre-platform =0.3.12` | P1 probes, P2 workspace | Pin crates.io sources and retain the upstream pairing of font-kit, x11, wayland, and runtime_shaders. Use test-support for acceptance. Inspector is optional. Apache-2.0. | Use `cargo metadata` and feature graphs to check a single core and platform identity. Windows runs the required probes. macOS and Linux probes are exploratory. Foundation wraps public Base APIs. |
-| [`material-color-utils 0.1.3`][mcu-rust] | Admitted in P3 | HCT, tonal palettes, and dynamic semantic colors. Disable default features to avoid image, serde, and rayon. Direct dependencies are bon, indexmap, papaya, and thiserror. Published metadata uses license-file. The bundled license is Apache-2.0. | Adapt library types inside theme. [P3 vectors and dependency admission](phases/P03-evidence.md#dependency-admission) |
+| [`material-color-utils 0.1.3`][mcu-rust] | Admitted in P3 | HCT, tonal palettes, and dynamic semantic colors. Disable default features to avoid image, serde, and rayon. Direct dependencies are bon, indexmap, papaya, and thiserror. Published metadata uses license-file. The bundled license is Apache-2.0. | Adapt library types inside theme. [Theme PR](https://github.com/wangdiandao/gpui-material/pull/78) |
 | [`polymorpher 0.1.4`][polymorpher] | P1 feasibility, P4 admission | Rounded polygons and morphing. Retain the empty default feature set and use basic geometry. Directly depends on euclid. Apache-2.0. | Compare curves, bounds, topology, clipping, hit testing, and performance against AndroidX. Foundation owns GPUI path conversion. |
 | [Material Symbols][symbols] | P4/P5 | Pin the necessary assets and let applications replace icons. Apache-2.0. | Verify asset mapping, icon fallback, and RTL. Record distributed assets and licenses individually. |
 | `chrono` and [Base Calendar][calendar] | P1 behavior, P8 date-family admission | Base declares the `0.4.38` compatible range. The pinned upstream lockfile resolves 0.4.45. MIT or Apache-2.0. | Check version unification, calendar semantics, and boundaries. Reuse Base and chrono for date arithmetic and use a separate locale formatter. |
@@ -49,13 +49,13 @@ P0 pins Base and GPUI. The owning phases evaluate other candidates and record th
 
 Extras define families such as expressive-groups, search, date-time, and carousel as needed. Theme supports static data with dynamic-color and serde on demand. Keep image-based color extraction in tooling where possible. Required keyboard, semantics, and motion are part of complete component behavior.
 
-Use package-level commands in CI and development to isolate theme, components, and Gallery. P2 records cold and warm builds, check and link times, feature combinations, and platform dependencies. Let timing and runtime evidence guide architecture changes. Prefer concrete internal types with type erasure where needed.
+Use package-level commands in CI and development to isolate theme, components, and Gallery. Use build timings and runtime measurements to guide architecture changes. Prefer concrete internal types with type erasure where needed.
 
 <a id="p1-已验证的适配边界"></a>
 
 ## Boundaries verified in P1
 
-P1 acceptance uses Windows 11 x64/MSVC. P2 can reuse the pinned Base 0.9.1 and GPUI 0.3.12 pairing. Pure theme algorithms and shape candidates are admitted in P3 and P4 respectively. Hosted macOS and Linux runs and pixel samples are exploratory. [P1 verification record](phases/P01-evidence.md)
+P1 acceptance uses Windows 11 x64/MSVC. P2 can reuse the pinned Base 0.9.1 and GPUI 0.3.12 pairing. Pure theme algorithms and shape candidates are admitted in P3 and P4 respectively. Hosted macOS and Linux runs and pixel samples are exploratory. [P1 acceptance PR](https://github.com/wangdiandao/gpui-material/pull/51)
 
 | Mechanism | Adapter and boundary |
 | --- | --- |

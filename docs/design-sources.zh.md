@@ -11,10 +11,10 @@
 1. [Material 3](https://m3.material.io/) 的 Expressive 和适用的 M3 指南定义组件名称、结构、变体、视觉与交互语义。
 2. Compose Material 3 的锁定版本用于核对 Token、状态、默认值及布局。组件矩阵给出的 Kotlin 文件位于该版本源码包。
 3. 官方 Material Color Utilities 和 AndroidX graphics-shapes 用作算法与测试向量依据。
-4. 固定的 GPUI 与 gpui-base 定义桌面事件、绘制和平台边界。桌面适配记录其输入路径、偏离原因及对应证据。
+4. 固定的 GPUI 与 gpui-base 定义桌面事件、绘制和平台边界。桌面适配说明输入路径及偏离原因。
 5. Material Components Android 的固定源码补充 Side Sheet、Docked Toolbar 等实现参照，以及弃用与替代说明。Material Web 用于历史背景。
 
-同一主题出现差异时，以锁定的公开设计指南定范围，以锁定源码解读实现细节。组件所属阶段写明偏离、替代交互和测试证据。新增上游源码功能先进入范围审查。网站中的设备适用条件照实记录。
+同一主题出现差异时，以锁定的公开设计指南定范围，以锁定源码解读实现细节。组件所属阶段写明偏离及替代交互，测试结果记在对应 Issue 或 PR。新增上游源码功能先进入范围审查。网站中的设备适用条件照实记录。
 
 <a id="material-specification"></a>
 
@@ -22,7 +22,7 @@
 
 [站点目录](https://m3.material.io/components)及各组件的 Overview、Specs、Guidelines 和 Accessibility 按发布数据版本 `2026-10-13_06-10-19` 核对。[站点快照索引](material-snapshot.zh.md)记录各页固定 JSON 和 SHA-256。内容分块内嵌的 Token 表属于同一数据版本，具体数值、引用及生成规则归 P3 及相关组件阶段核对。此仓库保存本项目的规格、页面定位和校验值。
 
-| 领域 | 设计范围与后续证据 | 官方入口 |
+| 领域 | 设计范围与验证 | 官方入口 |
 | --- | --- | --- |
 | Token | Reference、System、Component 三层，原名和 Rust 字段可追溯。P3 验证引用闭合与生成可复现。 | [Design tokens](https://m3.material.io/foundations/design-tokens/overview) |
 | 色彩 | 静态浅深色、角色配对、品牌/动态源色、对比度与固定角色。P3 用 MCU 检验语义色和边界。 | [Color roles](https://m3.material.io/styles/color/roles)、[Dynamic color](https://m3.material.io/styles/color/dynamic) |

@@ -3,8 +3,8 @@
   en: "eb985aa3f4a3c789"
   zh: "06af984e56990aaa"
 /development-and-verification/contribution-workflow-and-branch-naming:
-  en: "ef81f2a0cbae18fc"
-  zh: "1bfdccb5427e6d08"
+  en: "a0ce3c6d94bb2dd9"
+  zh: "683c4a1ff23319db"
 /development-and-verification/workspace-and-component-development:
   en: "e198e5bbc9c46082"
   zh: "02d49b4b650f0a28"
@@ -12,23 +12,20 @@
   en: "9f5fa92f95981ff7"
   zh: "8b6519e816df19bd"
 /development-and-verification/testing-conventions:
-  en: "81186a4251b30771"
-  zh: "0fee78ebddc65c47"
+  en: "7b5f8c206bcf721d"
+  zh: "5521b22748a006f1"
 /development-and-verification/upstream-contributions:
   en: "bc9d06b568603e1e"
   zh: "09acaf110232cf52"
 /development-and-verification/development-environment:
-  en: "8c6922e1ae48c44c"
-  zh: "6ad3dd261c906382"
+  en: "5f9a53d4c0353f1e"
+  zh: "541a1f70335b6aac"
 /development-and-verification/local-checks:
-  en: "8d4de14da3de2db9"
-  zh: "c0d7c5093d493485"
+  en: "c7e373898c6d2496"
+  zh: "fb9f4b51df3b7e9f"
 /development-and-verification/cold-and-warm-build-baseline:
-  en: "262daeb61baaadfb"
-  zh: "e036802808f898a5"
+  en: "1a227e066babc8aa"
+  zh: "647c513a2c5be1a6"
 /development-and-verification/ci-and-merging:
-  en: "9e799e6f637ebc2c"
-  zh: "318498173771eb9f"
-/development-and-verification/ci-and-merging/first-cross-platform-ci-run:
-  en: "bdee84ece48e2ee0"
-  zh: "ebfca4c390b337d6"
+  en: "70b726536346e56f"
+  zh: "a00ce725415bc826"

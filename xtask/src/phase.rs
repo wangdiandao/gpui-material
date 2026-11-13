@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, path::Path};
+use std::collections::BTreeMap;
 
 use serde::Deserialize;
 
@@ -11,10 +11,8 @@ struct Status {
     allowed_paths: Vec<String>,
     blockers: Vec<toml::Value>,
     #[serde(default)]
-    repairs: Vec<toml::Value>,
+    repairs: Vec<toml::Table>,
     frozen_commits: BTreeMap<String, String>,
-    #[serde(default)]
-    evidence_locations: BTreeMap<String, String>,
     phases: BTreeMap<String, Phase>,
 }
 
@@ -24,8 +22,6 @@ struct Phase {
     frozen_on: Option<toml::value::Datetime>,
     #[serde(default)]
     entry_conditions: Vec<String>,
-    #[serde(default)]
-    evidence: Vec<String>,
     #[serde(default)]
     merged_deliverables: Vec<Deliverable>,
 }
@@ -125,15 +121,6 @@ impl Status {
         if self.frozen_commits.len() != frozen {
             return Err("frozen_commits must record exactly the frozen phases".into());
         }
-        for path in self.evidence_locations.keys() {
-            if !self
-                .phases
-                .values()
-                .any(|phase| phase.status == Stage::Frozen && phase.evidence.contains(path))
-            {
-                return Err(format!("unknown historical evidence path: {path}").into());
-            }
-        }
         Ok(())
     }
 
@@ -146,13 +133,6 @@ impl Status {
             return Err(format!("{name} needs a freeze date and merged deliverables").into());
         }
         check_commit(accepted, "HEAD")?;
-        for path in &phase.evidence {
-            let location = self.evidence_locations.get(path).unwrap_or(path);
-            if !is_repo_path(path) || !is_repo_path(location) || !Path::new(location).is_file() {
-                return Err(format!("{name} evidence file missing: {location}").into());
-            }
-            output("git", &["cat-file", "-e", &format!("{accepted}:{path}")])?;
-        }
         for delivery in &phase.merged_deliverables {
             if !delivery.task.starts_with(&format!("{name}-"))
                 || delivery.issue == 0
@@ -221,11 +201,19 @@ impl Status {
         if self.schema_version != base.schema_version
             || self.frozen_commits != base.frozen_commits
             || self.phases != base.phases
-            || self.repairs != base.repairs
+            || self.repairs.len() != base.repairs.len()
+            || self
+                .repairs
+                .iter()
+                .zip(&base.repairs)
+                .any(|(current, previous)| {
+                    let mut previous = previous.clone();
+                    previous.remove("evidence");
+                    current != &previous
+                })
         {
             return Err("maintenance must preserve frozen phase records".into());
         }
-        let moves_evidence = self.evidence_locations != base.evidence_locations;
         let paths = paths.collect::<Vec<_>>();
         let updates_maintenance_scope = paths
             .iter()
@@ -235,7 +223,7 @@ impl Status {
         let denied = paths
             .into_iter()
             .filter(|path| {
-                !is_maintenance_path(path, moves_evidence)
+                !is_maintenance_path(path)
                     && !is_p1_experiment_path(path)
                     && !(updates_maintenance_scope && *path == "xtask/src/phase.rs")
                     && !(updates_token_index && *path == "xtask/src/tokens.rs")
@@ -265,10 +253,11 @@ fn is_p1_experiment_path(path: &str) -> bool {
         && is_repo_path(path)
 }
 
-fn is_maintenance_path(path: &str, moves_evidence: bool) -> bool {
+fn is_maintenance_path(path: &str) -> bool {
     matches!(
         path,
-        "README.md"
+        "status.toml"
+            | "README.md"
             | "README.zh.md"
             | "README.i18n.yaml"
             | "CONTRIBUTION.md"
@@ -278,18 +267,9 @@ fn is_maintenance_path(path: &str, moves_evidence: bool) -> bool {
             | "THIRD_PARTY_NOTICES.zh.md"
             | "THIRD_PARTY_NOTICES.i18n.yaml"
     ) || (path.starts_with("docs/")
-        && (path.ends_with(".md") || path.ends_with(".i18n.yaml"))
+        && (path.ends_with(".md") || path.ends_with(".i18n.yaml") || path.ends_with(".png"))
         && is_repo_path(path))
         || is_github_maintenance_path(path)
-        || (moves_evidence
-            && matches!(
-                path,
-                "status.toml"
-                    | "xtask/src/phase.rs"
-                    | "xtask/src/main.rs"
-                    | "xtask/src/docs.rs"
-                    | "xtask/src/docs/i18n.rs"
-            ))
 }
 
 fn is_github_maintenance_path(path: &str) -> bool {
@@ -375,32 +355,69 @@ mod tests {
     }
 
     #[test]
+    fn freeze_accepts_issue_and_pr_records_without_evidence_files() {
+        let mut status: Status = toml::from_str(include_str!("../../status.toml")).unwrap();
+        let head = output("git", &["rev-parse", "HEAD"]).unwrap();
+        let head = head.trim();
+        status.frozen_commits.insert("P3".into(), head.into());
+        let phase = toml::from_str(&format!(
+            r#"
+status = "frozen"
+frozen_on = 2026-11-13
+merged_deliverables = [{{ task = "P3-01", issue = 1, pull_request = 2, commit = "{head}" }}]
+"#
+        ))
+        .unwrap();
+        status.check_frozen("P3", &phase).unwrap();
+    }
+
+    #[test]
     fn frozen_maintenance_allows_docs_ci_and_templates() {
-        assert!(is_maintenance_path("docs/architecture.md", false));
-        assert!(is_maintenance_path("README.md", false));
-        assert!(is_maintenance_path("README.zh.md", false));
-        assert!(is_maintenance_path("docs/architecture.i18n.yaml", false));
-        assert!(!is_maintenance_path("docs/architecture.yaml", false));
-        assert!(is_maintenance_path(".github/workflows/ci.yml", false));
-        assert!(is_maintenance_path(
-            ".github/pull_request_template.md",
-            false
-        ));
-        assert!(is_maintenance_path(
-            ".github/ISSUE_TEMPLATE/bug_report.md",
-            false
-        ));
-        assert!(is_maintenance_path("status.toml", true));
-        assert!(is_maintenance_path("xtask/src/phase.rs", true));
-        assert!(!is_maintenance_path("status.toml", false));
-        assert!(!is_maintenance_path("xtask/src/phase.rs", false));
-        assert!(!is_maintenance_path("docs/../README.md", true));
-        assert!(!is_maintenance_path(".github/workflows/release.yml", true));
+        assert!(is_maintenance_path("docs/architecture.md"));
+        assert!(is_maintenance_path("README.md"));
+        assert!(is_maintenance_path("README.zh.md"));
+        assert!(is_maintenance_path("docs/architecture.i18n.yaml"));
+        assert!(is_maintenance_path("docs/phases/figure.png"));
+        assert!(!is_maintenance_path("docs/architecture.yaml"));
+        assert!(is_maintenance_path(".github/workflows/ci.yml"));
+        assert!(is_maintenance_path(".github/pull_request_template.md"));
+        assert!(is_maintenance_path(".github/ISSUE_TEMPLATE/bug_report.md"));
+        assert!(is_maintenance_path("status.toml"));
+        assert!(!is_maintenance_path("xtask/src/phase.rs"));
+        assert!(!is_maintenance_path("docs/../README.md"));
+        assert!(!is_maintenance_path(".github/workflows/release.yml"));
         assert!(!is_maintenance_path(
-            ".github/ISSUE_TEMPLATE/../../README.md",
-            true
+            ".github/ISSUE_TEMPLATE/../../README.md"
         ));
-        assert!(!is_maintenance_path("apps/gallery/src/main.rs", true));
+        assert!(!is_maintenance_path("apps/gallery/src/main.rs"));
+    }
+
+    #[test]
+    fn frozen_maintenance_accepts_a_baseline_with_legacy_file_records() {
+        let document = include_str!("../../status.toml");
+        let current: Status = toml::from_str(document).unwrap();
+        let previous = document
+            .replace("scope =", "evidence = \"docs/archive.md\", scope =")
+            .replace(
+                "[phases.P0]",
+                "[phases.P0]\nevidence = [\"docs/archive.md\"]",
+            );
+        let mut base: Status = toml::from_str(&previous).unwrap();
+        let paths = [
+            "status.toml",
+            "docs/phases/p02/gallery-windows.png",
+            "experiments/p1-host/evidence/01-build.md",
+            "xtask/src/phase.rs",
+        ];
+        current
+            .check_frozen_maintenance(&base, paths.into_iter())
+            .unwrap();
+        base.repairs[0].insert("issue".into(), toml::Value::Integer(999));
+        assert!(
+            current
+                .check_frozen_maintenance(&base, paths.into_iter())
+                .is_err()
+        );
     }
 
     #[test]

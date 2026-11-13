@@ -1,7 +1,7 @@
 # Section fingerprints for the English and Chinese pages.
 /component-coverage-matrix:
-  en: "02efcbcb3b05195a"
-  zh: "0462fc5854f3f393"
+  en: "c8fe50055b54df45"
+  zh: "20eeae306378490a"
 /component-coverage-matrix/p4-foundation-primitives:
   en: "f42f15cd1bce4d53"
   zh: "e7ac1b42c4bcd4d1"
@@ -15,8 +15,8 @@
   en: "a69e09bb65cffa68"
   zh: "e2987471ea528246"
 /component-coverage-matrix/p8-composite-components-and-experimental-patterns:
-  en: "e37d8d614e39c19d"
-  zh: "08d9fd7447c2a87d"
+  en: "e1a3ea9fdd75f846"
+  zh: "f8a98966a12aae30"
 /component-coverage-matrix/future-compatibility-and-scope-boundaries:
   en: "6ae2328df66cc36f"
   zh: "2ffc1e1cc83ae29f"

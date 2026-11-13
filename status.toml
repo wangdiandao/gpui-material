@@ -2,38 +2,12 @@ schema_version = 1
 current_phase = "P4"
 allowed_paths = []
 blockers = []
-repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", evidence = "docs/phases/P00.md", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }]
+repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }]
 frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac", P4 = "6fa5ecdb43570a61e546f896a45223ccc497f19a" }
-
-[evidence_locations]
-"docs/architecture/index.md" = "docs/architecture.zh.md"
-"docs/components/coverage.md" = "docs/component-coverage.zh.md"
-"docs/design/material-snapshot.md" = "docs/material-snapshot.zh.md"
-"docs/design/sources.md" = "docs/design-sources.zh.md"
-"docs/development.md" = "docs/development.zh.md"
-"docs/phases/P00.md" = "docs/phases/P00.zh.md"
-"docs/phases/P01-evidence.md" = "docs/phases/P01-evidence.zh.md"
-"docs/phases/P01.md" = "docs/phases/P01.zh.md"
-"docs/phases/P02-evidence.md" = "docs/phases/P02-evidence.zh.md"
-"docs/phases/P02.md" = "docs/phases/P02.zh.md"
-"docs/phases/P03-evidence.md" = "docs/phases/P03-evidence.zh.md"
-"docs/phases/P03.md" = "docs/phases/P03.zh.md"
-"docs/theme/theme.md" = "docs/theme/theme.zh.md"
-"docs/theme/token-index.md" = "docs/theme/token-index.zh.md"
-"docs/verification.md" = "docs/verification.zh.md"
 
 [phases.P0]
 status = "frozen"
 frozen_on = 2026-11-13
-evidence = [
-    "docs/phases/P00.md",
-    "docs/design/sources.md",
-    "docs/design/material-snapshot.md",
-    "docs/components/coverage.md",
-    "docs/architecture/index.md",
-    "docs/verification.md",
-    "docs/phases/P01.md",
-]
 merged_deliverables = [
     { task = "P0-01", issue = 1, pull_request = 5, commit = "f255ee43d46528657d0f988874d574a25f8c249a" },
     { task = "P0-02", issue = 2, pull_request = 6, commit = "d936720b012e57159ade9731d11035dae188efa2" },
@@ -45,10 +19,6 @@ merged_deliverables = [
 status = "frozen"
 frozen_on = 2026-11-13
 entry_conditions = ["P0 is frozen", "Pinned P0 sources and probe plan are available"]
-evidence = [
-    "docs/phases/P01-evidence.md",
-    "docs/architecture/index.md",
-]
 merged_deliverables = [
     { task = "P1-01", issue = 10, pull_request = 21, commit = "ae6591a24444c749935cb78a9199cda710ab1c16" },
     { task = "P1-02", issue = 11, pull_request = 46, commit = "b70edaa2040f861d59f692587e7d6cd300c9bcc9" },
@@ -66,12 +36,6 @@ merged_deliverables = [
 status = "frozen"
 frozen_on = 2026-11-13
 entry_conditions = ["P1 is frozen", "Windows probes and pinned Base/GPUI identities are recorded"]
-evidence = [
-    "docs/phases/P02.md",
-    "docs/phases/P02-evidence.md",
-    "docs/development.md",
-    ".github/workflows/ci.yml",
-]
 merged_deliverables = [
     { task = "P2-01", issue = 53, pull_request = 58, commit = "7a337c70d03974bee804cfe228dde2b8db3bb231" },
     { task = "P2-02", issue = 54, pull_request = 59, commit = "802fb8b5afacffaf562972a6d827d92079c131ed" },
@@ -85,14 +49,6 @@ merged_deliverables = [
 status = "frozen"
 frozen_on = 2026-11-13
 entry_conditions = ["P2 is frozen", "Pinned Material sources and pure algorithm probes are available"]
-evidence = [
-    "docs/phases/P03.md",
-    "docs/phases/P03-evidence.md",
-    "docs/theme/theme.md",
-    "docs/theme/token-index.md",
-    "tokens/material.json",
-    "crates/theme/tests/mcu-spec-2021.json",
-]
 merged_deliverables = [
     { task = "P3-01", issue = 74, pull_request = 76, commit = "b0291c31cff428f1bc6deb44bd00974a56bc5eb1" },
     { task = "P3-02", issue = 75, pull_request = 78, commit = "17204dda9b85e02e85c8f1ccfc2c4ab26fddeb08" },

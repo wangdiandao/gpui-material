@@ -13,3 +13,7 @@ cargo +1.99.1 run --locked --manifest-path experiments/p1-host/Cargo.toml --bin 
 | Windows 无头焦点 | `Window::last_input_was_keyboard()` 在鼠标和键盘路径读数不同。Tab 到达下一个焦点，禁用后反向和正向遍历跳过禁用项。| pass |
 | Windows 原生画面 | [截图](02-windows.png)和 UIA 树显示三个按钮及初始计数。 | pass |
 | Roving focus、捕获丢失、禁用中断拖动、三平台真实指针与焦点 | 本次测试覆盖窗口内的移出控件及按键重复。其余场景待运行。 | pending |
+
+## Roving focus 与拖动取消
+
+2026-11-13，Windows 11 x64，Rust 1.99.1。两项单选组成一个 Tab 停靠点，方向键更改焦点和选中项；Tab 离组再 Shift+Tab 返回时，焦点回到已选项。真实 GPUI 事件路径启动两次拖动，均用 Esc 经 `Window::release_pointer` 与 `App::stop_active_drag` 清除拖动状态，下一次拖动可重新启动。此回归覆盖应用主动取消；OS 捕获丢失仍需独立证据。

@@ -1,4 +1,5 @@
 mod drawing;
+mod input_examples;
 
 use gpui::{
     App, AppContext, Context, InteractiveElement, IntoElement, ParentElement, QuitMode, Render,
@@ -20,7 +21,7 @@ fn main() {
     gpui_platform::application()
         .with_quit_mode(QuitMode::LastWindowClosed)
         .run(move |cx| {
-            MaterialRoot::init(MaterialTheme::default(), cx);
+            init_gallery(cx);
             let result = open_gallery(cx, false).and_then(|_| {
                 if two_windows {
                     open_gallery(cx, true)?;
@@ -32,6 +33,15 @@ fn main() {
                 std::process::exit(1);
             }
         });
+}
+
+fn init_gallery(cx: &mut App) {
+    MaterialRoot::init(MaterialTheme::default(), cx);
+    cx.bind_keys([gpui::KeyBinding::new(
+        "escape",
+        input_examples::CancelDrag,
+        Some("FoundationInput"),
+    )]);
 }
 
 fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Root>> {
@@ -47,14 +57,15 @@ fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Roo
             ),
             ..Default::default()
         }),
-        window_bounds: Some(WindowBounds::centered(size(px(580.), px(440.)), cx)),
+        window_bounds: Some(WindowBounds::centered(size(px(580.), px(620.)), cx)),
         window_min_size: Some(size(px(320.), px(240.))),
         ..Default::default()
     };
-    MaterialRoot::open_window(options, cx, |_, cx| {
+    MaterialRoot::open_window(options, cx, |window, cx| {
         cx.new(|cx| Gallery {
             local_dark,
             drawing: cx.new(drawing::Drawing::new),
+            input: cx.new(|cx| input_examples::InputExamples::new(window, cx)),
         })
     })
 }
@@ -62,6 +73,7 @@ fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Roo
 struct Gallery {
     local_dark: bool,
     drawing: gpui::Entity<drawing::Drawing>,
+    input: gpui::Entity<input_examples::InputExamples>,
 }
 
 impl Render for Gallery {
@@ -97,69 +109,85 @@ impl Render for Gallery {
             .size_full()
             .flex()
             .flex_col()
-            .p_6()
-            .gap_4()
             .child(
                 div()
-                    .id("typography")
-                    .role(Role::Label)
-                    .aria_label(sample)
-                    .test_support()
-                    .child(
-                        canvas(
-                            |_, _, _| (),
-                            move |bounds, _, window, cx| {
-                                let _ =
-                                    title.paint(bounds.origin, TextAlign::Left, None, window, cx);
-                            },
-                        )
-                        .w_full()
-                        .h(height),
-                    ),
-            )
-            .child(
-                Surface::new(ColorRole::Surface)
-                    .with_theme(theme)
-                    .tonal_elevation(Elevation::Level3)
-                    .shadow_elevation(Elevation::Level2)
-                    .rounded_lg()
-                    .p_4()
+                    .id("gallery-scroll")
+                    .tab_group()
+                    .overflow_y_scroll()
+                    .size_full()
+                    .flex()
+                    .flex_col()
+                    .p_6()
+                    .gap_4()
                     .child(
                         div()
-                            .id("window-theme")
-                            .role(Role::Status)
-                            .aria_label(theme_status.clone())
+                            .id("typography")
+                            .role(Role::Label)
+                            .aria_label(sample)
                             .test_support()
-                            .child(theme_status),
+                            .child(
+                                canvas(
+                                    |_, _, _| (),
+                                    move |bounds, _, window, cx| {
+                                        let _ = title.paint(
+                                            bounds.origin,
+                                            TextAlign::Left,
+                                            None,
+                                            window,
+                                            cx,
+                                        );
+                                    },
+                                )
+                                .w_full()
+                                .h(height),
+                            ),
                     )
                     .child(
-                        div()
-                            .id("display-scale")
-                            .role(Role::Status)
-                            .aria_label(status.clone())
-                            .test_support()
-                            .child(status),
+                        Surface::new(ColorRole::Surface)
+                            .with_theme(theme)
+                            .tonal_elevation(Elevation::Level3)
+                            .shadow_elevation(Elevation::Level2)
+                            .rounded_lg()
+                            .p_4()
+                            .child(
+                                div()
+                                    .id("window-theme")
+                                    .role(Role::Status)
+                                    .aria_label(theme_status.clone())
+                                    .test_support()
+                                    .child(theme_status),
+                            )
+                            .child(
+                                div()
+                                    .id("display-scale")
+                                    .role(Role::Status)
+                                    .aria_label(status.clone())
+                                    .test_support()
+                                    .child(status),
+                            ),
+                    )
+                    .child(self.drawing.clone())
+                    .child(self.input.clone())
+                    .child(
+                        Button::new("toggle-theme")
+                            .px_4()
+                            .py_2()
+                            .rounded_full()
+                            .border_2()
+                            .border_color(accent)
+                            .bg(accent)
+                            .text_color(on_accent)
+                            .focus_visible(|style| style.border_color(focus))
+                            .accessibility_label("Switch app theme")
+                            .child("Switch app theme")
+                            .on_click(|_, _, cx| {
+                                let appearance = match material_theme(cx).colors.appearance() {
+                                    Appearance::Light => Appearance::Dark,
+                                    Appearance::Dark => Appearance::Light,
+                                };
+                                set_material_theme(MaterialTheme::baseline(appearance), cx);
+                            }),
                     ),
-            )
-            .child(self.drawing.clone())
-            .child(
-                Button::new("toggle-theme")
-                    .px_4()
-                    .py_2()
-                    .rounded_full()
-                    .border_2()
-                    .border_color(accent)
-                    .bg(accent)
-                    .text_color(on_accent)
-                    .focus_visible(|style| style.border_color(focus))
-                    .child("Switch app theme")
-                    .on_click(|_, _, cx| {
-                        let appearance = match material_theme(cx).colors.appearance() {
-                            Appearance::Light => Appearance::Dark,
-                            Appearance::Dark => Appearance::Light,
-                        };
-                        set_material_theme(MaterialTheme::baseline(appearance), cx);
-                    }),
             )
     }
 }
@@ -173,7 +201,7 @@ mod tests {
     #[gpui::test]
     fn projects_theme_and_paints_status_in_two_windows(cx: &mut TestAppContext) {
         let (first, second) = cx.update(|cx| {
-            MaterialRoot::init(MaterialTheme::default(), cx);
+            init_gallery(cx);
             (
                 open_gallery(cx, false).unwrap(),
                 open_gallery(cx, true).unwrap(),

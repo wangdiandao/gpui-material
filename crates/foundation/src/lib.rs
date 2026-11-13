@@ -15,3 +15,11 @@ mod shape;
 pub use feedback::{InteractionFeedback, InteractionState, Ripple};
 pub use motion::animate;
 pub use shape::{PolygonMorph, Shape};
+
+mod input;
+mod overlay;
+mod range;
+
+pub use input::{DragCapture, move_roving_focus};
+pub use overlay::{isolated_scroll, logical_anchor};
+pub use range::{RangeThumb, range_semantics, value_label};

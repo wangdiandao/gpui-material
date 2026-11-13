@@ -2194,6 +2194,7 @@ dependencies = [
  "gpui-material-theme",
  "gpui-pre",
  "polymorpher",
+ "windows 0.62.2",
 ]
 
 [[package]]

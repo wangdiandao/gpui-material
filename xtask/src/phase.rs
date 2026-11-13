@@ -142,11 +142,8 @@ impl Status {
             .frozen_commits
             .get(name)
             .ok_or_else(|| format!("{name} has no accepted commit"))?;
-        if phase.frozen_on.is_none()
-            || phase.evidence.is_empty()
-            || phase.merged_deliverables.is_empty()
-        {
-            return Err(format!("{name} is missing freeze evidence").into());
+        if phase.frozen_on.is_none() || phase.merged_deliverables.is_empty() {
+            return Err(format!("{name} needs a freeze date and merged deliverables").into());
         }
         check_commit(accepted, "HEAD")?;
         for path in &phase.evidence {

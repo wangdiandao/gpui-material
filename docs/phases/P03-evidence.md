@@ -44,3 +44,13 @@ Windows 生产图中直接依赖为 bon 3.10.3、indexmap 2.14.2、papaya 0.2.5�
 cargo tree --locked -p gpui-material-theme --no-default-features --features dynamic-color --edges normal,build
 cargo tree --locked -p gpui-material-theme --features dynamic-color --edges features --invert material-color-utils
 ```
+
+## Windows CI 与验收结论
+
+[启动 PR](https://github.com/wangdiandao/gpui-material/pull/76)通过 Windows MSVC 并合入主线，阶段路径门禁按 P2 冻结基线启用 P3 范围。
+
+[主题 PR](https://github.com/wangdiandao/gpui-material/pull/78)在最新主线通过 [Windows MSVC](https://github.com/wangdiandao/gpui-material/actions/runs/43410534729)。检查包括格式、阶段路径、文档、离线 Token 一致性、三平台依赖解析、Clippy、工作区测试及原生 Windows Gallery 构建。macOS 和 Linux 的结果来自依赖解析。
+
+Windows 11 本地检查通过 18 个工作区测试，其中纯主题 10 个、xtask 7 个、Gallery 1 个。另分别运行主题默认、`dynamic-color` 与 `serde` 组合。离线再生成后两份文件的 SHA-256 与原文件一致。故意追加过期内容后，`cargo xtask tokens --check` 返回 1，重生成恢复原始字节。独立对照 Compose 源包核验 30 个排版样式的 150 个字段，结果全部相等。
+
+555 项 Token 按层统计为 Reference 96 项、System 410 项、Component 49 项。[冻结登记](../../status.toml)记录合并结果与接受提交。

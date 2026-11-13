@@ -5,6 +5,12 @@ blockers = []
 repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", evidence = "docs/phases/P00.md", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }]
 frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f" }
 
+[evidence_locations]
+"docs/architecture/index.md" = "docs/architecture.md"
+"docs/components/coverage.md" = "docs/component-coverage.md"
+"docs/design/material-snapshot.md" = "docs/material-snapshot.md"
+"docs/design/sources.md" = "docs/design-sources.md"
+
 [phases.P0]
 status = "frozen"
 frozen_on = 2026-11-13

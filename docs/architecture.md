@@ -1,6 +1,6 @@
 # 架构与依赖
 
-gpui-material 提供 Material 的 Token、主题、视觉状态、布局和组合。gpui-base 提供可复用的行为、焦点、输入、滚动、状态和基础设施。P1 用[探针](../phases/P01.md)确认实际能力、必要适配与依赖图。准确版本见[设计依据](../design/sources.md#gpui-与-base)。
+gpui-material 提供 Material 的 Token、主题、视觉状态、布局和组合。gpui-base 提供可复用的行为、焦点、输入、滚动、状态和基础设施。P1 用[探针](phases/P01.md)确认实际能力、必要适配与依赖图。准确版本见[设计依据](design-sources.md#gpui-与-base)。
 
 ## Crate 依赖方向
 
@@ -45,7 +45,7 @@ CI 和日常开发用包级命令隔离主题、组件及 Gallery。P2 记录冷
 
 ## P1 已验证的适配边界
 
-以 Windows 11 x64/MSVC 验收。P2 可沿用锁定的 Base 0.9.1 和 GPUI 0.3.12 同源组合。纯主题算法和形状候选的准入分别在 P3、P4 执行。macOS 和 Linux 的托管与像素样本留作平台探索。见 [P1 验证记录](../phases/P01-evidence.md)。
+以 Windows 11 x64/MSVC 验收。P2 可沿用锁定的 Base 0.9.1 和 GPUI 0.3.12 同源组合。纯主题算法和形状候选的准入分别在 P3、P4 执行。macOS 和 Linux 的托管与像素样本留作平台探索。见 [P1 验证记录](phases/P01-evidence.md)。
 
 | 机制 | 适配与边界 |
 | --- | --- |
@@ -57,6 +57,6 @@ CI 和日常开发用包级命令隔离主题、组件及 Gallery。P2 记录冷
 
 [mcu-rust]: https://github.com/RuurdBijlsma/material-color-utilities-rs/tree/d39ff59a1fca34bdc60e124de2f9f7541fff3c39
 [polymorpher]: https://github.com/Aiving/polymorpher/tree/aaeb6f69b0ced6cc7079713994832b5d7ee3ff50
-[symbols]: ../design/sources.md#源码与算法参考
+[symbols]: design-sources.md#源码与算法参考
 [calendar]: https://github.com/longbridge/gpui-kit/blob/39ab849a93b5f15507b969164d49891db8d5b470/crates/base/src/calendar.rs
 [i18n]: https://github.com/longbridge/rust-i18n/tree/5f3ea5ba03395f2f2908e3587e01788cfdfd3555

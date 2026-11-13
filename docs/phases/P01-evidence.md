@@ -68,4 +68,4 @@ sudo apt-get install clang libfontconfig-dev libwayland-dev libxkbcommon-x11-dev
 | P1-06 | [重定向、收敛、Windows 系统低动效和 render 基线](../../experiments/p1-host/evidence/06-motion.md) · [PR #42](https://github.com/wangdiandao/gpui-material/pull/42) | pass |
 | P1-07 | [嵌套、回焦、模态、RTL、值标签、窗口变化和滚动拖动所有权](../../experiments/p1-host/evidence/07-overlays.md) · [PR #47](https://github.com/wangdiandao/gpui-material/pull/47) | pass |
 | P1-08 | [Windows 双窗口主题投影和 Calendar](../../experiments/p1-host/evidence/08-theme.md) · [纯算法与依赖图](../../experiments/p1-theme/README.md) · [PR #38](https://github.com/wangdiandao/gpui-material/pull/38) | pass |
-| P1-09 | [架构与依赖](../architecture/index.md#p1-已验证的适配边界) · [阶段登记](../../status.toml) | pass |
+| P1-09 | [架构与依赖](../architecture.md#p1-已验证的适配边界) · [阶段登记](../../status.toml) | pass |

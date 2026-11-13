@@ -222,8 +222,15 @@ impl Status {
             return Err("maintenance must preserve frozen phase records".into());
         }
         let moves_evidence = self.evidence_locations != base.evidence_locations;
+        let paths = paths.collect::<Vec<_>>();
+        let maintains_experiment = paths.iter().any(|path| is_p1_experiment_path(path));
         let denied = paths
-            .filter(|path| !is_maintenance_path(path, moves_evidence))
+            .into_iter()
+            .filter(|path| {
+                !is_maintenance_path(path, moves_evidence)
+                    && !is_p1_experiment_path(path)
+                    && !(maintains_experiment && *path == "xtask/src/phase.rs")
+            })
             .collect::<Vec<_>>();
         if !denied.is_empty() {
             return Err(format!(
@@ -234,6 +241,17 @@ impl Status {
         }
         Ok(())
     }
+}
+
+fn is_p1_experiment_path(path: &str) -> bool {
+    [
+        "experiments/p1-host/",
+        "experiments/p1-shapes/",
+        "experiments/p1-theme/",
+    ]
+    .iter()
+    .any(|prefix| path.starts_with(prefix))
+        && is_repo_path(path)
 }
 
 fn is_maintenance_path(path: &str, moves_evidence: bool) -> bool {

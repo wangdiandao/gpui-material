@@ -1,9 +1,9 @@
 use std::rc::Rc;
 
 use gpui::{
-    AnyElement, App, Axis, ElementId, InteractiveElement, IntoElement, ParentElement, RenderOnce,
-    Role, SharedString, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
-    px,
+    AccessibleAction, AnyElement, App, Axis, ElementId, InteractiveElement, IntoElement,
+    ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Window, div,
+    prelude::FluentBuilder, px,
 };
 use gpui_material_foundation::{Surface, color, material_theme};
 use gpui_material_theme::{ColorRole, CornerRole, Direction, Elevation, StateLayer, TypeRole};
@@ -95,20 +95,28 @@ impl RenderOnce for Card {
             .gap_2()
             .children(self.children);
         match self.activation {
-            Some((name, activate)) => gpui_base::Button::new(self.id)
-                .w_full()
-                .accessibility_label(name)
-                .disabled(self.disabled)
-                .rounded(px(12.))
-                .border_2()
-                .border_color(gpui::transparent_black())
-                .focus_visible(move |style| style.border_color(focus))
-                .on_click(move |_, window, cx| {
-                    cx.stop_propagation();
-                    activate(window, cx);
-                })
-                .child(surface)
-                .into_any_element(),
+            Some((name, activate)) => {
+                let invoke = activate.clone();
+                gpui_base::Button::new(self.id)
+                    .w_full()
+                    .accessibility_label(name)
+                    .disabled(self.disabled)
+                    .rounded(px(12.))
+                    .border_2()
+                    .border_color(gpui::transparent_black())
+                    .focus_visible(move |style| style.border_color(focus))
+                    .when(!self.disabled, |control| {
+                        control.on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
+                            invoke(window, cx)
+                        })
+                    })
+                    .on_click(move |_, window, cx| {
+                        cx.stop_propagation();
+                        activate(window, cx);
+                    })
+                    .child(surface)
+                    .into_any_element()
+            }
             None => div().id(self.id).child(surface).into_any_element(),
         }
     }
@@ -246,30 +254,38 @@ impl ListItem {
             .child(content)
             .children(self.trailing);
         let row = match self.activation {
-            Some(activate) => gpui_base::Button::new((self.id.clone(), "activate"))
-                .w_full()
-                .accessibility_label(self.label)
-                .disabled(self.disabled)
-                .selected(self.selected)
-                .border_2()
-                .border_color(gpui::transparent_black())
-                .rounded_md()
-                .focus_visible(move |style| style.border_color(focus))
-                .when(!self.disabled, |element| {
-                    element
-                        .hover(move |style| {
-                            style.bg(state_layer.opacity(StateLayer::Hover.opacity()))
+            Some(activate) => {
+                let invoke = activate.clone();
+                gpui_base::Button::new((self.id.clone(), "activate"))
+                    .w_full()
+                    .accessibility_label(self.label)
+                    .disabled(self.disabled)
+                    .selected(self.selected)
+                    .border_2()
+                    .border_color(gpui::transparent_black())
+                    .rounded_md()
+                    .focus_visible(move |style| style.border_color(focus))
+                    .when(!self.disabled, |element| {
+                        element
+                            .hover(move |style| {
+                                style.bg(state_layer.opacity(StateLayer::Hover.opacity()))
+                            })
+                            .active(move |style| {
+                                style.bg(state_layer.opacity(StateLayer::Pressed.opacity()))
+                            })
+                    })
+                    .when(!self.disabled, |control| {
+                        control.on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
+                            invoke(window, cx)
                         })
-                        .active(move |style| {
-                            style.bg(state_layer.opacity(StateLayer::Pressed.opacity()))
-                        })
-                })
-                .on_click(move |_, window, cx| {
-                    cx.stop_propagation();
-                    activate(window, cx);
-                })
-                .child(row)
-                .into_any_element(),
+                    })
+                    .on_click(move |_, window, cx| {
+                        cx.stop_propagation();
+                        activate(window, cx);
+                    })
+                    .child(row)
+                    .into_any_element()
+            }
             None => row.into_any_element(),
         };
         div()

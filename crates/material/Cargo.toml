@@ -1,0 +1,17 @@
+[package]
+name = "gpui-material"
+version = "0.0.1"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+dynamic-color = ["gpui-material-theme/dynamic-color"]
+serde = ["gpui-material-theme/serde"]
+
+[dependencies]
+gpui-material-components = { path = "../components" }
+gpui-material-foundation = { path = "../foundation" }
+gpui-material-theme = { path = "../theme" }

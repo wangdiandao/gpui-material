@@ -1,7 +1,7 @@
 use gpui::{
     AppContext, Axis, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, div,
 };
-use gpui_material_components::{ControlSize, Slider, SliderKind, SliderState};
+use gpui_material::{ControlSize, Slider, SliderKind, SliderState};
 
 pub(crate) struct SliderExamples {
     level: Entity<SliderState>,
@@ -59,7 +59,7 @@ mod tests {
         px, size,
     };
     use gpui_base::test_support::find;
-    use gpui_material_foundation::MaterialRoot;
+    use gpui_material::foundation::MaterialRoot;
 
     #[gpui::test]
     fn material_range_uses_base_step_values(cx: &mut TestAppContext) {

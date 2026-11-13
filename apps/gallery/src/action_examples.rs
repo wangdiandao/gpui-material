@@ -3,7 +3,7 @@ use gpui::{
     StatefulInteractiveElement, Styled, Window, div,
 };
 use gpui_base::TestSupportExt;
-use gpui_material_components::{
+use gpui_material::{
     Button, ButtonShape, ButtonVariant, ControlSize, ExtendedFab, Fab, FabColor, FabSize,
     IconButton, IconButtonVariant, IconButtonWidth, IconToggleButton, ToggleButton,
     ToggleButtonVariant,
@@ -189,7 +189,7 @@ mod tests {
         AppContext, InputEvent, MouseButton, MouseDownEvent, MouseUpEvent, TestAppContext, px, size,
     };
     use gpui_base::test_support::find;
-    use gpui_material_foundation::MaterialRoot;
+    use gpui_material::foundation::MaterialRoot;
 
     #[gpui::test]
     fn material_buttons_activate_once_and_toggles_update_the_owner(cx: &mut TestAppContext) {

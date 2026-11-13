@@ -11,21 +11,39 @@ use gpui::{
     WindowHandle, WindowOptions, canvas, div, px, size,
 };
 use gpui_base::{Button, Root, TestSupportExt};
-use gpui_material_foundation::{
+use gpui_material::foundation::{
     MaterialRoot, Surface, color, material_theme, set_material_theme, shape_text,
 };
-use gpui_material_theme::{
+use gpui_material::theme::{
     Appearance, ColorRole, Elevation, MaterialTheme, TypeRole, TypographyEmphasis,
 };
 
 const TITLE: &str = "Material Gallery";
 
 fn main() {
-    let two_windows = std::env::args().any(|arg| arg == "--two-windows");
+    let arguments: Vec<_> = std::env::args().skip(1).collect();
+    let two_windows = arguments.iter().any(|arg| arg == "--two-windows");
+    let rtl = arguments.iter().any(|arg| arg == "--rtl");
+    let reduced_motion = arguments.iter().any(|arg| arg == "--reduce-motion");
+    let dark = arguments.iter().any(|arg| arg == "--dark");
     gpui_platform::application()
         .with_quit_mode(QuitMode::LastWindowClosed)
         .run(move |cx| {
             init_gallery(cx);
+            if rtl || dark {
+                let mut theme = MaterialTheme::baseline(if dark {
+                    Appearance::Dark
+                } else {
+                    Appearance::Light
+                });
+                if rtl {
+                    theme.layout.direction = gpui_material::theme::Direction::Rtl;
+                }
+                set_material_theme(theme, cx);
+            }
+            if reduced_motion {
+                cx.set_reduce_motion(true);
+            }
             let result = open_gallery(cx, false).and_then(|_| {
                 if two_windows {
                     open_gallery(cx, true)?;
@@ -201,7 +219,10 @@ impl Render for Gallery {
                                     Appearance::Light => Appearance::Dark,
                                     Appearance::Dark => Appearance::Light,
                                 };
-                                set_material_theme(MaterialTheme::baseline(appearance), cx);
+                                let mut theme = material_theme(cx).clone();
+                                theme.colors =
+                                    gpui_material::theme::ColorScheme::baseline(appearance);
+                                set_material_theme(theme, cx);
                             }),
                     ),
             )

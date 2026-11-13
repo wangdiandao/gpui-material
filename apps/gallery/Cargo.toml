@@ -13,6 +13,4 @@ test-support = ["gpui/test-support", "gpui-base/test-support", "gpui_platform/te
 gpui.workspace = true
 gpui-base.workspace = true
 gpui_platform.workspace = true
-gpui-material-foundation = { path = "../../crates/foundation" }
-gpui-material-theme = { path = "../../crates/theme" }
-gpui-material-components = { path = "../../crates/components" }
+gpui-material = { path = "../../crates/material" }

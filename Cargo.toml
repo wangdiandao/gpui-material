@@ -1,5 +1,5 @@
 [workspace]
-members = ["apps/gallery", "crates/components", "crates/foundation", "crates/theme", "xtask"]
+members = ["apps/gallery", "crates/components", "crates/foundation", "crates/material", "crates/theme", "xtask"]
 default-members = ["crates/theme", "xtask"]
 exclude = ["experiments/p1-host", "experiments/p1-theme", "experiments/p1-shapes"]
 resolver = "3"

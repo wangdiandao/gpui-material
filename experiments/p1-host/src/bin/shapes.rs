@@ -90,3 +90,50 @@ fn gpui_tessellates_all_reference_progress_samples() {
         assert!(path.bounds.size.height > px(40.));
     }
 }
+
+#[cfg(all(
+    feature = "test-support",
+    test,
+    any(target_os = "macos", target_os = "linux")
+))]
+#[test]
+fn native_renderer_draws_morph_samples() {
+    use gpui::HeadlessAppContext;
+    use std::sync::Arc;
+
+    let mut cx = HeadlessAppContext::with_platform(
+        gpui_platform::current_platform(true).text_system(),
+        Arc::new(()),
+        gpui_platform::current_headless_renderer,
+    );
+    cx.update(gpui_base::init);
+    let handle = cx
+        .open_window(size(px(480.), px(280.)), |window, cx| {
+            let view = cx.new(|_| ShapesProbe([0., 0.5, 1.].map(curves)));
+            cx.new(|cx| gpui_base::Root::new(view, window, cx))
+        })
+        .expect("open GPU-backed test window");
+
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+    })
+    .unwrap();
+    let image = cx
+        .capture_screenshot(handle.into())
+        .expect("capture native GPU pixels");
+    assert_eq!(image.dimensions(), (480, 280));
+
+    let background = image.get_pixel(0, 0);
+    for x in [96, 240, 384] {
+        assert_ne!(image.get_pixel(x, 128), background, "fill at x={x}");
+        assert_eq!(image.get_pixel(x, 52), background, "background above x={x}");
+    }
+    if let Some(output) = std::env::var_os("P1_SHAPES_SCREENSHOT") {
+        image.save(output).expect("save native GPU screenshot");
+    }
+    println!(
+        "{} native renderer: 480x280, three interior and three exterior samples",
+        std::env::consts::OS
+    );
+}

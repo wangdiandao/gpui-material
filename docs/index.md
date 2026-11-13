@@ -7,5 +7,6 @@
 5. [平台与质量要求](verification.md)定义验证环境、所需证据和支持声明门槛。
 6. [阶段推进与返修](phases/index.md)定义 P0–P9 的顺序、工作流和完成条件。[阶段状态](../status.toml)提供机器可读记录。
 7. [P1 能力验证](phases/P01.md)列出探针工作单元、候选依赖和阻塞判据。
+8. [P2 工程基线](phases/P02.md)记录 Workspace、Windows Gallery、工程检查及合并门禁。
 
 后续设计、组件和阶段文档在所属工作开始时加入本索引，历史由 Git 保留。

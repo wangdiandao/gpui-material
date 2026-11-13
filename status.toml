@@ -1,6 +1,23 @@
 schema_version = 1
-current_phase = "P1"
-allowed_paths = []
+current_phase = "P2"
+allowed_paths = [
+    "status.toml",
+    "README.md",
+    ".gitignore",
+    "Cargo.toml",
+    "Cargo.lock",
+    "rust-toolchain.toml",
+    ".cargo/",
+    ".github/",
+    "apps/gallery/",
+    "xtask/",
+    "docs/index.md",
+    "docs/development.md",
+    "docs/phases/index.md",
+    "docs/phases/P02.md",
+    "docs/phases/P02-evidence.md",
+    "docs/phases/p02/",
+]
 blockers = []
 repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", evidence = "docs/phases/P00.md", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }]
 frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295" }
@@ -46,7 +63,8 @@ merged_deliverables = [
 ]
 
 [phases.P2]
-status = "planned"
+status = "active"
+entry_conditions = ["P1 is frozen", "Windows probes and pinned Base/GPUI identities are recorded"]
 
 [phases.P3]
 status = "planned"

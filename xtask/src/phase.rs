@@ -234,6 +234,7 @@ impl Status {
             .iter()
             .any(|path| is_p1_experiment_path(path) || is_github_maintenance_path(path));
         let updates_token_index = paths.contains(&"docs/theme/token-index.md");
+        let updates_contribution_guide = paths.contains(&"CONTRIBUTION.md");
         let denied = paths
             .into_iter()
             .filter(|path| {
@@ -241,6 +242,8 @@ impl Status {
                     && !is_p1_experiment_path(path)
                     && !(updates_maintenance_scope && *path == "xtask/src/phase.rs")
                     && !(updates_token_index && *path == "xtask/src/tokens.rs")
+                    && !(updates_contribution_guide
+                        && matches!(*path, "xtask/src/phase.rs" | "xtask/src/docs/i18n.rs"))
             })
             .collect::<Vec<_>>();
         if !denied.is_empty() {
@@ -271,6 +274,9 @@ fn is_maintenance_path(path: &str, moves_evidence: bool) -> bool {
         "README.md"
             | "README.zh.md"
             | "README.i18n.yaml"
+            | "CONTRIBUTION.md"
+            | "CONTRIBUTION.zh.md"
+            | "CONTRIBUTION.i18n.yaml"
             | "THIRD_PARTY_NOTICES.md"
             | "THIRD_PARTY_NOTICES.zh.md"
             | "THIRD_PARTY_NOTICES.i18n.yaml"

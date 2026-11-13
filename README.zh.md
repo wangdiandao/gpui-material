@@ -9,6 +9,7 @@
 在 Windows 11 x64/MSVC 环境运行 `cargo gallery` 可打开最小 Gallery 窗口。工具链、测试和 CI 制品见[开发与验证](docs/development.zh.md)。组件示例随对应生产组件交付。
 
 - [文档索引](docs/index.zh.md)
+- [贡献指南](CONTRIBUTION.zh.md)
 - [组件覆盖矩阵](docs/component-coverage.zh.md)
 - [阶段状态](status.toml)
 

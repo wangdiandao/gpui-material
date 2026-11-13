@@ -34,3 +34,13 @@ cargo +1.99.1 run --locked --manifest-path experiments/p1-host/Cargo.toml --bin 
 ```
 
 在实窗从「拖动此处」向右拖出，继续按住至少 650 ms。自动化用 agent-desktop 的 `drag --duration 220 --drop-delay 650`。探针调用本窗口线程的 `ReleaseCapture`，在松开前检测到原生捕获离开，系统 UIA 状态显示「系统捕获已丢失」。窗口仍有焦点，计数仍为「指针 0 · 键盘 0」。同样动作连续两次均检测到丢失。单独的禁用中断结果来自上述 GPUI 测试。
+
+<a id="upstream-patch-retest"></a>
+
+## 上游补丁复测
+
+在 Windows 11 x64 build 26200、Rust 1.98.1 上，Zed GPUI 的 `fix/win32-capture-loss` 分支提交 `f4f9837` 通过 `cargo check --locked -p gpui_windows` 和 `cargo test --locked -p gpui --lib window::tests::` 的全部 41 项测试。回归测试覆盖清除待定点击、取消拖动以及下一次点击。
+
+原生复现可从 Zed 的 `crates/gpui/examples/drag_drop.rs` 开始。在首次拖动的 `on_drag` 回调中安排窗口线程在 350 ms 后调用 Win32 `ReleaseCapture`。检查 `GetCapture` 从非零变为零。在绘制阶段通过 `Window::on_mouse_event` 注册 `MouseCaptureLostEvent` 监听器，统计冒泡阶段的通知，并分别统计放下和点击。第一次拖到目标后按住 800 ms，再做一次无需强制释放的拖放，最后点击拖动源。
+
+上一版补丁的前台输入确认左键仍按住时发生捕获丢失，收到一次通知，放下和点击均为零。下一次拖放和点击各触发一次。最终提交 `f4f9837` 通过投递 Win32 鼠标消息在 GPUI 实窗重复该序列，窗口 UI 线程调用了 `ReleaseCapture`。UIA 状态显示累计拖动开始、捕获丢失、放下和点击分别为 `1/1/0/0`、`2/1/1/0` 和 `2/1/1/1`。最终版本的前台输入和完整 Zed 应用待验证。 [跟踪 Issue #48](https://github.com/wangdiandao/gpui-material/issues/48)

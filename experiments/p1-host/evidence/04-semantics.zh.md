@@ -29,3 +29,9 @@ cargo +1.99.1 run --locked --manifest-path experiments/p1-host/Cargo.toml --bin 
 - Narrator 实机通过由项目负责人确认，自动化只测上述系统树和动作。见 [Windows 实机记录](../../../docs/phases/P01-evidence.zh.md#native-windows-acceptance)。
 
 上游退出条件与最小复现见 [Issue #49](https://github.com/wangdiandao/gpui-material/issues/49)。
+
+<a id="upstream-slider-retest"></a>
+
+## 上游 Slider 复测
+
+在 Windows 11 x64 build 26200 上，GPUI Kit 提交 `4a874b81` 通过 `cargo +1.99.1 test --locked -p gpui-base --lib slider::tests` 的全部 23 项测试。在上游仓库运行 `cargo +1.99.1 run --locked -p gpui-base-examples --bin components -- slider`。在原生 UIA 树找到 Slider 并获取 `RangeValuePattern`。初值为 64，范围为 0–100，SmallChange 为 1。依次调用 `SetValue` 写入 73、0、100 和 41，`RangeValuePattern.Current.Value` 每次回读均与请求值相符。 [GPUI Kit PR #3963](https://github.com/longbridge/gpui-kit/pull/3963)

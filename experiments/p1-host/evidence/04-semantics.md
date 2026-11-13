@@ -29,3 +29,9 @@ Recorded on 2026-11-13 with Windows 11 x64 build 26200, Rust 1.99.1, and agent-d
 - The project owner confirmed native Narrator acceptance. Automation verified the system tree and actions above. [Native Windows record](../../../docs/phases/P01-evidence.md#native-windows-acceptance)
 
 [Issue #49](https://github.com/wangdiandao/gpui-material/issues/49) records upstream removal criteria and the minimal reproduction.
+
+<a id="上游-slider-复测"></a>
+
+## Upstream Slider retest
+
+On Windows 11 x64 build 26200, GPUI Kit commit `4a874b81` passed 23 tests from `cargo +1.99.1 test --locked -p gpui-base --lib slider::tests`. Run `cargo +1.99.1 run --locked -p gpui-base-examples --bin components -- slider` in the upstream checkout. Find the native UIA Slider and get its `RangeValuePattern`. The initial value was 64, with bounds 0–100 and SmallChange 1. Calling `SetValue` with 73, 0, 100 and 41 returned the requested value each time through `RangeValuePattern.Current.Value`. [GPUI Kit PR #3963](https://github.com/longbridge/gpui-kit/pull/3963)

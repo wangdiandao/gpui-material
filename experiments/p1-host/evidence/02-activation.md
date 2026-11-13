@@ -34,3 +34,13 @@ cargo +1.99.1 run --locked --manifest-path experiments/p1-host/Cargo.toml --bin 
 ```
 
 In the real window, drag right from “拖动此处” (Drag here) and hold for at least 650 ms. Automation used agent-desktop `drag --duration 220 --drop-delay 650`. The probe called `ReleaseCapture` on the window thread and detected capture loss before release. UIA showed “系统捕获已丢失” (System capture lost). The window kept focus and the pointer and keyboard counts stayed at 0. Two consecutive attempts detected loss. Disabling mid-drag was covered separately by the GPUI test.
+
+<a id="上游补丁复测"></a>
+
+## Upstream patch retest
+
+On Windows 11 x64 build 26200 with Rust 1.98.1, Zed GPUI commit `f4f9837` on `fix/win32-capture-loss` passed `cargo check --locked -p gpui_windows` and all 41 tests from `cargo test --locked -p gpui --lib window::tests::`. The regression covers pending click and drag cancellation and the next click.
+
+For native reproduction, use Zed's `crates/gpui/examples/drag_drop.rs`. In the first drag's `on_drag` handler, schedule Win32 `ReleaseCapture` on the window thread after 350 ms. Check that `GetCapture` goes from nonzero to zero. Register a `MouseCaptureLostEvent` listener with `Window::on_mouse_event` during paint, count notifications in the bubble phase, and count drops and clicks separately. Hold the first drag over the target for 800 ms, drag again without forced release, then click the source.
+
+Foreground input on the preceding revision confirmed release with the left button held, one loss notification and zero drops or clicks. The next drag and click each registered once. On `f4f9837`, posted Win32 mouse messages drove the same sequence in a native GPUI window, and its UI thread called `ReleaseCapture`. The UIA status showed cumulative drag starts, losses, drops and clicks of `1/1/0/0`, `2/1/1/0`, then `2/1/1/1`. Foreground input on the final revision and the full Zed application remain unverified. [Tracking issue #48](https://github.com/wangdiandao/gpui-material/issues/48)

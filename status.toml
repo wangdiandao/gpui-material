@@ -1,26 +1,9 @@
 schema_version = 1
 current_phase = "P5"
-allowed_paths = [
-    "status.toml",
-    "Cargo.toml",
-    "Cargo.lock",
-    "crates/components/",
-    "crates/material/",
-    "apps/gallery/Cargo.toml",
-    "apps/gallery/src/",
-    "README.md",
-    "README.zh.md",
-    "README.i18n.yaml",
-    "THIRD_PARTY_NOTICES.md",
-    "THIRD_PARTY_NOTICES.zh.md",
-    "THIRD_PARTY_NOTICES.i18n.yaml",
-    "docs/phases/P05.md",
-    "docs/phases/P05.zh.md",
-    "docs/phases/P05.i18n.yaml",
-]
+allowed_paths = []
 blockers = []
 repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }]
-frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac", P4 = "6fa5ecdb43570a61e546f896a45223ccc497f19a" }
+frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac", P4 = "6fa5ecdb43570a61e546f896a45223ccc497f19a", P5 = "00eccf43c304e3587047b8a98bf120cb64e50304" }
 
 [phases.P0]
 status = "frozen"
@@ -85,8 +68,21 @@ merged_deliverables = [
 ]
 
 [phases.P5]
-status = "active"
+status = "frozen"
+frozen_on = 2026-11-13
 entry_conditions = ["P4 is frozen", "Pinned Material sources and verified Foundation adapters are available"]
+merged_deliverables = [
+    { task = "P5-01", issue = 100, pull_request = 106, commit = "911c71375bf67c70b290415eed206fd5abb5c846" },
+    { task = "P5-02", issue = 101, pull_request = 107, commit = "ee7ca84a34121aa7101f292372ffe62fbf426c44" },
+    { task = "P5-03", issue = 102, pull_request = 108, commit = "c8db061814eb0de1bb161664aeec4305b0c6ab94" },
+    { task = "P5-04", issue = 103, pull_request = 109, commit = "ccc69e1ed16e120e4b142e13269fac7bb8beb3ac" },
+    { task = "P5-05", issue = 104, pull_request = 110, commit = "d2c9ae33bbc83918e1579136dc1bd94b1a2404e7" },
+    { task = "P5-06", issue = 105, pull_request = 111, commit = "57fea6bfccedfd244cab3dcdef3a642761a0aea9" },
+    { task = "P5-06", issue = 112, pull_request = 113, commit = "fb733b28f6ea2cdc95cd0aa6b7671a279f6f05b2" },
+    { task = "P5-06", issue = 112, pull_request = 114, commit = "a4209645883443f894ba4d91740a44712980f8fa" },
+    { task = "P5-06", issue = 112, pull_request = 115, commit = "b611f31e94d83e558819d27cb5afb7483bb63685" },
+    { task = "P5-04", issue = 103, pull_request = 116, commit = "00eccf43c304e3587047b8a98bf120cb64e50304" },
+]
 
 [phases.P6]
 status = "planned"

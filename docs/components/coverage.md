@@ -2,7 +2,7 @@
 
 本表覆盖 [Material 3 组件目录](https://m3.material.io/components)和项目所需的桌面组合。官方组件链接对应[固定站点快照](../design/material-snapshot.md)。Kotlin 文件名对应[固定 Compose 源码包](../design/sources.md#源码与算法参考)的 `commonMain/androidx/compose/material3/`，标注 Android 或 Adaptive 的条目使用相应发布包。
 
-类别为 **规范**、**适配**、**实验**、**兼容**。规范和适配条目是首个完整候选版的必需范围。实验项在 P8 记录纳入或暂缓的结论。兼容项由后续串行阶段安排。类型为 `component`、`primitive` 或 `pattern`。表中生产交付均处于 `planned`，其平台验收以平台矩阵为准。
+类别为 **规范**、**适配**、**实验**、**兼容**。规范和适配条目是首个完整候选版的必需范围。实验项在 P8 记录纳入或暂缓的结论。兼容项由后续串行阶段安排。类型为 `component`、`primitive` 或 `pattern`。表中生产交付均处于 `planned`，其平台验收以[平台矩阵](../verification.md)为准。
 
 每项在归属阶段补齐适用的尺寸、Token、视觉、交互、动效、语义和证据。平台列使用 **桌面**（Windows、macOS、Linux，共同覆盖键盘/指针、浅深色、RTL、高 DPI 及适用的读屏）、**文本**（桌面加各平台中文 IME）、**触控**（桌面加实际触摸或触控板证据）。缺少触控设备的项目记录独立证据状态。
 

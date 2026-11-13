@@ -196,13 +196,20 @@ impl Status {
                 .is_some_and(|(next, previous)| *next == previous + 1)
         {
             let index = &self.current_phase[1..];
+            let phase = format!("docs/phases/P0{index}");
             return require_paths(
                 paths,
                 &[
                     "status.toml".into(),
                     "docs/index.md".into(),
+                    "docs/index.zh.md".into(),
+                    "docs/index.i18n.yaml".into(),
                     "docs/phases.md".into(),
-                    format!("docs/phases/P0{index}.md"),
+                    "docs/phases.zh.md".into(),
+                    "docs/phases.i18n.yaml".into(),
+                    format!("{phase}.md"),
+                    format!("{phase}.zh.md"),
+                    format!("{phase}.i18n.yaml"),
                 ],
             );
         }
@@ -223,13 +230,17 @@ impl Status {
         }
         let moves_evidence = self.evidence_locations != base.evidence_locations;
         let paths = paths.collect::<Vec<_>>();
-        let maintains_experiment = paths.iter().any(|path| is_p1_experiment_path(path));
+        let updates_maintenance_scope = paths
+            .iter()
+            .any(|path| is_p1_experiment_path(path) || is_github_maintenance_path(path));
+        let updates_token_index = paths.contains(&"docs/theme/token-index.md");
         let denied = paths
             .into_iter()
             .filter(|path| {
                 !is_maintenance_path(path, moves_evidence)
                     && !is_p1_experiment_path(path)
-                    && !(maintains_experiment && *path == "xtask/src/phase.rs")
+                    && !(updates_maintenance_scope && *path == "xtask/src/phase.rs")
+                    && !(updates_token_index && *path == "xtask/src/tokens.rs")
             })
             .collect::<Vec<_>>();
         if !denied.is_empty() {
@@ -255,9 +266,36 @@ fn is_p1_experiment_path(path: &str) -> bool {
 }
 
 fn is_maintenance_path(path: &str, moves_evidence: bool) -> bool {
-    matches!(path, "README.md" | "THIRD_PARTY_NOTICES.md")
-        || (path.starts_with("docs/") && path.ends_with(".md") && is_repo_path(path))
-        || (moves_evidence && matches!(path, "status.toml" | "xtask/src/phase.rs"))
+    matches!(
+        path,
+        "README.md"
+            | "README.zh.md"
+            | "README.i18n.yaml"
+            | "THIRD_PARTY_NOTICES.md"
+            | "THIRD_PARTY_NOTICES.zh.md"
+            | "THIRD_PARTY_NOTICES.i18n.yaml"
+    ) || (path.starts_with("docs/")
+        && (path.ends_with(".md") || path.ends_with(".i18n.yaml"))
+        && is_repo_path(path))
+        || is_github_maintenance_path(path)
+        || (moves_evidence
+            && matches!(
+                path,
+                "status.toml"
+                    | "xtask/src/phase.rs"
+                    | "xtask/src/main.rs"
+                    | "xtask/src/docs.rs"
+                    | "xtask/src/docs/i18n.rs"
+            ))
+}
+
+fn is_github_maintenance_path(path: &str) -> bool {
+    matches!(
+        path,
+        ".github/workflows/ci.yml" | ".github/pull_request_template.md"
+    ) || (path.starts_with(".github/ISSUE_TEMPLATE/")
+        && path.ends_with(".md")
+        && is_repo_path(path))
 }
 
 fn check_commit(commit: &str, descendant: &str) -> Result {
@@ -334,15 +372,73 @@ mod tests {
     }
 
     #[test]
-    fn frozen_maintenance_is_limited_to_docs_and_evidence_relocations() {
+    fn frozen_maintenance_allows_docs_ci_and_templates() {
         assert!(is_maintenance_path("docs/architecture.md", false));
         assert!(is_maintenance_path("README.md", false));
+        assert!(is_maintenance_path("README.zh.md", false));
+        assert!(is_maintenance_path("docs/architecture.i18n.yaml", false));
+        assert!(!is_maintenance_path("docs/architecture.yaml", false));
+        assert!(is_maintenance_path(".github/workflows/ci.yml", false));
+        assert!(is_maintenance_path(
+            ".github/pull_request_template.md",
+            false
+        ));
+        assert!(is_maintenance_path(
+            ".github/ISSUE_TEMPLATE/bug_report.md",
+            false
+        ));
         assert!(is_maintenance_path("status.toml", true));
         assert!(is_maintenance_path("xtask/src/phase.rs", true));
         assert!(!is_maintenance_path("status.toml", false));
         assert!(!is_maintenance_path("xtask/src/phase.rs", false));
         assert!(!is_maintenance_path("docs/../README.md", true));
-        assert!(!is_maintenance_path(".github/workflows/ci.yml", true));
+        assert!(!is_maintenance_path(".github/workflows/release.yml", true));
+        assert!(!is_maintenance_path(
+            ".github/ISSUE_TEMPLATE/../../README.md",
+            true
+        ));
         assert!(!is_maintenance_path("apps/gallery/src/main.rs", true));
+    }
+
+    #[test]
+    fn frozen_ci_maintenance_preserves_phase_scope() {
+        let base: Status = toml::from_str(include_str!("../../status.toml")).unwrap();
+        base.check_frozen_maintenance(
+            &base,
+            [".github/workflows/ci.yml", "xtask/src/phase.rs"].into_iter(),
+        )
+        .unwrap();
+        assert!(
+            base.check_frozen_maintenance(&base, ["xtask/src/phase.rs"].into_iter())
+                .is_err()
+        );
+        assert!(
+            base.check_frozen_maintenance(
+                &base,
+                [".github/workflows/ci.yml", "apps/gallery/src/main.rs"].into_iter(),
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn frozen_token_index_maintenance_preserves_token_scope() {
+        let base: Status = toml::from_str(include_str!("../../status.toml")).unwrap();
+        let index_and_generator = ["docs/theme/token-index.md", "xtask/src/tokens.rs"];
+        base.check_frozen_maintenance(&base, index_and_generator.into_iter())
+            .unwrap();
+        assert!(
+            base.check_frozen_maintenance(&base, ["xtask/src/tokens.rs"].into_iter())
+                .is_err()
+        );
+        for path in ["tokens/material.json", "crates/theme/src/generated.rs"] {
+            assert!(
+                base.check_frozen_maintenance(
+                    &base,
+                    index_and_generator.into_iter().chain([path]),
+                )
+                .is_err()
+            );
+        }
     }
 }

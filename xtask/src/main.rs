@@ -14,6 +14,7 @@ type Result<T = ()> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 const USAGE: &str = "Usage:
   cargo xtask check [<base-commit>]
+  cargo xtask docs --write <english-markdown>...
   cargo xtask graph
   cargo xtask tokens [--check]
   cargo xtask timings <new-report-directory>";
@@ -40,6 +41,7 @@ fn run() -> Result {
         [] | ["help" | "--help" | "-h"] => println!("{USAGE}"),
         ["check"] => check(None)?,
         ["check", base] => check(Some(base))?,
+        ["docs", "--write", paths @ ..] if !paths.is_empty() => docs::write_records(paths)?,
         ["graph"] => graph::check()?,
         ["tokens"] => tokens::run(false)?,
         ["tokens", "--check"] => tokens::run(true)?,

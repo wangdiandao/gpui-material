@@ -1,17 +1,21 @@
 ---
-name: 阶段交付
-about: 定义可独立验收的阶段工作单元
+name: Phase deliverable
+about: Define a phase task that can be verified independently
 title: "[P?-??] "
 ---
 
-## 优先级与前置任务
+## Goal
 
-<!-- 记录优先级、依赖 Issue 和集成顺序。 -->
+<!-- Describe the behavior or artifact to deliver and the problem it solves. -->
 
-## 文件范围与归属
+## Priority and prerequisites
 
-<!-- 列出允许改动的文件，指定共享契约负责人。 -->
+<!-- Record the priority, dependencies on other issues, and integration order. -->
 
-## 验收与证据
+## Scope and ownership
 
-<!-- 列出平台、行为、复现步骤、预期结果及证据要求。 -->
+<!-- List the modules or files in scope and identify the owner of any shared contract. -->
+
+## Acceptance criteria and evidence
+
+<!-- Specify the platforms, behaviors, reproduction steps, expected results, and evidence to capture. -->

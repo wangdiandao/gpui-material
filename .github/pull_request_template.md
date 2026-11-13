@@ -1,15 +1,24 @@
-## 关联 Issue
+## Related issue
 
-<!-- Closes #编号。分步交付可用 Refs #编号。 -->
+<!-- Use Closes #123 when this PR resolves the issue, or Refs #123 for partial work. -->
 
-## 范围
+## Changes
 
-<!-- 说明本次交付及受影响的阶段契约。 -->
+<!-- Focus on one problem. Describe the change, the affected modules, and any relevant phase scope. -->
 
-## 验证
+## Public API and migration
 
-<!-- 记录环境、命令、预期、结果和证据链接。适用时记录原生路径与依赖变化。 -->
+<!-- Group added, changed, or removed public APIs by crate and give each signature and purpose. Show before-and-after examples when callers need to migrate. Remove this section if it does not apply. -->
 
-## 评审
+## Verification
 
-<!-- 核对文件归属、阶段边界、CI 和合并顺序。 -->
+<!-- Record the environment, reproduction steps or commands, and observed results. Where relevant, link phase evidence and describe native paths or dependency changes. -->
+
+## Screenshots or recordings
+
+<!-- For UI changes, identify the Gallery scenario and show the before and after. Remove this section if it does not apply. -->
+
+## Checklist
+
+- [ ] I reviewed the change scope, file ownership, and affected dependencies.
+- [ ] I ran the relevant tests or Gallery scenarios and recorded the results.

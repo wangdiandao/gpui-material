@@ -1,15 +1,17 @@
-# 文档索引
+# Documentation index
 
-1. [P0 需求与来源冻结](phases/P00.md)记录范围、工作单元与验收证据。
-2. [设计依据与版本基线](design-sources.md)记录设计快照、实现参考与冲突裁决规则。
-3. [组件覆盖矩阵](component-coverage.md)记录变体、状态、平台、首次实现阶段与验收方向。
-4. [架构与依赖](architecture.md)定义依赖方向、状态所有权、主题边界及候选依赖。
-5. [平台与质量要求](verification.md)定义验证环境、所需证据和支持声明门槛。
-6. [阶段推进与返修](phases.md)定义 P0–P9 的顺序、工作流和完成条件。[阶段状态](../status.toml)提供机器可读记录。
-7. [P1 能力验证](phases/P01.md)列出探针工作单元、候选依赖和阻塞判据。
-8. [P2 工程基线](phases/P02.md)记录 Workspace、Windows Gallery、工程检查及合并门禁。
-9. [开发与验证](development.md)记录编码、测试、上游贡献规范，以及构建、测量与持续集成。
-10. [P3 纯主题](phases/P03.md)记录 Token、主题与离线验证范围。
-11. [纯主题](theme/theme.md)记录主题值、默认策略和数据来源。
+English | [中文](index.zh.md)
 
-后续设计、组件和阶段文档在所属工作开始时加入本索引，历史由 Git 保留。
+1. [P0 Requirements and source freeze](phases/P00.md) records the scope, deliverables, and acceptance evidence.
+2. [Design sources and version baseline](design-sources.md) records pinned design snapshots, implementation references, and how to resolve differences.
+3. [Component coverage matrix](component-coverage.md) lists variants, states, platforms, delivery phases, and acceptance criteria.
+4. [Architecture and dependencies](architecture.md) defines dependency direction, state ownership, theme boundaries, and candidate dependencies.
+5. [Platforms and quality requirements](verification.md) defines verification environments, evidence, and platform support criteria.
+6. [Phase progression and repairs](phases.md) defines the P0–P9 sequence, workflow, and exit criteria. [Phase status](../status.toml) is the machine-readable record.
+7. [P1 Capability probes](phases/P01.md) lists the probes, candidate dependencies, and blocking criteria.
+8. [P2 Engineering baseline](phases/P02.md) records the workspace, Windows Gallery, engineering checks, and merge requirements.
+9. [Development and verification](development.md) covers coding, testing, upstream contributions, builds, timings, and CI.
+10. [P3 Pure theme](phases/P03.md) records the scope of tokens, the theme, and offline verification.
+11. [Pure theme](theme/theme.md) records theme values, defaults, and data sources.
+
+Add design, component, and phase documents to this index when the corresponding work starts. Git preserves the history.

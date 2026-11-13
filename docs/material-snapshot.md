@@ -1,9 +1,10 @@
-# Material 3 站点快照索引
+# Material 3 site snapshot index
 
-核验日期为 2026-11-13。站点发布数据版本为 `2026-10-13_06-10-19`。校验值按公开 JSON 的原始字节计算。
-站点按页提供各标签页内容，适用性和桌面裁决见[覆盖矩阵](component-coverage.md)。
+English | [中文](material-snapshot.zh.md)
 
-| 官方页 | 固定数据 | SHA-256 |
+Verified on 2026-11-13 against site data version `2026-10-13_06-10-19`. Checksums use the raw bytes of the public JSON. Each page's data includes its tabs. See the [component coverage matrix](component-coverage.md) for applicability and desktop decisions.
+
+| Official page | Pinned data | SHA-256 |
 | --- | --- | --- |
 | [components](https://m3.material.io/components) | [JSON](https://m3.material.io/_dsm/content/m3/2026-10-13_06-10-19/1624d6a1-96ea-437d-b846-dc6f00ebb49c.json) | `4cf866eb0c1542bc574972aa60b6ad547a20ab7f959ead0e7cf54806507f6a05` |
 | [components/all-buttons](https://m3.material.io/components/all-buttons) | [JSON](https://m3.material.io/_dsm/content/m3/2026-10-13_06-10-19/276f1bd7-d048-49fd-8483-f267f2ece13d.json) | `d42517d11903617eb08d9d338f3468ea29b9dcd314e86f4c264c9a5cf86ef044` |

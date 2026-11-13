@@ -1,6 +1,8 @@
-# P1-08 纯算法证据
+# P1-08 Pure algorithm evidence
 
-2026-11-13，Windows 11 x64，Rust/Cargo 1.99.1，固定的 crates.io 解析。
+English | [中文](README.zh.md)
+
+Recorded on 2026-11-13 with Windows 11 x64, Rust/Cargo 1.99.1, and pinned crates.io resolution.
 
 ```sh
 cargo +1.99.1 test --locked --manifest-path experiments/p1-theme/Cargo.toml -- --nocapture
@@ -8,20 +10,20 @@ cargo +1.99.1 tree --locked --manifest-path experiments/p1-theme/Cargo.toml --ed
 cargo +1.99.1 tree --locked --manifest-path experiments/p1-theme/Cargo.toml --edges features --invert material-color-utils
 ```
 
-| 项目 | 期望 | 观察 | 状态 |
+| Check | Expected | Observed | Status |
 | --- | --- | --- | --- |
-| 蓝色 tone 40 | `ff343dff` | `ff343dff` | pass |
-| 红色 Tonal Spot，深色，默认对比度 | `primaryFixed = ffffdad4` | Spec2021 得 `ffffdad4` | pass |
-| 默认对比度的固定角色 | 浅深色保持一致，主色随模式变更 | `primaryFixed`、`primaryFixedDim` 相同，`primary` 不同 | pass |
-| 红色低/默认/高对比度 | `primary/onPrimary` 对比度递增 | 浅色 4.544/6.429/13.935，深色 4.535/7.750/18.427 | pass |
-| 越界 tone 直接调用 | `ratioOfTones(-10, 110) = 21` | Rust 0.1.3 返回 34.20435515298331 | fail |
-| 越界 tone 经适配 | 21，容差 0.001 | 在调用边界夹取到 [0, 100] 后返回 21 | pass |
-| chrono 日期边界 | 闰日、跨年和范围边界正确 | 2024-01-31 加一月为 2024-02-29，2023-02-29 无效，最大/最小日期越界返回 None | pass |
-| 纯依赖图 | 无 GPUI，MCU 不启用 image、serde、rayon | MCU 反向 feature 图只显示探针；包图只包含 Rust 算法及平台基础依赖 | pass |
+| Blue at tone 40 | `ff343dff` | `ff343dff` | pass |
+| Red Tonal Spot, dark, default contrast | `primaryFixed = ffffdad4` | Spec2021 returned `ffffdad4` | pass |
+| Fixed roles at default contrast | Light and dark match for fixed roles. Primary changes with appearance. | `primaryFixed` and `primaryFixedDim` matched. `primary` differed. | pass |
+| Red at low, default, and high contrast | `primary/onPrimary` contrast increases | Light 4.544/6.429/13.935, dark 4.535/7.750/18.427 | pass |
+| Direct call with out-of-range tones | `ratioOfTones(-10, 110) = 21` | Rust 0.1.3 returned 34.20435515298331 | fail |
+| Adapted out-of-range tones | 21 within 0.001 | Returned 21 after clamping to [0, 100] at the call boundary | pass |
+| chrono date boundaries | Leap day, year rollover, and range bounds | 2024-01-31 plus one month was 2024-02-29. 2023-02-29 was invalid. Out-of-range max/min dates returned None. | pass |
+| Pure dependency graph | Excludes GPUI. MCU features exclude image, serde, and rayon. | The reverse MCU feature graph showed only the probe. Package graph included only Rust algorithm and platform fundamentals. | pass |
 
-[固定官方越界样本][vector]和[夹取语义][clamp]确认了候选库差异。最小复现为 `Contrast::ratio_of_tones(-10., 110.)`。如将来升级到提供相同夹取语义的上游发布版，先复跑参考向量再去掉适配。当前结果只覆盖候选可行性。
+The pinned [official out-of-range vector][vector] and [clamping semantics][clamp] confirm the discrepancy. The minimal reproduction is `Contrast::ratio_of_tones(-10., 110.)`. When upgrading to an upstream release with equivalent clamping, rerun the vectors before removing the adapter. This evidence covers candidate feasibility.
 
-表中的 chrono 日期边界来自 [P1 接受提交](https://github.com/wangdiandao/gpui-material/tree/b0250f5f120ab2fbadfe41b5529612e984358295)。当前探针保留颜色参考向量，Base Calendar 的禁用闰日行为由宿主的 `theme` 探针验证。
+The chrono date boundaries come from the [P1 acceptance commit](https://github.com/wangdiandao/gpui-material/tree/b0250f5f120ab2fbadfe41b5529612e984358295). The current probe retains the color vectors. The host's `theme` probe checks Base Calendar's disabled leap-day behavior.
 
 [vector]: https://github.com/material-foundation/material-color-utilities/blob/194144d75ed7d34f06264a625e086db81a7ab9aa/dart/test/contrast_test.dart#L15-L18
 [clamp]: https://github.com/material-foundation/material-color-utilities/blob/194144d75ed7d34f06264a625e086db81a7ab9aa/typescript/contrast/contrast.ts#L36-L47

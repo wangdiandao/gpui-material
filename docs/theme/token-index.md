@@ -1,6 +1,8 @@
 # Material token index
 
-Generated from the token manifest by cargo xtask tokens.
+English | [中文](token-index.zh.md)
+
+Generated from the token manifest by `cargo xtask tokens`.
 
 | Token | Rust constant | Upstream symbol | Source |
 | --- | --- | --- | --- |

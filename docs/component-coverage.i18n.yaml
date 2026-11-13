@@ -1,0 +1,22 @@
+# Section fingerprints for the English and Chinese pages.
+/component-coverage-matrix:
+  en: "02efcbcb3b05195a"
+  zh: "0462fc5854f3f393"
+/component-coverage-matrix/p4-foundation-primitives:
+  en: "f42f15cd1bce4d53"
+  zh: "e7ac1b42c4bcd4d1"
+/component-coverage-matrix/p5-basic-components:
+  en: "ffcc2b9da4f546f2"
+  zh: "baca7a86ca2d3903"
+/component-coverage-matrix/p6-input-and-overlays:
+  en: "458d2b7b7d15c397"
+  zh: "4a4d10b281d1c722"
+/component-coverage-matrix/p7-navigation-and-adaptive-layout:
+  en: "a69e09bb65cffa68"
+  zh: "e2987471ea528246"
+/component-coverage-matrix/p8-composite-components-and-experimental-patterns:
+  en: "e37d8d614e39c19d"
+  zh: "08d9fd7447c2a87d"
+/component-coverage-matrix/future-compatibility-and-scope-boundaries:
+  en: "6ae2328df66cc36f"
+  zh: "2ffc1e1cc83ae29f"

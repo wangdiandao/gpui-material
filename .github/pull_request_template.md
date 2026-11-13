@@ -12,11 +12,7 @@
 
 ## Verification
 
-<!-- Record the environment, reproduction steps or commands, and observed results. Where relevant, link phase evidence and describe native paths or dependency changes. -->
-
-## Screenshots or recordings
-
-<!-- For UI changes, identify the Gallery scenario and show the before and after. Remove this section if it does not apply. -->
+<!-- Summarize the checks and results. Include the commands, environment, or Gallery scenario as needed to reproduce them. -->
 
 ## Checklist
 

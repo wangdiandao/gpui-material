@@ -41,7 +41,7 @@ P0 确定 Base 与 GPUI 来源。其余候选由归属阶段验证。准入记�
 | 候选 | 准入阶段 | 功能与初始约束 | 验证与替换边界 |
 | --- | --- | --- | --- |
 | `gpui-base =0.9.1` / `gpui-pre =0.3.12` / `gpui-pre-platform =0.3.12` | P1 探针，P2 Workspace | 固定 crates.io 来源，沿用上游平台的 font-kit、x11、wayland、runtime_shaders 配对；test-support 供验收，inspector 可选。Apache-2.0。 | `cargo metadata` 和 feature 图核对单一核心/平台身份，Windows 运行必需探针。macOS 与 Linux 探针供探索。Base 公共接口通过 foundation 封装。 |
-| [`material-color-utils 0.1.3`][mcu-rust] | P3 已准入 | HCT、色板和动态语义色。关闭默认 feature，避免 image、serde、rayon；直接依赖 bon、indexmap、papaya、thiserror。发布元数据使用 license-file，包内 LICENSE 为 Apache-2.0。 | 库类型由 theme 内部适配。见 [P3 向量和依赖准入](phases/P03-evidence.zh.md#dependency-admission)。 |
+| [`material-color-utils 0.1.3`][mcu-rust] | P3 已准入 | HCT、色板和动态语义色。关闭默认 feature，避免 image、serde、rayon；直接依赖 bon、indexmap、papaya、thiserror。发布元数据使用 license-file，包内 LICENSE 为 Apache-2.0。 | 库类型由 theme 内部适配。见[主题 PR](https://github.com/wangdiandao/gpui-material/pull/78)。 |
 | [`polymorpher 0.1.4`][polymorpher] | P1 可行性，P4 准入 | 圆角多边形和 morph，保留默认空 feature，只使用基础几何；直接依赖 euclid。Apache-2.0。 | 对照 AndroidX，检查输出曲线、边界、拓扑、裁剪、命中和性能。GPUI 路径转换集中在 foundation。 |
 | [Material Symbols][symbols] | P4/P5 | 使用固定版本的必要资源，应用可替换图标。Apache-2.0。 | 验证资源映射、图标 fallback 与 RTL。逐项登记分发资产和许可证。 |
 | `chrono` 与 [Base Calendar][calendar] | P1 验证行为，P8 准入日期族 | Base 清单为 `0.4.38` 兼容范围，固定上游 lockfile 解析为 0.4.45。MIT 或 Apache-2.0。 | 核对统一版本、日历语义与边界。日期运算由 Base/chrono 复用，locale 格式走独立 formatter。 |
@@ -49,13 +49,13 @@ P0 确定 Base 与 GPUI 来源。其余候选由归属阶段验证。准入记�
 
 extras 按实际需要定义 expressive-groups、search、date-time、carousel 等组件族。主题支持静态数据，dynamic-color 与 serde 按需启用，图片提色优先留在工具层。组件所需键盘、语义和动效属于完整行为。
 
-CI 和日常开发用包级命令隔离主题、组件及 Gallery。P2 记录冷/热构建、检查/链接时间、feature 组合与平台依赖。架构调整由计时和运行证据决定，优先使用具体内部类型及按需的类型擦除。
+CI 和日常开发用包级命令隔离主题、组件及 Gallery。依据构建计时和运行测量调整架构，优先使用具体内部类型及按需的类型擦除。
 
 <a id="boundaries-verified-in-p1"></a>
 
 ## P1 已验证的适配边界
 
-以 Windows 11 x64/MSVC 验收。P2 可沿用锁定的 Base 0.9.1 和 GPUI 0.3.12 同源组合。纯主题算法和形状候选的准入分别在 P3、P4 执行。macOS 和 Linux 的托管与像素样本留作平台探索。见 [P1 验证记录](phases/P01-evidence.zh.md)。
+以 Windows 11 x64/MSVC 验收。P2 可沿用锁定的 Base 0.9.1 和 GPUI 0.3.12 同源组合。纯主题算法和形状候选的准入分别在 P3、P4 执行。macOS 和 Linux 的托管与像素样本留作平台探索。见 [P1 验收 PR](https://github.com/wangdiandao/gpui-material/pull/51)。
 
 | 机制 | 适配与边界 |
 | --- | --- |

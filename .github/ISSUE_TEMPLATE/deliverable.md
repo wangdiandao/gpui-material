@@ -16,6 +16,6 @@ title: "[P?-??] "
 
 <!-- List the modules or files in scope and identify the owner of any shared contract. -->
 
-## Acceptance criteria and evidence
+## Acceptance criteria
 
-<!-- Specify the platforms, behaviors, reproduction steps, expected results, and evidence to capture. -->
+<!-- Specify the applicable platforms, behaviors, verification steps, and expected results. -->

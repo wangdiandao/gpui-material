@@ -11,10 +11,10 @@ Verified on 2026-11-13. The frozen baseline includes Material site snapshots, pu
 1. [Material 3](https://m3.material.io/) Expressive and applicable M3 guidance define component names, structure, variants, and visual and interaction semantics.
 2. Pinned Compose Material 3 verifies tokens, states, defaults, and layout. The Kotlin files in the component matrix come from that source package.
 3. Official Material Color Utilities and AndroidX graphics-shapes are the algorithm and test vector references.
-4. Pinned GPUI and gpui-base define desktop event, drawing, and platform boundaries. Record input paths, reasons for desktop adaptations, and evidence.
+4. Pinned GPUI and gpui-base define desktop event, drawing, and platform boundaries. Document input paths and the reasons for desktop adaptations.
 5. Pinned Material Components Android supplements implementation references such as Side Sheet and Docked Toolbar, including deprecation and replacement guidance. Material Web provides historical context.
 
-Resolve differences by using pinned public guidance for scope and pinned sources for implementation details. The component's owning phase documents deviations, replacement interactions, and test evidence. Review scope before adopting new upstream functionality. Record device applicability as specified by the site.
+Resolve differences by using pinned public guidance for scope and pinned sources for implementation details. The component's owning phase documents deviations and replacement interactions. Record test results in the associated issue or PR. Review scope before adopting new upstream functionality. Record device applicability as specified by the site.
 
 <a id="material-规范"></a>
 
@@ -22,7 +22,7 @@ Resolve differences by using pinned public guidance for scope and pinned sources
 
 The [site directory](https://m3.material.io/components) and component Overview, Specs, Guidelines, and Accessibility tabs were checked against data version `2026-10-13_06-10-19`. The [snapshot index](material-snapshot.md) records pinned JSON and SHA-256 by page. Embedded token tables are from the same release. P3 and the relevant component phases verify values, references, and generation rules. This repository keeps project specifications, page locations, and checksums.
 
-| Area | Scope and evidence | Official entry point |
+| Area | Scope and verification | Official entry point |
 | --- | --- | --- |
 | Tokens | Reference, System, and Component, with traceable original names and Rust fields. P3 verifies reference closure and reproducible generation. | [Design tokens](https://m3.material.io/foundations/design-tokens/overview) |
 | Color | Static light and dark colors, role pairs, brand and dynamic seeds, contrast, and fixed roles. P3 uses MCU to verify semantic colors and boundaries. | [Color roles](https://m3.material.io/styles/color/roles), [Dynamic color](https://m3.material.io/styles/color/dynamic) |

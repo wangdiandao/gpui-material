@@ -22,3 +22,32 @@ xvfb-run -a timeout 15s experiments/p1-host/target/debug/window
 Ubuntu 和 macOS 的宿主首次测试编译耗时见各作业日志。此处的 Windows 原生与三目标解析证据见 [P1-01](../../experiments/p1-host/evidence/01-build.md)。冻结条件见 [P1 计划](P01.md) 和 [平台与质量要求](../verification.md)。
 
 [run]: https://github.com/wangdiandao/gpui-material/actions/runs/43374663131
+
+## Windows 实机验收
+
+2026-11-13，项目负责人在会话中确认“Windows验收通过”，登记为 Windows 实机验收通过。确认未附逐项日志、系统设置或截图；相关可复现证据以各探针记录为准。Windows 11 x64 build 26200 上的已存档截图及 UIA 检查见 [窗口](../../experiments/p1-host/evidence/01-build.md)、[输入](../../experiments/p1-host/evidence/03-text.md) 和 [语义](../../experiments/p1-host/evidence/04-semantics.md)。
+
+## macOS 和 Ubuntu 实机步骤
+
+在更新到包含本文的 `main` 后，记录 `git rev-parse HEAD`、OS 版本、CPU 架构、屏幕缩放、输入法、读屏工具与版本。Linux 另记 `echo "$XDG_SESSION_TYPE"`，在 GNOME Wayland 和 GNOME on Xorg 各做一次。macOS 用 Apple Silicon 和已签名的应用包执行正式验收，记录 `codesign --verify --strict` 的结果。以下命令可用于构建并预跑相同探针。
+
+```sh
+rustup toolchain install 1.99.1 --profile minimal
+cargo +1.99.1 build --locked --manifest-path experiments/p1-host/Cargo.toml --bins
+cargo +1.99.1 run --locked --manifest-path experiments/p1-host/Cargo.toml --bin text
+cargo +1.99.1 run --locked --manifest-path experiments/p1-host/Cargo.toml --bin semantics
+```
+
+Ubuntu 24.04 可用以下依赖构建。
+
+```sh
+sudo apt-get install clang libfontconfig-dev libwayland-dev libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev libvulkan1 mesa-vulkan-drivers
+```
+
+1. **输入法。** 在 macOS 选择“简体拼音”，在 GNOME 选择 IBus 的中文拼音输入源。点击「中文输入」，用物理键盘键入 `zhong`，候选出现时记录候选框相对插入点的位置。选「中」确认；输入 `wen` 按 Esc，记录取消后是否仍只有「中」。再次预编辑并切到密码框，记录失焦后的文本。切换显示缩放或将窗口移到另一缩放的显示器后复测。只用测试文本，不要输入真实密码。
+2. **读屏。** 启动 VoiceOver（macOS 系统设置 → 辅助功能 → VoiceOver）或 Orca（GNOME 可用 Super+Alt+S）。在语义探针导航到「执行操作」，记录读到的名称和角色。VoiceOver 用 VO+空格激活；Orca 用 Tab 导航到控件后按 Enter 或 Space，另在 AT-SPI 树核对支持的动作。各激活一次，记录 0→1 和是否自动播报「已执行 1 次」。再切换「选项」并检查状态，检查「级别」的名称、范围和值，另在文本探针确认密码字段读不到测试明文。
+3. **系统树。** 在 macOS Accessibility Inspector 或 Linux AT-SPI 检查器记录父组、焦点、按钮、复选框、范围、状态条、编辑框与密码角色。记录无法读取的属性以及实际播报，截图或录音可选。
+4. **桌面。** 运行 `window` 截取真实窗口，记录缩放与后端；运行 `motion`，分别在系统低动效开与关时重启探针，记录窗口上的偏好及展开行为。运行 `activation` 检查指针、Enter、Space、Tab、Shift+Tab 与取消；运行 `overlays` 检查逐层 Esc 与回焦。
+5. **回报。** 每次提供平台、会话、提交、场景、期望、实际结果和截图或日志位置。成功与失败都保留，未执行项标为 pending。
+
+[Apple VoiceOver 操作](https://support.apple.com/guide/voiceover/control-your-mac-with-keyboard-commands-vo2681/mac) · [GNOME Orca](https://help.gnome.org/orca/introduction.html)

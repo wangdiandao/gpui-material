@@ -56,7 +56,7 @@ sudo apt-get install clang libfontconfig-dev libwayland-dev libxkbcommon-x11-dev
 
 首版平台契约经 [P0 返修 #35](https://github.com/wangdiandao/gpui-material/pull/35) 更新。macOS 和 Linux 的[无头像素证据](../../experiments/p1-host/evidence/05-shapes.md#metal-与-wgpu-无头像素)及托管结果留作探索记录。
 
-2026-11-13 在 Windows 11 x64 build 26200 / MSVC、Rust/Cargo 1.99.1 复核主线 `111f4843de9b756e4b9c35e0a02aadef01194333`。宿主 12 项、纯主题 3 项、纯几何 3 项共 18 项通过。锁定构建、三目标身份检查、格式及宿主全目标 Clippy 均通过。Windows 实机通过采用项目负责人确认。可重跑的步骤和已取得的证据分别见下表。
+2026-11-13 在 Windows 11 x64 build 26200 / MSVC、Rust/Cargo 1.99.1 复核主线 `00e62f0`。宿主 14 项、纯主题 3 项、纯几何 3 项共 20 项通过。锁定构建、格式及宿主全目标 Clippy 通过。三目标身份检查在同一锁文件上通过。Windows 实机通过采用项目负责人确认。可重跑的步骤和已取得的证据分别见下表。
 
 | 探针 | 当前证据 | 尚需补齐的 P1 证据 |
 | --- | --- | --- |
@@ -64,7 +64,7 @@ sudo apt-get install clang libfontconfig-dev libwayland-dev libxkbcommon-x11-dev
 | P1-02 | [指针、键盘、roving focus 和主动取消](../../experiments/p1-host/evidence/02-activation.md) | Windows 系统捕获丢失、禁用中断拖动的单独结果 |
 | P1-03 | [UTF-16、剪贴板、掩码、浮层输入及锚点](../../experiments/p1-host/evidence/03-text.md)，负责人确认 Windows 实机通过 | 字体回退及度量与绘制对齐的可复现量测 |
 | P1-04 | [UIA 树、密码角色、单次 Invoke 和 Toggle](../../experiments/p1-host/evidence/04-semantics.md)，负责人确认 Windows 实机通过 | 范围值和动作、编辑与浮层关系的逐项系统树记录 |
-| P1-05 | [纯几何、GPUI 填充与像素样本](../../experiments/p1-host/evidence/05-shapes.md) | 曲线裁剪、阴影、命中与 ripple 起点 |
+| P1-05 | [纯几何、GPUI 填充、网格命中与 ripple 起点](../../experiments/p1-host/evidence/05-shapes.md) | 曲线裁剪、阴影和完整状态层 |
 | P1-06 | [反转、退出重入、收敛及 Windows 启动偏好](../../experiments/p1-host/evidence/06-motion.md) | Windows 系统低动效开关两态与帧耗时基线 |
 | P1-07 | [嵌套、Esc 回焦、缩放、尺寸变化和外点关闭](../../experiments/p1-host/evidence/07-overlays.md) | 模态、RTL、值标签、嵌套滚动和拖动所有权 |
 | P1-08 | [Windows 双窗口主题投影和 Calendar](../../experiments/p1-host/evidence/08-theme.md)，[颜色、日期和依赖图](../../experiments/p1-theme/README.md) | 本项完成 |

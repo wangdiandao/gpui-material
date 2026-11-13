@@ -379,7 +379,13 @@ impl RenderOnce for Slider {
                     .when(!geometry.reversed(), |icon| icon.left_3())
                     .top_1()
                     .text_size(px(icon_size))
-                    .text_color(active)
+                    .text_color(resolve(if self.disabled {
+                        ColorRole::OnSurfaceVariant
+                    } else if end > 0.15 {
+                        ColorRole::OnPrimary
+                    } else {
+                        ColorRole::OnSecondaryContainer
+                    }))
                     .child(icon),
             );
         }

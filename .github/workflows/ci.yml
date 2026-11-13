@@ -64,7 +64,17 @@ jobs:
         run: cargo test --locked --workspace --all-features
 
       - name: Build native Gallery
-        run: cargo build --locked -p gpui-material-gallery --timings
+        run: |
+          $sdk = (Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows Kits\Installed Roots').KitsRoot10
+          $fxc = Get-ChildItem -Directory (Join-Path $sdk 'bin') |
+            Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
+            Sort-Object { [version]$_.Name } -Descending |
+            ForEach-Object { Join-Path $_.FullName 'x64/fxc.exe' } |
+            Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+            Select-Object -First 1
+          if (!$fxc) { throw 'The Windows SDK x64 shader compiler (fxc.exe) is required' }
+          $env:GPUI_FXC_PATH = $fxc
+          cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings
 
       - name: Upload Windows engineering build
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -72,7 +82,7 @@ jobs:
           name: gallery-windows-x64-msvc
           if-no-files-found: error
           path: |
-            target/debug/gpui-material-gallery.exe
+            target/gallery-artifact/gpui-material-gallery.exe
             target/cargo-timings/cargo-timing.html
             LICENSE
             THIRD_PARTY_NOTICES.md

@@ -36,6 +36,8 @@ cargo xtask timings target/timings/p2-baseline
 
 ## 持续集成与合并
 
-[Engineering CI](../.github/workflows/ci.yml) 在面向 `main` 的 PR、`main` 更新和手动触发时运行。托管的 `Windows MSVC` 作业执行格式、阶段、文档、依赖、Clippy、测试和普通 Gallery 构建。GitHub Actions 的 `gallery-windows-x64-msvc` 制品包含可执行文件、Cargo 时间线及许可记录，供 Windows 实机复验。正式发布由对应交付阶段启动。
+[Engineering CI](../.github/workflows/ci.yml) 在面向 `main` 的 PR、`main` 更新和手动触发时运行。托管的 `Windows MSVC` 作业执行格式、阶段、文档、依赖、Clippy、测试和 Gallery 构建。GitHub Actions 的 `gallery-windows-x64-msvc` 制品包含可执行文件、Cargo 时间线及许可记录，供 Windows 实机复验。正式发布由对应交付阶段启动。
 
-提交 PR 时关联阶段 Issue，按模板记录环境、命令和结果。GitHub 要求 PR 基于最新 `main`，且 GitHub Actions 的 `Windows MSVC` 检查成功。评审核对文件归属、阶段范围、验证证据和集成顺序。
+Windows 下载制品使用 `cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings`。此 profile 关闭 debug assertions，GPUI 通过 Windows SDK 的 x64 `fxc.exe` 在构建时嵌入 DirectX 着色器。CI 通过 `GPUI_FXC_PATH` 指定 SDK 中的编译器。常规 `cargo gallery` 在开发机上从 Cargo 缓存读取着色器。
+
+提交 PR 时关联阶段 Issue，按模板记录环境、命令和结果。GitHub 要求通过 PR 更新 `main`、基于最新主线、解决评审对话，并通过 GitHub Actions 的 `Windows MSVC` 检查。评审核对文件归属、阶段范围、验证证据和集成顺序。

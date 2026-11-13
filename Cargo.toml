@@ -22,3 +22,8 @@ gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features =
 
 [profile.dev]
 debug = 0
+
+# GPUI's Windows backend embeds its DirectX shaders with debug assertions off.
+[profile.gallery-artifact]
+inherits = "dev"
+debug-assertions = false

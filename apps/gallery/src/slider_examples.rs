@@ -30,7 +30,11 @@ impl Render for SliderExamples {
             .gap_2()
             .child(div().text_lg().child("Sliders"))
             .child(div().child(format!("Level {level}")))
-            .child(Slider::new("level", "Level", &self.level).icon("+"))
+            .child(
+                Slider::new("level", "Level", &self.level)
+                    .size(ControlSize::Medium)
+                    .icon("+"),
+            )
             .child(div().child(format!("Range {}–{}", range.start(), range.end())))
             .child(
                 Slider::range(
@@ -170,6 +174,23 @@ mod tests {
             );
             draw(window, cx);
             assert!(!cx.has_active_drag());
+            for (phase, fraction) in [
+                (gpui::TouchPhase::Started, 0.65),
+                (gpui::TouchPhase::Moved, 0.82),
+                (gpui::TouchPhase::Ended, 0.82),
+            ] {
+                window.dispatch_event(
+                    gpui::TouchDragEvent {
+                        phase,
+                        start_position: at(0.65),
+                        position: at(fraction),
+                    }
+                    .to_platform_input(),
+                    cx,
+                );
+                draw(window, cx);
+            }
+            assert_eq!(state.read(cx).value(), (3.0, 8.0).into());
         })
         .unwrap();
     }

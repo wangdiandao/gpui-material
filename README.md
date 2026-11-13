@@ -7,7 +7,7 @@
 安装说明、可运行示例和 Gallery 随对应生产组件发布。
 
 - [文档索引](docs/index.md)
-- 组件覆盖矩阵
+- [组件覆盖矩阵](docs/components/coverage.md)
 - [阶段状态](status.toml)
 
 项目代码和原创文档采用 [Apache-2.0](LICENSE)。第三方参考及资源见[第三方声明](THIRD_PARTY_NOTICES.md)。

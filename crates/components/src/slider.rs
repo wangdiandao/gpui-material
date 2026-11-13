@@ -182,14 +182,15 @@ impl RenderOnce for Slider {
         } else {
             start
         };
-        let thickness: f32 = match self.size {
-            ControlSize::ExtraSmall => 8.,
-            ControlSize::Small => 16.,
-            ControlSize::Medium => 24.,
-            ControlSize::Large => 40.,
-            ControlSize::ExtraLarge => 56.,
-        };
-        let thumb_extent = thickness.max(20.) + 20.;
+        // Material slider specs, expressive track and handle sizes.
+        let (thickness, thumb_extent, track_radius, icon_size): (f32, f32, f32, Option<f32>) =
+            match self.size {
+                ControlSize::ExtraSmall => (16., 44., 8., None),
+                ControlSize::Small => (24., 44., 8., None),
+                ControlSize::Medium => (40., 52., 12., Some(24.)),
+                ControlSize::Large => (56., 68., 16., Some(24.)),
+                ControlSize::ExtraLarge => (96., 108., 28., Some(32.)),
+            };
         let target = thumb_extent.max(48.);
         let resolve = |role| color(material_theme(cx).colors.color(role));
         let disabled = resolve(ColorRole::OnSurface);
@@ -238,7 +239,7 @@ impl RenderOnce for Slider {
                             if rect.size.width > px(0.) && rect.size.height > px(0.) {
                                 window.paint_quad(gpui::quad(
                                     rect,
-                                    half,
+                                    px(track_radius),
                                     tint,
                                     px(0.),
                                     tint,
@@ -261,10 +262,12 @@ impl RenderOnce for Slider {
         let thumb = |which, position, name, focus: &FocusHandle| {
             let keyboard_state = self.state.clone();
             let engaged = dragging == Some(which);
+            let handle_width = if engaged { 2. } else { 4. };
+            let half_handle = px(handle_width / 2.);
             let (width, height) = if horizontal {
-                (4., thumb_extent)
+                (handle_width, thumb_extent)
             } else {
-                (thumb_extent, 4.)
+                (thumb_extent, handle_width)
             };
             let label = value_label(&self.state, which, cx, |value| format!("{value:.2}").into());
             let label_style = div()
@@ -285,11 +288,13 @@ impl RenderOnce for Slider {
                         .when(horizontal, |thumb| {
                             thumb
                                 .top(px((target - height) / 2.))
-                                .ml(px(-2.))
-                                .when(geometry.reversed(), |thumb| thumb.ml(px(0.)).mr(px(-2.)))
+                                .ml(-half_handle)
+                                .when(geometry.reversed(), |thumb| {
+                                    thumb.ml(px(0.)).mr(-half_handle)
+                                })
                         })
                         .when(!horizontal, |thumb| {
-                            thumb.left(px((target - width) / 2.)).mb(px(-2.))
+                            thumb.left(px((target - width) / 2.)).mb(-half_handle)
                         }),
                     position,
                 )
@@ -366,12 +371,14 @@ impl RenderOnce for Slider {
                 self.range_end_name.unwrap_or(self.name),
                 &end_focus,
             ));
-        if let Some(icon) = self.icon {
+        if let (Some(icon), Some(icon_size)) = (self.icon, icon_size) {
             root = root.child(
                 div()
                     .absolute()
-                    .left_3()
+                    .when(geometry.reversed(), |icon| icon.right_3())
+                    .when(!geometry.reversed(), |icon| icon.left_3())
                     .top_1()
+                    .text_size(px(icon_size))
                     .text_color(active)
                     .child(icon),
             );

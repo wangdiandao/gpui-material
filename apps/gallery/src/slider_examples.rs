@@ -30,7 +30,11 @@ impl Render for SliderExamples {
             .gap_2()
             .child(div().text_lg().child("Sliders"))
             .child(div().child(format!("Level {level}")))
-            .child(Slider::new("level", "Level", &self.level).icon("+"))
+            .child(
+                Slider::new("level", "Level", &self.level)
+                    .size(ControlSize::Medium)
+                    .icon("+"),
+            )
             .child(div().child(format!("Range {}–{}", range.start(), range.end())))
             .child(
                 Slider::range(

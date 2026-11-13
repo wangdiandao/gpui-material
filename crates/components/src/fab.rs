@@ -52,6 +52,9 @@ pub enum FabColor {
     Primary,
     Secondary,
     Tertiary,
+    PrimaryStrong,
+    SecondaryStrong,
+    TertiaryStrong,
 }
 
 struct FabContent {
@@ -92,6 +95,9 @@ impl FabContent {
                 ColorRole::OnSecondaryContainer,
             ),
             FabColor::Tertiary => (ColorRole::TertiaryContainer, ColorRole::OnTertiaryContainer),
+            FabColor::PrimaryStrong => (ColorRole::Primary, ColorRole::OnPrimary),
+            FabColor::SecondaryStrong => (ColorRole::Secondary, ColorRole::OnSecondary),
+            FabColor::TertiaryStrong => (ColorRole::Tertiary, ColorRole::OnTertiary),
         };
         ActionStyle {
             background: Some(background),

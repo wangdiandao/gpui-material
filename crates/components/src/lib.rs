@@ -9,3 +9,9 @@ pub use button::{
     IconButtonWidth, IconToggleButton, ToggleButton, ToggleButtonVariant,
 };
 pub use fab::{ExtendedFab, Fab, FabColor, FabSize};
+
+mod selection;
+pub use selection::{Checkbox, CheckboxState, Radio, RadioGroup, Switch};
+
+mod chip;
+pub use chip::{Chip, ChipVariant};

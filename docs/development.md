@@ -86,3 +86,7 @@ Rust 构建缓存按平台隔离，由 `main` 的成功 push 更新，PR 可复�
 Windows 作业上传 `gallery-windows-x64-msvc`，包含可执行文件、Cargo 时间线及许可记录，供实机复验。制品使用 `cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings`。此 profile 关闭 debug assertions，GPUI 通过 Windows SDK 的 x64 `fxc.exe` 在构建时嵌入 DirectX 着色器。CI 通过 `GPUI_FXC_PATH` 指定 SDK 中的编译器。常规 `cargo gallery` 在开发机上从 Cargo 缓存读取着色器。正式发布由对应交付阶段启动。
 
 GitHub 规则集要求通过 PR 更新 `main`、基于最新主线并解决评审对话。迁移期间保留现有的 `Windows MSVC` 必检项。新工作流合入主线且 `CI required` 首次成功后，将必检项切换为 GitHub Actions 的 `CI required`。
+
+### 跨平台 CI 首次验证
+
+2026-11-13 在 `ci/cross-platform-workflow` 手动验证 `1a28571be2058ca237aaf04a0552f2e1d69aa098`。通用检查、Linux x64、macOS ARM64、Windows MSVC 和 `CI required` 全部通过。三个原生作业分别耗时 3 分 45 秒、4 分 37 秒、7 分 17 秒。复现命令为 `gh workflow run ci.yml --ref ci/cross-platform-workflow`。PR 基线的路径门禁在本地用 `cargo xtask check origin/main` 验证通过。[Actions 运行](https://github.com/wangdiandao/gpui-material/actions/runs/43416482503) · [Windows Gallery 制品](https://github.com/wangdiandao/gpui-material/actions/runs/43416482503/artifacts/14032242512)

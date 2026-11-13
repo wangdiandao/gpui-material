@@ -1,19 +1,13 @@
 schema_version = 1
 current_phase = "P0"
-allowed_paths = [
-    "/.gitignore",
-    "/README.md",
-    "/LICENSE",
-    "/THIRD_PARTY_NOTICES.md",
-    "/docs/**",
-    "/status.toml",
-]
+allowed_paths = []
 blockers = []
 repairs = []
-frozen_commits = {}
+frozen_commits = { P0 = "3447ff140a873afe9583659b52275f4e7b5abd82" }
 
 [phases.P0]
-status = "review"
+status = "frozen"
+frozen_on = 2026-11-13
 evidence = [
     "docs/phases/P00.md",
     "docs/design/sources.md",
@@ -22,6 +16,12 @@ evidence = [
     "docs/architecture/index.md",
     "docs/verification.md",
     "docs/phases/P01.md",
+]
+merged_deliverables = [
+    { task = "P0-01", issue = 1, pull_request = 5, commit = "f255ee43d46528657d0f988874d574a25f8c249a" },
+    { task = "P0-02", issue = 2, pull_request = 6, commit = "d936720b012e57159ade9731d11035dae188efa2" },
+    { task = "P0-03", issue = 3, pull_request = 7, commit = "436dac239d5381778cb2d85eadcf8597a4f6d991" },
+    { task = "P0-04", issue = 4, pull_request = 8, commit = "3447ff140a873afe9583659b52275f4e7b5abd82" },
 ]
 
 [phases.P1]

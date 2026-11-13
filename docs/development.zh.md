@@ -7,8 +7,8 @@
 ## 贡献流程与分支命名
 
 - 从 `.github/ISSUE_TEMPLATE/` 选择缺陷报告、功能提议或阶段交付。缺陷附最小复现，提议交代场景与验收，阶段 Issue 记录前置依赖和文件归属。
-- 从最新 `main` 建分支，使用 `<类型>/<Issue 编号>-<简短主题>`，主题使用小写英文和连字符。无关联 Issue 时使用 `<类型>/<简短主题>`，如 `ci/cross-platform-workflow`。
-- 按改动目的选前缀。`feat/` 新功能，`fix/` 缺陷，`docs/` 文档，`test/` 测试，`refactor/` 重构，`ci/` CI，`chore/` 工程维护，`release/` 发布。例如 `fix/48-pointer-capture`。阶段归属由 Issue、PR 和 `status.toml` 记录。
+- 从最新 `main` 建分支，使用 `<类型>/<简短主题>`，如 `ci/cross-platform-workflow`。主题使用小写英文和连字符。在 PR 说明里关联 Issue。
+- 按改动目的选前缀。`feat/` 新功能，`fix/` 缺陷，`docs/` 文档，`test/` 测试，`refactor/` 重构，`ci/` CI，`chore/` 工程维护，`release/` 发布。例如 `fix/pointer-capture`。阶段归属由 Issue、PR 和 `status.toml` 记录。
 - 每个 PR 解决一个问题。按模板关联 Issue，列出公开 API 及迁移方式，记录可复现的验证。界面改动提供 Gallery 入口和前后截图或录屏。[GPUI Kit 贡献指南](https://github.com/longbridge/gpui-kit/blob/main/CONTRIBUTING.md)
 
 <a id="workspace-and-component-development"></a>

@@ -7,8 +7,8 @@ English | [中文](development.zh.md)
 ## Contribution workflow and branch naming
 
 - Choose Bug report, Feature request, or Phase deliverable in `.github/ISSUE_TEMPLATE/`. Include a minimal reproduction for bugs, a use case and acceptance criteria for proposals, and dependencies and file ownership for phase tasks.
-- Branch from the latest `main` and use `<type>/<issue-number>-<short-topic>`. Write the topic in lowercase English with hyphens. For changes without an associated issue, use `<type>/<short-topic>`, such as `ci/cross-platform-workflow`.
-- Choose the prefix by purpose. Use `feat/` for features, `fix/` for fixes, `docs/` for documentation, `test/` for tests, `refactor/` for refactoring, `ci/` for CI, `chore/` for maintenance, and `release/` for releases. For example, use `fix/48-pointer-capture`. Record phase ownership in the issue, PR, and `status.toml`.
+- Branch from the latest `main` and use `<type>/<short-topic>`, such as `ci/cross-platform-workflow`. Write the topic in lowercase English with hyphens. Link the issue in the PR description.
+- Choose the prefix by purpose. Use `feat/` for features, `fix/` for fixes, `docs/` for documentation, `test/` for tests, `refactor/` for refactoring, `ci/` for CI, `chore/` for maintenance, and `release/` for releases. For example, use `fix/pointer-capture`. Record phase ownership in the issue, PR, and `status.toml`.
 - Keep each PR focused on one problem. Use the template to link the issue, list public API changes and migration steps, and provide reproducible verification. For UI changes, identify the Gallery scenario and include before-and-after screenshots or a recording. [GPUI Kit contribution guide](https://github.com/longbridge/gpui-kit/blob/main/CONTRIBUTING.md)
 
 <a id="workspace-与组件开发"></a>

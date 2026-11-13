@@ -6,7 +6,7 @@ English | [中文](CONTRIBUTION.zh.md)
 
 - Check the [documentation index](docs/index.md) and [phase status](status.toml) for the owning phase and its scope. Search existing issues and pull requests before opening a new one.
 - Use the repository's issue templates. For bugs, include a minimal reproduction, environment, and expected and observed behavior. For proposals, include the use case and acceptance criteria.
-- Branch from the latest `main` and follow the [branch naming conventions](docs/development.md#contribution-workflow-and-branch-naming). Keep each PR focused on one problem and link the issue it addresses. Describe any public API changes and migration steps.
+- Branch from the latest `main` and name the branch `<type>/<short-topic>`. Keep each PR focused on one problem and link the issue it addresses. Describe any public API changes and migration steps. [Branch naming conventions](docs/development.md#contribution-workflow-and-branch-naming)
 - Run the relevant checks in the [development guide](docs/development.md#testing-conventions). Record reproducible commands and results in the PR. For UI changes, include the affected Gallery scenario and before-and-after evidence.
 
 ## Issues and contributions upstream

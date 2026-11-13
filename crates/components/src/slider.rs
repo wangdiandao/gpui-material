@@ -105,7 +105,7 @@ struct Gesture {
     capture: Option<DragCapture>,
 }
 
-struct SliderDrag;
+struct SliderDrag(Entity<SliderState>);
 
 impl Render for SliderDrag {
     fn render(&mut self, _: &mut Window, _: &mut gpui::Context<Self>) -> impl IntoElement {
@@ -259,6 +259,7 @@ impl RenderOnce for Slider {
             );
         let dragging = gesture.borrow().thumb;
         let thumb = |which, position, name, focus: &FocusHandle| {
+            let keyboard_state = self.state.clone();
             let engaged = dragging == Some(which);
             let (width, height) = if horizontal {
                 (4., thumb_extent)
@@ -300,24 +301,51 @@ impl RenderOnce for Slider {
                         "end"
                     },
                 )))
-                .role(Role::Slider)
-                .aria_label(name)
+                .when(!self.disabled, |thumb| thumb.role(Role::Slider))
+                .when(!self.disabled, |thumb| thumb.aria_label(name))
                 .w(px(width))
                 .h(px(height))
                 .rounded_full()
                 .bg(active)
                 .focus_visible(move |style| style.bg(ring))
-                .when(engaged, |thumb| thumb.child(label_style));
+                .when(
+                    engaged
+                        || !self.disabled
+                            && focus.is_focused(window)
+                            && window.last_input_was_keyboard(),
+                    |thumb| thumb.child(label_style),
+                );
 
             let element = if self.disabled {
                 element
             } else {
-                range_semantics(element, &self.state, which, self.axis, cx)
+                range_semantics(element, &self.state, which, self.axis, cx).capture_key_down(
+                    move |event, window, cx| {
+                        let sign = match event.keystroke.key.as_str() {
+                            "left" if geometry.reversed() => 1.,
+                            "right" if geometry.reversed() => -1.,
+                            _ => return,
+                        };
+                        keyboard_state.update(cx, |state, cx| {
+                            state.step_thumb(
+                                which == RangeThumb::Start,
+                                sign * state.accessibility_step(),
+                                window,
+                                cx,
+                            );
+                        });
+                        cx.stop_propagation();
+                    },
+                )
             };
             element.test_support().when(!self.disabled, |thumb| {
                 thumb.track_focus(&focus.clone().tab_stop(true))
             })
         };
+        let disabled_name = self.range_end_name.as_ref().map_or_else(
+            || self.name.clone(),
+            |end| format!("{} – {end}", self.name).into(),
+        );
         let mut root = div()
             .id(self.id.clone())
             .relative()
@@ -360,6 +388,7 @@ impl RenderOnce for Slider {
                 BaseSlider::new(&self.state)
                     .axis(self.axis)
                     .disabled(true)
+                    .accessibility_label(disabled_name)
                     .child(root)
                     .into_any_element()
             } else {
@@ -377,6 +406,8 @@ impl RenderOnce for Slider {
         let down_state = self.state.clone();
         let begin_state = self.state.clone();
         let drag_state = self.state.clone();
+        let drag_source = self.state.clone();
+        let drag_focus = [start_focus.clone(), end_focus.clone()];
         let release_state = self.state.clone();
         let outside_state = self.state.clone();
         let escape_state = self.state;
@@ -398,9 +429,8 @@ impl RenderOnce for Slider {
                 end_focus.focus(window, cx);
             }
             update(&down_state, geometry, which, event.position, window, cx);
-            cx.stop_propagation();
         })
-        .on_drag(SliderDrag, move |_, _, window, cx| {
+        .on_drag(SliderDrag(drag_source), move |payload, _, window, cx| {
             let gesture = Rc::downgrade(&begin);
             let state = begin_state.clone();
             begin.borrow_mut().capture = Some(DragCapture::watch(window, cx, move |window, cx| {
@@ -409,9 +439,12 @@ impl RenderOnce for Slider {
                 }
             }));
             cx.stop_propagation();
-            cx.new(|_| SliderDrag)
+            cx.new(|_| SliderDrag(payload.0.clone()))
         })
         .on_drag_move(move |event: &DragMoveEvent<SliderDrag>, window, cx| {
+            if event.drag(cx).0.entity_id() != drag_state.entity_id() {
+                return;
+            }
             let mut gesture = drag.borrow_mut();
             let Some(mut which) = gesture.thumb else {
                 return;
@@ -429,6 +462,7 @@ impl RenderOnce for Slider {
                     RangeThumb::End
                 };
                 gesture.thumb = Some(which);
+                drag_focus[usize::from(which == RangeThumb::End)].focus(window, cx);
             }
             update(
                 &drag_state,
@@ -446,7 +480,7 @@ impl RenderOnce for Slider {
         .on_mouse_up_out(MouseButton::Left, move |_, window, cx| {
             finish(&outside_state, &release_out, window, cx, false)
         })
-        .on_key_down(move |event, window, cx| {
+        .capture_key_down(move |event, window, cx| {
             if event.keystroke.key == "escape" && escape.borrow().thumb.is_some() {
                 finish(&escape_state, &escape, window, cx, true);
                 cx.stop_propagation();

@@ -5,8 +5,9 @@ use gpui::{
     Pixels, Point, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Window,
     canvas, div, point, px,
 };
-use gpui_material_foundation::{PolygonMorph, animate, color, material_theme};
-use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpeed, PolygonRole};
+use gpui_material_foundation::{animate, color, material_theme};
+use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpeed};
+use polymorpher::{Morph, shapes};
 
 /// Straight or Expressive wavy progress track.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -238,19 +239,25 @@ impl LoadingIndicator {
 
 struct LoadingMotion {
     epoch: Option<Instant>,
-    shapes: [PolygonMorph; 3],
+    shapes: [Morph; 7],
 }
 
 impl Default for LoadingMotion {
     fn default() -> Self {
-        use PolygonRole::*;
+        let shapes = [
+            shapes::soft_burst(),
+            shapes::cookie9(),
+            shapes::pentagon(),
+            shapes::pill(),
+            shapes::sunny(),
+            shapes::cookie4(),
+            shapes::oval(),
+        ];
         Self {
             epoch: None,
-            shapes: [
-                PolygonMorph::new(Circle, Square),
-                PolygonMorph::new(Square, Triangle),
-                PolygonMorph::new(Triangle, Circle),
-            ],
+            shapes: std::array::from_fn(|ix| {
+                Morph::new(shapes[ix].clone(), shapes[(ix + 1) % shapes.len()].clone())
+            }),
         }
     }
 }
@@ -276,7 +283,7 @@ impl RenderOnce for LoadingIndicator {
                 (now.saturating_duration_since(*state.epoch.get_or_insert(now))
                     .as_secs_f32()
                     / 0.6)
-                    % 3.
+                    % state.shapes.len() as f32
             } else {
                 state.epoch = None;
                 0.
@@ -290,10 +297,26 @@ impl RenderOnce for LoadingIndicator {
                     bounds.origin + point(px(5.), px(5.)),
                     bounds.bottom_right() - point(px(5.), px(5.)),
                 );
-                if let Some(shape) =
-                    state.shapes[progress.floor() as usize].sample(bounds, progress.fract())
-                {
-                    shape.paint(fill, window);
+                let phase = progress.fract();
+                let eased = phase * phase * (3. - 2. * phase);
+                let cubics = state.shapes[progress.floor() as usize].as_cubics(eased);
+                let project = |p: polymorpher::geometry::Point| {
+                    bounds.origin + point(bounds.size.width * p.x, bounds.size.height * p.y)
+                };
+                if let Some(first) = cubics.first() {
+                    let mut path = PathBuilder::fill();
+                    path.move_to(project(first.anchor0()));
+                    for cubic in cubics {
+                        path.cubic_bezier_to(
+                            project(cubic.anchor1()),
+                            project(cubic.control0()),
+                            project(cubic.control1()),
+                        );
+                    }
+                    path.close();
+                    if let Ok(path) = path.build() {
+                        window.paint_path(path, fill);
+                    }
                 }
                 if animate {
                     window.request_animation_frame();

@@ -22,7 +22,7 @@ controls/display 可被 inputs、overlays、navigation 使用。TextField 的编
 
 - 调用者拥有业务值和稳定标识。Base 持有交互所需的状态、输入、选择和焦点。Material 持有主题、状态呈现策略及新增组合状态。受控组件通过同一路径请求变更，文档注明回调的执行次序及同步重入边界。
 - 组件按语义公开 variant、size、disabled、selected、on_change 等必要契约，开放与组成部分对应的 slot。共享接口以具体类型为主，第三方颜色/形状类型留在适配层。
-- `MaterialTheme` 是项目的主题源。固定版本的 Base `Theme` 通过 App `Global` 读取，包含 appearance、语义 Token、滚动条、分割调整、plot 与光标闪烁默认值。项目主题切换由 App 显式提交并同步投影和刷新，组件覆盖由调用者传入。窗口独立主题和完整子树作用域等待 Base 读取路径验证。
+- `MaterialTheme` 是项目的主题源。固定版本的 Base `Theme` 通过 App `Global` 读取，包含 appearance、语义 Token、滚动条、分割调整、plot 与光标闪烁默认值。项目主题切换由 App 显式提交并同步投影和刷新。窗口或子树的局部主题由调用者显式传入样式，详见双窗口探针。
 - P4 集中将 Base 的真实交互状态转成 Material 呈现。禁用会压制 hover/active 样式。P1 验证禁用、取消、键盘与焦点可见状态的公共读取路径。
 - Token 用受控数据文件作唯一数值源。xtask 生成 Rust 表和索引并提交生成物，日常构建使用仓库内数据。形状适用范围由探针覆盖的圆角多边形限定。
 
@@ -42,6 +42,18 @@ P0 确定 Base 与 GPUI 来源。其余候选由归属阶段验证。准入记�
 extras 按实际需要定义 expressive-groups、search、date-time、carousel 等组件族。主题支持静态数据，dynamic-color 与 serde 按需启用，图片提色优先留在工具层。组件所需键盘、语义和动效属于完整行为。
 
 CI 和日常开发用包级命令隔离主题、组件及 Gallery。P2 记录冷/热构建、检查/链接时间、feature 组合与平台依赖。架构调整由计时和运行证据决定，优先使用具体内部类型及按需的类型擦除。
+
+## P1 已验证的适配边界
+
+以 Windows 11 x64/MSVC 验收。P2 可沿用锁定的 Base 0.9.1 和 GPUI 0.3.12 同源组合。纯主题算法和形状候选的准入分别在 P3、P4 执行。macOS 和 Linux 的托管与像素样本留作平台探索。见 [P1 验证记录](../phases/P01-evidence.md)。
+
+| 机制 | 适配与边界 |
+| --- | --- |
+| 激活与拖动 | Base 管理按钮激活与焦点，组合层保留 roving 焦点策略。Windows 捕获丢失、禁用和 Esc 汇入取消路径。固定 Windows GPUI 缺少捕获丢失事件，探针以 UI 线程的 Win32 捕获检查验证过渡方案。替换时复测原生捕获离开与下一次拖动。[Issue #48](https://github.com/wangdiandao/gpui-material/issues/48) |
+| 文本和语义 | Base 持有编辑状态、剪贴板、掩码和输入处理器，GPUI 持有原生桥接、字形回退和布局。同一 shaped line 用于度量及绘制。Windows UIA RangeValue 的 SetValue 经 GPUI 语义动作转给 Base SliderState。上游 Slider 直接处理此动作后移除适配并复测。[Issue #49](https://github.com/wangdiandao/gpui-material/issues/49) |
+| 绘制与动效 | foundation 可复用 GPUI 的填充网格完成命中和状态层裁剪。Windows 探针的同形阴影由三层半透明填充近似。几何重定向、颜色和透明度沿用 Base spring/transition 的公共调度，系统低动效和静止停止调度均有验证。 |
+| 浮层与滚动 | Base Popover 和 Dialog 持有放置、遮罩和焦点范围。组合层映射逻辑对齐，管理开关、回焦与拖动取消。独占内层滚动可通过 GPUI 命中遮蔽实现。值标签订阅 Base SliderState。 |
+| 主题和日期 | Base 的 Theme 是 App 级 Global。Material 通过显式投影和局部样式支持窗口策略，纯颜色与日期探针可独立运行。日期边界和禁用行为复用 Base Calendar。 |
 
 [mcu-rust]: https://github.com/RuurdBijlsma/material-color-utilities-rs/tree/d39ff59a1fca34bdc60e124de2f9f7541fff3c39
 [polymorpher]: https://github.com/Aiving/polymorpher/tree/aaeb6f69b0ced6cc7079713994832b5d7ee3ff50

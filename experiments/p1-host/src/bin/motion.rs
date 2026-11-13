@@ -15,10 +15,20 @@ struct MotionProbe {
     expanded: bool,
     geometry: f32,
     opacity: f32,
+    trace: Option<MotionTrace>,
+}
+
+#[derive(Default)]
+struct MotionTrace {
+    started: Option<std::time::Instant>,
+    last_frame: Option<std::time::Instant>,
+    interval_total_ms: f64,
+    interval_count: u32,
 }
 
 impl Render for MotionProbe {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let render_started = std::time::Instant::now();
         let colors = Theme::global(cx).tokens.colors;
         let width = if self.expanded { 280. } else { 80. };
         let alpha = if self.expanded { 1. } else { 0.35 };
@@ -37,7 +47,7 @@ impl Render for MotionProbe {
             cx,
         );
 
-        div()
+        let element = div()
             .size_full()
             .flex()
             .flex_col()
@@ -57,6 +67,12 @@ impl Render for MotionProbe {
                     .child(if self.expanded { "收起" } else { "展开" })
                     .on_click(cx.listener(|this, _, _, cx| {
                         this.expanded = !this.expanded;
+                        if let Some(trace) = &mut this.trace {
+                            *trace = MotionTrace {
+                                started: Some(std::time::Instant::now()),
+                                ..Default::default()
+                            };
+                        }
                         cx.notify();
                     })),
             )
@@ -70,7 +86,34 @@ impl Render for MotionProbe {
                 "减少动态效果已开启"
             } else {
                 "减少动态效果已关闭"
-            })
+            });
+
+        if let Some(trace) = &mut self.trace
+            && let Some(started) = trace.started
+        {
+            if let Some(previous) = trace.last_frame.replace(render_started) {
+                trace.interval_total_ms +=
+                    render_started.duration_since(previous).as_secs_f64() * 1000.;
+                trace.interval_count += 1;
+            }
+            let settled = self.geometry == width && self.opacity == alpha;
+            println!(
+                "P1-06 t={:.2}ms render={:.3}ms width={:.2} opacity={:.3} settled={settled}",
+                render_started.duration_since(started).as_secs_f64() * 1000.,
+                render_started.elapsed().as_secs_f64() * 1000.,
+                self.geometry,
+                self.opacity
+            );
+            if settled {
+                let mean = trace.interval_total_ms / f64::from(trace.interval_count.max(1));
+                println!(
+                    "P1-06 frames={} mean_interval={mean:.2}ms",
+                    trace.interval_count + 1
+                );
+                trace.started = None;
+            }
+        }
+        element
     }
 }
 
@@ -86,7 +129,13 @@ fn main() {
             }),
             ..Default::default()
         };
-        open_probe(cx, options, |_, cx| cx.new(|_| MotionProbe::default())).unwrap();
+        open_probe(cx, options, |_, cx| {
+            cx.new(|_| MotionProbe {
+                trace: std::env::var_os("P1_MOTION_TRACE").map(|_| MotionTrace::default()),
+                ..Default::default()
+            })
+        })
+        .unwrap();
     });
 }
 

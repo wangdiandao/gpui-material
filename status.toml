@@ -2,8 +2,8 @@ schema_version = 1
 current_phase = "P1"
 allowed_paths = ["experiments/**", "docs/phases/P01-evidence.md", "docs/architecture/index.md", "status.toml"]
 blockers = []
-repairs = []
-frozen_commits = { P0 = "3447ff140a873afe9583659b52275f4e7b5abd82" }
+repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", evidence = "docs/phases/P00.md", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }]
+frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55" }
 
 [phases.P0]
 status = "frozen"
@@ -21,7 +21,7 @@ merged_deliverables = [
     { task = "P0-01", issue = 1, pull_request = 5, commit = "f255ee43d46528657d0f988874d574a25f8c249a" },
     { task = "P0-02", issue = 2, pull_request = 6, commit = "d936720b012e57159ade9731d11035dae188efa2" },
     { task = "P0-03", issue = 3, pull_request = 7, commit = "436dac239d5381778cb2d85eadcf8597a4f6d991" },
-    { task = "P0-04", issue = 4, pull_request = 8, commit = "3447ff140a873afe9583659b52275f4e7b5abd82" },
+    { task = "P0-04", issue = 4, pull_request = 8, commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" },
 ]
 
 [phases.P1]

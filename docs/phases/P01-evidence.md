@@ -9,7 +9,7 @@
 | macOS 15.8.2 (24H232)，arm64，Xcode 16.4 | 固定 Rust 1.99.1，宿主 9 个、纯主题 3 个、纯几何 3 个测试通过。 | pass |
 | Ubuntu 24.04.5 LTS，x86_64，Azure 内核 7.0.0-1017 | 固定 Rust 1.99.1，同样 15 个测试通过。 | pass |
 | Ubuntu Xvfb，X11 | 运行 `window`，日志显示 `P1-01 native window: linux x86_64, scale=1`，进程在 15 秒超时结束前持续运行。 | pass |
-| macOS 桌面、Linux GNOME Wayland/X11 桌面 | 签名应用包、真实显示、Metal/WGPU 无头像素、IME、系统树、读屏、输入设备及系统偏好需补证。 | pending |
+| macOS 桌面、Linux GNOME Wayland/X11 桌面 | 托管运行覆盖构建、测试与虚拟 X11。真实桌面证据可在未来的支持评估中采集。 | 探索 |
 
 ```sh
 cargo +1.99.1 test --locked --manifest-path experiments/p1-host/Cargo.toml --features test-support
@@ -27,9 +27,9 @@ Ubuntu 和 macOS 的宿主首次测试编译耗时见各作业日志。此处的
 
 2026-11-13，项目负责人在会话中确认“Windows验收通过”，登记为 Windows 实机验收通过。确认未附逐项日志、系统设置或截图；相关可复现证据以各探针记录为准。Windows 11 x64 build 26200 上的已存档截图及 UIA 检查见 [窗口](../../experiments/p1-host/evidence/01-build.md)、[输入](../../experiments/p1-host/evidence/03-text.md) 和 [语义](../../experiments/p1-host/evidence/04-semantics.md)。
 
-## macOS 和 Ubuntu 实机步骤
+## macOS 和 Ubuntu 探索步骤
 
-在更新到包含本文的 `main` 后，记录 `git rev-parse HEAD`、OS 版本、CPU 架构、屏幕缩放、输入法、读屏工具与版本。Linux 另记 `echo "$XDG_SESSION_TYPE"`，在 GNOME Wayland 和 GNOME on Xorg 各做一次。macOS 用 Apple Silicon 和已签名的应用包执行正式验收，记录 `codesign --verify --strict` 的结果。以下命令可用于构建并预跑相同探针。
+如后续评估平台支持，在 `main` 上记录 `git rev-parse HEAD`、OS 版本、CPU 架构、屏幕缩放、输入法、读屏工具与版本。Linux 另记 `echo "$XDG_SESSION_TYPE"`，在 GNOME Wayland 和 GNOME on Xorg 各做一次。macOS 使用 Apple Silicon 与已签名的应用包，记录 `codesign --verify --strict` 的结果。以下命令可用于构建并预跑相同探针。
 
 ```sh
 rustup toolchain install 1.99.1 --profile minimal

@@ -1,14 +1,14 @@
 # 平台与质量要求
 
-Windows 是主要开发和验收平台。P1 起为 macOS 和 Linux 运行同一必需能力探针。下表是验证环境，实际 OS、架构、后端、工具链、设备和工具版本写入每次证据。各平台当前均为待验证。
+首版支持 Windows 11 x64（MSVC），所有必需能力和发布验收在此平台完成。macOS 和 Linux 的探针结果作为探索记录。这两个平台的支持声明需经各自的完整实机与组件验收。
 
-| 平台 | 验证环境 | 真实窗口与系统检查 |
+| 平台 | 首版范围 | 验证环境和真实系统检查 |
 | --- | --- | --- |
-| Windows | Windows 11 x64，MSVC，物理机或有桌面会话的运行器；主机原生 DPI 与跨显示器缩放 | GPUI 真实窗口截图；UI Automation 树和 Narrator 实际操作；微软拼音组合与候选定位；滚轮、触控板与可用触摸设备。 |
-| macOS | Apple Silicon 上的 macOS，Xcode/Metal，签名应用包，真实 GUI 会话 | Metal 无头像素和真实窗口；Accessibility Inspector 与 VoiceOver；系统拼音、Retina、全键盘访问。Intel 支持由独立验证决定。 |
-| Linux | x86_64 Ubuntu 24.04 LTS / GNOME，Wayland 与 X11 各走一轮；Vulkan 硬件或 CI 软件适配器 | WGPU 无头像素；Wayland/X11 实窗，AT-SPI 树与 Orca，IBus 中文输入、分数缩放；记录发行版与会话。 |
+| Windows | 必需 | Windows 11 x64，MSVC，物理机或带桌面会话的运行器。真实窗口、原生 DPI 与跨显示器缩放、UI Automation、Narrator、微软拼音组合与候选定位、滚轮、触控板及可用触摸设备。 |
+| macOS | 探索 | Apple Silicon、Xcode/Metal、签名应用包。可记录 Metal 无头像素、实窗、Accessibility Inspector、VoiceOver、系统拼音、Retina 与全键盘访问。 |
+| Linux | 探索 | x86_64 Ubuntu 24.04 LTS / GNOME。可记录 WGPU 像素、Wayland/X11 实窗、AT-SPI、Orca、IBus 中文输入与分数缩放。 |
 
-上游固定版本的测试 harness 支持三平台的交互与布局。macOS 和 Linux 采用对应无头渲染器。Windows 视觉证据来自真实窗口。缺失像素或实机证据记为未验证。依据 [GPUI Kit 固定测试说明][kit-test]与[无障碍说明][kit-a11y]。
+每次记录 OS、架构、后端、工具链、设备与工具版本。Windows 的视觉证据来自真实窗口，macOS 和 Linux 可用对应无头渲染器采集像素证据。缺失像素或实机证据记为未验证。依据 [GPUI Kit 固定测试说明][kit-test]与[无障碍说明][kit-a11y]。
 
 ## 各层证据
 

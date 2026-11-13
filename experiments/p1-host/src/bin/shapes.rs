@@ -1,12 +1,19 @@
 use gpui::{
-    AppContext, Bounds, Context, IntoElement, Path, PathBuilder, Pixels, Point, Render, Styled,
-    TitlebarOptions, Window, WindowBounds, WindowOptions, canvas, div, fill, point, prelude::*, px,
-    size,
+    AppContext, Context, IntoElement, Path, PathBuilder, Pixels, Point, Render, Styled,
+    TitlebarOptions, Window, WindowBounds, WindowOptions, black, canvas, div, point, prelude::*,
+    px, size,
 };
 use gpui_base::{TestSupportExt, Theme};
 use p1_host::open_probe;
 use polymorpher::{CornerRounding, Cubic, Morph, RoundedPolygon};
-use std::{cell::Cell, rc::Rc};
+use std::{
+    cell::Cell,
+    rc::Rc,
+    time::{Duration, Instant},
+};
+
+const RIPPLE_SEGMENTS: usize = 64;
+const RIPPLE_DURATION_SECONDS: f32 = 0.32;
 
 fn curves(progress: f32) -> Vec<Cubic> {
     let rounding = Some(CornerRounding::smoothed(0.2, 0.5));
@@ -35,6 +42,8 @@ fn path(cubics: &[Cubic], center: Point<Pixels>, radius: Pixels) -> Path<Pixels>
 struct ShapesProbe {
     samples: [Vec<Cubic>; 3],
     ripple: Option<(usize, Point<Pixels>)>,
+    pressed_at: Instant,
+    still_frame: bool,
 }
 
 impl ShapesProbe {
@@ -42,15 +51,17 @@ impl ShapesProbe {
         Self {
             samples: [0., 0.5, 1.].map(curves),
             ripple: None,
+            pressed_at: Instant::now(),
+            still_frame: std::env::var_os("P1_SHAPES_STILL").is_some(),
         }
     }
 }
 
-fn contains_fill(path: &Path<Pixels>, position: Point<Pixels>) -> bool {
-    fn cross(a: Point<Pixels>, b: Point<Pixels>) -> f32 {
-        f32::from(a.x) * f32::from(b.y) - f32::from(a.y) * f32::from(b.x)
-    }
+fn cross(a: Point<Pixels>, b: Point<Pixels>) -> f32 {
+    f32::from(a.x) * f32::from(b.y) - f32::from(a.y) * f32::from(b.x)
+}
 
+fn contains_fill(path: &Path<Pixels>, position: Point<Pixels>) -> bool {
     path.bounds.contains(&position)
         && path.vertices.as_chunks::<3>().0.iter().any(|triangle| {
             let a = triangle[0].xy_position;
@@ -69,6 +80,57 @@ fn contains_fill(path: &Path<Pixels>, position: Point<Pixels>) -> bool {
         })
 }
 
+fn clipped_ripple(fill: &Path<Pixels>, origin: Point<Pixels>, radius: Pixels) -> Path<Pixels> {
+    let circle: [_; RIPPLE_SEGMENTS] = std::array::from_fn(|index| {
+        let angle = std::f32::consts::TAU * index as f32 / RIPPLE_SEGMENTS as f32;
+        origin + point(radius * angle.cos(), radius * angle.sin())
+    });
+    let mut ripple = Path::new(origin);
+    let stencil = point(0., 1.);
+    let mut polygon = Vec::with_capacity(RIPPLE_SEGMENTS + 3);
+    let mut clipped = Vec::with_capacity(RIPPLE_SEGMENTS + 3);
+
+    // Intersect the disc with each disjoint fill triangle so paint and hit
+    // testing use the same tessellated curve, including concave shapes.
+    for triangle in fill.vertices.as_chunks::<3>().0 {
+        let [a, b, c] = triangle.each_ref().map(|vertex| vertex.xy_position);
+        let winding = cross(b - a, c - a);
+        if winding.abs() <= f32::EPSILON {
+            continue;
+        }
+        polygon.clear();
+        polygon.extend([a, b, c]);
+        for (&start, &end) in circle.iter().zip(circle.iter().cycle().skip(1)) {
+            let Some(&last) = polygon.last() else {
+                break;
+            };
+            let distance = |p| cross(end - start, p - start);
+            let mut previous = last;
+            let mut previous_distance = distance(previous);
+            clipped.clear();
+            for &current in &polygon {
+                let current_distance = distance(current);
+                if (previous_distance >= 0.) != (current_distance >= 0.) {
+                    let t = previous_distance / (previous_distance - current_distance);
+                    clipped.push(previous + (current - previous) * t);
+                }
+                if current_distance >= 0. {
+                    clipped.push(current);
+                }
+                previous = current;
+                previous_distance = current_distance;
+            }
+            std::mem::swap(&mut polygon, &mut clipped);
+        }
+        if let Some((&first, rest)) = polygon.split_first() {
+            for edge in rest.windows(2) {
+                ripple.push_triangle((first, edge[0], edge[1]), (stencil, stencil, stencil));
+            }
+        }
+    }
+    ripple
+}
+
 fn pointer_origin(
     cubics: &[Cubic],
     center: Point<Pixels>,
@@ -79,8 +141,17 @@ fn pointer_origin(
 }
 
 impl Render for ShapesProbe {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = Theme::global(cx).tokens.colors;
+        let elapsed = self.pressed_at.elapsed().as_secs_f32() / RIPPLE_DURATION_SECONDS;
+        let progress = if self.still_frame || cx.reduce_motion() {
+            0.45
+        } else {
+            elapsed.min(1.)
+        };
+        if self.ripple.is_some() && !self.still_frame && !cx.reduce_motion() && elapsed < 1. {
+            window.request_animation_frame();
+        }
         div()
             .size_full()
             .flex()
@@ -92,7 +163,9 @@ impl Render for ShapesProbe {
                 let label = ["0", "0.5", "1"][index];
                 let paint_curves = cubics.clone();
                 let hit_curves = cubics.clone();
-                let ripple = self.ripple.filter(|(active, _)| *active == index);
+                let ripple = self
+                    .ripple
+                    .filter(|(active, _)| *active == index && (self.still_frame || elapsed < 1.));
                 let center = Rc::new(Cell::new(Point::default()));
                 let painted_center = center.clone();
                 div()
@@ -108,16 +181,38 @@ impl Render for ShapesProbe {
                             .size(px(128.))
                             .on_mouse_down(
                                 gpui::MouseButton::Left,
-                                cx.listener(move |this, event: &gpui::MouseDownEvent, _, cx| {
-                                    this.ripple = pointer_origin(
-                                        &hit_curves,
-                                        center.get(),
-                                        px(48.),
-                                        event.position,
-                                    )
-                                    .map(|origin| (index, origin));
-                                    cx.notify();
-                                }),
+                                cx.listener(
+                                    move |this, event: &gpui::MouseDownEvent, window, cx| {
+                                        this.ripple = pointer_origin(
+                                            &hit_curves,
+                                            center.get(),
+                                            px(48.),
+                                            event.position,
+                                        )
+                                        .map(|origin| (index, origin));
+                                        this.pressed_at = Instant::now();
+                                        if this.ripple.is_some()
+                                            && !this.still_frame
+                                            && cx.reduce_motion()
+                                        {
+                                            let pressed_at = this.pressed_at;
+                                            let timer = cx.background_executor().timer(
+                                                Duration::from_secs_f32(RIPPLE_DURATION_SECONDS),
+                                            );
+                                            cx.spawn_in(window, async move |view, cx| {
+                                                timer.await;
+                                                let _ = view.update(cx, |this, cx| {
+                                                    if this.pressed_at == pressed_at {
+                                                        this.ripple = None;
+                                                        cx.notify();
+                                                    }
+                                                });
+                                            })
+                                            .detach();
+                                        }
+                                        cx.notify();
+                                    },
+                                ),
                             )
                             .child(
                                 canvas(
@@ -127,15 +222,34 @@ impl Render for ShapesProbe {
                                         center
                                     },
                                     move |_, center, window, _| {
-                                        window.paint_path(
-                                            path(&paint_curves, center, px(48.)),
-                                            colors.primary,
-                                        );
+                                        let fill = path(&paint_curves, center, px(48.));
+                                        for (offset, spread, alpha) in
+                                            [(4., 3., 0.05), (3., 2., 0.07), (2., 1., 0.10)]
+                                        {
+                                            window.paint_path(
+                                                path(
+                                                    &paint_curves,
+                                                    center + point(px(0.), px(offset)),
+                                                    px(48. + spread),
+                                                ),
+                                                black().opacity(alpha),
+                                            );
+                                        }
                                         if let Some((_, origin)) = ripple {
-                                            let mark =
-                                                Bounds::centered_at(origin, size(px(3.), px(3.)));
-                                            window
-                                                .paint_quad(fill(mark, colors.primary_foreground));
+                                            let disc = clipped_ripple(
+                                                &fill,
+                                                origin,
+                                                px(2. + 94. * progress),
+                                            );
+                                            window.paint_path(fill, colors.primary);
+                                            window.paint_path(
+                                                disc,
+                                                colors
+                                                    .primary_foreground
+                                                    .opacity(0.54 * (1. - progress)),
+                                            );
+                                        } else {
+                                            window.paint_path(fill, colors.primary);
                                         }
                                     },
                                 )
@@ -195,6 +309,30 @@ fn morph_hit_uses_fill_and_preserves_the_pointer_origin() {
             Some(inside)
         );
         assert_eq!(pointer_origin(&cubics, center, radius, empty_corner), None);
+    }
+}
+
+#[test]
+fn ripple_covers_the_origin_and_clips_against_all_three_fills() {
+    let center = point(px(96.), px(64.));
+    let origin = center + point(px(4.), px(2.));
+    for progress in [0., 0.5, 1.] {
+        let shape = path(&curves(progress), center, px(48.));
+        let start = clipped_ripple(&shape, origin, px(2.));
+        assert!(contains_fill(&start, origin));
+        assert!(!contains_fill(&start, origin + point(px(3.), px(0.))));
+        let expanded = clipped_ripple(&shape, origin, px(96.));
+        let empty_corner = shape.bounds.origin + point(px(1.), px(1.));
+        assert!(contains_fill(&expanded, origin));
+        assert!(!contains_fill(&expanded, empty_corner));
+        let width_error = (expanded.bounds.size.width - shape.bounds.size.width).abs();
+        let height_error = (expanded.bounds.size.height - shape.bounds.size.height).abs();
+        assert!(
+            width_error < px(0.001) && height_error < px(0.001),
+            "progress {progress}: {width_error:?} × {height_error:?}, {:?} vs {:?}",
+            expanded.bounds,
+            shape.bounds,
+        );
     }
 }
 

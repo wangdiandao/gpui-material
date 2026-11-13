@@ -1,12 +1,12 @@
 schema_version = 1
-current_phase = "P1"
-allowed_paths = ["experiments/**", "docs/phases/P01-evidence.md", "docs/architecture/index.md", "status.toml"]
-blockers = []
-repairs = []
+current_phase = "P0"
+allowed_paths = ["docs/verification.md", "docs/components/coverage.md", "docs/phases/P00.md", "docs/phases/P01.md", "docs/phases/P01-evidence.md", "docs/phases/index.md", "docs/architecture/index.md", "status.toml"]
+blockers = [{ phase = "P1", issue = 34, reason = "P0 release platform scope revision" }]
+repairs = [{ phase = "P0", issue = 34, status = "active", scope = "Windows-only initial release acceptance", evidence = "docs/phases/P01-evidence.md" }]
 frozen_commits = { P0 = "3447ff140a873afe9583659b52275f4e7b5abd82" }
 
 [phases.P0]
-status = "frozen"
+status = "active"
 frozen_on = 2026-11-13
 evidence = [
     "docs/phases/P00.md",
@@ -25,7 +25,7 @@ merged_deliverables = [
 ]
 
 [phases.P1]
-status = "active"
+status = "blocked"
 entry_conditions = ["P0 is frozen", "Pinned P0 sources and probe plan are available"]
 
 [phases.P2]

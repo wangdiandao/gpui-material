@@ -1,9 +1,10 @@
 use gpui::{
-    AppContext, Context, Entity, IntoElement, Render, Role, Styled, TitlebarOptions, Window,
-    WindowBounds, WindowOptions, div, prelude::*, px, size,
+    AccessibleAction, AppContext, Context, Entity, FocusHandle, IntoElement, Render, Role, Styled,
+    TitlebarOptions, Window, WindowBounds, WindowOptions, accesskit::ActionData, div, prelude::*,
+    px, size,
 };
 use gpui_base::{
-    Button, Checkbox, Slider, TestSupportExt, Theme,
+    Button, Checkbox, TestSupportExt, Theme,
     slider::{SliderState, SliderThumb, SliderTrack},
 };
 use p1_host::open_probe;
@@ -12,6 +13,7 @@ struct SemanticsProbe {
     activations: usize,
     checked: bool,
     range: Entity<SliderState>,
+    range_focus: FocusHandle,
 }
 
 impl SemanticsProbe {
@@ -20,6 +22,7 @@ impl SemanticsProbe {
             activations: 0,
             checked: false,
             range: cx.new(|_| SliderState::new().max(10.).default_value(3.)),
+            range_focus: cx.focus_handle().tab_stop(true),
         }
     }
 }
@@ -29,6 +32,16 @@ impl Render for SemanticsProbe {
         let colors = Theme::global(cx).tokens.colors;
         let owner = cx.entity().downgrade();
         let status = format!("已执行 {} 次", self.activations);
+        let range = self.range.read(cx);
+        let (value, min, max, step) = (
+            range.value().end(),
+            range.min_value(),
+            range.max_value(),
+            range.accessibility_step(),
+        );
+        let set_range = self.range.clone();
+        let step_range = self.range.clone();
+        let release_range = self.range.clone();
         div()
             .id("semantics")
             .role(Role::Group)
@@ -78,9 +91,51 @@ impl Render for SemanticsProbe {
                     }),
             )
             .child(
-                Slider::new(&self.range)
-                    .accessibility_label("级别")
+                div()
+                    .id("range")
+                    .role(Role::Slider)
+                    .test_support()
+                    .track_focus(&self.range_focus)
+                    .aria_label("级别")
+                    .aria_numeric_value(f64::from(value))
+                    .aria_min_numeric_value(f64::from(min))
+                    .aria_max_numeric_value(f64::from(max))
+                    .aria_numeric_value_step(f64::from(step))
+                    .aria_orientation(gpui::accesskit::Orientation::Horizontal)
                     .w_48()
+                    .border_1()
+                    .border_color(colors.border)
+                    .focus_visible(|style| style.border_color(colors.ring))
+                    // Windows UIA RangeValue sends NumericValue through SetValue.
+                    .on_a11y_action(AccessibleAction::SetValue, move |data, window, cx| {
+                        if let Some(ActionData::NumericValue(target)) = data
+                            && target.is_finite()
+                        {
+                            let target = target.clamp(f64::from(min), f64::from(max)) as f32;
+                            set_range.update(cx, |state, cx| {
+                                let delta = target - state.value().end();
+                                state.step_thumb(false, delta, window, cx);
+                            });
+                        }
+                    })
+                    .on_key_down(move |event, window, cx| {
+                        let delta = match event.keystroke.key.as_str() {
+                            "left" | "down" => -step,
+                            "right" | "up" => step,
+                            _ => return,
+                        };
+                        step_range.update(cx, |state, cx| {
+                            state.step_thumb(false, delta, window, cx);
+                        });
+                        cx.stop_propagation();
+                    })
+                    .on_mouse_up(gpui::MouseButton::Left, {
+                        let range = release_range.clone();
+                        move |_, _, cx| range.update(cx, |state, cx| state.handle_release(cx))
+                    })
+                    .on_mouse_up_out(gpui::MouseButton::Left, move |_, _, cx| {
+                        release_range.update(cx, |state, cx| state.handle_release(cx));
+                    })
                     .child(
                         SliderTrack::new(&self.range)
                             .w_full()
@@ -93,6 +148,13 @@ impl Render for SemanticsProbe {
                                     .bg(colors.primary),
                             ),
                     ),
+            )
+            .child(
+                div()
+                    .id("range-status")
+                    .role(Role::Status)
+                    .aria_label(format!("级别 {value}"))
+                    .child(format!("级别 {value}")),
             )
             .child(
                 div()
@@ -140,10 +202,14 @@ fn painted_nodes_report_roles_names_and_checkbox_value(cx: &mut gpui::TestAppCon
         let enabled = test_support::find(window, &[], &"enabled".into()).unwrap();
         assert_eq!(enabled.role(), Some(Role::CheckBox));
         assert_eq!(enabled.checked(), Some(false));
-        let range_id = ("slider", view.read(cx).range.entity_id()).into();
-        let range = test_support::find(window, &[], &range_id).unwrap();
+        let range = test_support::find(window, &[], &"range".into()).unwrap();
         assert_eq!(range.role(), Some(Role::Slider));
         assert_eq!(range.label(), Some("级别"));
+        let state = view.read(cx).range.read(cx);
+        assert_eq!(
+            (state.min_value(), state.max_value(), state.value().end()),
+            (0., 10., 3.)
+        );
         let result = test_support::find(window, &[], &"result".into()).unwrap();
         assert_eq!(result.role(), Some(Role::Status));
         assert_eq!(result.label(), Some("已执行 0 次"));

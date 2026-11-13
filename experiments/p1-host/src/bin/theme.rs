@@ -30,7 +30,7 @@ impl Render for ThemeProbe {
         let local = if self.local_dark {
             ColorTokens::dark()
         } else {
-            theme.tokens.colors.clone()
+            theme.tokens.colors
         };
         let colors = theme.tokens.colors;
         let status = format!(

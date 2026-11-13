@@ -4154,6 +4154,7 @@ dependencies = [
  "gpui-pre",
  "gpui-pre-platform",
  "polymorpher",
+ "windows 0.62.2",
 ]
 
 [[package]]

@@ -28,3 +28,4 @@ pub use text::{Icon, Text};
 
 mod overlay;
 pub use overlay::{Dialog, DialogState, DialogVariant, Sheet, SheetEdge, SheetMode};
+pub use overlay::{Snackbar, SnackbarHost};

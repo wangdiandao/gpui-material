@@ -186,6 +186,7 @@ impl Gallery {
                     Story::Dialog | Story::Sheets => cx
                         .new(|cx| overlay_examples::ModalExamples::new(story, window, cx))
                         .into(),
+                    Story::Snackbar => cx.new(overlay_examples::SnackbarExamples::new).into(),
                     _ => cx
                         .new(|_| display_examples::DisplayExamples::for_story(story))
                         .into(),

@@ -10,8 +10,8 @@ use gpui_material::{
 use crate::{
     action_examples::ActionExamples,
     adaptive_examples::AdaptiveExamples,
-    date_time_examples::DateTimeExamples,
     carousel_examples::CarouselExamples,
+    date_time_examples::DateTimeExamples,
     display_examples::DisplayExamples,
     group_examples::GroupExamples,
     navigation_examples::NavigationExamples,

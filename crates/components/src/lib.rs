@@ -25,7 +25,9 @@ mod progress;
 mod text;
 pub use display::{Badge, Card, CardVariant, Divider, List, ListItem, ListVariant};
 pub use progress::{CircularProgress, LinearProgress, LoadingIndicator, ProgressShape};
-pub use text::{Icon, Text};
+pub use text::Text;
+mod icon;
+pub use icon::{Icon, IconName};
 
 pub use overlay::{Menu, MenuItem, Tooltip};
 mod input;

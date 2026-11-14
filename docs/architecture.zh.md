@@ -67,6 +67,8 @@ CI 和日常开发用包级命令隔离主题、组件及 Gallery。依据构建
 | 浮层与滚动 | Base Popover 和 Dialog 持有放置、遮罩和焦点范围。组合层映射逻辑对齐，管理开关、回焦与拖动取消。独占内层滚动可通过 GPUI 命中遮蔽实现。值标签订阅 Base SliderState。 |
 | 主题和日期 | Base 的 Theme 是 App 级 Global。Material 通过显式投影和局部样式支持窗口策略，纯颜色与日期探针可独立运行。日期边界和禁用行为复用 Base Calendar。 |
 
+`Icon::new(IconName::Favorite)` 通过 GPUI 绘制内嵌的官方 Material Symbols SVG；`.filled(true)` 选择官方填充版本。具名图标继承控件图标槽的文字尺寸和前景色，使尺寸变体、禁用颜色和颜色动画保持一致。图标槽外使用 `.size(px(24.))` 明确尺寸，`.color(ColorRole::Primary)` 可显式覆盖颜色。图标默认仅作装饰，只有设置 `.label(id, name)` 才暴露独立图像语义；纯图标按钮仍由按钮提供无障碍名称。方向图标通过 `.mirror_in_rtl(true)` 显式启用 RTL 镜像，并可与 `.rotate(...)` 组合。原有 `Icon::svg` 和 `Icon::custom` 保留 24dp/OnSurfaceVariant 默认值。内嵌图标不需要应用注册资源，也不依赖字体。[资源清单](../crates/components/assets/material-symbols/manifest.toml) 固定未经修改的上游文件和哈希，并随附[许可证](../crates/components/assets/material-symbols/LICENSE)。内置组件图标不使用字符占位或自绘静态路径，选择控件的动态几何仍由所属组件负责。
+
 [mcu-rust]: https://github.com/RuurdBijlsma/material-color-utilities-rs/tree/d39ff59a1fca34bdc60e124de2f9f7541fff3c39
 [polymorpher]: https://github.com/Aiving/polymorpher/tree/aaeb6f69b0ced6cc7079713994832b5d7ee3ff50
 [symbols]: design-sources.zh.md#source-code-and-algorithm-references

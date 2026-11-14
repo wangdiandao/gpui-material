@@ -27,6 +27,7 @@ pub use progress::{CircularProgress, LinearProgress, LoadingIndicator, ProgressS
 pub use text::{Icon, Text};
 
 mod input;
+pub use input::{DropdownOption, ExposedDropdown, ExposedDropdownState};
 pub use input::{TextAreaState, TextField, TextFieldEvent, TextFieldState, TextFieldVariant};
 mod overlay;
 pub use overlay::{Snackbar, SnackbarHost};

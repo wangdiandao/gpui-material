@@ -5,6 +5,121 @@ use gpui_material::{TextAreaState, TextField, TextFieldState, TextFieldVariant};
 
 use crate::story::stack;
 
+use gpui_material::{DropdownOption, ExposedDropdown, ExposedDropdownState, Text};
+
+pub(crate) struct DropdownExamples {
+    city: Entity<ExposedDropdownState>,
+    language: Entity<ExposedDropdownState>,
+    destination: gpui::SharedString,
+}
+
+impl DropdownExamples {
+    pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let city = cx.new(|cx| ExposedDropdownState::new("", true, window, cx));
+        let language = cx.new(|cx| ExposedDropdownState::new("English", false, window, cx));
+        cx.observe(&city, |_, _, cx| cx.notify()).detach();
+        cx.observe(&language, |_, _, cx| cx.notify()).detach();
+        Self {
+            city,
+            language,
+            destination: "".into(),
+        }
+    }
+}
+
+impl Render for DropdownExamples {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let owner = cx.entity().downgrade();
+        stack()
+            .max_w(px(440.))
+            .child(
+                ExposedDropdown::new(
+                    "city",
+                    "Destination",
+                    &self.city,
+                    [
+                        DropdownOption::new("hk", "香港"),
+                        DropdownOption::new("bj", "北京"),
+                        DropdownOption::new("sh", "上海"),
+                    ],
+                )
+                .on_select(move |option, _, cx| {
+                    let _ = owner.update(cx, |view, cx| {
+                        view.destination = option.label.clone();
+                        cx.notify();
+                    });
+                }),
+            )
+            .child(ExposedDropdown::new(
+                "language",
+                "Display language",
+                &self.language,
+                [
+                    DropdownOption::new("en", "English"),
+                    DropdownOption::new("zh", "简体中文"),
+                    DropdownOption::new("ja", "日本語"),
+                ],
+            ))
+            .children(
+                (!self.destination.is_empty())
+                    .then(|| Text::new(format!("Destination selected: {}", self.destination))),
+            )
+    }
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn dropdown_filters_cancels_and_commits_to_owner(cx: &mut gpui::TestAppContext) {
+    use gpui::{InputEvent as _, WindowOptions};
+    use gpui_material::MaterialRoot;
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let entity = cx.new(|cx| DropdownExamples::new(window, cx));
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let focus = window.focused(cx);
+        if focus.is_none() {
+            window.focus_next(cx);
+        }
+        window.dispatch_event(
+            gpui::MouseDownEvent {
+                button: gpui::MouseButton::Left,
+                position: gpui::point(px(60.), px(36.)),
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.refresh();
+        window.draw(cx).clear(cx);
+    })
+    .unwrap();
+    cx.simulate_input(window.into(), "北");
+    cx.run_until_parked();
+    cx.simulate_keystrokes(window.into(), "escape");
+    cx.update(|cx| assert!(view.read(cx).destination.is_empty()));
+    cx.simulate_input(window.into(), "上");
+    cx.run_until_parked();
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+    })
+    .unwrap();
+    cx.simulate_keystrokes(window.into(), "enter");
+    cx.update(|cx| assert_eq!(view.read(cx).destination.as_ref(), "上海"));
+}
+
 pub(crate) struct TextFieldExamples {
     name: Entity<TextFieldState>,
     email: Entity<TextFieldState>,

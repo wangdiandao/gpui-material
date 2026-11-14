@@ -23,6 +23,7 @@ pub(crate) enum Story {
     DividerBadge,
     Progress,
     TextField,
+    ExposedDropdown,
     Snackbar,
 }
 
@@ -52,7 +53,7 @@ impl Story {
             "Display",
             &[Self::TextIcon, Self::Card, Self::List, Self::DividerBadge],
         ),
-        ("Input", &[Self::TextField]),
+        ("Input", &[Self::TextField, Self::ExposedDropdown]),
         ("Feedback", &[Self::Progress, Self::Snackbar]),
     ];
 
@@ -74,6 +75,7 @@ impl Story {
             Self::DividerBadge => "divider-badge",
             Self::Progress => "progress",
             Self::TextField => "text-field",
+            Self::ExposedDropdown => "exposed-dropdown",
             Self::Snackbar => "snackbar",
         }
     }
@@ -96,6 +98,7 @@ impl Story {
             Self::DividerBadge => "Divider & Badge",
             Self::Progress => "Progress & Loading",
             Self::TextField => "Text fields",
+            Self::ExposedDropdown => "Exposed dropdown",
             Self::Snackbar => "Snackbar",
         }
     }

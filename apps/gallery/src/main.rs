@@ -5,6 +5,7 @@ mod input_examples;
 mod selection_examples;
 mod slider_examples;
 mod story;
+mod text_field_examples;
 
 use std::borrow::Cow;
 
@@ -182,6 +183,9 @@ impl Gallery {
                         .new(|cx| selection_examples::SelectionExamples::for_story(story, cx))
                         .into(),
                     Story::Slider => cx.new(slider_examples::SliderExamples::new).into(),
+                    Story::TextField => cx
+                        .new(|cx| text_field_examples::TextFieldExamples::new(window, cx))
+                        .into(),
                     _ => cx
                         .new(|_| display_examples::DisplayExamples::for_story(story))
                         .into(),

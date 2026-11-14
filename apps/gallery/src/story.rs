@@ -22,6 +22,8 @@ pub(crate) enum Story {
     List,
     DividerBadge,
     Progress,
+    Menu,
+    Tooltip,
 }
 
 impl Story {
@@ -51,6 +53,7 @@ impl Story {
             &[Self::TextIcon, Self::Card, Self::List, Self::DividerBadge],
         ),
         ("Feedback", &[Self::Progress]),
+        ("Overlays", &[Self::Menu, Self::Tooltip]),
     ];
 
     pub(crate) fn id(self) -> &'static str {
@@ -70,6 +73,8 @@ impl Story {
             Self::List => "list",
             Self::DividerBadge => "divider-badge",
             Self::Progress => "progress",
+            Self::Menu => "menu",
+            Self::Tooltip => "tooltip",
         }
     }
 
@@ -90,6 +95,8 @@ impl Story {
             Self::List => "Lists",
             Self::DividerBadge => "Divider & Badge",
             Self::Progress => "Progress & Loading",
+            Self::Menu => "Menus",
+            Self::Tooltip => "Tooltips",
         }
     }
 

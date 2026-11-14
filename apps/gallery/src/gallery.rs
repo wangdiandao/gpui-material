@@ -1,18 +1,18 @@
 use gpui::{
     AnyView, App, AppContext, Context, ElementId, Entity, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Render, Role, ScrollHandle,
+    InteractiveElement, IntoElement, ParentElement, Pixels, Render, Role, ScrollHandle,
     StatefulInteractiveElement, Styled, Subscription, Window, div, point, prelude::FluentBuilder,
     px,
 };
 use gpui_base::TestSupportExt;
 use gpui_material::{
-    Button, ButtonVariant, ControlSize, Divider, Fab, FloatingAction, IconButton, List, ListItem,
+    Button, ButtonVariant, ControlSize, Fab, FloatingAction, IconButton, List, ListItem,
     ListVariant, Text, TextField, TextFieldEvent, TextFieldState, TextFieldVariant, ToggleButton,
     ToggleButtonVariant,
     foundation::{
         Surface, color, set_material_theme, set_window_material_theme, window_material_theme,
     },
-    theme::{Appearance, ColorRole, Direction, Elevation, TypeRole},
+    theme::{Appearance, ColorRole, CornerRole, Direction, Elevation, TypeRole, WidthClass},
 };
 
 use crate::{
@@ -22,10 +22,14 @@ use crate::{
 
 gpui::actions!(gallery, [CloseCatalog]);
 
+const COMPACT_MARGIN: Pixels = px(16.);
+const PANE_SPACING: Pixels = px(24.);
+const CATALOG_WIDTH: Pixels = px(360.);
+
 pub(crate) struct Gallery {
     local_theme: bool,
-    sidebar_collapsed: bool,
-    compact_catalog_open: bool,
+    catalog_collapsed: bool,
+    single_pane_catalog_open: bool,
     current: Story,
     search: Entity<TextFieldState>,
     catalog_scroll: ScrollHandle,
@@ -68,8 +72,8 @@ impl Gallery {
             .collect();
         Self {
             local_theme,
-            sidebar_collapsed: false,
-            compact_catalog_open: false,
+            catalog_collapsed: false,
+            single_pane_catalog_open: false,
             current: initial_story,
             search,
             catalog_scroll,
@@ -82,8 +86,12 @@ impl Gallery {
         }
     }
 
-    fn compact(window: &Window) -> bool {
-        window.viewport_size().width < px(700.)
+    fn width_class(window: &Window) -> WidthClass {
+        WidthClass::from_width(window.viewport_size().width.into())
+    }
+
+    fn single_pane(width_class: WidthClass) -> bool {
+        matches!(width_class, WidthClass::Compact | WidthClass::Medium)
     }
 
     fn query(&self, cx: &App) -> String {
@@ -112,20 +120,20 @@ impl Gallery {
             self.current = story;
             self.content_scroll.set_offset(point(px(0.), px(0.)));
         }
-        if Self::compact(window) {
-            self.compact_catalog_open = false;
+        self.single_pane_catalog_open = false;
+        if Self::single_pane(Self::width_class(window)) {
             self.content_focus.focus(window, cx);
         }
         cx.notify();
     }
 
     fn toggle_catalog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let open = if Self::compact(window) {
-            self.compact_catalog_open = !self.compact_catalog_open;
-            self.compact_catalog_open
+        let open = if Self::single_pane(Self::width_class(window)) {
+            self.single_pane_catalog_open = !self.single_pane_catalog_open;
+            self.single_pane_catalog_open
         } else {
-            self.sidebar_collapsed = !self.sidebar_collapsed;
-            !self.sidebar_collapsed
+            self.catalog_collapsed = !self.catalog_collapsed;
+            !self.catalog_collapsed
         };
         if open {
             self.search.read(cx).focus_handle(cx).focus(window, cx);
@@ -137,7 +145,9 @@ impl Gallery {
 
     fn render_catalog(
         &self,
-        compact: bool,
+        single_pane: bool,
+        inset: Pixels,
+        radius: Pixels,
         window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
@@ -148,7 +158,9 @@ impl Gallery {
             .filter(|story| story.matches(&query))
             .collect();
         let no_results = results.is_empty();
-        let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
+        let theme = window_material_theme(window, cx);
+        let rtl = theme.layout.direction == Direction::Rtl;
+        let surface = color(theme.colors.color(ColorRole::Surface));
         let owner = cx.weak_entity();
         let mut search = TextField::new("gallery-search", "Search components", &self.search)
             .variant(TextFieldVariant::Outlined);
@@ -169,44 +181,46 @@ impl Gallery {
         div()
             .id("gallery-catalog-pane")
             .key_context("GalleryCatalog")
+            .test_support()
             .on_action(cx.listener(move |this, _: &CloseCatalog, window, cx| {
-                if compact {
+                if single_pane {
                     this.toggle_catalog(window, cx);
                 } else {
                     cx.propagate();
                 }
             }))
             .when_else(
-                compact,
+                single_pane,
                 |panel| panel.flex_1().min_w_0(),
-                |panel| panel.w_64().flex_none(),
+                |panel| panel.w(CATALOG_WIDTH).flex_none(),
             )
             .min_h_0()
+            .flex()
+            .flex_col()
+            .rounded(radius)
+            .bg(surface)
             .child(
-                Surface::new(ColorRole::SurfaceContainerLow)
-                    .size_full()
+                stack()
+                    .gap_3()
+                    .flex_none()
+                    .px(inset)
+                    .py_4()
+                    .when(rtl, Styled::items_end)
+                    .child(Text::new("Components").role(TypeRole::TitleMedium))
+                    .child(search),
+            )
+            .child(
+                div()
+                    .id("gallery-catalog")
+                    .tab_group()
+                    .track_scroll(&self.catalog_scroll)
+                    .overflow_y_scroll()
                     .min_h_0()
-                    .flex()
-                    .flex_col()
-                    .child(
-                        stack()
-                            .gap_3()
-                            .flex_none()
-                            .p_4()
-                            .when(rtl, Styled::items_end)
-                            .child(Text::new("Components").role(TypeRole::TitleMedium))
-                            .child(search),
-                    )
+                    .flex_1()
                     .child(
                         div()
-                            .id("gallery-catalog")
-                            .tab_group()
-                            .track_scroll(&self.catalog_scroll)
-                            .overflow_y_scroll()
-                            .min_h_0()
-                            .flex_1()
-                            .px_3()
-                            .pb_3()
+                            .px(inset)
+                            .pb_4()
                             .child(
                                 List::new("component-catalog")
                                     .variant(ListVariant::Segmented)
@@ -270,10 +284,15 @@ impl Gallery {
             .child(section("Input and overlays").child(self.input.clone()))
     }
 
-    fn render_story(&self, compact: bool, window: &Window, cx: &App) -> impl IntoElement {
+    fn render_story(
+        &self,
+        inset: Pixels,
+        radius: Pixels,
+        window: &Window,
+        cx: &App,
+    ) -> impl IntoElement {
         let theme = window_material_theme(window, cx);
         let rtl = theme.layout.direction == Direction::Rtl;
-        let local_theme = self.local_theme;
         let content = match self.current {
             Story::Introduction => self.render_introduction(window, cx).into_any_element(),
             Story::Foundation => self.render_foundation().into_any_element(),
@@ -288,95 +307,37 @@ impl Gallery {
         div()
             .id((ElementId::from("gallery-story-pane"), self.current.id()))
             .track_focus(&self.content_focus)
+            .test_support()
             .flex()
             .flex_col()
             .flex_1()
             .min_h_0()
             .min_w_0()
+            .rounded(radius)
+            .bg(color(theme.colors.color(ColorRole::Surface)))
             .child(
-                div()
+                stack()
                     .flex_none()
-                    .flex()
-                    .flex_wrap()
-                    .items_start()
-                    .justify_between()
-                    .gap_2()
-                    .px_4()
-                    .py_3()
-                    .when(rtl, Styled::flex_row_reverse)
+                    .gap_1()
+                    .px(inset)
+                    .py_4()
+                    .when(rtl, Styled::items_end)
                     .child(
-                        stack()
-                            .gap_1()
-                            .flex_1()
-                            .min_w_48()
-                            .when(rtl, Styled::items_end)
-                            .child(
-                                div()
-                                    .id("story-title")
-                                    .role(Role::Heading)
-                                    .aria_label(self.current.name())
-                                    .child(Text::new(self.current.name()).role(if compact {
-                                        TypeRole::TitleLarge
-                                    } else {
-                                        TypeRole::HeadlineSmall
-                                    })),
-                            )
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .text_color(color(
-                                        theme.colors.color(ColorRole::OnSurfaceVariant),
-                                    ))
-                                    .when(rtl, Styled::text_right)
-                                    .child(self.current.description()),
-                            ),
+                        div()
+                            .id("story-title")
+                            .role(Role::Heading)
+                            .aria_label(self.current.name())
+                            .test_support()
+                            .child(Text::new(self.current.name()).role(TypeRole::HeadlineSmall)),
                     )
                     .child(
                         div()
-                            .flex()
-                            .flex_wrap()
-                            .items_center()
-                            .gap_1()
-                            .when(rtl, Styled::flex_row_reverse)
-                            .child(
-                                Button::new(
-                                    "toggle-theme",
-                                    if theme.colors.appearance() == Appearance::Dark {
-                                        "Light theme"
-                                    } else {
-                                        "Dark theme"
-                                    },
-                                )
-                                .variant(ButtonVariant::Text)
-                                .size(ControlSize::ExtraSmall)
-                                .on_activate(move |window, cx| {
-                                    let mut theme = window_material_theme(window, cx).clone();
-                                    let appearance = match theme.colors.appearance() {
-                                        Appearance::Light => Appearance::Dark,
-                                        Appearance::Dark => Appearance::Light,
-                                    };
-                                    theme.colors =
-                                        gpui_material::theme::ColorScheme::baseline(appearance);
-                                    if local_theme {
-                                        set_window_material_theme(Some(theme), window, cx);
-                                    } else {
-                                        set_material_theme(theme, cx);
-                                    }
-                                }),
-                            )
-                            .child(
-                                ToggleButton::new(
-                                    "toggle-motion",
-                                    "Reduced motion",
-                                    cx.reduce_motion(),
-                                )
-                                .variant(ToggleButtonVariant::Outlined)
-                                .size(ControlSize::ExtraSmall)
-                                .on_change(|next, _, cx| cx.set_reduce_motion(next)),
-                            ),
+                            .text_sm()
+                            .text_color(color(theme.colors.color(ColorRole::OnSurfaceVariant)))
+                            .when(rtl, Styled::text_right)
+                            .child(self.current.description()),
                     ),
             )
-            .child(Divider::horizontal())
             .child(
                 div()
                     .id("gallery-scroll")
@@ -387,39 +348,41 @@ impl Gallery {
                     .min_h_0()
                     .child(
                         div()
-                            .p_4()
+                            .px(inset)
+                            .py_4()
                             .when(self.current == Story::Fab, |content| content.pb_24())
                             .child(content),
                     ),
             )
     }
 
-    fn render_status_bar(
+    fn render_app_bar(
         &self,
-        compact: bool,
+        single_pane: bool,
         show_catalog: bool,
+        margin: Pixels,
         window: &Window,
         cx: &Context<Self>,
     ) -> impl IntoElement {
         let theme = window_material_theme(window, cx);
         let appearance = theme.colors.appearance();
         let rtl = theme.layout.direction == Direction::Rtl;
-        let status = format!("Display scale {:.0}%", window.scale_factor() * 100.);
-        let theme_status = format!("Window theme {appearance:?}");
-        let label = match (compact, show_catalog) {
+        let local_theme = self.local_theme;
+        let label = match (single_pane, show_catalog) {
             (true, true) => "Back",
-            (false, true) => "Hide sidebar",
-            (false, false) => "Show sidebar",
-            (true, false) => "Components",
+            (false, true) => "Hide components",
+            (_, false) => "Components",
         };
-        Surface::new(ColorRole::SurfaceContainerLow)
+        div()
             .w_full()
             .flex_none()
-            .px_2()
-            .py_1()
+            .px(margin)
+            .py_2()
             .flex()
+            .flex_wrap()
             .items_center()
-            .gap_3()
+            .justify_between()
+            .gap_2()
             .when(rtl, Styled::flex_row_reverse)
             .child(
                 Button::new("browse-components", label)
@@ -432,17 +395,72 @@ impl Gallery {
                         }
                     }),
             )
-            .child(div().flex_1())
-            .when(!compact, |bar| {
-                bar.child(
-                    div()
-                        .id("window-theme")
-                        .role(Role::Status)
-                        .aria_label(theme_status.clone())
-                        .test_support()
-                        .child(Text::new(theme_status).role(TypeRole::LabelMedium)),
-                )
-            })
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap_1()
+                    .when(rtl, Styled::flex_row_reverse)
+                    .child(
+                        Button::new(
+                            "toggle-theme",
+                            if appearance == Appearance::Dark {
+                                "Light theme"
+                            } else {
+                                "Dark theme"
+                            },
+                        )
+                        .variant(ButtonVariant::Text)
+                        .size(ControlSize::ExtraSmall)
+                        .on_activate(move |window, cx| {
+                            let mut theme = window_material_theme(window, cx).clone();
+                            let appearance = match theme.colors.appearance() {
+                                Appearance::Light => Appearance::Dark,
+                                Appearance::Dark => Appearance::Light,
+                            };
+                            theme.colors = gpui_material::theme::ColorScheme::baseline(appearance);
+                            if local_theme {
+                                set_window_material_theme(Some(theme), window, cx);
+                            } else {
+                                set_material_theme(theme, cx);
+                            }
+                        }),
+                    )
+                    .child(
+                        ToggleButton::new("toggle-motion", "Reduced motion", cx.reduce_motion())
+                            .variant(ToggleButtonVariant::Outlined)
+                            .size(ControlSize::ExtraSmall)
+                            .on_change(|next, _, cx| cx.set_reduce_motion(next)),
+                    ),
+            )
+    }
+
+    fn render_status_bar(&self, margin: Pixels, window: &Window, cx: &App) -> impl IntoElement {
+        let theme = window_material_theme(window, cx);
+        let rtl = theme.layout.direction == Direction::Rtl;
+        let appearance = theme.colors.appearance();
+        let status = format!("Display scale {:.0}%", window.scale_factor() * 100.);
+        let theme_status = format!("Window theme {appearance:?}");
+        div()
+            .w_full()
+            .flex_none()
+            .px(margin)
+            .py_2()
+            .flex()
+            .flex_wrap()
+            .items_center()
+            .justify_end()
+            .gap_3()
+            .when(rtl, Styled::flex_row_reverse)
+            .child(
+                div()
+                    .id("window-theme")
+                    .role(Role::Status)
+                    .aria_label(theme_status.clone())
+                    .test_support()
+                    .child(Text::new(theme_status).role(TypeRole::LabelMedium)),
+            )
             .child(
                 div()
                     .id("display-scale")
@@ -457,32 +475,54 @@ impl Gallery {
 impl Render for Gallery {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
-        let compact = Self::compact(window);
-        let show_catalog = if compact {
-            self.compact_catalog_open
+        let width_class = Self::width_class(window);
+        let single_pane = Self::single_pane(width_class);
+        let show_catalog = if single_pane {
+            self.single_pane_catalog_open
         } else {
-            !self.sidebar_collapsed
+            !self.catalog_collapsed
         };
-        let show_story = !compact || !show_catalog;
+        let show_story = !single_pane || !show_catalog;
+        let margin = if width_class == WidthClass::Compact {
+            COMPACT_MARGIN
+        } else {
+            PANE_SPACING
+        };
+        let inset = if single_pane { margin } else { COMPACT_MARGIN };
+        let pane_radius = if single_pane {
+            px(0.)
+        } else {
+            let size = window.viewport_size();
+            px(CornerRole::ExtraLarge.shape().radii(
+                size.width.into(),
+                size.height.into(),
+                Direction::Ltr,
+            )[0])
+        };
 
-        Surface::new(ColorRole::Surface)
+        Surface::new(ColorRole::SurfaceContainer)
             .size_full()
             .flex()
             .flex_col()
+            .child(self.render_app_bar(single_pane, show_catalog, margin, window, cx))
             .child(
                 div()
                     .flex_1()
                     .min_h_0()
                     .flex()
+                    .gap(PANE_SPACING)
+                    .when(!single_pane, |body| body.px(margin))
                     .when(rtl, Styled::flex_row_reverse)
-                    .children(show_catalog.then(|| self.render_catalog(compact, window, cx)))
-                    .when(show_catalog && show_story, |body| {
-                        body.child(Divider::vertical())
-                    })
-                    .children(show_story.then(|| self.render_story(compact, window, cx))),
+                    .children(
+                        show_catalog.then(|| {
+                            self.render_catalog(single_pane, inset, pane_radius, window, cx)
+                        }),
+                    )
+                    .children(
+                        show_story.then(|| self.render_story(inset, pane_radius, window, cx)),
+                    ),
             )
-            .child(Divider::horizontal())
-            .child(self.render_status_bar(compact, show_catalog, window, cx))
+            .child(self.render_status_bar(margin, window, cx))
             .children((show_story && self.current == Story::Fab).then(|| {
                 FloatingAction::new(
                     Fab::new("floating-motion", "Toggle reduced motion", "◐")

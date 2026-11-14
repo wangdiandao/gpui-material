@@ -1,21 +1,49 @@
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use gpui::{
-    App, Font, FontFallbacks, FontWeight, Hsla, Pixels, Point, ShapedLine, SharedString, TextAlign,
-    TextRun, Window, font, px,
+    App, Font, FontFallbacks, FontWeight, Global, Hsla, Pixels, Point, ShapedLine, SharedString,
+    TextAlign, TextRun, Window, font, px,
 };
 use gpui_material_theme::{LayoutPolicy, TypeStyle, Typography};
 
-pub(crate) fn font_for_style(typography: &Typography, style: TypeStyle, cx: &App) -> Font {
+struct InstalledFonts(HashSet<String>);
+
+impl Global for InstalledFonts {}
+
+impl InstalledFonts {
+    fn enumerate(cx: &App) -> Self {
+        Self(
+            cx.text_system()
+                .all_font_names()
+                .into_iter()
+                .map(|name| name.to_ascii_lowercase())
+                .collect(),
+        )
+    }
+}
+
+pub(crate) fn refresh_installed_fonts(cx: &mut App) {
+    cx.set_global(InstalledFonts::enumerate(cx));
+}
+
+/// Resolves the first available Material font family for a text style.
+///
+/// Material snapshots installed families when setting the application or window
+/// theme. Set the theme again after registering additional fonts with GPUI.
+pub fn font_for_style(typography: &Typography, style: TypeStyle, cx: &App) -> Font {
     let families = typography.families(style.typeface);
-    let installed = cx.text_system().all_font_names();
+    let uncached;
+    let installed = match cx.try_global::<InstalledFonts>() {
+        Some(installed) => installed,
+        None => {
+            uncached = InstalledFonts::enumerate(cx);
+            &uncached
+        }
+    };
     let family = std::iter::once(&families.primary)
         .chain(&families.fallback)
         .find(|name| {
-            name.as_str() == ".SystemUIFont"
-                || installed
-                    .iter()
-                    .any(|installed| installed.eq_ignore_ascii_case(name))
+            name.as_str() == ".SystemUIFont" || installed.0.contains(&name.to_ascii_lowercase())
         })
         .map_or(".SystemUIFont", String::as_str);
     let mut font = font(family.to_owned());

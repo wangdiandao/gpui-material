@@ -9,7 +9,7 @@ pub use root::{
     window_material_theme,
 };
 pub use surface::{Surface, color, scrim_color};
-pub use typography::{ShapedText, shape_text};
+pub use typography::{ShapedText, font_for_style, shape_text};
 
 mod feedback;
 mod motion;

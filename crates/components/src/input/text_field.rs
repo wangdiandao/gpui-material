@@ -10,7 +10,7 @@ use gpui_base::{
     TestSupportExt,
     input::{InputAccessibility, InputBaseState, InputEditorStyle, InputModeKind},
 };
-use gpui_material_foundation::{animate, color, window_material_theme};
+use gpui_material_foundation::{animate, color, font_for_style, window_material_theme};
 use gpui_material_theme::{
     ColorRole, CornerRole, Direction, LayoutPolicy, MotionKind, MotionSpeed, TypeRole,
     TypographyEmphasis,
@@ -204,17 +204,7 @@ impl RenderOnce for TextField {
             TypeRole::BodySmall.style(TypographyEmphasis::Baseline),
             self.font_scale,
         );
-        let families = theme.typography.families(type_style.typeface);
-        let installed = cx.text_system().all_font_names();
-        let font = std::iter::once(&families.primary)
-            .chain(&families.fallback)
-            .find(|family| {
-                installed
-                    .iter()
-                    .any(|name| name.eq_ignore_ascii_case(family))
-            })
-            .map_or(".SystemUIFont", String::as_str)
-            .to_owned();
+        let font = font_for_style(&theme.typography, type_style, cx).family;
         let has_text = match &self.editor {
             Editor::Single(state) | Editor::Secure(state) => !state.read(cx).value().is_empty(),
             Editor::Multiple(state) => !state.read(cx).value().is_empty(),

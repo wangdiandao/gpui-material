@@ -9,6 +9,7 @@ use gpui_material::{
 
 use crate::{
     action_examples::ActionExamples,
+    adaptive_examples::AdaptiveExamples,
     display_examples::DisplayExamples,
     navigation_examples::NavigationExamples,
     overlay_examples::{MenuTooltipExamples, ModalExamples, SnackbarExamples},
@@ -21,6 +22,7 @@ use crate::{
 pub(crate) enum Story {
     #[default]
     Introduction,
+    AdaptiveLayout,
     AppBar,
     Badge,
     Button,
@@ -57,6 +59,7 @@ impl Story {
     // Introduction is the landing page. The component index follows display-name order.
     pub(crate) const ALL: &[Self] = &[
         Self::Introduction,
+        Self::AdaptiveLayout,
         Self::AppBar,
         Self::Badge,
         Self::Button,
@@ -92,6 +95,7 @@ impl Story {
     pub(crate) fn id(self) -> &'static str {
         match self {
             Self::Introduction => "introduction",
+            Self::AdaptiveLayout => "adaptive-layout",
             Self::AppBar => "app-bar",
             Self::Badge => "badge",
             Self::Button => "button",
@@ -128,6 +132,7 @@ impl Story {
     pub(crate) fn name(self) -> &'static str {
         match self {
             Self::Introduction => "Introduction",
+            Self::AdaptiveLayout => "Adaptive layout",
             Self::AppBar => "App bar",
             Self::Badge => "Badge",
             Self::Button => "Button",
@@ -165,6 +170,9 @@ impl Story {
         match self {
             Self::Introduction => {
                 "Interactive examples from the Material 3 Expressive library for GPUI."
+            }
+            Self::AdaptiveLayout => {
+                "Resize a scaffold to see navigation, panes, and feed columns adapt."
             }
             Self::AppBar => "Place navigation, titles, and commands above scrolling content.",
             Self::Badge => "Annotate icons with a dot, label, or count.",
@@ -226,6 +234,7 @@ impl Story {
     pub(crate) fn new_view(self, window: &mut Window, cx: &mut App) -> Option<AnyView> {
         let view = match self {
             Self::Introduction | Self::Foundation => return None,
+            Self::AdaptiveLayout => cx.new(AdaptiveExamples::new).into(),
             Self::Button
             | Self::ToggleButton
             | Self::IconButton

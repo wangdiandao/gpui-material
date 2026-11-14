@@ -1,4 +1,5 @@
 mod action_examples;
+mod adaptive_examples;
 mod display_examples;
 mod drawing;
 mod gallery;

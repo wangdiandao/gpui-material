@@ -1,9 +1,9 @@
 use std::{collections::HashMap, rc::Rc};
 
 use gpui::{
-    AccessibleAction, AnyElement, App, ElementId, FocusHandle, InteractiveElement, IntoElement,
-    ParentElement, RenderOnce, Role, ScrollHandle, SharedString, StatefulInteractiveElement,
-    Styled, TextAlign, Window, div, prelude::FluentBuilder, px,
+    AccessibleAction, AnyElement, App, ElementId, Entity, FocusHandle, InteractiveElement,
+    IntoElement, ParentElement, RenderOnce, Role, ScrollHandle, SharedString,
+    StatefulInteractiveElement, Styled, TextAlign, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{Button, TestSupportExt};
 use gpui_material_foundation::{animate, color, text_style, window_material_theme};
@@ -53,6 +53,7 @@ pub struct NavigationItems {
     selected: Option<SharedString>,
     on_select: Option<Select>,
     font_scale: f32,
+    state: Option<Entity<RowState>>,
 }
 
 impl NavigationItems {
@@ -68,6 +69,7 @@ impl NavigationItems {
             selected: None,
             on_select: None,
             font_scale: 1.,
+            state: None,
         }
     }
 
@@ -93,6 +95,20 @@ impl NavigationItems {
             1.
         };
         self
+    }
+
+    // Resolve the state before the adaptive scaffold puts it under a different
+    // element path. Otherwise switching from its bar slot to its rail slot
+    // replaces the destination focus handles.
+    pub(super) fn retain(mut self, window: &mut Window, cx: &mut App) -> Self {
+        self.state = Some(self.row_state(window, cx));
+        self
+    }
+
+    fn row_state(&self, window: &mut Window, cx: &mut App) -> Entity<RowState> {
+        window.use_keyed_state((self.id.clone(), "navigation-state"), cx, |_, _| {
+            RowState::default()
+        })
     }
 }
 
@@ -246,9 +262,10 @@ impl NavigationItems {
         let scrollable = presentation.is_scrollable();
         let has_icons = self.items.iter().any(|item| item.icon.is_some());
         let height = px(density.interactive_size(presentation.minimum_height(has_icons)));
-        let state = window.use_keyed_state((self.id.clone(), "navigation-state"), cx, |_, _| {
-            RowState::default()
-        });
+        let state = self
+            .state
+            .clone()
+            .unwrap_or_else(|| self.row_state(window, cx));
         let (focus, scroll) = state.update(cx, |state, cx| {
             let mut previous = std::mem::take(&mut state.focus);
             state.focus = self

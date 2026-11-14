@@ -10,6 +10,7 @@ use gpui_material::{
 use crate::{
     action_examples::ActionExamples,
     adaptive_examples::AdaptiveExamples,
+    date_time_examples::DateTimeExamples,
     display_examples::DisplayExamples,
     group_examples::GroupExamples,
     navigation_examples::NavigationExamples,
@@ -33,6 +34,8 @@ pub(crate) enum Story {
     Card,
     Checkbox,
     Chip,
+    DatePicker,
+    DateRangePicker,
     Dialog,
     Divider,
     ExposedDropdown,
@@ -58,6 +61,7 @@ pub(crate) enum Story {
     Tabs,
     Text,
     TextField,
+    TimePicker,
     ToggleButton,
     Toolbars,
     Tooltip,
@@ -75,6 +79,8 @@ impl Story {
         Self::Card,
         Self::Checkbox,
         Self::Chip,
+        Self::DatePicker,
+        Self::DateRangePicker,
         Self::Dialog,
         Self::Divider,
         Self::ExposedDropdown,
@@ -100,6 +106,7 @@ impl Story {
         Self::Tabs,
         Self::Text,
         Self::TextField,
+        Self::TimePicker,
         Self::ToggleButton,
         Self::Toolbars,
         Self::Tooltip,
@@ -116,6 +123,8 @@ impl Story {
             Self::Card => "card",
             Self::Checkbox => "checkbox",
             Self::Chip => "chip",
+            Self::DatePicker => "date-picker",
+            Self::DateRangePicker => "date-range-picker",
             Self::Dialog => "dialog",
             Self::Divider => "divider",
             Self::ExposedDropdown => "exposed-dropdown",
@@ -141,6 +150,7 @@ impl Story {
             Self::Tabs => "tabs",
             Self::Text => "text",
             Self::TextField => "text-field",
+            Self::TimePicker => "time-picker",
             Self::ToggleButton => "toggle-button",
             Self::Toolbars => "toolbars",
             Self::Tooltip => "tooltip",
@@ -158,6 +168,8 @@ impl Story {
             Self::Card => "Card",
             Self::Checkbox => "Checkbox",
             Self::Chip => "Chip",
+            Self::DatePicker => "Date picker",
+            Self::DateRangePicker => "Date range picker",
             Self::Dialog => "Dialog",
             Self::Divider => "Divider",
             Self::ExposedDropdown => "Exposed dropdown",
@@ -183,6 +195,7 @@ impl Story {
             Self::Tabs => "Tabs",
             Self::Text => "Text",
             Self::TextField => "Text field",
+            Self::TimePicker => "Time picker",
             Self::ToggleButton => "Toggle button",
             Self::Toolbars => "Toolbars",
             Self::Tooltip => "Tooltip",
@@ -208,6 +221,10 @@ impl Story {
             Self::Card => "Group related content and actions on a Material surface.",
             Self::Checkbox => "Select multiple options and represent a mixed selection.",
             Self::Chip => "Offer suggestions, filter results, or represent removable inputs.",
+            Self::DatePicker => "Choose an available date in a docked calendar or a dialog.",
+            Self::DateRangePicker => {
+                "Choose two date endpoints on the calendar or enter them by hand."
+            }
             Self::Dialog => "Request a decision or input and restore focus when dismissed.",
             Self::Divider => "Separate related content with horizontal or vertical rules.",
             Self::ExposedDropdown => "Pick an option from an editable or fixed list.",
@@ -241,6 +258,7 @@ impl Story {
             Self::TextField => {
                 "Edit single-line, multiline, and secure text with supporting feedback."
             }
+            Self::TimePicker => "Set hours and minutes with a clock face or keyboard entry.",
             Self::ToggleButton => "Keep the on or off state of an action visible.",
             Self::Toolbars => "Group editing commands in floating and docked toolbars.",
             Self::Tooltip => "Provide contextual help for a control on hover or focus.",
@@ -265,6 +283,9 @@ impl Story {
         let view = match self {
             Self::Introduction | Self::Foundation => return None,
             Self::AdaptiveLayout => cx.new(AdaptiveExamples::new).into(),
+            Self::DatePicker | Self::DateRangePicker | Self::TimePicker => {
+                cx.new(|cx| DateTimeExamples::new(self, window, cx)).into()
+            }
             Self::ButtonGroup | Self::SplitButton => {
                 cx.new(|cx| GroupExamples::new(self, cx)).into()
             }

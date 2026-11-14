@@ -2211,6 +2211,7 @@ dependencies = [
 name = "gpui-material-extras"
 version = "0.0.4"
 dependencies = [
+ "chrono",
  "gpui-base",
  "gpui-material-components",
  "gpui-material-foundation",

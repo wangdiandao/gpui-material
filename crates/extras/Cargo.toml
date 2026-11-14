@@ -11,8 +11,10 @@ default = []
 expressive-groups = ["dep:gpui", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
 search = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
 toolbars = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
+date-time = ["dep:chrono", "dep:gpui", "dep:gpui-base", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
 
 [dependencies]
+chrono = { version = "0.4.45", default-features = false, optional = true }
 gpui = { workspace = true, optional = true }
 gpui-base = { workspace = true, optional = true }
 gpui-material-components = { path = "../components", optional = true }

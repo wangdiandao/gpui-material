@@ -1,9 +1,9 @@
 schema_version = 1
 current_phase = "P7"
-allowed_paths = ["status.toml", "Cargo.lock", "apps/gallery/", "crates/components/Cargo.toml", "crates/components/src/lib.rs", "crates/components/src/navigation/", "crates/material/Cargo.toml", "crates/foundation/Cargo.toml", "crates/theme/Cargo.toml", "docs/phases/P07.md", "docs/phases/P07.zh.md", "docs/phases/P07.i18n.yaml"]
+allowed_paths = []
 blockers = []
 repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }, { phase = "P4", issue = 118, status = "completed", scope = "Foundation Gallery slider alignment", commit = "02b2d25dd252abf34a6719f8bc672bb0e663d98d" }, { phase = "P5", issue = 119, status = "completed", scope = "Visual defects and acceptance coverage in Material components, Gallery and the window theme adapter", commit = "9b85f97034ea3253fdc9bc48eb6b0667be684224" }, { phase = "P5", issue = 125, status = "completed", scope = "Material Gallery component navigation and sample organization", commit = "33375c769b06d981126c9028612bc8b3df0ebcbe" }, { phase = "P6", issue = 149, status = "completed", scope = "Gallery alignment and Compose motion across delivered controls", commit = "8d05e56c2aa52e98a0a4fb4c1c305910d2d8cd4f" }, { phase = "P6", issue = 153, status = "completed", scope = "Replace the grouped Gallery with the searchable component catalog", commit = "3653a7a08c260e7ee4071df392c1c8c8ca6a7e08" }, { phase = "P6", issue = 156, status = "completed", scope = "Remove repeated font enumeration from Material render paths", commit = "694988982782cc1f5f09c608d5c051665d1fd835" }, { phase = "P6", issue = 160, status = "completed", scope = "Apply measured development-profile optimizations for Gallery runtime dependencies", commit = "408f03e696b0a01f71bc929b00dd0e48f1073dad" }, { phase = "P6", issue = 164, status = "completed", scope = "Apply the Material 3 list-detail layout to the Gallery", commit = "321d4a6a270ec9fe2faf4ba97cbadb1f783142fc" }, { phase = "P6", issue = 168, status = "completed", scope = "Audit and repair all delivered Material components and shared theme/foundation conformance against official Material and Compose sources", commit = "519ec48f787ce0a6a68c8ab271c0f640b82deeaf" }, { phase = "P6", issue = 172, status = "completed", scope = "Replace font-dependent icon placeholders with reusable official Material Symbols SVGs across components and Gallery", commit = "7ba950d475cd92398e6e87eb848a7cf0128c9957" }]
-frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac", P4 = "02b2d25dd252abf34a6719f8bc672bb0e663d98d", P5 = "33375c769b06d981126c9028612bc8b3df0ebcbe", P6 = "7ba950d475cd92398e6e87eb848a7cf0128c9957" }
+frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac", P4 = "02b2d25dd252abf34a6719f8bc672bb0e663d98d", P5 = "33375c769b06d981126c9028612bc8b3df0ebcbe", P6 = "7ba950d475cd92398e6e87eb848a7cf0128c9957", P7 = "47b56446ce606ee85a48694df4f0b448b158a58d" }
 
 [phases.P0]
 status = "frozen"
@@ -104,8 +104,15 @@ merged_deliverables = [
 ]
 
 [phases.P7]
-status = "active"
+status = "frozen"
+frozen_on = 2026-11-14
 entry_conditions = ["P6 is frozen", "Pinned Material 3 and Compose Adaptive sources and verified Foundation primitives are available"]
+merged_deliverables = [
+    { task = "P7-01", issue = 176, pull_request = 180, commit = "b97a07992267e0151a1417022690406b0e4af7ea" },
+    { task = "P7-02", issue = 177, pull_request = 181, commit = "2aa3187dcaf01747f5b5976469361532f01bfbd2" },
+    { task = "P7-03", issue = 178, pull_request = 182, commit = "c4b6a0a7b0ed0a926de6a8d75269698f9d19f14e" },
+    { task = "P7-04", issue = 179, pull_request = 183, commit = "47b56446ce606ee85a48694df4f0b448b158a58d" },
+]
 
 [phases.P8]
 status = "planned"

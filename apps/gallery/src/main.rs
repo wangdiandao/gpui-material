@@ -439,21 +439,15 @@ impl Render for Gallery {
                             }),
                         )
                     })
-                    .child(
-                        div().min_w_0().flex_1().child(
-                            Text::new(if compact {
-                                if self.catalog_open {
-                                    "Components"
-                                } else {
-                                    story_title
-                                }
-                            } else {
-                                TITLE
-                            })
-                            .id("gallery-title")
-                            .role(TypeRole::TitleMedium),
-                        ),
-                    )
+                    .when(!compact, |toolbar| {
+                        toolbar.child(
+                            div().min_w_0().flex_1().child(
+                                Text::new(TITLE)
+                                    .id("gallery-title")
+                                    .role(TypeRole::TitleMedium),
+                            ),
+                        )
+                    })
                     .child(
                         Button::new(
                             "toggle-theme",
@@ -504,15 +498,13 @@ impl Render for Gallery {
                             .flex_1()
                             .min_h_0()
                             .min_w_0()
-                            .when(!compact, |pane| {
-                                pane.child(
-                                    div().flex_none().px_6().py_4().child(
-                                        Text::new(story_title)
-                                            .id("story-title")
-                                            .role(TypeRole::HeadlineSmall),
-                                    ),
-                                )
-                            })
+                            .child(div().flex_none().px_6().py_4().child(
+                                Text::new(story_title).id("story-title").role(if compact {
+                                    TypeRole::TitleLarge
+                                } else {
+                                    TypeRole::HeadlineSmall
+                                }),
+                            ))
                             .child(
                                 div()
                                     .id("gallery-scroll")

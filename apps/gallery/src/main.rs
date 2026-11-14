@@ -1,5 +1,6 @@
 mod action_examples;
 mod adaptive_examples;
+mod date_time_examples;
 mod display_examples;
 mod drawing;
 mod gallery;

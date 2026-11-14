@@ -17,4 +17,6 @@
 
 Foundation crate 使用 [polymorpher 0.1.4](https://crates.io/crates/polymorpher/0.1.4) 生成圆角多边形几何。该依赖使用空默认特性集，由 polymorpher 直接依赖 euclid。发布包包含 Apache-2.0 许可证。
 
+extras crate 的 `date-time` 特性使用 [chrono 0.4.45](https://crates.io/crates/chrono/0.4.45) 进行公历运算并表示本地日期和时间。Chrono 可按 MIT 或 Apache-2.0 许可使用。
+
 引入第三方源码、图标、字体或文档节选时，在其归属阶段记录精确来源、版本、修改与再分发条款。源版本和 Cargo 候选见[设计依据](docs/design-sources.zh.md)及[架构与依赖](docs/architecture.zh.md)。

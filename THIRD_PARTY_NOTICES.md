@@ -17,4 +17,6 @@ The theme's `dynamic-color` feature uses [material-color-utils 0.1.3](https://cr
 
 The Foundation crate uses [polymorpher 0.1.4](https://crates.io/crates/polymorpher/0.1.4) for rounded polygon geometry. It uses the crate's empty default feature set and depends directly on euclid through polymorpher. The package includes the Apache-2.0 license.
 
+The extras crate's `date-time` feature uses [chrono 0.4.45](https://crates.io/crates/chrono/0.4.45) for Gregorian calendar arithmetic and local date and time values. Chrono is available under MIT or Apache-2.0.
+
 When including third-party source, icons, fonts, or documentation excerpts, record the exact source, version, modifications, and redistribution terms in the owning phase. [Design sources](docs/design-sources.md) · [Architecture and dependencies](docs/architecture.md)

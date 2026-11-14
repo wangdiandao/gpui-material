@@ -46,7 +46,7 @@ P0 确定 Base 与 GPUI 来源。其余候选由归属阶段验证。准入记�
 | [`material-color-utils 0.1.3`][mcu-rust] | P3 已准入 | HCT、色板和动态语义色。关闭默认 feature，避免 image、serde、rayon；直接依赖 bon、indexmap、papaya、thiserror。发布元数据使用 license-file，包内 LICENSE 为 Apache-2.0。 | 库类型由 theme 内部适配。见[主题 PR](https://github.com/wangdiandao/gpui-material/pull/78)。 |
 | [`polymorpher 0.1.4`][polymorpher] | P1 可行性，P4 准入 | 圆角多边形和 morph，保留默认空 feature，只使用基础几何；直接依赖 euclid。Apache-2.0。 | 对照 AndroidX，检查输出曲线、边界、拓扑、裁剪、命中和性能。GPUI 路径转换集中在 foundation。 |
 | [Material Symbols][symbols] | P4/P5 | 使用固定版本的必要资源，应用可替换图标。Apache-2.0。 | 验证资源映射、图标 fallback 与 RTL。逐项登记分发资产和许可证。 |
-| `chrono` 与 [Base Calendar][calendar] | P1 验证行为，P8 准入日期族 | Base 清单为 `0.4.38` 兼容范围，固定上游 lockfile 解析为 0.4.45。MIT 或 Apache-2.0。 | 核对统一版本、日历语义与边界。日期运算由 Base/chrono 复用，locale 格式走独立 formatter。 |
+| `chrono 0.4.45` 与 [Base Calendar][calendar] | P1 验证行为，P8 已准入 | `date-time` 特性在 extras 中启用直接 chrono 依赖，并关闭其默认特性。该依赖与现有 Base 和 GPUI 依赖图解析到同一个包。MIT 或 Apache-2.0。 | Base 管理日历及日期范围的草稿状态。Chrono 提供有边界检查的日历运算和日期时间类型。应用通过格式化和解析接口控制本地化显示与输入。 |
 | [`rust-i18n 4.2.4`][i18n] | P4 定义本地化入口，出现目录需求时再评估 | 可选应用适配。MIT。初始项目使用可覆盖文案和 formatter，候选引入宏与 support crate。 | 评估编译成本和依赖图，验证字符串覆盖及真实布局。翻译库类型由应用适配封装。 |
 
 extras 按实际需要定义 expressive-groups、search、date-time、carousel 等组件族。主题支持静态数据，dynamic-color 与 serde 按需启用，图片提色优先留在工具层。组件所需键盘、语义和动效属于完整行为。

@@ -12,7 +12,8 @@ use gpui_base::{
     slider::{Slider as BaseSlider, SliderIndicator},
 };
 use gpui_material_foundation::{
-    DragCapture, RangeThumb, color, range_semantics, shape_text, value_label, window_material_theme,
+    DragCapture, RangeThumb, animate, color, range_semantics, shape_text, value_label,
+    window_material_theme,
 };
 use gpui_material_theme::{ColorRole, Direction, TypeRole, TypographyEmphasis};
 
@@ -39,6 +40,7 @@ pub struct Slider {
     size: ControlSize,
     disabled: bool,
     icon: Option<AnyElement>,
+    tick_intervals: u16,
     range_end_name: Option<SharedString>,
 }
 
@@ -57,6 +59,7 @@ impl Slider {
             size: ControlSize::Small,
             disabled: false,
             icon: None,
+            tick_intervals: 0,
             range_end_name: None,
         }
     }
@@ -90,6 +93,13 @@ impl Slider {
 
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
+        self
+    }
+
+    /// Draws equally spaced ticks in the visual range without changing the Base value scale.
+    /// Pass the number of intervals, including the two endpoints.
+    pub fn tick_intervals(mut self, intervals: u16) -> Self {
+        self.tick_intervals = intervals;
         self
     }
 
@@ -201,8 +211,10 @@ impl RenderOnce for Slider {
             direction: window_material_theme(window, cx).layout.direction,
         };
         let horizontal = self.axis.is_horizontal();
-        let value = self.state.read(cx).value();
-        let percentage = self.state.read(cx).percentage();
+        let state = self.state.read(cx);
+        let value = state.value();
+        let percentage = state.percentage();
+        let tick_count = self.tick_intervals;
         let start = percentage.start;
         let end = percentage.end;
         let range = value.is_range();
@@ -218,7 +230,8 @@ impl RenderOnce for Slider {
                 ControlSize::ExtraLarge => (96., 108., 28., Some(32.)),
             };
         let target = thumb_extent.max(48.);
-        let resolve = |role| color(window_material_theme(window, cx).colors.color(role));
+        let colors = window_material_theme(window, cx).colors.clone();
+        let resolve = |role| color(colors.color(role));
         let disabled = resolve(ColorRole::OnSurface);
         let active = if self.disabled {
             disabled.opacity(0.38)
@@ -237,13 +250,74 @@ impl RenderOnce for Slider {
         let disabled_icon = resolve(ColorRole::OnSurface).opacity(0.38);
         let disabled_control = self.disabled;
         let dragging = gesture.borrow().thumb;
+        let reduced = cx.reduce_motion();
+        let scheme = window_material_theme(window, cx).motion;
+        let resize = scheme.spec(
+            gpui_material_theme::MotionKind::Spatial,
+            gpui_material_theme::MotionSpeed::Fast,
+            reduced,
+        );
+        let reveal = scheme.spec(
+            gpui_material_theme::MotionKind::Effects,
+            gpui_material_theme::MotionSpeed::Fast,
+            reduced,
+        );
+        let width = |which, window: &mut Window, cx: &mut App| {
+            px(animate(
+                (
+                    self.id.clone(),
+                    if which == RangeThumb::Start {
+                        "start-width"
+                    } else {
+                        "end-width"
+                    },
+                ),
+                if dragging == Some(which) { 2. } else { 4. },
+                resize,
+                window,
+                cx,
+            )
+            .clamp(2., 4.))
+        };
+        let start_width = if range {
+            width(RangeThumb::Start, window, cx)
+        } else {
+            px(4.)
+        };
+        let end_width = width(RangeThumb::End, window, cx);
         let handle_width = |which| {
-            if dragging == Some(which) {
-                px(2.)
+            if which == RangeThumb::Start {
+                start_width
             } else {
-                px(4.)
+                end_width
             }
         };
+        let label_opacity = |which, focus: &FocusHandle, window: &mut Window, cx: &mut App| {
+            let visible = !self.disabled
+                && (dragging == Some(which)
+                    || focus.is_focused(window) && window.last_input_was_keyboard());
+            animate(
+                (
+                    self.id.clone(),
+                    if which == RangeThumb::Start {
+                        "start-label"
+                    } else {
+                        "end-label"
+                    },
+                ),
+                f32::from(visible),
+                reveal,
+                window,
+                cx,
+            )
+            .clamp(0., 1.)
+        };
+        let start_label = if range {
+            label_opacity(RangeThumb::Start, &start_focus, window, cx)
+        } else {
+            0.
+        };
+        let end_label = label_opacity(RangeThumb::End, &end_focus, window, cx);
         // Expressive tracks leave 6 dp between a handle's edge and each adjacent segment.
         let end_gap = px(6.) + handle_width(RangeThumb::End) / 2.;
         let center_gap = if range {
@@ -310,7 +384,23 @@ impl RenderOnce for Slider {
                     |_, _, _| (),
                     move |bounds, _, window, _| {
                         let length = bounds.size.along(geometry.axis);
-                        for segment in segments(length) {
+                        let track_segments = segments(length);
+                        let draw_indicator = |offset, tint, window: &mut Window| {
+                            let center = geometry.point_at(bounds, offset);
+                            let radius = px(2.);
+                            window.paint_quad(gpui::quad(
+                                Bounds::from_corners(
+                                    center - point(radius, radius),
+                                    center + point(radius, radius),
+                                ),
+                                radius,
+                                tint,
+                                px(0.),
+                                gpui::transparent_black(),
+                                gpui::BorderStyle::Solid,
+                            ));
+                        };
+                        for segment in track_segments {
                             if segment.end <= segment.start {
                                 continue;
                             }
@@ -335,9 +425,58 @@ impl RenderOnce for Slider {
                                 geometry.track_corners(start_corner, end_corner),
                                 tint,
                                 px(0.),
-                                tint,
+                                gpui::transparent_black(),
                                 gpui::BorderStyle::Solid,
                             ));
+                            // The stop indicator marks the outer edge of each inactive segment.
+                            if !segment.active {
+                                let radius = px(track_radius);
+                                if segment.outer_start
+                                    && segment.start + radius + px(2.) <= segment.end
+                                {
+                                    draw_indicator(segment.start + radius, active, window);
+                                }
+                                if segment.outer_end
+                                    && segment.end - radius - px(2.) >= segment.start
+                                {
+                                    draw_indicator(segment.end - radius, active, window);
+                                }
+                            }
+                        }
+                        if tick_count >= 2 {
+                            // Skip ticks when they would visually merge instead of iterating every
+                            // possible value on a fine-grained scale.
+                            let spacing = f32::from(length) / f32::from(tick_count);
+                            if spacing >= 6. {
+                                for index in 1..tick_count {
+                                    let offset =
+                                        length * (f32::from(index) / f32::from(tick_count));
+                                    if let Some(segment) = track_segments.iter().find(|segment| {
+                                        segment.start + px(2.) <= offset
+                                            && offset <= segment.end - px(2.)
+                                    }) {
+                                        let tint = if disabled_control {
+                                            disabled_icon
+                                        } else if segment.active {
+                                            active_icon
+                                        } else {
+                                            inactive_icon
+                                        };
+                                        let on_endpoint = !segment.active
+                                            && (segment.outer_start
+                                                && (offset - segment.start - px(track_radius))
+                                                    .abs()
+                                                    < px(4.)
+                                                || segment.outer_end
+                                                    && (segment.end - px(track_radius) - offset)
+                                                        .abs()
+                                                        < px(4.));
+                                        if !on_endpoint {
+                                            draw_indicator(offset, tint, window);
+                                        }
+                                    }
+                                }
+                            }
                         }
                     },
                 )
@@ -348,7 +487,6 @@ impl RenderOnce for Slider {
             .children(track_icon);
         let thumb = |which, position, name, focus: &FocusHandle| {
             let keyboard_state = self.state.clone();
-            let engaged = dragging == Some(which);
             let handle_width = handle_width(which);
             let half_handle = handle_width / 2.;
             let (width, height) = if horizontal {
@@ -356,14 +494,17 @@ impl RenderOnce for Slider {
             } else {
                 (px(thumb_extent), handle_width)
             };
-            let show_value = engaged
-                || !self.disabled && focus.is_focused(window) && window.last_input_was_keyboard();
-            let label = show_value.then(|| {
+            let opacity = if which == RangeThumb::Start {
+                start_label
+            } else {
+                end_label
+            };
+            let label = (opacity > 0.).then(|| {
                 let text =
                     value_label(&self.state, which, cx, |value| format!("{value:.2}").into());
                 let theme = window_material_theme(window, cx);
-                let foreground = resolve(ColorRole::InverseOnSurface);
-                let background = resolve(ColorRole::InverseSurface);
+                let foreground = resolve(ColorRole::InverseOnSurface).opacity(opacity);
+                let background = resolve(ColorRole::InverseSurface).opacity(opacity);
                 let line = shape_text(
                     text,
                     TypeRole::LabelSmall.style(TypographyEmphasis::Baseline),

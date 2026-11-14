@@ -84,7 +84,7 @@ impl Render for Drawing {
                         MouseButton::Left,
                         cx.listener(|this, event: &gpui::MouseDownEvent, _, cx| {
                             if let Some(shape) = this.mesh.borrow().as_ref() {
-                                this.ripple = Ripple::start(
+                                this.ripple = Ripple::press(
                                     shape,
                                     Some(event.position),
                                     cx.background_executor().now(),
@@ -99,6 +99,9 @@ impl Render for Drawing {
                         MouseButton::Left,
                         cx.listener(|this, _, _, cx| {
                             this.pressed = false;
+                            if let Some(ripple) = &mut this.ripple {
+                                Rc::make_mut(ripple).release(cx.background_executor().now());
+                            }
                             cx.notify();
                         }),
                     )
@@ -141,6 +144,9 @@ impl Render for Drawing {
                                     Ripple::start(shape, None, cx.background_executor().now())
                                         .map(Rc::new);
                             }
+                        }
+                        if let Some(ripple) = &mut this.ripple {
+                            Rc::make_mut(ripple).release(cx.background_executor().now());
                         }
                         this.expanded = !this.expanded;
                         cx.notify();

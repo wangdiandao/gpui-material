@@ -76,7 +76,7 @@ impl RenderOnce for Text {
             self.role.style(self.emphasis),
             self.font_scale,
             tint,
-            (self.max_width, 1.),
+            (self.max_width, 1., 1.),
             window,
             cx,
         )
@@ -91,7 +91,7 @@ pub(crate) fn single_line(
     style: TypeStyle,
     font_scale: f32,
     tint: Hsla,
-    (max_width, expansion): (Option<Pixels>, f32),
+    (max_width, expansion, opacity): (Option<Pixels>, f32, f32),
     window: &Window,
     cx: &App,
 ) -> gpui::Div {
@@ -125,12 +125,12 @@ pub(crate) fn single_line(
         .max_w_full()
         .h(height)
         .overflow_hidden()
-        .opacity(expansion)
+        .opacity(opacity)
         .child(
             canvas(
                 move |bounds, window, cx| {
                     let maximum = bounds.size.width;
-                    if shaped.line().width <= maximum {
+                    if shaped.line().width <= maximum || expansion < 1. {
                         return Some(shaped);
                     }
                     let shape = |value: SharedString| {

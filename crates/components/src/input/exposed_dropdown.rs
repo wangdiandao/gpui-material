@@ -1,14 +1,18 @@
-use std::{cell::Cell, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
 
+use crate::motion::{OverlayMotion, ScaledOverlay, menu_pivot};
 use gpui::{
     Anchor, App, AppContext, Bounds, Context, ElementId, Entity, EntityInputHandler, Focusable,
-    InteractiveElement, IntoElement, ParentElement, RenderOnce, Role, SharedString,
+    InteractiveElement, IntoElement, ParentElement, RenderOnce, Role, ScrollHandle, SharedString,
     StatefulInteractiveElement, Styled, Subscription, Window, canvas, div, prelude::FluentBuilder,
     px,
 };
-use gpui_base::Popup;
-use gpui_material_foundation::{Surface, color, logical_anchor, window_material_theme};
-use gpui_material_theme::{ColorRole, Elevation};
+use gpui_base::{Popup, TestSupportExt};
+use gpui_material_foundation::{Surface, animate, color, logical_anchor, window_material_theme};
+use gpui_material_theme::{ColorRole, Elevation, MotionKind, MotionSpeed};
 
 use super::{TextField, TextFieldEvent, TextFieldState, TextFieldVariant};
 
@@ -172,10 +176,34 @@ impl RenderOnce for ExposedDropdown {
             .into_iter()
             .filter(|option| !filter || option.label.to_lowercase().contains(&filter_text))
             .collect();
+        let last_visible_options = window
+            .use_keyed_state((self.id.clone(), "presented-options"), cx, |_, _| {
+                Rc::new(RefCell::new((
+                    Vec::<DropdownOption>::new(),
+                    None::<ElementId>,
+                )))
+            })
+            .read(cx)
+            .clone();
+        if open {
+            let mut visible = last_visible_options.borrow_mut();
+            visible.0.clone_from(&options);
+            visible.1.clone_from(&active);
+        }
         let theme = window_material_theme(window, cx);
         let anchor = logical_anchor(Anchor::TopLeft, theme.layout.direction);
         let ink = color(theme.colors.color(ColorRole::OnSurface));
         let selected = color(theme.colors.color(ColorRole::SecondaryContainer));
+        let arrow = animate(
+            (self.id.clone(), "arrow"),
+            f32::from(open),
+            theme
+                .motion
+                .spec(MotionKind::Effects, MotionSpeed::Fast, cx.reduce_motion()),
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
         let parent = window.current_view();
         let close = self.state.clone();
         let keys = close.clone();
@@ -277,7 +305,7 @@ impl RenderOnce for ExposedDropdown {
                                 });
                                 cx.notify(parent);
                             })
-                            .child(if open { "▴" } else { "▾" }),
+                            .child(dropdown_arrow(arrow, ink)),
                     ),
             );
         let height = (window.viewport_size().height * 0.55).min(px(280.));
@@ -293,73 +321,167 @@ impl RenderOnce for ExposedDropdown {
             .absolute()
             .inset_0(),
         );
-        Popup::new(self.id, trigger)
+        let motion = OverlayMotion::sample(&self.id, open, window, cx);
+        let scroll = window
+            .use_keyed_state((self.id.clone(), "options-scroll"), cx, |_, _| {
+                ScrollHandle::new()
+            })
+            .read(cx)
+            .clone();
+        let placement = window
+            .use_keyed_state((self.id.clone(), "last-popup-bounds"), cx, |_, _| {
+                Rc::new(Cell::new((Bounds::default(), Bounds::default())))
+            })
+            .read(cx)
+            .clone();
+        let (last_bounds, last_trigger) = placement.get();
+        let trigger_bounds = placement.clone();
+        let popup = Popup::new(self.id.clone(), trigger)
             .anchor(anchor)
             .offset(px(4.))
-            .when(open, |popup| {
-                popup.content(
-                    div()
-                        .id("options")
-                        .role(Role::ListBox)
-                        .max_h(height)
-                        .overflow_y_scroll()
-                        .occlude()
+            .on_position(move |resolved, trigger| trigger_bounds.set((resolved.bounds, trigger)));
+        let content = motion.map(|motion| {
+            let dp = |value| motion.px(value);
+            let spacing = window.rem_size() * motion.scale;
+            let (options, active) = if open {
+                (options, active)
+            } else {
+                last_visible_options.borrow().clone()
+            };
+            let width = if open {
+                popup_width.max(px(120.)).min(window.viewport_size().width)
+            } else {
+                last_bounds.size.width
+            };
+            let content = div()
+                .id(if open { "options" } else { "options-exit" })
+                .test_support()
+                .opacity(motion.alpha)
+                .w(width * motion.scale)
+                .max_h(height * motion.scale)
+                .overflow_y_scroll()
+                .track_scroll(&scroll)
+                .when(open, |list| {
+                    list.role(Role::ListBox)
                         .on_mouse_down_out(move |event, window, cx| {
                             if !bounds.get().contains(&event.position) {
                                 close.update(cx, |state, cx| state.cancel(window, cx));
                                 cx.notify(parent);
                             }
                         })
-                        .child(
-                            Surface::new(ColorRole::SurfaceContainer)
-                                .shadow_elevation(Elevation::Level2)
-                                .rounded_sm()
-                                .w(popup_width.max(px(120.)).min(window.viewport_size().width))
-                                .py_2()
-                                .when(options.is_empty(), |list| {
-                                    list.child(div().px_3().py_2().child("No matching options"))
-                                })
-                                .children(options.into_iter().map(|choice| {
-                                    let current = active.as_ref() == Some(&choice.id);
-                                    let state = self.state.clone();
-                                    let callback = self.on_select.clone();
-                                    let accessible = choice.clone();
-                                    let accessible_state = state.clone();
-                                    let accessible_callback = callback.clone();
-                                    div()
-                                        .id(choice.id.clone())
-                                        .role(Role::ListBoxOption)
+                })
+                .child(
+                    Surface::new(ColorRole::SurfaceContainer)
+                        .shadow_elevation(Elevation::Level2)
+                        .shadow_scale(motion.scale)
+                        .rounded(spacing * 0.25)
+                        .w_full()
+                        .py(spacing * 0.5)
+                        .when(options.is_empty(), |list| {
+                            list.child(
+                                div()
+                                    .px(spacing * 0.75)
+                                    .py(spacing * 0.5)
+                                    .child("No matching options"),
+                            )
+                        })
+                        .children(options.into_iter().map(|choice| {
+                            let current = active.as_ref() == Some(&choice.id);
+                            let state = self.state.clone();
+                            let callback = self.on_select.clone();
+                            let accessible = choice.clone();
+                            let accessible_state = state.clone();
+                            let accessible_callback = callback.clone();
+                            div()
+                                .id(choice.id.clone())
+                                .when(open, |row| {
+                                    row.role(Role::ListBoxOption)
                                         .aria_label(choice.label.clone())
                                         .aria_selected(current)
-                                        .when(current, |row| {
-                                            row.bg(selected).aria_active_descendant()
-                                        })
-                                        .hover(move |style| style.bg(ink.opacity(0.08)))
-                                        .min_h(px(40.))
-                                        .px_3()
-                                        .flex()
-                                        .items_center()
-                                        .child(choice.label.clone())
-                                        .on_a11y_action(
-                                            gpui::AccessibleAction::Click,
-                                            move |_, window, cx| {
-                                                choose(
-                                                    &accessible_state,
-                                                    &accessible,
-                                                    &accessible_callback,
-                                                    window,
-                                                    cx,
-                                                );
-                                                cx.notify(parent);
-                                            },
-                                        )
-                                        .on_click(move |_, window, cx| {
+                                })
+                                .when(current, |row| row.bg(selected))
+                                .when(open && current, |row| row.aria_active_descendant())
+                                .when(open, |row| {
+                                    row.hover(move |style| style.bg(ink.opacity(0.08)))
+                                })
+                                .min_h(dp(40.))
+                                .px(spacing * 0.75)
+                                .flex()
+                                .items_center()
+                                .child(choice.label.clone())
+                                .when(open, |row| {
+                                    row.on_a11y_action(
+                                        gpui::AccessibleAction::Click,
+                                        move |_, window, cx| {
+                                            choose(
+                                                &accessible_state,
+                                                &accessible,
+                                                &accessible_callback,
+                                                window,
+                                                cx,
+                                            );
+                                            cx.notify(parent);
+                                        },
+                                    )
+                                    .on_click(
+                                        move |_, window, cx| {
                                             choose(&state, &choice, &callback, window, cx);
                                             cx.notify(parent);
-                                        })
-                                })),
-                        ),
+                                        },
+                                    )
+                                })
+                        })),
+                )
+                .when(!open, |list| {
+                    list.child(div().absolute().inset_0().occlude())
+                });
+            ScaledOverlay::new(motion.text(content, window), motion, move |menu| {
+                menu_pivot(
+                    menu,
+                    if open {
+                        placement.get().1
+                    } else {
+                        last_trigger
+                    },
                 )
             })
+            .width(width)
+        });
+        if open {
+            return div().child(popup.content(content.expect("open dropdown")));
+        }
+        let exit = content
+            .filter(|_| last_bounds.size.width > px(0.))
+            .map(|content| {
+                gpui::deferred(
+                    gpui_base::Positioner::corner(Anchor::TopLeft, last_bounds.origin)
+                        .child(content),
+                )
+                .with_priority(100)
+            });
+        div().child(popup).children(exit)
     }
+}
+
+// Match the Compose dropdown glyph's two endpoints while keeping the Base
+// trigger's geometry and semantics independent of the rotating indicator.
+fn dropdown_arrow(progress: f32, ink: gpui::Hsla) -> impl IntoElement {
+    let (sin, cos) = (std::f32::consts::PI * progress).sin_cos();
+    canvas(
+        |_, _, _| (),
+        move |bounds, _, window, _| {
+            let center = bounds.center();
+            let rotate = |x, y| center + gpui::point(px(x * cos - y * sin), px(x * sin + y * cos));
+            let mut path = gpui::PathBuilder::fill();
+            path.move_to(rotate(-5., -2.));
+            path.line_to(rotate(5., -2.));
+            path.line_to(rotate(0., 3.));
+            path.close();
+            if let Ok(path) = path.build() {
+                window.paint_path(path, ink);
+            }
+        },
+    )
+    .size(px(16.))
+    .mx_auto()
 }

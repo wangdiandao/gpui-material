@@ -9,7 +9,9 @@ use gpui_base::{Button, Toggle, box_shadow};
 use gpui_material_foundation::{
     InteractionFeedback, InteractionState, Ripple, Shape, animate, color, window_material_theme,
 };
-use gpui_material_theme::{ColorRole, CornerRole, CornerShape, Elevation, MotionKind, MotionSpeed};
+use gpui_material_theme::{
+    ColorRole, CornerRole, CornerShape, Elevation, MotionKind, MotionSpec, MotionSpeed,
+};
 
 pub(crate) type Activate = Rc<dyn Fn(&mut Window, &mut App)>;
 pub(crate) type Change = Rc<dyn Fn(bool, &mut Window, &mut App)>;
@@ -22,13 +24,17 @@ pub(crate) enum Action {
     },
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct ActionStyle {
     pub(crate) background: Option<ColorRole>,
+    pub(crate) background_color: Option<Hsla>,
     pub(crate) foreground: ColorRole,
     pub(crate) height: f32,
     pub(crate) min_width: f32,
     pub(crate) corner: CornerRole,
     pub(crate) pressed_corner: CornerRole,
+    pub(crate) selected_corner: Option<CornerRole>,
+    pub(crate) corner_motion: (MotionKind, MotionSpeed),
     pub(crate) outline: f32,
     pub(crate) elevation: Elevation,
     pub(crate) hover_elevation: Elevation,
@@ -45,7 +51,7 @@ pub(crate) struct ActionControl {
 }
 
 #[derive(Default)]
-struct FeedbackState {
+pub(crate) struct FeedbackState {
     hovered: bool,
     pressed: bool,
     shape: Option<Shape>,
@@ -54,6 +60,10 @@ struct FeedbackState {
 
 impl ActionControl {
     pub(crate) fn render(self, window: &mut Window, cx: &mut App) -> AnyElement {
+        self.render_scaled(1., window, cx)
+    }
+
+    pub(crate) fn render_scaled(self, scale: f32, window: &mut Window, cx: &mut App) -> AnyElement {
         let feedback_id = (self.id.clone(), "material-feedback");
         let (feedback, focus) = window
             .use_keyed_state(feedback_id.clone(), cx, |_, cx| {
@@ -70,19 +80,22 @@ impl ActionControl {
         let density = theme.layout.density;
         let direction = theme.layout.direction;
         let reduced = cx.reduce_motion();
-        let motion = theme
+        let (corner_kind, corner_speed) = style.corner_motion;
+        let motion = theme.motion.spec(corner_kind, corner_speed, reduced);
+        let effects = theme
             .motion
-            .spec(MotionKind::Spatial, MotionSpeed::Fast, reduced);
+            .spec(MotionKind::Effects, MotionSpeed::Fast, reduced);
+        let selected = matches!(&self.action, Action::Toggle { selected: true, .. });
         let foreground = color(theme.colors.color(style.foreground));
         let background = style.background.map(|role| color(theme.colors.color(role)));
         let outline = color(theme.colors.color(ColorRole::OutlineVariant));
         let ring = color(theme.colors.color(ColorRole::Secondary));
         let shadow = color(theme.colors.color(ColorRole::Shadow));
         let on_surface = color(theme.colors.color(ColorRole::OnSurface));
-        let visual_height = px(density.visual_size(style.height));
-        let visual_width = px(density.visual_size(style.min_width));
-        let target_height = px(density.interactive_size(style.height));
-        let target_width = px(density.interactive_size(style.min_width.max(1.)));
+        let visual_height = px(density.visual_size(style.height) * scale);
+        let visual_width = px(density.visual_size(style.min_width) * scale);
+        let target_height = px(density.interactive_size(style.height) * scale);
+        let target_width = px(density.interactive_size(style.min_width.max(1.)) * scale);
 
         let enabled = !self.disabled;
         let (hovered, pressed) = {
@@ -99,9 +112,58 @@ impl ActionControl {
                         || focus.is_focused(window) && window.last_input_was_keyboard()),
             )
         };
-        let progress = animate(feedback_id, f32::from(pressed), motion, window, cx).clamp(0., 1.);
+        let progress = animate(
+            (self.id.clone(), "press-shape"),
+            f32::from(pressed),
+            motion,
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
+        let selection = if style.selected_corner.is_some() {
+            animate(
+                (self.id.clone(), "selected-shape"),
+                f32::from(selected),
+                motion,
+                window,
+                cx,
+            )
+            .clamp(0., 1.)
+        } else {
+            0.
+        };
+        let focus_visible = focus.is_focused(window) && window.last_input_was_keyboard();
+        let mut interaction = InteractionState::default();
+        interaction.disabled = !enabled;
+        interaction.hovered = hovered;
+        interaction.pressed = pressed;
+        interaction.focus_visible = focus_visible;
+        let layer = animate(
+            (self.id.clone(), "state-layer"),
+            interaction.layer().map_or(0., |layer| layer.opacity()),
+            if enabled {
+                effects
+            } else {
+                MotionSpec::Instant
+            },
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
+        let outline_width = animate(
+            (self.id.clone(), "outline-width"),
+            style.outline,
+            effects,
+            window,
+            cx,
+        )
+        .max(0.)
+            * scale;
         let (foreground, background) = if enabled {
-            (foreground, background.unwrap_or_default())
+            (
+                foreground,
+                style.background_color.or(background).unwrap_or_default(),
+            )
         } else {
             (
                 on_surface.opacity(0.38),
@@ -115,13 +177,20 @@ impl ActionControl {
         } else {
             style.elevation.dp()
         };
+        let elevation = animate(
+            (self.id.clone(), "elevation"),
+            elevation,
+            effects,
+            window,
+            cx,
+        )
+        .max(0.)
+            * scale;
         let mesh = feedback.clone();
         let paint_feedback = feedback.clone();
-        let paint_focus = focus.clone();
         let visual = canvas(
             move |bounds, _, _| {
-                let corners =
-                    interpolated_corners(bounds, style.corner, style.pressed_corner, progress);
+                let corners = interpolated_corners(bounds, style, selection, progress, scale);
                 let shape = Shape::rounded(bounds, corners, direction);
                 mesh.borrow_mut().shape = shape;
                 corners
@@ -146,37 +215,38 @@ impl ActionControl {
                         radii,
                         &[
                             box_shadow(0., elevation * 0.4, elevation, 0., shadow.opacity(0.18)),
-                            box_shadow(0., 1., elevation * 0.5, 0., shadow.opacity(0.13)),
+                            box_shadow(0., scale, elevation * 0.5, 0., shadow.opacity(0.13)),
                         ],
                     );
                 }
-                let outline = if style.outline == 0. {
-                    gpui::transparent_black()
-                } else if enabled {
+                let outline = if enabled {
                     outline
                 } else {
                     on_surface.opacity(0.12)
                 };
-                window.paint_quad(quad(
-                    bounds,
-                    radii,
-                    background,
-                    px(style.outline),
-                    outline,
-                    BorderStyle::Solid,
-                ));
+                // A zero-width outline is still visible through antialiasing on some
+                // backends if its pigment is opaque.
+                if background.a > 0. || outline_width > 0. {
+                    window.paint_quad(quad(
+                        bounds,
+                        radii,
+                        background,
+                        px(outline_width),
+                        if outline_width > 0. {
+                            outline
+                        } else {
+                            gpui::transparent_black()
+                        },
+                        BorderStyle::Solid,
+                    ));
+                }
 
                 let feedback = paint_feedback.borrow();
                 if let Some(shape) = &feedback.shape {
-                    let mut state = InteractionState::default();
-                    state.disabled = !enabled;
-                    state.hovered = hovered;
-                    state.pressed = pressed;
-                    state.focus_visible =
-                        paint_focus.is_focused(window) && window.last_input_was_keyboard();
-                    InteractionFeedback::new(state, foreground, ring).paint(
+                    InteractionFeedback::new(interaction, foreground, ring).paint_with_opacity(
                         shape,
                         feedback.ripple.as_ref(),
+                        layer,
                         cx.background_executor().now(),
                         reduced,
                         window,
@@ -297,12 +367,11 @@ fn decorate(
         .child(content)
         .when(enabled, |control| {
             control
-                .on_hover(move |hovered, window, _| {
+                .on_hover(move |hovered, window, cx| {
                     let mut state = hover.borrow_mut();
                     state.hovered = *hovered;
                     if !hovered {
-                        state.pressed = false;
-                        state.ripple = None;
+                        release_ripple(&mut state, cx);
                     }
                     window.refresh();
                 })
@@ -313,14 +382,12 @@ fn decorate(
                     start_ripple(&mut state, Some(event.position), cx);
                     window.refresh();
                 })
-                .on_mouse_up(MouseButton::Left, move |_, window, _| {
-                    release.borrow_mut().pressed = false;
+                .on_mouse_up(MouseButton::Left, move |_, window, cx| {
+                    release_ripple(&mut release.borrow_mut(), cx);
                     window.refresh();
                 })
-                .on_mouse_up_out(MouseButton::Left, move |_, window, _| {
-                    let mut state = cancel.borrow_mut();
-                    state.pressed = false;
-                    state.ripple = None;
+                .on_mouse_up_out(MouseButton::Left, move |_, window, cx| {
+                    release_ripple(&mut cancel.borrow_mut(), cx);
                     window.refresh();
                 })
                 .on_key_down(move |event, window, cx| {
@@ -338,9 +405,9 @@ fn decorate(
                     }
                     window.refresh();
                 })
-                .on_key_up(move |event, window, _| {
+                .on_key_up(move |event, window, cx| {
                     if matches!(event.keystroke.key.as_str(), "space" | "enter") {
-                        key_up.borrow_mut().pressed = false;
+                        release_ripple(&mut key_up.borrow_mut(), cx);
                         window.refresh();
                     }
                 })
@@ -359,31 +426,148 @@ fn activate_feedback(
         ClickEvent::Keyboard(_) => None,
         ClickEvent::Touch(event) => Some(event.position),
     };
-    start_ripple(&mut state.borrow_mut(), pointer, cx);
+    let mut state = state.borrow_mut();
+    if !state.pressed {
+        start_ripple(&mut state, pointer, cx);
+        release_ripple(&mut state, cx);
+    }
     window.refresh();
+}
+
+fn release_ripple(state: &mut FeedbackState, cx: &App) {
+    state.pressed = false;
+    if let Some(ripple) = &mut state.ripple {
+        ripple.release(cx.background_executor().now());
+    }
 }
 
 fn start_ripple(state: &mut FeedbackState, pointer: Option<Point<Pixels>>, cx: &App) {
     state.ripple = state
         .shape
         .as_ref()
-        .and_then(|shape| Ripple::start(shape, pointer, cx.background_executor().now()));
+        .and_then(|shape| Ripple::press(shape, pointer, cx.background_executor().now()));
 }
 
 fn interpolated_corners(
     bounds: Bounds<Pixels>,
-    rest: CornerRole,
-    pressed: CornerRole,
-    progress: f32,
+    style: ActionStyle,
+    selection: f32,
+    press: f32,
+    scale: f32,
 ) -> CornerShape {
-    let width = f32::from(bounds.size.width);
-    let height = f32::from(bounds.size.height);
+    let width = f32::from(bounds.size.width) / scale;
+    let height = f32::from(bounds.size.height) / scale;
     let direction = gpui_material_theme::Direction::Ltr;
-    let from = rest.shape().radii(width, height, direction);
-    let to = pressed.shape().radii(width, height, direction);
+    let rest = style.corner.shape().radii(width, height, direction);
+    let selected = style
+        .selected_corner
+        .unwrap_or(style.corner)
+        .shape()
+        .radii(width, height, direction);
+    let pressed = style.pressed_corner.shape().radii(width, height, direction);
     CornerShape::Radii(std::array::from_fn(|ix| {
-        from[ix] + (to[ix] - from[ix]) * progress
+        let resting = rest[ix] + (selected[ix] - rest[ix]) * selection;
+        (resting + (pressed[ix] - resting) * press) * scale
     }))
+}
+
+pub(crate) fn ripple_target<E>(control: E, state: Rc<RefCell<FeedbackState>>) -> E
+where
+    E: StatefulInteractiveElement,
+{
+    let press = state.clone();
+    let release = state.clone();
+    let outside = state.clone();
+    let hover = state.clone();
+    let keyboard = state.clone();
+    control
+        .on_mouse_down(MouseButton::Left, move |event, window, cx| {
+            let mut state = press.borrow_mut();
+            state.pressed = true;
+            let pointer = state
+                .shape
+                .as_ref()
+                .filter(|shape| shape.contains(event.position))
+                .map(|_| event.position);
+            start_ripple(&mut state, pointer, cx);
+            window.refresh();
+        })
+        .on_mouse_up(MouseButton::Left, move |_, window, cx| {
+            release_ripple(&mut release.borrow_mut(), cx);
+            window.refresh();
+        })
+        .on_mouse_up_out(MouseButton::Left, move |_, window, cx| {
+            release_ripple(&mut outside.borrow_mut(), cx);
+            window.refresh();
+        })
+        .on_hover(move |hovering, window, cx| {
+            if !*hovering && hover.borrow().pressed {
+                release_ripple(&mut hover.borrow_mut(), cx);
+                window.refresh();
+            }
+        })
+        .on_key_down(move |event, window, cx| {
+            if matches!(event.keystroke.key.as_str(), "space" | "enter") && !event.is_held {
+                let mut state = keyboard.borrow_mut();
+                state.pressed = true;
+                start_ripple(&mut state, None, cx);
+                window.refresh();
+            }
+        })
+        .on_key_up(move |event, window, cx| {
+            if matches!(event.keystroke.key.as_str(), "space" | "enter") {
+                release_ripple(&mut state.borrow_mut(), cx);
+                window.refresh();
+            }
+        })
+}
+
+pub(crate) fn ripple_state(
+    id: &ElementId,
+    enabled: bool,
+    window: &mut Window,
+    cx: &mut App,
+) -> Rc<RefCell<FeedbackState>> {
+    let state = window
+        .use_keyed_state((id.clone(), "ripple"), cx, |_, _| {
+            Rc::new(RefCell::new(FeedbackState::default()))
+        })
+        .read(cx)
+        .clone();
+    if !enabled || !window.is_window_active() {
+        state.borrow_mut().ripple = None;
+        state.borrow_mut().pressed = false;
+    }
+    state
+}
+
+pub(crate) fn ripple_ink(
+    state: Rc<RefCell<FeedbackState>>,
+    tint: Hsla,
+    corners: CornerShape,
+    direction: gpui_material_theme::Direction,
+) -> impl IntoElement {
+    let geometry = state.clone();
+    canvas(
+        move |bounds, _, _| {
+            geometry.borrow_mut().shape = Shape::rounded(bounds, corners, direction);
+        },
+        move |_, _, window, cx| {
+            let state = state.borrow();
+            if let (Some(shape), Some(ripple)) = (&state.shape, &state.ripple) {
+                ripple.paint(
+                    shape,
+                    tint,
+                    cx.background_executor().now(),
+                    cx.reduce_motion(),
+                    window,
+                );
+            }
+        },
+    )
+    .absolute()
+    .inset_0()
+    .size_full()
 }
 
 pub(crate) fn icon_slot(icon: AnyElement, side: f32) -> impl IntoElement {

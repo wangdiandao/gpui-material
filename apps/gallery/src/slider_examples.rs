@@ -40,6 +40,7 @@ impl Render for SliderExamples {
                     .child(div().child(format!("Level {level}")))
                     .child(
                         Slider::new("level", "Level", &self.level)
+                            .tick_intervals(10)
                             .size(ControlSize::Medium)
                             .icon("+"),
                     ),
@@ -54,6 +55,7 @@ impl Render for SliderExamples {
                             "Maximum level",
                             &self.range,
                         )
+                        .tick_intervals(10)
                         .size(ControlSize::ExtraSmall),
                     ),
             )

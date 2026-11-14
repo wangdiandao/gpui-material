@@ -1,9 +1,10 @@
-use std::{collections::VecDeque, rc::Rc, time::Duration};
+use std::{cell::Cell, collections::VecDeque, rc::Rc, time::Duration};
 
+use crate::motion::{OverlayMotion, ScaledOverlay};
 use gpui::{
     App, ClickEvent, Context, InteractiveElement, IntoElement, ParentElement, Render, Role,
-    SharedString, StatefulInteractiveElement, Styled, Task, Window, div, prelude::FluentBuilder,
-    px,
+    SharedString, StatefulInteractiveElement, Styled, Task, Window, canvas, div, point,
+    prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt as _;
 use gpui_material_foundation::{Surface, color, window_material_theme};
@@ -51,6 +52,7 @@ impl Snackbar {
 #[derive(Default)]
 pub struct SnackbarHost {
     active: Option<(usize, Snackbar)>,
+    exiting: Vec<(usize, Snackbar)>,
     pending: VecDeque<Snackbar>,
     next_id: usize,
     timer: Option<Task<()>>,
@@ -98,9 +100,11 @@ impl SnackbarHost {
         {
             return;
         }
-        let message = self.active.take().unwrap().1;
+        let entry = self.active.take().unwrap();
+        let action = entry.1.action.as_ref().map(|(_, action)| action.clone());
+        self.exiting.push(entry);
         self.show_next(window, cx);
-        if let Some((_, action)) = message.action.filter(|_| run_action) {
+        if let Some(action) = action.filter(|_| run_action) {
             // The application may enqueue another message from this callback.
             window.defer(cx, move |window, cx| action(window, cx));
         }
@@ -109,73 +113,146 @@ impl SnackbarHost {
 
 impl Render for SnackbarHost {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let Some((id, message)) = &self.active else {
-            return div().into_any_element();
-        };
-        let id = *id;
-        let theme = window_material_theme(window, cx);
-        let action_color = color(theme.colors.color(ColorRole::InversePrimary));
-        let rtl = theme.layout.direction == Direction::Rtl;
-        let activate = cx.listener(move |this, _: &ClickEvent, window, cx| {
-            this.finish(id, true, window, cx);
+        let host_width = window
+            .use_keyed_state("snackbar-host-width", cx, |_, _| Rc::new(Cell::new(px(0.))))
+            .read(cx)
+            .clone();
+        let width = host_width.get();
+        let mut root = div().relative().w_full().child(
+            canvas(
+                move |bounds, window, _| {
+                    if host_width.replace(bounds.size.width) != bounds.size.width {
+                        window.request_animation_frame();
+                    }
+                },
+                |_, _, _, _| {},
+            )
+            .absolute()
+            .inset_0(),
+        );
+        let mut has_layout = self.active.is_some();
+        self.exiting.retain(|(id, message)| {
+            let Some(motion) = OverlayMotion::sample(&("snackbar", *id).into(), false, window, cx)
+            else {
+                return false;
+            };
+            let content = snackbar_surface(*id, message, motion, width, false, window, cx);
+            let scaled = ScaledOverlay::new(content, motion, |_| point(0.5, 0.5)).width(width);
+            let slot = div().when(has_layout, |div| div.absolute().inset_0());
+            root.extend([slot.child(scaled).into_any_element()]);
+            has_layout = true;
+            true
         });
-        let dismiss = cx.listener(move |this, _: &ClickEvent, window, cx| {
-            this.finish(id, false, window, cx);
-        });
-        let keyboard_style = move |button: gpui_base::Button| {
-            button
-                .min_h(px(36.))
-                .px_2()
-                .rounded_md()
-                .text_color(action_color)
-                .hover(move |style| style.bg(action_color.opacity(0.12)))
-                .focus_visible(move |style| style.border_2().border_color(action_color))
-        };
+        if let Some((id, message)) = &self.active {
+            let motion = OverlayMotion::sample(&("snackbar", *id).into(), true, window, cx)
+                .expect("active snackbar has motion");
+            let content = snackbar_surface(*id, message, motion, width, true, window, cx);
+            root =
+                root.child(ScaledOverlay::new(content, motion, |_| point(0.5, 0.5)).width(width));
+        }
+        root
+    }
+}
+
+fn snackbar_surface(
+    id: usize,
+    message: &Snackbar,
+    motion: OverlayMotion,
+    width: gpui::Pixels,
+    active: bool,
+    window: &Window,
+    cx: &mut Context<SnackbarHost>,
+) -> impl IntoElement {
+    let theme = window_material_theme(window, cx);
+    let action_color = color(theme.colors.color(ColorRole::InversePrimary));
+    let rtl = theme.layout.direction == Direction::Rtl;
+    let spacing = window.rem_size() * motion.scale;
+    let control = move |button: gpui_base::Button| {
+        button
+            .min_h(motion.px(36.))
+            .px(spacing * 0.5)
+            .rounded(spacing * 0.375)
+            .text_color(action_color)
+            .hover(move |style| style.bg(action_color.opacity(0.12)))
+            .focus_visible(move |style| style.border(motion.px(2.)).border_color(action_color))
+    };
+    let passive = move |label: SharedString| {
         div()
-            .id(("snackbar", id))
-            .child(
-                Surface::new(ColorRole::InverseSurface)
-                    .shadow_elevation(Elevation::Level3)
-                    .flex()
-                    .items_center()
-                    .min_h(px(48.))
-                    .gap_2()
-                    .px_4()
-                    .py_1()
-                    .rounded_sm()
-                    .when(rtl, Styled::flex_row_reverse)
-                    .child(
-                        div()
-                            .id(("snackbar-message", id))
-                            .test_support()
-                            .role(Role::Status)
-                            .aria_label(message.message.clone())
-                            .a11y_synthetic_children(|tree| {
-                                let node = tree.parent_node();
-                                node.set_live(gpui::accesskit::Live::Polite);
-                                node.set_live_atomic();
-                            })
-                            .min_w_0()
-                            .flex_1()
-                            .child(message.message.clone()),
-                    )
-                    .when_some(message.action.as_ref(), |surface, (label, _)| {
+            .min_h(motion.px(36.))
+            .px(spacing * 0.5)
+            .flex()
+            .items_center()
+            .line_height(gpui::relative(1.))
+            .text_color(action_color)
+            .child(label)
+    };
+    let surface = div()
+        .id((if active { "snackbar" } else { "snackbar-exit" }, id))
+        .test_support()
+        .w(width * motion.scale)
+        .opacity(motion.alpha)
+        .child(
+            Surface::new(ColorRole::InverseSurface)
+                .shadow_elevation(Elevation::Level3)
+                .shadow_scale(motion.scale)
+                .flex()
+                .items_center()
+                .min_h(motion.px(48.))
+                .gap(spacing * 0.5)
+                .px(spacing)
+                .py(spacing * 0.25)
+                .rounded(spacing * 0.25)
+                .when(rtl, Styled::flex_row_reverse)
+                .child(
+                    div()
+                        .id(("snackbar-message", id))
+                        .test_support()
+                        .when(active, |label| {
+                            label
+                                .role(Role::Status)
+                                .aria_label(message.message.clone())
+                                .a11y_synthetic_children(|tree| {
+                                    let node = tree.parent_node();
+                                    node.set_live(gpui::accesskit::Live::Polite);
+                                    node.set_live_atomic();
+                                })
+                        })
+                        .min_w_0()
+                        .flex_1()
+                        .child(message.message.clone()),
+                )
+                .when_some(message.action.as_ref(), |surface, (label, _)| {
+                    if active {
                         surface.child(
                             div().id("snackbar-action-region").test_support().child(
-                                keyboard_style(gpui_base::Button::new("snackbar-action"))
+                                control(gpui_base::Button::new("snackbar-action"))
                                     .accessibility_label(label.clone())
-                                    .on_click(activate)
+                                    .on_click(cx.listener(
+                                        move |this, _: &ClickEvent, window, cx| {
+                                            this.finish(id, true, window, cx);
+                                        },
+                                    ))
                                     .child(label.clone()),
                             ),
                         )
-                    })
-                    .child(
-                        keyboard_style(gpui_base::Button::new("snackbar-dismiss"))
-                            .accessibility_label("Dismiss message")
-                            .on_click(dismiss)
-                            .child("Dismiss"),
-                    ),
-            )
-            .into_any_element()
-    }
+                    } else {
+                        surface.child(passive(label.clone()))
+                    }
+                })
+                .when_else(
+                    active,
+                    |surface| {
+                        surface.child(
+                            control(gpui_base::Button::new("snackbar-dismiss"))
+                                .accessibility_label("Dismiss message")
+                                .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
+                                    this.finish(id, false, window, cx);
+                                }))
+                                .child("Dismiss"),
+                        )
+                    },
+                    |surface| surface.child(passive("Dismiss".into())),
+                ),
+        );
+    motion.text(surface, window)
 }

@@ -31,7 +31,7 @@ impl FabSize {
                 28.,
                 CornerRole::LargeIncreased,
                 26.,
-                16.,
+                12.,
                 TypeRole::TitleLarge,
             ),
             Self::Large => (
@@ -39,7 +39,7 @@ impl FabSize {
                 32.,
                 CornerRole::ExtraLarge,
                 28.,
-                20.,
+                16.,
                 TypeRole::HeadlineSmall,
             ),
         }
@@ -101,11 +101,17 @@ impl FabContent {
         };
         ActionStyle {
             background: Some(background),
+            background_color: None,
             foreground,
             height,
             min_width: height,
             corner,
             pressed_corner: corner,
+            selected_corner: None,
+            corner_motion: (
+                gpui_material_theme::MotionKind::Spatial,
+                gpui_material_theme::MotionSpeed::Fast,
+            ),
             outline: 0.,
             elevation: Elevation::Level3,
             hover_elevation: Elevation::Level4,
@@ -167,6 +173,11 @@ impl RenderOnce for Fab {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let style = self.content.style();
         let (_, icon_size, _, _, _, _) = self.content.size.metrics();
+        let icon_size = if self.content.size == FabSize::Large {
+            36.
+        } else {
+            icon_size
+        };
         ActionControl {
             id: self.content.id,
             label: self.content.name,
@@ -219,11 +230,13 @@ impl RenderOnce for ExtendedFab {
         } else {
             color(theme.colors.color(style.foreground))
         };
-        let motion = theme.motion.spec(
-            MotionKind::Spatial,
-            MotionSpeed::Default,
-            cx.reduce_motion(),
-        );
+        let reduced = cx.reduce_motion();
+        let motion = theme
+            .motion
+            .spec(MotionKind::Spatial, MotionSpeed::Fast, reduced);
+        let effects = theme
+            .motion
+            .spec(MotionKind::Effects, MotionSpeed::Fast, reduced);
         let progress = animate(
             ElementId::from((self.content.id.clone(), "expansion")),
             f32::from(self.expanded),
@@ -232,13 +245,24 @@ impl RenderOnce for ExtendedFab {
             cx,
         )
         .clamp(0., 1.);
+        let opacity = animate(
+            (self.content.id.clone(), "label-opacity"),
+            f32::from(self.expanded),
+            effects,
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
+        // Interpolate from a square FAB with its icon centered to the label layout.
+        let collapsed_padding = (style.height - icon_size) / 2.;
+        let start_padding = collapsed_padding + (padding - collapsed_padding) * progress;
         let typography = role.style(TypographyEmphasis::Baseline);
         let mut row = div()
             .flex()
             .items_center()
             .min_w_0()
             .max_w_full()
-            .px(px(padding * progress))
+            .px(px(start_padding))
             .gap(px(gap * progress));
         if direction == Direction::Rtl {
             row = row.flex_row_reverse();
@@ -250,7 +274,7 @@ impl RenderOnce for ExtendedFab {
                 typography,
                 1.,
                 foreground,
-                (None, progress),
+                (None, progress, opacity),
                 window,
                 cx,
             ));

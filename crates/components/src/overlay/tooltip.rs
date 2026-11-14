@@ -1,15 +1,19 @@
-use std::time::Duration;
+use std::{cell::Cell, rc::Rc, time::Duration};
 
 use gpui::{
-    Anchor, AnyElement, App, Context, ElementId, FocusHandle, InteractiveElement, IntoElement,
-    KeyBinding, ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
-    Subscription, Task, Window, div, prelude::FluentBuilder, px,
+    Anchor, AnyElement, App, Bounds, Context, ElementId, FocusHandle, InteractiveElement,
+    IntoElement, KeyBinding, ParentElement, RenderOnce, Role, SharedString,
+    StatefulInteractiveElement, Styled, Subscription, Task, Window, div, point,
+    prelude::FluentBuilder, px,
 };
 use gpui_base::{Popup, TestSupportExt};
-use gpui_material_foundation::Surface;
-use gpui_material_theme::{ColorRole, Elevation, TypeRole};
+use gpui_material_foundation::{Surface, color, window_material_theme};
+use gpui_material_theme::{ColorRole, Elevation, TypeRole, TypographyEmphasis};
 
-use crate::{Button, ButtonVariant, Text};
+use crate::{
+    Button, ButtonVariant, Text,
+    motion::{OverlayMotion, ScaledOverlay},
+};
 
 gpui::actions!(
     material_tooltip,
@@ -248,8 +252,39 @@ impl RenderOnce for Tooltip {
         let dismiss = state.clone();
         let to_action = action_focus;
         let to_trigger = trigger_focus.clone();
-        Popup::new(
-            self.id,
+        let motion = OverlayMotion::sample(&self.id, open, window, cx);
+        let placement = window
+            .use_keyed_state((self.id.clone(), "last-tooltip-bounds"), cx, |_, _| {
+                Rc::new(Cell::new(Bounds::default()))
+            })
+            .read(cx)
+            .clone();
+        let last_bounds = placement.get();
+        let trigger_bounds = window
+            .use_keyed_state((self.id.clone(), "tooltip-anchor"), cx, |_, _| {
+                Rc::new(Cell::new(Bounds::default()))
+            })
+            .read(cx)
+            .clone();
+        let memory = trigger_bounds.clone();
+        let frame = trigger_bounds.get();
+        let surface_measurement = window
+            .use_keyed_state((self.id.clone(), "tooltip-height"), cx, |_, _| {
+                Rc::new(Cell::new(px(0.)))
+            })
+            .read(cx)
+            .clone();
+        let height = surface_measurement.get();
+        let preferred_height = if height > px(0.) {
+            height
+        } else {
+            px(if self.rich { 120. } else { 28. })
+        };
+        let above = frame.top() >= preferred_height + px(4.);
+
+        let pivot = point(0.5, 0.5);
+        let popup = Popup::new(
+            self.id.clone(),
             div()
                 .id("tooltip-trigger")
                 .when(open && to_action.is_some(), |trigger| {
@@ -269,10 +304,28 @@ impl RenderOnce for Tooltip {
                         state.schedule(window, cx);
                     });
                 })
-                .child(self.trigger),
+                .relative()
+                .child(self.trigger)
+                .child(
+                    gpui::canvas(
+                        move |bounds, window, _| {
+                            if memory.replace(bounds) != bounds && open {
+                                window.refresh();
+                            }
+                        },
+                        |_, _, _, _| {},
+                    )
+                    .absolute()
+                    .inset_0(),
+                ),
         )
-        .anchor(Anchor::TopCenter)
+        .anchor(if above {
+            Anchor::BottomCenter
+        } else {
+            Anchor::TopCenter
+        })
         .offset(px(4.))
+        .on_position(move |resolved, _| placement.set(resolved.bounds))
         .when(open, |popup| {
             popup
                 .key_context("MaterialTooltip")
@@ -289,60 +342,147 @@ impl RenderOnce for Tooltip {
                     }
                     dismiss.update(cx, |state, _| state.dismiss(window));
                 })
-        })
-        .when(open, |popup| {
-            popup.content(
-                div()
-                    .id("tooltip")
-                    .test_support()
-                    .role(Role::Tooltip)
-                    .key_context("MaterialTooltipAction")
-                    .on_action(move |_: &FocusTooltipTrigger, window, cx| {
-                        if let Some(trigger) = &to_trigger {
-                            trigger.focus(window, cx);
-                        } else {
-                            cx.propagate();
-                        }
-                    })
-                    .on_action(move |_: &ActivateTooltipAction, window, cx| {
-                        if let Some(action) = &action_callback {
-                            action(window, cx);
-                        } else {
-                            cx.propagate();
-                        }
-                    })
-                    .when_some(surface_focus, |tip, focus| tip.track_focus(&focus))
-                    .aria_label(self.text.clone())
-                    .on_hover(move |hovering, window, cx| {
-                        state.update(cx, |state, cx| {
-                            state.surface_hover = *hovering;
-                            state.schedule(window, cx);
-                        });
-                    })
-                    .child(
-                        Surface::new(role)
-                            .flex()
-                            .flex_col()
-                            .rounded_sm()
-                            .max_w(width.min(px(320.)))
-                            .when_else(
-                                self.rich,
-                                |surface| surface.gap_2().p_4().shadow_elevation(Elevation::Level2),
-                                |surface| surface.px_2().py_1(),
-                            )
-                            .children(
-                                self.title
-                                    .map(|title| Text::new(title).role(TypeRole::TitleSmall)),
-                            )
-                            .child(self.text)
-                            .children(self.action.map(|action| {
+        });
+        let content = motion.map(|motion| {
+            let spacing = window.rem_size() * motion.scale;
+            let dp = |value| motion.px(value);
+            let theme = window_material_theme(window, cx);
+            let tint = color(theme.colors.color(ColorRole::OnSurfaceVariant));
+            let label_type = TypeRole::LabelLarge.style(TypographyEmphasis::Baseline);
+            let content = div()
+                .relative()
+                .when(open, |tip| {
+                    tip.child(
+                        gpui::canvas(
+                            move |bounds, window, _| {
+                                let height = bounds.size.height / motion.scale;
+                                let fits_above = trigger_bounds.get().top() >= height + px(4.);
+                                let previous = surface_measurement.replace(height);
+                                if above != fits_above && (previous - height).abs() > px(1.) {
+                                    window.refresh();
+                                }
+                            },
+                            |_, _, _, _| {},
+                        )
+                        .absolute()
+                        .inset_0(),
+                    )
+                })
+                .opacity(motion.alpha)
+                .id(if open { "tooltip" } else { "tooltip-exit" })
+                .test_support()
+                .when(open, |tip| {
+                    tip.role(Role::Tooltip)
+                        .key_context("MaterialTooltipAction")
+                        .on_action(move |_: &FocusTooltipTrigger, window, cx| {
+                            if let Some(trigger) = &to_trigger {
+                                trigger.focus(window, cx);
+                            } else {
+                                cx.propagate();
+                            }
+                        })
+                        .on_action(move |_: &ActivateTooltipAction, window, cx| {
+                            if let Some(action) = &action_callback {
+                                action(window, cx);
+                            } else {
+                                cx.propagate();
+                            }
+                        })
+                        .when_some(surface_focus, |tip, focus| tip.track_focus(&focus))
+                        .aria_label(self.text.clone())
+                        .on_hover(move |hovering, window, cx| {
+                            state.update(cx, |state, cx| {
+                                state.surface_hover = *hovering;
+                                state.schedule(window, cx);
+                            });
+                        })
+                })
+                .child(
+                    Surface::new(role)
+                        .flex()
+                        .flex_col()
+                        .rounded(spacing * 0.25)
+                        .min_w(px(40.).min(width) * motion.scale)
+                        .min_h(dp(24.))
+                        .max_w(width.min(px(if self.rich { 320. } else { 200. })) * motion.scale)
+                        .when_else(
+                            self.rich,
+                            |surface| {
+                                surface
+                                    .gap(spacing * 0.5)
+                                    .p(spacing)
+                                    .shadow_elevation(Elevation::Level2)
+                                    .shadow_scale(motion.scale)
+                            },
+                            |surface| {
+                                surface
+                                    .px(spacing * 0.5)
+                                    .py(spacing * 0.25)
+                                    .justify_center()
+                                    .text_size(dp(12.))
+                                    .line_height(dp(16.))
+                            },
+                        )
+                        .children(self.title.map(|title| {
+                            Text::new(title)
+                                .role(TypeRole::TitleSmall)
+                                .font_scale(motion.scale)
+                        }))
+                        .child(self.text)
+                        .children(self.action.map(|action| {
+                            if open {
                                 Button::new("tooltip-action", action.label)
                                     .track_focus(&action.focus)
                                     .variant(ButtonVariant::Text)
+                                    .scale(motion.scale)
                                     .on_activate(move |window, cx| (action.callback)(window, cx))
-                            })),
-                    ),
-            )
-        })
+                                    .into_any_element()
+                            } else {
+                                div()
+                                    .min_h(dp(theme.layout.density.interactive_size(40.)))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .child(
+                                        div()
+                                            .px(dp(16.))
+                                            .min_w_0()
+                                            .truncate()
+                                            .text_size(dp(label_type.size))
+                                            .line_height(dp(label_type.line_height))
+                                            .text_color(tint)
+                                            .child(action.label),
+                                    )
+                                    .into_any_element()
+                            }
+                        })),
+                );
+            let content = motion.text(content, window);
+            let scaled = ScaledOverlay::new(
+                content.when(!open, |content| {
+                    content.w(last_bounds.size.width * motion.scale)
+                }),
+                motion,
+                move |_| pivot,
+            );
+            if open {
+                scaled
+            } else {
+                scaled.width(last_bounds.size.width)
+            }
+        });
+        if open {
+            return div().child(popup.content(content.expect("open tooltip")));
+        }
+        let exit = content
+            .filter(|_| last_bounds.size.width > px(0.))
+            .map(|content| {
+                gpui::deferred(
+                    gpui_base::Positioner::corner(Anchor::TopLeft, last_bounds.origin)
+                        .child(content),
+                )
+                .with_priority(100)
+            });
+        div().child(popup).children(exit)
     }
 }

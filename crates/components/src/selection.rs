@@ -1,18 +1,19 @@
 use std::rc::Rc;
 
 use gpui::{
-    AccessibleAction, AnyElement, App, Axis, Div, ElementId, FocusHandle, Hsla, InteractiveElement,
-    IntoElement, ParentElement, PathBuilder, RenderOnce, SharedString, StatefulInteractiveElement,
-    Styled, Window, canvas, div, point, prelude::FluentBuilder, px,
+    AccessibleAction, AnyElement, App, Axis, BorderStyle, Div, ElementId, FocusHandle, Hsla,
+    InteractiveElement, IntoElement, ParentElement, PathBuilder, RenderOnce, SharedString,
+    StatefulInteractiveElement, Styled, Window, canvas, div, point, prelude::FluentBuilder, px,
+    quad,
 };
 use gpui_base::{
     Checkbox as BaseCheckbox, Radio as BaseRadio, RadioGroup as BaseRadioGroup,
     Switch as BaseSwitch, TestSupportExt,
 };
 use gpui_material_foundation::{animate, color, move_roving_focus, window_material_theme};
-use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpeed, StateLayer};
+use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpec, MotionSpeed, StateLayer};
 
-use crate::action::Change;
+use crate::action::{Change, FeedbackState, ripple_ink, ripple_state, ripple_target};
 
 pub use gpui_base::CheckboxState;
 
@@ -46,6 +47,8 @@ fn selection_target(
     indicator: impl IntoElement,
     accent: Hsla,
     enabled: bool,
+    ripple: Rc<std::cell::RefCell<FeedbackState>>,
+    direction: Direction,
 ) -> Div {
     div()
         .size(px(48.))
@@ -56,6 +59,7 @@ fn selection_target(
         .child(
             div()
                 .id("selection-indicator")
+                .relative()
                 .size(px(40.))
                 .rounded_full()
                 .flex()
@@ -71,6 +75,12 @@ fn selection_target(
                             style.bg(accent.opacity(StateLayer::Pressed.opacity()))
                         })
                 })
+                .child(ripple_ink(
+                    ripple,
+                    accent,
+                    gpui_material_theme::CornerRole::Full.shape(),
+                    direction,
+                ))
                 .child(indicator),
         )
 }
@@ -155,35 +165,88 @@ impl RenderOnce for Checkbox {
             window,
             cx,
         );
-        let mark = canvas(
+        let motion = window_material_theme(window, cx).motion;
+        let reduced = self.disabled || cx.reduce_motion();
+        let effects = motion.spec(MotionKind::Effects, MotionSpeed::Fast, reduced);
+        let spatial = motion.spec(MotionKind::Spatial, MotionSpeed::Fast, reduced);
+        let draw = animate(
+            (self.id.clone(), "check-draw"),
+            f32::from(checked),
+            spatial,
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
+        let mixed = animate(
+            (self.id.clone(), "check-shape"),
+            f32::from(self.state == CheckboxState::Indeterminate),
+            effects,
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
+        let fill = animate(
+            (self.id.clone(), "check-fill"),
+            f32::from(checked),
+            effects,
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
+        let inactive = if self.error && !self.disabled {
+            accent
+        } else {
+            selection_tone(false, self.disabled, window, cx)
+        };
+        let border = crate::motion::mix(inactive, accent, fill);
+        let indicator = canvas(
             |_, _, _| (),
             move |bounds, _, window, _| {
-                let at = |x, y| bounds.origin + point(px(x), px(y));
-                let mut path = PathBuilder::stroke(px(2.));
-                if self.state == CheckboxState::Indeterminate {
-                    path.move_to(at(4., 9.));
-                    path.line_to(at(14., 9.));
+                let stroke = px(2.);
+                // The outline and mark share the outer box coordinates, as in Compose.
+                window.paint_quad(quad(
+                    bounds,
+                    px(2.),
+                    accent.opacity(fill),
+                    stroke,
+                    border,
+                    BorderStyle::Solid,
+                ));
+                if draw == 0. {
+                    return;
+                }
+                let side = bounds.size.width;
+                let start = point(side * 0.2, side * 0.5);
+                let knee = point(side * (0.4 + 0.1 * mixed), side * (0.7 - 0.2 * mixed));
+                let end = point(side * 0.8, side * (0.3 + 0.2 * mixed));
+                let first = f32::from(knee.x - start.x).hypot(f32::from(knee.y - start.y));
+                let second = f32::from(end.x - knee.x).hypot(f32::from(end.y - knee.y));
+                let distance = (first + second) * draw;
+                let mut path = PathBuilder::stroke(stroke);
+                path.move_to(bounds.origin + start);
+                if distance <= first {
+                    path.line_to(bounds.origin + start + (knee - start) * (distance / first));
                 } else {
-                    path.move_to(at(4., 9.));
-                    path.line_to(at(7.5, 12.5));
-                    path.line_to(at(14., 5.5));
+                    path.line_to(bounds.origin + knee);
+                    path.line_to(
+                        bounds.origin + knee + (end - knee) * ((distance - first) / second),
+                    );
                 }
                 if let Ok(path) = path.build() {
                     window.paint_path(path, on_accent);
                 }
             },
         )
-        .size_full();
-        let indicator = div()
-            .size(px(18.))
-            .rounded(px(2.))
-            .when(checked, |indicator| indicator.bg(accent).child(mark))
-            .when(!checked, |indicator| {
-                indicator.border_2().border_color(accent)
-            });
+        .size(px(18.))
+        .flex_none();
+        let direction = window_material_theme(window, cx).layout.direction;
+        let ripple = ripple_state(&self.id, !self.disabled, window, cx);
         let group: SharedString = format!("material-checkbox/{}", self.id).into();
         let label = self.label;
         let control = BaseCheckbox::new(self.id)
+            .when(!self.disabled, |control| {
+                ripple_target(control, ripple.clone())
+            })
             .state(self.state)
             .when(self.error, |control| {
                 control.a11y_synthetic_children(|node| {
@@ -199,8 +262,15 @@ impl RenderOnce for Checkbox {
             .rounded_md()
             .focus_visible(focus_style(tone(ColorRole::Secondary, window, cx)))
             .child(
-                row(window_material_theme(window, cx).layout.direction)
-                    .child(selection_target(group, indicator, accent, !self.disabled))
+                row(direction)
+                    .child(selection_target(
+                        group,
+                        indicator,
+                        accent,
+                        !self.disabled,
+                        ripple,
+                        direction,
+                    ))
                     .child(label),
             );
         match self.on_change {
@@ -263,10 +333,32 @@ impl Radio {
         focus: Option<&FocusHandle>,
         position: Option<(usize, usize)>,
         tab_stop: bool,
-        window: &Window,
-        cx: &App,
+        window: &mut Window,
+        cx: &mut App,
     ) -> BaseRadio {
-        let accent = selection_tone(self.selected, self.disabled, window, cx);
+        let motion = window_material_theme(window, cx).motion;
+        let reduced = self.disabled || cx.reduce_motion();
+        let dot = animate(
+            (self.id.clone(), "radio-dot"),
+            f32::from(self.selected),
+            motion.spec(MotionKind::Spatial, MotionSpeed::Fast, reduced),
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
+        let tint = animate(
+            (self.id.clone(), "radio-color"),
+            f32::from(self.selected),
+            motion.spec(MotionKind::Effects, MotionSpeed::Fast, reduced),
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
+        let accent = crate::motion::mix(
+            selection_tone(false, self.disabled, window, cx),
+            selection_tone(true, self.disabled, window, cx),
+            tint,
+        );
         let indicator = div()
             .size(px(20.))
             .rounded_full()
@@ -275,11 +367,14 @@ impl Radio {
             .flex()
             .items_center()
             .justify_center()
-            .when(self.selected, |indicator| {
-                indicator.child(div().size(px(10.)).rounded_full().bg(accent))
-            });
+            .child(div().size(px(10. * dot)).rounded_full().bg(accent));
+        let direction = window_material_theme(window, cx).layout.direction;
+        let ripple = ripple_state(&self.id, !self.disabled, window, cx);
         let group: SharedString = format!("material-radio/{}", self.id).into();
         let radio = BaseRadio::new(self.id)
+            .when(!self.disabled, |control| {
+                ripple_target(control, ripple.clone())
+            })
             .checked(self.selected)
             .disabled(self.disabled)
             .tab_stop(tab_stop)
@@ -290,8 +385,15 @@ impl Radio {
             .rounded_md()
             .focus_visible(focus_style(tone(ColorRole::Secondary, window, cx)))
             .child(
-                row(window_material_theme(window, cx).layout.direction)
-                    .child(selection_target(group, indicator, accent, !self.disabled))
+                row(direction)
+                    .child(selection_target(
+                        group,
+                        indicator,
+                        accent,
+                        !self.disabled,
+                        ripple,
+                        direction,
+                    ))
                     .child(div().min_w_0().truncate().child(self.label)),
             )
             .when_some(focus, |radio, focus| radio.track_focus(focus))
@@ -501,52 +603,99 @@ impl RenderOnce for Switch {
         use ColorRole::*;
         let theme = window_material_theme(window, cx);
         let direction = theme.layout.direction;
-        let motion = theme
-            .motion
-            .spec(MotionKind::Spatial, MotionSpeed::Fast, cx.reduce_motion());
-        let progress = animate(
-            ElementId::from((self.id.clone(), "thumb")),
+        let motion = theme.motion.spec(
+            MotionKind::Spatial,
+            MotionSpeed::Fast,
+            self.disabled || cx.reduce_motion(),
+        );
+        let tint = animate(
+            (self.id.clone(), "switch-color"),
             f32::from(self.checked),
-            motion,
+            window_material_theme(window, cx).motion.spec(
+                MotionKind::Effects,
+                MotionSpeed::Fast,
+                self.disabled || cx.reduce_motion(),
+            ),
             window,
             cx,
         )
         .clamp(0., 1.);
-        let (track, thumb, outline) = match (self.checked, self.disabled) {
-            (true, false) => (tone(Primary, window, cx), tone(OnPrimary, window, cx), None),
-            (false, false) => (
-                tone(SurfaceContainerHighest, window, cx),
-                tone(Outline, window, cx),
-                Some(tone(Outline, window, cx)),
-            ),
-            (true, true) => (
-                tone(OnSurface, window, cx).opacity(0.12),
-                tone(Surface, window, cx),
-                None,
-            ),
-            (false, true) => (
-                tone(SurfaceContainerHighest, window, cx).opacity(0.12),
-                tone(OnSurface, window, cx).opacity(0.38),
-                Some(tone(OnSurface, window, cx).opacity(0.12)),
-            ),
+        let outline = tone(Outline, window, cx);
+        let (track, thumb, outline) = if self.disabled {
+            (
+                if self.checked {
+                    tone(OnSurface, window, cx)
+                } else {
+                    tone(SurfaceContainerHighest, window, cx)
+                }
+                .opacity(0.12),
+                if self.checked {
+                    tone(Surface, window, cx)
+                } else {
+                    tone(OnSurface, window, cx).opacity(0.38)
+                },
+                tone(OnSurface, window, cx).opacity(if self.checked { 0. } else { 0.12 }),
+            )
+        } else {
+            (
+                crate::motion::mix(
+                    tone(SurfaceContainerHighest, window, cx),
+                    tone(Primary, window, cx),
+                    tint,
+                ),
+                crate::motion::mix(outline, tone(OnPrimary, window, cx), tint),
+                outline.opacity(1. - tint),
+            )
         };
         let icon = if self.checked {
             self.checked_icon
         } else {
             self.unchecked_icon
         };
-        let group: SharedString = format!("material-switch/{}", self.id).into();
         let normal_size = if self.checked || icon.is_some() {
             24.
         } else {
             16.
         };
-        let offset = px(2. + 20. * progress);
+        let pressed = window
+            .use_keyed_state((self.id.clone(), "switch-press"), cx, |_, _| {
+                Rc::new(std::cell::Cell::new(false))
+            })
+            .read(cx)
+            .clone();
+        let active = !self.disabled && window.is_window_active() && pressed.get();
+        if !window.is_window_active() || self.disabled {
+            pressed.set(false);
+        }
+        let diameter = animate(
+            (self.id.clone(), "thumb-diameter"),
+            if active { 28. } else { normal_size },
+            if active { MotionSpec::Instant } else { motion },
+            window,
+            cx,
+        )
+        .clamp(16., 28.);
+        let offset = animate(
+            (self.id.clone(), "thumb-offset"),
+            match (active, self.checked) {
+                (true, false) => 2.,
+                (true, true) => 22.,
+                (false, true) => 24.,
+                (false, false) => (32. - normal_size) / 2.,
+            },
+            if active { MotionSpec::Instant } else { motion },
+            window,
+            cx,
+        );
+        // Offset and diameter are sampled independently, including a reversal on release.
+        let offset = px(offset.clamp(2., 50. - diameter));
+        let ripple = ripple_state(&self.id, !self.disabled, window, cx);
+        let ink = ripple.clone();
         let handle = div()
             .absolute()
             .top_0()
             .h_full()
-            .w(px(28.))
+            .w(px(diameter))
             .flex()
             .items_center()
             .justify_center()
@@ -555,8 +704,9 @@ impl RenderOnce for Switch {
             .child(
                 div()
                     .id((self.id.clone(), "switch-thumb"))
+                    .relative()
                     .test_support()
-                    .size(px(normal_size))
+                    .size(px(diameter))
                     .rounded_full()
                     .bg(thumb)
                     .text_color(tone(
@@ -572,9 +722,20 @@ impl RenderOnce for Switch {
                     .flex()
                     .items_center()
                     .justify_center()
-                    .when(!self.disabled, |thumb| {
-                        thumb.group_active(group.clone(), |style| style.size(px(28.)))
-                    })
+                    .child(ripple_ink(
+                        ink,
+                        tone(
+                            if self.checked {
+                                OnPrimaryContainer
+                            } else {
+                                OnSurface
+                            },
+                            window,
+                            cx,
+                        ),
+                        gpui_material_theme::CornerRole::Full.shape(),
+                        direction,
+                    ))
                     .children(icon),
             );
         let track = div()
@@ -585,7 +746,7 @@ impl RenderOnce for Switch {
             .h(px(32.))
             .rounded_full()
             .bg(track)
-            .when_some(outline, |track, outline| {
+            .when(outline.a > 0., |track| {
                 track.child(
                     div()
                         .absolute()
@@ -596,17 +757,42 @@ impl RenderOnce for Switch {
                 )
             })
             .child(handle);
+        let press_start = pressed.clone();
+        let release = pressed.clone();
+        let release_outside = pressed.clone();
+        let leave = pressed;
         let control = BaseSwitch::new(self.id)
             .checked(self.checked)
             .disabled(self.disabled)
             .accessibility_label(self.label.clone())
-            .group(group)
+            .when(!self.disabled, |control| {
+                control
+                    .on_mouse_down(gpui::MouseButton::Left, move |_, window, _| {
+                        press_start.set(true);
+                        window.refresh();
+                    })
+                    .on_mouse_up(gpui::MouseButton::Left, move |_, window, _| {
+                        release.set(false);
+                        window.refresh();
+                    })
+                    .on_mouse_up_out(gpui::MouseButton::Left, move |_, window, _| {
+                        release_outside.set(false);
+                        window.refresh();
+                    })
+                    .on_hover(move |hovered, window, _| {
+                        if !*hovered && leave.replace(false) {
+                            window.refresh();
+                        }
+                    })
+            })
             .border_2()
             .border_color(gpui::transparent_black())
             .rounded_md()
             .focus_visible(focus_style(tone(Secondary, window, cx)))
             .child(
                 row(direction)
+                    .id("switch-row")
+                    .when(!self.disabled, |row| ripple_target(row, ripple))
                     .min_h(px(48.))
                     .px_1()
                     .child(track)

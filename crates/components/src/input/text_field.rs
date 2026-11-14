@@ -1,15 +1,19 @@
+use std::{cell::Cell, rc::Rc};
+
 use gpui::{
-    AccessibleAction, AnyElement, App, ElementId, Entity, InteractiveElement, IntoElement,
-    MouseButton, ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
-    TextAlign, Window, div, prelude::FluentBuilder, px,
+    AccessibleAction, AnyElement, App, BorderStyle, Bounds, ContentMask, ElementId, Entity,
+    InteractiveElement, IntoElement, MouseButton, ParentElement, RenderOnce, Role, SharedString,
+    StatefulInteractiveElement, Styled, TextAlign, Window, canvas, div, point,
+    prelude::FluentBuilder, px, quad,
 };
 use gpui_base::{
     TestSupportExt,
     input::{InputAccessibility, InputBaseState, InputEditorStyle, InputModeKind},
 };
-use gpui_material_foundation::{color, window_material_theme};
+use gpui_material_foundation::{animate, color, window_material_theme};
 use gpui_material_theme::{
-    ColorRole, CornerRole, Direction, LayoutPolicy, TypeRole, TypographyEmphasis,
+    ColorRole, CornerRole, Direction, LayoutPolicy, MotionKind, MotionSpeed, TypeRole,
+    TypographyEmphasis,
 };
 
 use super::{TextAreaState, TextFieldState};
@@ -151,7 +155,7 @@ impl RenderOnce for TextField {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         use ColorRole::*;
 
-        let theme = window_material_theme(window, cx);
+        let theme = window_material_theme(window, cx).clone();
         let tone = |role| color(theme.colors.color(role));
         let direction = theme.layout.direction;
         let presentation = match &self.editor {
@@ -211,9 +215,60 @@ impl RenderOnce for TextField {
             })
             .map_or(".SystemUIFont", String::as_str)
             .to_owned();
+        let has_text = match &self.editor {
+            Editor::Single(state) | Editor::Secure(state) => !state.read(cx).value().is_empty(),
+            Editor::Multiple(state) => !state.read(cx).value().is_empty(),
+        };
+        let effects = theme
+            .motion
+            .spec(MotionKind::Effects, MotionSpeed::Fast, cx.reduce_motion());
+        let floating = animate(
+            (self.id.clone(), "floating-label"),
+            f32::from(focused || has_text),
+            theme
+                .motion
+                .spec(MotionKind::Spatial, MotionSpeed::Fast, cx.reduce_motion()),
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
+        let focus_amount = animate(
+            (self.id.clone(), "focus-indicator"),
+            f32::from(focused),
+            effects,
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
+        let error_amount = animate(
+            (self.id.clone(), "error-indicator"),
+            f32::from(error && !disabled),
+            effects,
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
+        let indicator = if disabled {
+            indicator
+        } else {
+            let idle = tone(if filled { OnSurfaceVariant } else { Outline });
+            let active = crate::motion::mix(idle, tone(Primary), focus_amount);
+            crate::motion::mix(active, tone(Error), error_amount)
+        };
+        let label_color = if disabled {
+            label_color
+        } else {
+            let active = crate::motion::mix(secondary, tone(Primary), focus_amount);
+            crate::motion::mix(active, tone(Error), error_amount)
+        };
         let style = InputEditorStyle {
             foreground,
-            muted_foreground: secondary,
+            muted_foreground: if has_text {
+                secondary
+            } else {
+                // Base treats exactly transparent ink as an unset palette override.
+                secondary.opacity(floating.max(f32::EPSILON))
+            },
             caret: if error { tone(Error) } else { tone(Primary) },
             selection: tone(Primary).opacity(0.3),
             ..Default::default()
@@ -264,12 +319,103 @@ impl RenderOnce for TextField {
             }
         };
         let support = self.error.or(self.supporting_text);
+        let label_size = type_style.size + (caption_style.size - type_style.size) * floating;
+        let label_height = type_style.line_height
+            + (caption_style.line_height - type_style.line_height) * floating;
+        let resting_top = (56. - type_style.line_height) * 0.5;
+        let floating_top = if filled {
+            4.
+        } else {
+            -caption_style.line_height * 0.5
+        };
+        let cutout = Rc::new(Cell::new(None));
+        let measure_cutout = cutout.clone();
+        let label_top = resting_top + (floating_top - resting_top) * floating;
+        let cut_outline = !filled && floating > 0. && label_top < 1. + focus_amount;
+        let outline_width = px(1. + focus_amount);
+        let hover = window
+            .use_keyed_state((self.id.clone(), "field-hover"), cx, |_, _| {
+                Rc::new(Cell::new(false))
+            })
+            .read(cx)
+            .clone();
+        let outline_tint = if hover.get() && !disabled && !error {
+            crate::motion::mix(foreground, tone(Primary), focus_amount)
+        } else {
+            indicator
+        };
+        let outline_canvas = (!filled).then(|| {
+            canvas(
+                |_, _, _| (),
+                move |bounds, _, window, _| {
+                    let border = quad(
+                        bounds,
+                        radius,
+                        gpui::transparent_black(),
+                        outline_width,
+                        outline_tint,
+                        BorderStyle::Solid,
+                    );
+                    let Some(label_bounds) = cutout.get() else {
+                        window.paint_quad(border);
+                        return;
+                    };
+                    let label_bounds: Bounds<gpui::Pixels> = label_bounds;
+                    let label_center = label_bounds.center().x;
+                    let half_cut = label_bounds.size.width * floating / 2.;
+                    let left = (label_center - half_cut).max(bounds.left());
+                    let right = (label_center + half_cut).min(bounds.right());
+                    for (min, max) in [
+                        (bounds.origin, point(left, bounds.bottom())),
+                        (point(right, bounds.top()), bounds.bottom_right()),
+                        (
+                            point(left, bounds.top() + outline_width),
+                            point(right, bounds.bottom()),
+                        ),
+                    ] {
+                        window.with_content_mask(
+                            Some(ContentMask {
+                                bounds: Bounds::from_corners(min, max),
+                            }),
+                            |window| window.paint_quad(border.clone()),
+                        );
+                    }
+                },
+            )
+            .absolute()
+            .inset_0()
+        });
         let label_container = div()
             .id("label")
-            .text_size(px(caption_style.size))
-            .line_height(px(caption_style.line_height))
+            .test_support()
+            .absolute()
+            .top(px(label_top))
+            .left(px(16.))
+            .right(px(16.))
+            .text_size(px(label_size))
+            .line_height(px(label_height))
             .text_color(label_color)
-            .child(label.clone())
+            .flex()
+            .when(direction == Direction::Rtl, Styled::justify_end)
+            .child(
+                div()
+                    .min_w_0()
+                    .max_w_full()
+                    .relative()
+                    .truncate()
+                    .when(!filled, |label| label.px_1())
+                    .child(label.clone())
+                    .when(cut_outline, |label| {
+                        label.child(
+                            canvas(
+                                move |bounds, _, _| measure_cutout.set(Some(bounds)),
+                                |_, _, _, _| {},
+                            )
+                            .absolute()
+                            .inset_0(),
+                        )
+                    }),
+            )
             .when(!disabled, |label| {
                 let focus = focus.clone();
                 label.on_mouse_down(MouseButton::Left, move |_, window, cx| {
@@ -321,32 +467,39 @@ impl RenderOnce for TextField {
             .child(
                 div()
                     .id("container")
+                    .relative()
                     .flex()
                     .flex_col()
-                    .min_h(px(56.))
+                    .when_else(
+                        filled || presentation.is_multi_line(),
+                        Styled::justify_end,
+                        Styled::justify_center,
+                    )
+                    .min_h(px(56.).max(px(type_style.line_height + 16.)))
                     .rounded(radius)
                     .border_color(indicator)
                     .px_4()
                     .py_1()
-                    .when_else(
-                        filled,
-                        |field| field.bg(background).rounded_b_none().border_b_1(),
-                        |field| field.border_1(),
-                    )
-                    .when(focused, |field| {
-                        if filled {
-                            field.border_b_2()
-                        } else {
-                            field.border_2()
-                        }
+                    .when(filled, |mut field| {
+                        field.style().border_widths.bottom = Some(outline_width.into());
+                        field
+                            .bg(background)
+                            .rounded_b_none()
+                            .when(!disabled && !focused && !error, |field| {
+                                field.hover(|style| style.border_color(foreground))
+                            })
                     })
-                    .when(!disabled && !focused && !error, |field| {
-                        field.hover(|style| style.border_color(foreground))
+                    .when(!filled && !disabled, |field| {
+                        field.on_hover(move |hovering, window, _| {
+                            if hover.replace(*hovering) != *hovering {
+                                window.refresh();
+                            }
+                        })
                     })
+                    .children(outline_canvas)
                     .when(direction == Direction::Rtl, |field| {
                         field.text_align(TextAlign::Right)
                     })
-                    .child(label_container)
                     .child(
                         div()
                             .flex()
@@ -358,7 +511,8 @@ impl RenderOnce for TextField {
                             .when(direction == Direction::Rtl, |row| row.flex_row_reverse())
                             .child(div().flex_1().min_w_0().child(editor))
                             .children(self.trailing),
-                    ),
+                    )
+                    .child(label_container),
             )
             .when_some(support, |field, text| {
                 field.child(

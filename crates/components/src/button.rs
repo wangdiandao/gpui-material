@@ -6,7 +6,8 @@ use gpui::{
 };
 use gpui_material_foundation::window_material_theme;
 use gpui_material_theme::{
-    ColorRole, CornerRole, Direction, Elevation, TypeRole, TypographyEmphasis,
+    ColorRole, CornerRole, Direction, Elevation, MotionKind, MotionSpeed, TypeRole,
+    TypographyEmphasis,
 };
 
 use crate::action::{Action, ActionControl, ActionStyle, Activate, Change, icon_slot};
@@ -160,6 +161,18 @@ impl Common {
         window: &mut Window,
         cx: &mut App,
     ) -> AnyElement {
+        self.render_scaled(content, style, action, 1., window, cx)
+    }
+
+    fn render_scaled(
+        self,
+        content: AnyElement,
+        style: ActionStyle,
+        action: Action,
+        scale: f32,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> AnyElement {
         ActionControl {
             id: self.id,
             label: self.label,
@@ -169,7 +182,7 @@ impl Common {
             style,
             content,
         }
-        .render(window, cx)
+        .render_scaled(scale, window, cx)
     }
 }
 
@@ -213,6 +226,7 @@ impl Slots {
         self,
         label: SharedString,
         metrics: Metrics,
+        scale: f32,
         window: &Window,
         direction: Direction,
     ) -> AnyElement {
@@ -223,20 +237,27 @@ impl Slots {
             .justify_center()
             .min_w_0()
             .max_w_full()
-            .gap(px(metrics.gap))
+            .gap(px(metrics.gap * scale))
             .px(px(metrics
                 .padding
-                .min(f32::from(window.viewport_size().width) * 0.125)))
-            .py(px(4.))
-            .text_size(px(typography.size))
-            .line_height(px(typography.line_height));
+                .min(f32::from(window.viewport_size().width) * 0.125)
+                * scale))
+            .py(px(4. * scale))
+            .text_size(px(typography.size * scale))
+            .line_height(px(typography.line_height * scale));
         if direction == Direction::Rtl {
             row = row.flex_row_reverse();
         }
-        row.children(self.leading.map(|icon| icon_slot(icon, metrics.icon)))
-            .child(div().min_w_0().truncate().child(label))
-            .children(self.trailing.map(|icon| icon_slot(icon, metrics.icon)))
-            .into_any_element()
+        row.children(
+            self.leading
+                .map(|icon| icon_slot(icon, metrics.icon * scale)),
+        )
+        .child(div().min_w_0().truncate().child(label))
+        .children(
+            self.trailing
+                .map(|icon| icon_slot(icon, metrics.icon * scale)),
+        )
+        .into_any_element()
     }
 }
 
@@ -264,6 +285,7 @@ pub struct Button {
     variant: ButtonVariant,
     slots: Slots,
     on_activate: Option<Activate>,
+    scale: f32,
 }
 
 impl Button {
@@ -273,6 +295,7 @@ impl Button {
             variant: ButtonVariant::default(),
             slots: Slots::default(),
             on_activate: None,
+            scale: 1.,
         }
     }
 
@@ -281,6 +304,11 @@ impl Button {
 
     pub fn variant(mut self, variant: ButtonVariant) -> Self {
         self.variant = variant;
+        self
+    }
+
+    pub(crate) fn scale(mut self, scale: f32) -> Self {
+        self.scale = scale;
         self
     }
 
@@ -298,11 +326,18 @@ impl RenderOnce for Button {
         let content = self.slots.render(
             self.common.label.clone(),
             metrics,
+            self.scale,
             window,
             window_material_theme(window, cx).layout.direction,
         );
-        self.common
-            .render(content, style, Action::Invoke(self.on_activate), window, cx)
+        self.common.render_scaled(
+            content,
+            style,
+            Action::Invoke(self.on_activate),
+            self.scale,
+            window,
+            cx,
+        )
     }
 }
 
@@ -351,14 +386,16 @@ impl RenderOnce for ToggleButton {
             ToggleButtonVariant::FilledTonal => ButtonVariant::FilledTonal,
             ToggleButtonVariant::Outlined => ButtonVariant::Outlined,
         };
-        let style = button_appearance(variant, Some(self.selected)).style(
+        let mut style = button_appearance(variant, Some(self.selected)).style(
             metrics,
-            self.common.shape.corner(metrics.square, self.selected),
+            self.common.shape.corner(metrics.square, false),
             0.,
         );
+        style.selected_corner = Some(self.common.shape.corner(metrics.square, true));
         let content = self.slots.render(
             self.common.label.clone(),
             metrics,
+            1.,
             window,
             window_material_theme(window, cx).layout.direction,
         );
@@ -421,11 +458,12 @@ impl IconButton {
 impl RenderOnce for IconButton {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let (metrics, width) = self.common.size.icon_metrics(self.width);
-        let style = icon_appearance(self.variant, None).style(
+        let mut style = icon_appearance(self.variant, None).style(
             metrics,
             self.common.shape.corner(metrics.square, false),
             width,
         );
+        style.corner_motion = (MotionKind::Effects, MotionSpeed::Default);
         self.common.render(
             icon_slot(self.icon, metrics.icon).into_any_element(),
             style,
@@ -493,11 +531,13 @@ impl IconToggleButton {
 impl RenderOnce for IconToggleButton {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let (metrics, width) = self.common.size.icon_metrics(self.width);
-        let style = icon_appearance(self.variant, Some(self.selected)).style(
+        let mut style = icon_appearance(self.variant, Some(self.selected)).style(
             metrics,
-            self.common.shape.corner(metrics.square, self.selected),
+            self.common.shape.corner(metrics.square, false),
             width,
         );
+        style.selected_corner = Some(self.common.shape.corner(metrics.square, true));
+        style.corner_motion = (MotionKind::Effects, MotionSpeed::Default);
         let icon = if self.selected {
             self.selected_icon.unwrap_or(self.icon)
         } else {
@@ -528,11 +568,14 @@ impl Appearance {
     fn style(self, metrics: Metrics, corner: CornerRole, min_width: f32) -> ActionStyle {
         ActionStyle {
             background: self.background,
+            background_color: None,
             foreground: self.foreground,
             height: metrics.height,
             min_width,
             corner,
             pressed_corner: metrics.pressed,
+            selected_corner: None,
+            corner_motion: (MotionKind::Spatial, MotionSpeed::Fast),
             outline: if self.outlined { metrics.outline } else { 0. },
             elevation: self.elevation,
             hover_elevation: self.hover_elevation,

@@ -331,4 +331,59 @@ mod tests {
         })
         .unwrap();
     }
+    #[gpui::test]
+    fn switch_interpolates_size_and_position_and_respects_reduced_motion(cx: &mut TestAppContext) {
+        use std::time::Duration;
+
+        let (window, view) = cx.update(|cx| {
+            crate::init_gallery(cx);
+            let mut view = None;
+            let window = MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+                let selection = cx.new(SelectionExamples::new);
+                view = Some(selection.clone());
+                selection
+            })
+            .unwrap();
+            (window, view.unwrap())
+        });
+        let sample = |cx: &mut TestAppContext| {
+            cx.update_window(window.into(), |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+                let thumb = find(
+                    window,
+                    &[],
+                    &(ElementId::from("sync-switch"), "switch-thumb").into(),
+                )
+                .unwrap()
+                .bounds();
+                (thumb.center().x, thumb.size.width)
+            })
+            .unwrap()
+        };
+        let toggle = |cx: &mut TestAppContext, checked| {
+            cx.update(|cx| {
+                view.update(cx, |selection, cx| {
+                    selection.plain_switch = checked;
+                    cx.notify();
+                })
+            });
+        };
+        let start = sample(cx);
+        toggle(cx, true);
+        assert_eq!(sample(cx), start);
+        cx.executor().advance_clock(Duration::from_millis(40));
+        let middle = sample(cx);
+        assert!(middle.0 > start.0);
+        assert!(middle.1 > start.1 && middle.1 < px(24.));
+        toggle(cx, false);
+        assert_eq!(sample(cx), middle);
+        cx.executor().advance_clock(Duration::from_secs(1));
+        assert_eq!(sample(cx), start);
+        cx.update(|cx| cx.set_reduce_motion(true));
+        toggle(cx, true);
+        let end = sample(cx);
+        assert_eq!(end.1, px(24.));
+        assert!(end.0 > middle.0);
+    }
 }

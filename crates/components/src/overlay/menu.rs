@@ -1,8 +1,8 @@
-use std::cell::Cell;
-use std::rc::Rc;
+use std::cell::{Cell, RefCell};
+use std::rc::{Rc, Weak};
 
 use gpui::{
-    Anchor, AnyElement, App, Axis, ElementId, FocusHandle, Focusable, InteractiveElement,
+    Anchor, AnyElement, App, Axis, Bounds, ElementId, FocusHandle, Focusable, InteractiveElement,
     IntoElement, MouseButton, ParentElement, RenderOnce, Role, SharedString,
     StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
@@ -98,6 +98,27 @@ pub struct Menu {
     anchor: Anchor,
     close_parent: Option<Action>,
     enabled: bool,
+    ancestor: Option<Rc<PopupBounds>>,
+}
+
+#[derive(Default)]
+struct PopupBounds {
+    trigger: Cell<Bounds<gpui::Pixels>>,
+    popup: Cell<Bounds<gpui::Pixels>>,
+    child: RefCell<Option<Weak<PopupBounds>>>,
+}
+
+impl PopupBounds {
+    fn contains(&self, point: &gpui::Point<gpui::Pixels>) -> bool {
+        self.trigger.get().contains(point)
+            || self.popup.get().contains(point)
+            || self
+                .child
+                .borrow()
+                .as_ref()
+                .and_then(Weak::upgrade)
+                .is_some_and(|child| child.contains(point))
+    }
 }
 
 impl Menu {
@@ -114,6 +135,7 @@ impl Menu {
             anchor: Anchor::TopLeft,
             close_parent: None,
             enabled: true,
+            ancestor: None,
         }
     }
 
@@ -145,6 +167,15 @@ impl RenderOnce for Menu {
         let open = open_state.get();
         let key_state = open_state.clone();
         let view = window.current_view();
+        let bounds = window
+            .use_keyed_state((self.id.clone(), "menu-bounds"), cx, |_, _| {
+                Rc::new(PopupBounds::default())
+            })
+            .read(cx)
+            .clone();
+        let position = bounds.clone();
+        let ancestor = self.ancestor.clone();
+        let clear_ancestor = ancestor.clone();
         let forward = if direction == Direction::Rtl {
             "left"
         } else {
@@ -154,12 +185,22 @@ impl RenderOnce for Menu {
             .open(open)
             .on_open_change(move |open, _, cx| {
                 open_state.set(*open);
+                if !*open && let Some(ancestor) = &clear_ancestor {
+                    *ancestor.child.borrow_mut() = None;
+                }
                 cx.notify(view);
             })
             .anchor(logical_anchor(self.anchor, direction))
             .offset(px(4.))
             .mouse_button(self.mouse_button)
-            .overlay_closable(!submenu)
+            .overlay_closable(false)
+            .on_position(move |resolved, trigger| {
+                position.trigger.set(trigger);
+                position.popup.set(resolved.bounds);
+                if let Some(ancestor) = &ancestor {
+                    *ancestor.child.borrow_mut() = Some(Rc::downgrade(&position));
+                }
+            })
             .trigger_with(move |open, _, _| {
                 div()
                     .id("menu-trigger")
@@ -190,15 +231,26 @@ impl RenderOnce for Menu {
                         close_parent(window, cx);
                     }
                 });
-                menu_content(
+                let dismissal = close_level.clone();
+                let content = menu_content(
                     self.items,
                     close,
                     submenu.then_some(close_level),
                     state.focus_handle(cx),
-                    direction,
+                    (direction, bounds.clone()),
                     window,
                     cx,
-                )
+                );
+                div()
+                    .id("dismiss-menu")
+                    .on_mouse_down_out(move |event, window, cx| {
+                        let point = &event.position;
+                        if bounds.contains(point) {
+                            return;
+                        }
+                        dismissal(window, cx);
+                    })
+                    .child(content)
             })
             .into_any_element()
     }
@@ -209,7 +261,7 @@ fn menu_content(
     close: Action,
     close_level: Option<Action>,
     popup_focus: FocusHandle,
-    direction: Direction,
+    (direction, bounds): (Direction, Rc<PopupBounds>),
     window: &mut Window,
     cx: &mut App,
 ) -> AnyElement {
@@ -378,6 +430,7 @@ fn menu_content(
                                 Menu {
                                     close_parent: Some(close.clone()),
                                     enabled,
+                                    ancestor: Some(bounds.clone()),
                                     ..Menu::new((item.id, "submenu"), row, children)
                                         .anchor(Anchor::LeftCenter)
                                 }

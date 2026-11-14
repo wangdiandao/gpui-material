@@ -747,7 +747,11 @@ fn calendar(
             .disabled(month <= first_of_month(*model.limits.bounds.start()))
             .on_activate(move_month(prev, "pageup")),
         )
-        .child(Text::new((locale.month)(month)).role(TypeRole::TitleSmall))
+        .child(
+            Text::new((locale.month)(month))
+                .id("current-month")
+                .role(TypeRole::TitleSmall),
+        )
         .child(
             IconButton::new(
                 (id.clone(), "next-month"),
@@ -767,7 +771,11 @@ fn calendar(
             .flex()
             .items_center()
             .justify_center()
-            .child(Text::new((locale.weekday)(weekday)).role(TypeRole::BodySmall))
+            .child(
+                Text::new((locale.weekday)(weekday))
+                    .id(("weekday", weekday.num_days_from_monday()))
+                    .role(TypeRole::BodySmall),
+            )
     });
     let rows = (0..6).map(|week| {
         div()

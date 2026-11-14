@@ -6,7 +6,10 @@ use gpui_material::{
     LinearProgress, List, ListItem, ListVariant, LoadingIndicator, ProgressShape, Text,
 };
 
+use crate::story::{Story, section};
+
 pub(crate) struct DisplayExamples {
+    story: Option<Story>,
     progress: f32,
     loading: bool,
     selected: bool,
@@ -21,6 +24,7 @@ pub(crate) struct DisplayExamples {
 impl Default for DisplayExamples {
     fn default() -> Self {
         Self {
+            story: None,
             progress: 0.35,
             loading: false,
             selected: false,
@@ -31,6 +35,19 @@ impl Default for DisplayExamples {
             pinned_file: None,
             files_scroll: ScrollHandle::new(),
         }
+    }
+}
+
+impl DisplayExamples {
+    pub(crate) fn for_story(story: Story) -> Self {
+        Self {
+            story: Some(story),
+            ..Self::default()
+        }
+    }
+
+    fn shows(&self, story: Story) -> bool {
+        self.story.is_none_or(|active| active == story)
     }
 }
 
@@ -62,223 +79,263 @@ impl Render for DisplayExamples {
             .flex()
             .flex_col()
             .gap_3()
-            .child(
-                Text::new("Display")
-                    .role(TypeRole::TitleLarge)
-                    .id("display-heading"),
-            )
-            .child(
-                Text::new("Material typography 中文混排")
-                    .id("mixed-script-text")
-                    .role(TypeRole::TitleMedium)
-                    .emphasized(true)
-                    .font_scale(1.25)
-                    .truncate(px(350.)),
-            )
-            .child(Text::new("Material typography 中文混排").id("baseline-text"))
-            .child(
-                Card::new("elevated-card")
-                    .variant(CardVariant::Elevated)
-                    .child(Text::new("Elevated card")),
-            )
-            .child(
-                Card::new("filled-card")
-                    .on_activate("Open project", move |_, cx| {
-                        card.update(cx, |this, cx| {
-                            this.opened = !this.opened;
-                            cx.notify();
-                        });
-                    })
-                    .child(Text::new(if self.opened {
-                        "Project open"
-                    } else {
-                        "Project"
-                    }))
+            .children(self.shows(Story::TextIcon).then(|| {
+                section("Typography and font scale")
                     .child(
-                        Button::new("card-child", format!("Pin ({})", self.child_count))
-                            .variant(ButtonVariant::Outlined)
-                            .on_activate(move |_, cx| {
-                                child.update(cx, |this, cx| {
-                                    this.child_count += 1;
-                                    cx.notify();
-                                })
-                            }),
-                    ),
-            )
-            .child(
-                Card::new("outlined-card")
-                    .variant(CardVariant::Outlined)
-                    .disabled(true)
-                    .child(Text::new("Unavailable card")),
-            )
-            .child(Divider::horizontal().inset(px(16.), px(0.)))
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_3()
-                    .h_10()
-                    .child(
-                        Icon::svg(crate::FORWARD_ICON)
-                            .mirror_in_rtl(true)
-                            .label("forward", "Forward"),
+                        Text::new("Material typography 中文混排")
+                            .id("mixed-script-text")
+                            .role(TypeRole::TitleMedium)
+                            .emphasized(true)
+                            .font_scale(1.25)
+                            .truncate(px(350.)),
                     )
-                    .child(Divider::vertical().inset(px(4.), px(8.)))
-                    .child(Icon::svg(crate::FORWARD_ICON))
-                    .child(Badge::count(
-                        Icon::custom("▤").label("inbox", "Inbox"),
-                        8,
-                        99,
-                    ))
-                    .child(Badge::label(
-                        Icon::custom("▤").label("new-file", "Files"),
-                        "New",
-                    )),
-            )
-            .child(
-                List::new("segmented-list")
-                    .variant(ListVariant::Segmented)
-                    .items([
-                        ListItem::new("documents", "Documents")
-                            .selected(self.selected)
-                            .supporting_text("12 items")
-                            .leading(Icon::custom("▤"))
-                            .on_activate(move |_, cx| {
-                                list.update(cx, |this, cx| {
-                                    this.selected = !this.selected;
-                                    cx.notify();
-                                })
-                            }),
-                        ListItem::new("archives", "Archives")
-                            .overline("Storage")
-                            .supporting_text("Last updated today")
-                            .trailing(Badge::count(
-                                Icon::svg(crate::ARCHIVE_ICON)
-                                    .label("archive-status", "More than 99 archived items"),
-                                125,
-                                99,
-                            )),
-                        ListItem::new("shared", "Shared").trailing(Badge::dot(
-                            Icon::custom("◆").label("shared-status", "New shared activity"),
-                        )),
-                    ]),
-            )
-            .child(linear(
-                "linear-progress",
-                "Transfer progress",
-                ProgressShape::Straight,
-            ))
-            .child(linear(
-                "linear-wave",
-                "Wavy transfer progress",
-                ProgressShape::Wavy,
-            ))
-            .child(
-                div()
-                    .flex()
-                    .flex_wrap()
-                    .items_center()
-                    .gap_3()
-                    .child(circular(
-                        "circular-progress",
-                        "Sync progress",
-                        ProgressShape::Straight,
-                    ))
-                    .child(circular(
-                        "circular-wave",
-                        "Wavy sync progress",
-                        ProgressShape::Wavy,
-                    ))
+                    .child(Text::new("Material typography 中文混排").id("baseline-text"))
                     .child(
-                        LoadingIndicator::new("loading", "Loading documents").active(self.loading),
-                    )
-                    .child(
-                        LoadingIndicator::new("contained-loading", "Loading archives")
-                            .contained(true)
-                            .active(self.loading),
-                    )
-                    .child(
-                        Button::new("advance-progress", "Advance").on_activate(move |_, cx| {
-                            progress.update(cx, |this, cx| {
-                                this.progress = (this.progress + 0.25) % 1.;
-                                cx.notify();
-                            })
-                        }),
-                    )
-                    .child(
-                        Button::new(
-                            "toggle-loading",
-                            if self.loading {
-                                "Stop loading"
-                            } else {
-                                "Start loading"
-                            },
-                        )
-                        .variant(ButtonVariant::Outlined)
-                        .on_activate(move |_, cx| {
-                            loading.update(cx, |this, cx| {
-                                this.loading = !this.loading;
-                                cx.notify();
-                            })
-                        }),
-                    ),
-            )
-            .child(
-                Button::new(
-                    "progress-mode",
-                    if self.indeterminate {
-                        "Use measured progress"
-                    } else {
-                        "Use indeterminate progress"
-                    },
-                )
-                .on_activate(move |_, cx| {
-                    mode.update(cx, |this, cx| {
-                        this.indeterminate = !this.indeterminate;
-                        cx.notify();
-                    })
-                }),
-            )
-            .child(
-                Text::new("Files")
-                    .id("files-title")
-                    .role(TypeRole::TitleMedium),
-            )
-            .child(
-                isolated_scroll("files-scroll", &self.files_scroll)
-                    .h_48()
-                    .child(List::new("standard-list").items((1..=24).map(|file| {
-                        let select = cx.entity();
-                        let pin = cx.entity();
-                        let pinned = self.pinned_file == Some(file);
-                        ListItem::new(("file", file), format!("File {file}"))
-                            .selected(self.selected_file == Some(file))
-                            .on_activate(move |_, cx| {
-                                select.update(cx, |this, cx| {
-                                    this.selected_file = Some(file);
-                                    cx.notify();
-                                })
-                            })
-                            .trailing(
-                                Button::new(
-                                    ("pin-file", file),
-                                    if pinned {
-                                        format!("Unpin file {file}")
-                                    } else {
-                                        format!("Pin file {file}")
-                                    },
+                        section("Directional and decorative SVGs").child(
+                            div()
+                                .flex()
+                                .gap_3()
+                                .h_10()
+                                .items_center()
+                                .child(
+                                    Icon::svg(crate::FORWARD_ICON)
+                                        .mirror_in_rtl(true)
+                                        .label("forward", "Forward"),
                                 )
-                                .variant(ButtonVariant::Text)
-                                .size(gpui_material::ControlSize::ExtraSmall)
+                                .child(Divider::vertical().inset(px(4.), px(8.)))
+                                .child(Icon::svg(crate::FORWARD_ICON)),
+                        ),
+                    )
+            }))
+            .children(self.shows(Story::Card).then(|| {
+                section("Elevated, filled and outlined")
+                    .child(
+                        Card::new("elevated-card")
+                            .variant(CardVariant::Elevated)
+                            .child(Text::new("Elevated card")),
+                    )
+                    .child(
+                        Card::new("filled-card")
+                            .on_activate("Open project", move |_, cx| {
+                                card.update(cx, |this, cx| {
+                                    this.opened = !this.opened;
+                                    cx.notify();
+                                });
+                            })
+                            .child(Text::new(if self.opened {
+                                "Project open"
+                            } else {
+                                "Project"
+                            }))
+                            .child(
+                                Button::new("card-child", format!("Pin ({})", self.child_count))
+                                    .variant(ButtonVariant::Outlined)
+                                    .on_activate(move |_, cx| {
+                                        child.update(cx, |this, cx| {
+                                            this.child_count += 1;
+                                            cx.notify();
+                                        })
+                                    }),
+                            ),
+                    )
+                    .child(
+                        Card::new("outlined-card")
+                            .variant(CardVariant::Outlined)
+                            .disabled(true)
+                            .child(Text::new("Unavailable card")),
+                    )
+            }))
+            .children(self.shows(Story::DividerBadge).then(|| {
+                section("Horizontal and vertical dividers")
+                    .child(Divider::horizontal().inset(px(16.), px(0.)))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_3()
+                            .h_10()
+                            .child(Text::new("Before").id("divider-before"))
+                            .child(Divider::vertical().inset(px(4.), px(8.)))
+                            .child(Text::new("After").id("divider-after")),
+                    )
+                    .child(
+                        section("Dot, label and count badges").child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .flex_wrap()
+                                .gap_5()
+                                .p_2()
+                                .child(Badge::dot(
+                                    Icon::custom("◆").label("new-activity", "New activity"),
+                                ))
+                                .child(Badge::count(
+                                    Icon::custom("▤").label("inbox", "Inbox"),
+                                    8,
+                                    99,
+                                ))
+                                .child(Badge::label(
+                                    Icon::custom("▤").label("new-file", "Files"),
+                                    "New",
+                                ))
+                                .child(Badge::count(
+                                    Icon::svg(crate::ARCHIVE_ICON)
+                                        .label("archive-overflow", "More than 99 archived items"),
+                                    125,
+                                    99,
+                                )),
+                        ),
+                    )
+            }))
+            .children(self.shows(Story::List).then(|| {
+                section("Segmented list").child(
+                    List::new("segmented-list")
+                        .variant(ListVariant::Segmented)
+                        .items([
+                            ListItem::new("documents", "Documents")
+                                .selected(self.selected)
+                                .supporting_text("12 items")
+                                .leading(Icon::custom("▤"))
                                 .on_activate(move |_, cx| {
-                                    pin.update(cx, |this, cx| {
-                                        this.pinned_file = (!pinned).then_some(file);
+                                    list.update(cx, |this, cx| {
+                                        this.selected = !this.selected;
                                         cx.notify();
                                     })
                                 }),
+                            ListItem::new("archives", "Archives")
+                                .overline("Storage")
+                                .supporting_text("Last updated today")
+                                .trailing(Badge::count(
+                                    Icon::svg(crate::ARCHIVE_ICON)
+                                        .label("archive-status", "More than 99 archived items"),
+                                    125,
+                                    99,
+                                )),
+                            ListItem::new("shared", "Shared").trailing(Badge::dot(
+                                Icon::custom("◆").label("shared-status", "New shared activity"),
+                            )),
+                        ]),
+                )
+            }))
+            .children(self.shows(Story::Progress).then(|| {
+                section("Progress and loading states")
+                    .child(linear(
+                        "linear-progress",
+                        "Transfer progress",
+                        ProgressShape::Straight,
+                    ))
+                    .child(linear(
+                        "linear-wave",
+                        "Wavy transfer progress",
+                        ProgressShape::Wavy,
+                    ))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .items_center()
+                            .gap_3()
+                            .child(circular(
+                                "circular-progress",
+                                "Sync progress",
+                                ProgressShape::Straight,
+                            ))
+                            .child(circular(
+                                "circular-wave",
+                                "Wavy sync progress",
+                                ProgressShape::Wavy,
+                            ))
+                            .child(
+                                LoadingIndicator::new("loading", "Loading documents")
+                                    .active(self.loading),
                             )
-                    }))),
-            )
+                            .child(
+                                LoadingIndicator::new("contained-loading", "Loading archives")
+                                    .contained(true)
+                                    .active(self.loading),
+                            )
+                            .child(Button::new("advance-progress", "Advance").on_activate(
+                                move |_, cx| {
+                                    progress.update(cx, |this, cx| {
+                                        this.progress = (this.progress + 0.25) % 1.;
+                                        cx.notify();
+                                    })
+                                },
+                            ))
+                            .child(
+                                Button::new(
+                                    "toggle-loading",
+                                    if self.loading {
+                                        "Stop loading"
+                                    } else {
+                                        "Start loading"
+                                    },
+                                )
+                                .variant(ButtonVariant::Outlined)
+                                .on_activate(move |_, cx| {
+                                    loading.update(cx, |this, cx| {
+                                        this.loading = !this.loading;
+                                        cx.notify();
+                                    })
+                                }),
+                            ),
+                    )
+                    .child(
+                        Button::new(
+                            "progress-mode",
+                            if self.indeterminate {
+                                "Use measured progress"
+                            } else {
+                                "Use indeterminate progress"
+                            },
+                        )
+                        .on_activate(move |_, cx| {
+                            mode.update(cx, |this, cx| {
+                                this.indeterminate = !this.indeterminate;
+                                cx.notify();
+                            })
+                        }),
+                    )
+            }))
+            .children(self.shows(Story::List).then(|| {
+                section("Standard list").child(
+                    isolated_scroll("files-scroll", &self.files_scroll)
+                        .h_48()
+                        .child(List::new("standard-list").items((1..=24).map(|file| {
+                            let select = cx.entity();
+                            let pin = cx.entity();
+                            let pinned = self.pinned_file == Some(file);
+                            ListItem::new(("file", file), format!("File {file}"))
+                                .selected(self.selected_file == Some(file))
+                                .on_activate(move |_, cx| {
+                                    select.update(cx, |this, cx| {
+                                        this.selected_file = Some(file);
+                                        cx.notify();
+                                    })
+                                })
+                                .trailing(
+                                    Button::new(
+                                        ("pin-file", file),
+                                        if pinned {
+                                            format!("Unpin file {file}")
+                                        } else {
+                                            format!("Pin file {file}")
+                                        },
+                                    )
+                                    .variant(ButtonVariant::Text)
+                                    .size(gpui_material::ControlSize::ExtraSmall)
+                                    .on_activate(
+                                        move |_, cx| {
+                                            pin.update(cx, |this, cx| {
+                                                this.pinned_file = (!pinned).then_some(file);
+                                                cx.notify();
+                                            })
+                                        },
+                                    ),
+                                )
+                        }))),
+                )
+            }))
     }
 }
 

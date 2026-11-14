@@ -6,7 +6,10 @@ use gpui_material::foundation::window_material_theme;
 use gpui_material::theme::Direction;
 use gpui_material::{Checkbox, CheckboxState, Chip, ChipVariant, Radio, RadioGroup, Switch};
 
+use crate::story::{Story, section};
+
 pub(crate) struct SelectionExamples {
+    story: Option<Story>,
     colors: [CheckboxState; 2],
     alignment: ElementId,
     notifications: bool,
@@ -20,6 +23,7 @@ pub(crate) struct SelectionExamples {
 impl SelectionExamples {
     pub(crate) fn new(cx: &mut Context<Self>) -> Self {
         Self {
+            story: None,
             colors: [CheckboxState::Checked, CheckboxState::Unchecked],
             alignment: "start".into(),
             notifications: false,
@@ -29,6 +33,16 @@ impl SelectionExamples {
             chip_visible: true,
             restore: cx.focus_handle(),
         }
+    }
+    pub(crate) fn for_story(story: Story, cx: &mut Context<Self>) -> Self {
+        Self {
+            story: Some(story),
+            ..Self::new(cx)
+        }
+    }
+
+    fn shows(&self, story: Story) -> bool {
+        self.story.is_none_or(|active| active == story)
     }
 }
 
@@ -40,177 +54,189 @@ impl Render for SelectionExamples {
             .flex()
             .flex_col()
             .gap_2()
-            .child(div().text_lg().child("Selection"))
-            .child(
-                Checkbox::new(
-                    "palette-all",
-                    "All colors",
-                    Checkbox::aggregate(self.colors),
-                )
-                .on_change(move |next, _, cx| {
-                    owner.update(cx, |this, cx| {
-                        this.colors.fill(next);
-                        cx.notify();
-                    })
-                }),
-            )
-            .child(
-                div()
-                    .flex()
-                    .flex_wrap()
-                    .when(rtl, Styled::flex_row_reverse)
-                    .gap_2()
-                    .children(
-                        [("warm", "Warm"), ("cool", "Cool")]
-                            .into_iter()
-                            .enumerate()
-                            .map(|(ix, (id, label))| {
-                                let owner = cx.entity();
-                                Checkbox::new(id, label, self.colors[ix]).on_change(
-                                    move |next, _, cx| {
-                                        owner.update(cx, |this, cx| {
-                                            this.colors[ix] = next;
-                                            cx.notify();
-                                        });
-                                    },
-                                )
-                            }),
-                    ),
-            )
-            .child(
-                Checkbox::new(
-                    "invalid-option",
-                    "Required option",
-                    CheckboxState::Unchecked,
-                )
-                .error(true),
-            )
-            .child(
-                Checkbox::new("disabled-option", "Unavailable", CheckboxState::Checked)
-                    .disabled(true),
-            )
-            .child({
-                let owner = cx.entity();
-                RadioGroup::new("alignment", "Alignment")
-                    .axis(Axis::Horizontal)
-                    .selected(self.alignment.clone())
-                    .options([
-                        Radio::new("start", "Start"),
-                        Radio::new("center", "Center").disabled(true),
-                        Radio::new("end", "End"),
-                    ])
-                    .on_select(move |id, _, cx| {
-                        owner.update(cx, |this, cx| {
-                            this.alignment = id.clone();
-                            cx.notify();
-                        });
-                    })
-            })
-            .child({
-                let owner = cx.entity();
-                Switch::new("notifications", "Notifications", self.notifications)
-                    .checked_icon("✓")
-                    .unchecked_icon("−")
-                    .on_change(move |next, _, cx| {
-                        owner.update(cx, |this, cx| {
-                            this.notifications = next;
-                            cx.notify();
-                        });
-                    })
-            })
-            .child({
-                let owner = cx.entity();
-                Switch::new("sync-switch", "Sync automatically", self.plain_switch).on_change(
-                    move |next, _, cx| {
-                        owner.update(cx, |this, cx| {
-                            this.plain_switch = next;
-                            cx.notify();
+            .children(self.shows(Story::Checkbox).then(|| {
+                section("Checked, mixed, error and disabled")
+                    .child(
+                        Checkbox::new(
+                            "palette-all",
+                            "All colors",
+                            Checkbox::aggregate(self.colors),
+                        )
+                        .on_change(move |next, _, cx| {
+                            owner.update(cx, |this, cx| {
+                                this.colors.fill(next);
+                                cx.notify();
+                            })
+                        }),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .when(rtl, Styled::flex_row_reverse)
+                            .gap_2()
+                            .children(
+                                [("warm", "Warm"), ("cool", "Cool")]
+                                    .into_iter()
+                                    .enumerate()
+                                    .map(|(ix, (id, label))| {
+                                        let owner = cx.entity();
+                                        Checkbox::new(id, label, self.colors[ix]).on_change(
+                                            move |next, _, cx| {
+                                                owner.update(cx, |this, cx| {
+                                                    this.colors[ix] = next;
+                                                    cx.notify();
+                                                });
+                                            },
+                                        )
+                                    }),
+                            ),
+                    )
+                    .child(
+                        Checkbox::new(
+                            "invalid-option",
+                            "Required option",
+                            CheckboxState::Unchecked,
+                        )
+                        .error(true),
+                    )
+                    .child(
+                        Checkbox::new("disabled-option", "Unavailable", CheckboxState::Checked)
+                            .disabled(true),
+                    )
+            }))
+            .children(self.shows(Story::Radio).then(|| {
+                section("Horizontal group").child({
+                    let owner = cx.entity();
+                    RadioGroup::new("alignment", "Alignment")
+                        .axis(Axis::Horizontal)
+                        .selected(self.alignment.clone())
+                        .options([
+                            Radio::new("start", "Start"),
+                            Radio::new("center", "Center").disabled(true),
+                            Radio::new("end", "End"),
+                        ])
+                        .on_select(move |id, _, cx| {
+                            owner.update(cx, |this, cx| {
+                                this.alignment = id.clone();
+                                cx.notify();
+                            });
                         })
-                    },
-                )
-            })
-            .child(Switch::new("disabled-switch", "Sync locked on", true).disabled(true))
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .flex_wrap()
-                    .when(rtl, Styled::flex_row_reverse)
-                    .gap_2()
+                })
+            }))
+            .children(self.shows(Story::Switch).then(|| {
+                section("With icons, without icons and disabled")
                     .child({
                         let owner = cx.entity();
-                        gpui_material::Button::new("restore-chip", "Restore tag")
-                            .variant(gpui_material::ButtonVariant::Text)
-                            .track_focus(&self.restore)
-                            .on_activate(move |_, cx| {
+                        Switch::new("notifications", "Notifications", self.notifications)
+                            .checked_icon("✓")
+                            .unchecked_icon("−")
+                            .on_change(move |next, _, cx| {
                                 owner.update(cx, |this, cx| {
-                                    this.chip_visible = true;
+                                    this.notifications = next;
+                                    cx.notify();
+                                });
+                            })
+                    })
+                    .child({
+                        let owner = cx.entity();
+                        Switch::new("sync-switch", "Sync automatically", self.plain_switch)
+                            .on_change(move |next, _, cx| {
+                                owner.update(cx, |this, cx| {
+                                    this.plain_switch = next;
                                     cx.notify();
                                 })
                             })
                     })
+                    .child(Switch::new("disabled-switch", "Sync locked on", true).disabled(true))
+            }))
+            .children(self.shows(Story::Chip).then(|| {
+                section("Assist, filter, input and suggestion")
                     .child(
-                        Chip::new("assist", "Browse")
-                            .leading_icon("+")
-                            .elevated(true),
-                    )
-                    .child({
-                        let owner = cx.entity();
-                        Chip::new("filter", "Recent")
-                            .variant(ChipVariant::Filter)
-                            .selected(self.filter)
-                            .on_change(move |value, _, cx| {
-                                owner.update(cx, |this, cx| {
-                                    this.filter = value;
-                                    cx.notify();
-                                })
+                        div()
+                            .flex()
+                            .items_center()
+                            .flex_wrap()
+                            .when(rtl, Styled::flex_row_reverse)
+                            .gap_2()
+                            .child({
+                                let owner = cx.entity();
+                                gpui_material::Button::new("restore-chip", "Restore tag")
+                                    .variant(gpui_material::ButtonVariant::Text)
+                                    .track_focus(&self.restore)
+                                    .on_activate(move |_, cx| {
+                                        owner.update(cx, |this, cx| {
+                                            this.chip_visible = true;
+                                            cx.notify();
+                                        })
+                                    })
                             })
-                    })
-                    .children(self.chip_visible.then(|| {
-                        let remove = cx.entity();
-                        let select = cx.entity();
-                        Chip::new("tag", "Project")
-                            .variant(ChipVariant::Input)
-                            .selected(self.chip_selected)
-                            .on_change(move |value, _, cx| {
-                                select.update(cx, |this, cx| {
-                                    this.chip_selected = value;
-                                    cx.notify();
-                                })
-                            })
-                            .on_remove(
-                                "Remove Project tag",
-                                Some(self.restore.clone()),
-                                move |_, cx| {
-                                    remove.update(cx, |this, cx| {
-                                        this.chip_visible = false;
-                                        cx.notify();
-                                    });
-                                },
+                            .child(
+                                Chip::new("assist", "Browse")
+                                    .leading_icon("+")
+                                    .elevated(true),
                             )
-                    }))
-                    .child(Chip::new("suggestion", "Suggested").variant(ChipVariant::Suggestion)),
-            )
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .flex_wrap()
-                    .when(rtl, Styled::flex_row_reverse)
-                    .gap_2()
-                    .child(
-                        Chip::new("disabled-tag", "Locked tag")
-                            .variant(ChipVariant::Input)
-                            .selected(true)
-                            .disabled(true)
-                            .on_remove("Remove locked tag", None, |_, _| {}),
+                            .child({
+                                let owner = cx.entity();
+                                Chip::new("filter", "Recent")
+                                    .variant(ChipVariant::Filter)
+                                    .selected(self.filter)
+                                    .on_change(move |value, _, cx| {
+                                        owner.update(cx, |this, cx| {
+                                            this.filter = value;
+                                            cx.notify();
+                                        })
+                                    })
+                            })
+                            .children(self.chip_visible.then(|| {
+                                let remove = cx.entity();
+                                let select = cx.entity();
+                                Chip::new("tag", "Project")
+                                    .variant(ChipVariant::Input)
+                                    .selected(self.chip_selected)
+                                    .on_change(move |value, _, cx| {
+                                        select.update(cx, |this, cx| {
+                                            this.chip_selected = value;
+                                            cx.notify();
+                                        })
+                                    })
+                                    .on_remove(
+                                        "Remove Project tag",
+                                        Some(self.restore.clone()),
+                                        move |_, cx| {
+                                            remove.update(cx, |this, cx| {
+                                                this.chip_visible = false;
+                                                cx.notify();
+                                            });
+                                        },
+                                    )
+                            }))
+                            .child(
+                                Chip::new("suggestion", "Suggested")
+                                    .variant(ChipVariant::Suggestion),
+                            ),
                     )
                     .child(
-                        Chip::new("elevated-suggestion", "Nearby")
-                            .variant(ChipVariant::Suggestion)
-                            .elevated(true),
-                    ),
-            )
+                        div()
+                            .flex()
+                            .items_center()
+                            .flex_wrap()
+                            .when(rtl, Styled::flex_row_reverse)
+                            .gap_2()
+                            .child(
+                                Chip::new("disabled-tag", "Locked tag")
+                                    .variant(ChipVariant::Input)
+                                    .selected(true)
+                                    .disabled(true)
+                                    .on_remove("Remove locked tag", None, |_, _| {}),
+                            )
+                            .child(
+                                Chip::new("elevated-suggestion", "Nearby")
+                                    .variant(ChipVariant::Suggestion)
+                                    .elevated(true),
+                            ),
+                    )
+            }))
     }
 }
 

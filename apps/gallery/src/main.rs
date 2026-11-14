@@ -184,6 +184,9 @@ impl Gallery {
                         .new(|cx| selection_examples::SelectionExamples::for_story(story, cx))
                         .into(),
                     Story::Slider => cx.new(slider_examples::SliderExamples::new).into(),
+                    Story::Dialog | Story::Sheets => cx
+                        .new(|cx| overlay_examples::ModalExamples::new(story, window, cx))
+                        .into(),
                     Story::TextField => cx
                         .new(|cx| text_field_examples::TextFieldExamples::new(window, cx))
                         .into(),

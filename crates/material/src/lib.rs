@@ -9,6 +9,11 @@ pub use gpui_material_components::*;
 pub use gpui_material_extras::{
     ButtonGroup, ButtonGroupItem, ButtonGroupSelection, ButtonGroupVariant, SplitButton,
 };
+#[cfg(feature = "toolbars")]
+pub use gpui_material_extras::{
+    FabMenu, FabMenuItem, Toolbar, ToolbarAction, ToolbarColor, ToolbarFabPosition,
+    ToolbarOrientation, ToolbarPlacement,
+};
 #[cfg(feature = "search")]
 pub use gpui_material_extras::{
     SearchBar, SearchEvent, SearchOutcome, SearchRequest, SearchResult, SearchState, SearchView,

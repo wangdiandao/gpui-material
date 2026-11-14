@@ -12,6 +12,7 @@ dynamic-color = ["gpui-material-theme/dynamic-color"]
 serde = ["gpui-material-theme/serde"]
 expressive-groups = ["gpui-material-extras/expressive-groups"]
 search = ["gpui-material-extras/search"]
+toolbars = ["gpui-material-extras/toolbars"]
 
 [dependencies]
 gpui-material-components = { path = "../components" }

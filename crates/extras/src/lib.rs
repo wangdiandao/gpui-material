@@ -8,3 +8,11 @@ pub use groups::*;
 mod search;
 #[cfg(feature = "search")]
 pub use search::*;
+
+#[cfg(feature = "toolbars")]
+mod toolbar;
+#[cfg(feature = "toolbars")]
+pub use toolbar::{
+    FabMenu, FabMenuItem, Toolbar, ToolbarAction, ToolbarColor, ToolbarFabPosition,
+    ToolbarOrientation, ToolbarPlacement,
+};

@@ -317,6 +317,119 @@ fn outlined_floating_label_cuts_the_top_border(cx: &mut gpui::TestAppContext) {
 
 #[cfg(all(test, feature = "test-support"))]
 #[gpui::test]
+fn outlined_label_avoids_the_stroke_through_focus_transitions(cx: &mut gpui::TestAppContext) {
+    use gpui::{InputEvent, MouseButton, WindowOptions, point};
+    use gpui_base::test_support::find;
+    use gpui_material::{
+        foundation::{MaterialRoot, material_theme, set_material_theme},
+        theme::Direction,
+    };
+    use std::time::Duration;
+
+    let (handle, examples) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut examples = None;
+        let handle = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let entity = cx.new(|cx| TextFieldExamples::new(window, cx));
+            examples = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (handle, examples.unwrap())
+    });
+    for direction in [Direction::Ltr, Direction::Rtl] {
+        cx.update(|cx| {
+            let mut theme = material_theme(cx).clone();
+            theme.layout.direction = direction;
+            set_material_theme(theme, cx);
+        });
+        cx.update_window(handle.into(), |_, window, cx| {
+            let email = examples.read(cx).email.clone();
+            email.update(cx, |state, cx| state.replace_all("", window, cx));
+            window.blur(cx);
+        })
+        .unwrap();
+        cx.executor().advance_clock(Duration::from_secs(1));
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let field = find(window, &[], &"email".into()).unwrap();
+            window.dispatch_event(
+                gpui::MouseDownEvent {
+                    button: MouseButton::Left,
+                    position: field.bounds().center(),
+                    click_count: 1,
+                    ..Default::default()
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.dispatch_event(
+                gpui::MouseUpEvent {
+                    button: MouseButton::Left,
+                    position: field.bounds().center(),
+                    click_count: 1,
+                    ..Default::default()
+                }
+                .to_platform_input(),
+                cx,
+            );
+        })
+        .unwrap();
+        for focus in [true, false] {
+            let mut intersecting_frames = 0;
+            for _ in 0..45 {
+                cx.executor().advance_clock(Duration::from_millis(7));
+                intersecting_frames += cx
+                    .update_window(handle.into(), |_, window, cx| {
+                        window.refresh();
+                        window.draw(cx).clear(cx);
+                        let field = find(window, &[], &"email".into()).unwrap();
+                        let label = find(window, field.path(), &"label-text".into()).unwrap();
+                        let factor = window.scale_factor();
+                        let field = field.bounds().scale(factor);
+                        let label = label.bounds().scale(factor);
+                        let outline: Vec<_> = window
+                            .painted_quads()
+                            .into_iter()
+                            .filter(|quad| {
+                                quad.bounds.origin == field.origin
+                                    && quad.border_widths.top > px(0.).scale(factor)
+                            })
+                            .collect();
+                        let width = outline
+                            .first()
+                            .expect("outlined field stroke")
+                            .border_widths
+                            .top;
+                        let y = field.top() + width / 2.;
+                        if label.top() >= field.top() + width || label.bottom() <= field.top() {
+                            return 0;
+                        }
+                        for x in [
+                            label.left() + px(5.).scale(factor),
+                            label.right() - px(5.).scale(factor),
+                        ] {
+                            assert!(
+                                outline
+                                    .iter()
+                                    .all(|quad| !quad.content_mask.bounds.contains(&point(x, y))),
+                                "the stroke crosses the label during {direction:?} focus={focus}"
+                            );
+                        }
+                        1
+                    })
+                    .unwrap();
+            }
+            assert!(intersecting_frames > 0);
+            cx.update_window(handle.into(), |_, window, cx| window.blur(cx))
+                .unwrap();
+        }
+    }
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
 fn empty_text_field_floats_its_label_on_focus(cx: &mut gpui::TestAppContext) {
     use gpui::WindowOptions;
     use gpui_base::test_support::find;

@@ -10,8 +10,10 @@ publish.workspace = true
 default = []
 dynamic-color = ["gpui-material-theme/dynamic-color"]
 serde = ["gpui-material-theme/serde"]
+expressive-groups = ["gpui-material-extras/expressive-groups"]
 
 [dependencies]
 gpui-material-components = { path = "../components" }
+gpui-material-extras = { path = "../extras", optional = true }
 gpui-material-foundation = { path = "../foundation" }
 gpui-material-theme = { path = "../theme" }

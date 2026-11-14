@@ -15,6 +15,7 @@ use gpui_material_foundation::{
 use gpui_material_theme::{ColorRole, Direction, Elevation};
 
 type Action = Rc<dyn Fn(&mut Window, &mut App)>;
+type ComposedTrigger = Box<dyn FnOnce(bool, Action) -> AnyElement>;
 
 /// An item in a Material menu. Callers retain command and selection state.
 pub struct MenuItem {
@@ -121,6 +122,7 @@ pub struct Menu {
     close_parent: Option<Action>,
     enabled: bool,
     ancestor: Option<Rc<PopupBounds>>,
+    composed_trigger: Option<ComposedTrigger>,
 }
 
 #[derive(Default)]
@@ -161,6 +163,7 @@ impl Menu {
             close_parent: None,
             enabled: true,
             ancestor: None,
+            composed_trigger: None,
         }
     }
 
@@ -173,6 +176,18 @@ impl Menu {
     pub fn anchor(mut self, anchor: Anchor) -> Self {
         self.anchor = anchor;
         self
+    }
+
+    /// Creates a trigger whose accessible activation can open or close this menu.
+    #[doc(hidden)]
+    pub fn composed(
+        id: impl Into<ElementId>,
+        items: impl IntoIterator<Item = MenuItem>,
+        trigger: impl FnOnce(bool, Action) -> AnyElement + 'static,
+    ) -> Self {
+        let mut menu = Self::new(id, div(), items);
+        menu.composed_trigger = Some(Box::new(trigger));
+        menu
     }
 }
 
@@ -193,6 +208,11 @@ impl RenderOnce for Menu {
         let open_state = bounds.open.clone();
         let open = open_state.get();
         let key_state = open_state.clone();
+        let trigger_state = open_state.clone();
+        let trigger: Action = Rc::new(move |_, cx| {
+            trigger_state.set(!trigger_state.get());
+            cx.notify(view);
+        });
         let motion = OverlayMotion::sample(&self.id, open, window, cx);
         let position = bounds.clone();
         let ancestor = self.ancestor.clone();
@@ -260,6 +280,9 @@ impl RenderOnce for Menu {
                 }
             })
             .trigger_with(move |open, _, _| {
+                let content = self
+                    .composed_trigger
+                    .map_or(self.trigger, |build| build(open, trigger));
                 div()
                     .id("menu-trigger")
                     .role(Role::Group)
@@ -271,7 +294,7 @@ impl RenderOnce for Menu {
                             cx.stop_propagation();
                         }
                     })
-                    .child(self.trigger)
+                    .child(content)
                     .into_any_element()
             })
             .content(move |state, window, cx| {

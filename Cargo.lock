@@ -2191,6 +2191,7 @@ name = "gpui-material"
 version = "0.0.2"
 dependencies = [
  "gpui-material-components",
+ "gpui-material-extras",
  "gpui-material-foundation",
  "gpui-material-theme",
 ]
@@ -2204,6 +2205,16 @@ dependencies = [
  "gpui-material-theme",
  "gpui-pre",
  "polymorpher",
+]
+
+[[package]]
+name = "gpui-material-extras"
+version = "0.0.4"
+dependencies = [
+ "gpui-material-components",
+ "gpui-material-foundation",
+ "gpui-material-theme",
+ "gpui-pre",
 ]
 
 [[package]]

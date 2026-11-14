@@ -5,6 +5,10 @@
 //! command outcomes in the application. Sliders use a retained [SliderState] entity.
 
 pub use gpui_material_components::*;
+#[cfg(feature = "expressive-groups")]
+pub use gpui_material_extras::{
+    ButtonGroup, ButtonGroupItem, ButtonGroupSelection, ButtonGroupVariant, SplitButton,
+};
 pub use gpui_material_foundation as foundation;
 pub use gpui_material_foundation::{MaterialRoot, Surface, material_theme, set_material_theme};
 pub use gpui_material_theme as theme;

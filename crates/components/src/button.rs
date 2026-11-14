@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use gpui::{
-    AnyElement, App, ElementId, FocusHandle, IntoElement, ParentElement, RenderOnce, SharedString,
-    Styled, Window, div, px,
+    AnyElement, App, ElementId, FocusHandle, IntoElement, ParentElement, Pixels, RenderOnce,
+    SharedString, Styled, Window, div, px,
 };
 use gpui_material_foundation::window_material_theme;
 use gpui_material_theme::{
@@ -11,7 +11,8 @@ use gpui_material_theme::{
 };
 
 use crate::action::{
-    Action, ActionControl, ActionStyle, Activate, Change, DisabledStyle, icon_slot,
+    Action, ActionControl, ActionLayout, ActionStyle, Activate, Change, DisabledStyle,
+    SegmentShape, icon_slot,
 };
 
 /// Material Expressive sizes, from extra small to extra large.
@@ -571,6 +572,223 @@ impl RenderOnce for IconToggleButton {
             window,
             cx,
         )
+    }
+}
+
+/// Internal composition hooks shared with the optional Material extras crate.
+#[doc(hidden)]
+pub mod composition {
+    use super::*;
+
+    /// Logical position within a connected horizontal group.
+    #[derive(Clone, Copy)]
+    pub enum Segment {
+        Only,
+        Leading,
+        Middle,
+        Trailing,
+        SplitLeading,
+        SplitTrailing,
+    }
+
+    /// A Material action with a composed shape and a width assigned by its group.
+    #[derive(IntoElement)]
+    pub struct ButtonPart {
+        common: Common,
+        variant: ButtonVariant,
+        selected: Option<bool>,
+        on_activate: Option<Activate>,
+        segment: Option<Segment>,
+        icon: Option<AnyElement>,
+        width: Pixels,
+        tab_stop: bool,
+        semantic_only: bool,
+    }
+
+    impl ButtonPart {
+        pub fn new(
+            id: impl Into<ElementId>,
+            label: impl Into<SharedString>,
+            width: Pixels,
+        ) -> Self {
+            Self {
+                common: Common::new(id, label),
+                variant: ButtonVariant::default(),
+                selected: None,
+                on_activate: None,
+                segment: None,
+                icon: None,
+                width,
+                tab_stop: true,
+                semantic_only: false,
+            }
+        }
+
+        common_builders!();
+
+        pub fn variant(mut self, variant: ButtonVariant) -> Self {
+            self.variant = variant;
+            self
+        }
+
+        pub fn segment(mut self, segment: Option<Segment>) -> Self {
+            self.segment = segment;
+            self
+        }
+
+        pub fn selected(mut self, selected: Option<bool>) -> Self {
+            self.selected = selected;
+            self
+        }
+
+        pub fn icon(mut self, icon: impl IntoElement) -> Self {
+            self.icon = Some(icon.into_any_element());
+            self
+        }
+
+        pub fn tab_stop(mut self, tab_stop: bool) -> Self {
+            self.tab_stop = tab_stop;
+            self
+        }
+
+        pub fn on_activate(mut self, callback: impl Fn(&mut Window, &mut App) + 'static) -> Self {
+            self.on_activate = Some(Rc::new(callback));
+            self
+        }
+
+        pub fn on_accessible_activate(
+            mut self,
+            callback: impl Fn(&mut Window, &mut App) + 'static,
+        ) -> Self {
+            self.on_activate = Some(Rc::new(callback));
+            self.semantic_only = true;
+            self
+        }
+    }
+
+    impl RenderOnce for ButtonPart {
+        fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+            let mut metrics = self.common.size.metrics();
+            let segment = self.segment.map(|segment| {
+                use CornerRole::*;
+                let (inner, pressed) = match segment {
+                    Segment::SplitLeading | Segment::SplitTrailing => match self.common.size {
+                        ControlSize::ExtraSmall => (ExtraSmall, Small),
+                        ControlSize::Small | ControlSize::Medium => (ExtraSmall, Medium),
+                        ControlSize::Large => (Small, LargeIncreased),
+                        ControlSize::ExtraLarge => (Medium, LargeIncreased),
+                    },
+                    _ => (Small, ExtraSmall),
+                };
+                SegmentShape {
+                    leading: matches!(
+                        segment,
+                        Segment::Only | Segment::Leading | Segment::SplitLeading
+                    ),
+                    trailing: matches!(
+                        segment,
+                        Segment::Only | Segment::Trailing | Segment::SplitTrailing
+                    ),
+                    inner,
+                    pressed,
+                }
+            });
+            let mut style =
+                button_appearance(self.variant, self.selected).style(metrics, CornerRole::Full, 0.);
+            if self.selected.is_some() {
+                style.selected_corner = Some(metrics.square);
+            }
+            if matches!(self.segment, Some(Segment::SplitTrailing)) {
+                metrics.icon = split_trailing_size(self.common.size).0;
+            }
+            let content = if let Some(icon) = self.icon {
+                icon_slot(icon, metrics.icon).into_any_element()
+            } else {
+                let tint = style.foreground(self.common.disabled, window, cx);
+                let typography = metrics.label.style(TypographyEmphasis::Baseline);
+                let padding = metrics
+                    .padding
+                    .min((f32::from(self.width) - 16.).max(0.) / 2.);
+                div()
+                    .flex()
+                    .min_w_0()
+                    .max_w_full()
+                    .px(px(padding))
+                    .child(crate::text::single_line(
+                        self.common.label.clone(),
+                        typography,
+                        1.,
+                        tint,
+                        (None, 1., 1.),
+                        window,
+                        cx,
+                    ))
+                    .into_any_element()
+            };
+            let action = if let Some(selected) = self.selected {
+                Action::Toggle {
+                    selected,
+                    on_change: self.on_activate.map(|callback| {
+                        Rc::new(move |_, window: &mut Window, cx: &mut App| callback(window, cx))
+                            as Change
+                    }),
+                }
+            } else {
+                Action::Invoke(self.on_activate)
+            };
+            ActionControl {
+                id: self.common.id,
+                label: self.common.label,
+                focus: self.common.focus,
+                disabled: self.common.disabled,
+                action,
+                style,
+                content,
+            }
+            .render_layout(
+                1.,
+                ActionLayout {
+                    segment,
+                    width: Some(self.width),
+                    tab_stop: self.tab_stop,
+                    semantic_only: self.semantic_only,
+                },
+                window,
+                cx,
+            )
+        }
+    }
+
+    pub fn label_width(
+        size: ControlSize,
+        label: SharedString,
+        window: &Window,
+        cx: &App,
+    ) -> Pixels {
+        let metrics = size.metrics();
+        let theme = window_material_theme(window, cx);
+        let style = metrics.label.style(TypographyEmphasis::Baseline);
+        let width = gpui_material_foundation::shape_text(
+            label,
+            style,
+            &theme.typography,
+            1.,
+            gpui::transparent_black(),
+            window,
+            cx,
+        )
+        .map_or(px(0.), |text| text.line().width);
+        (width + px(metrics.padding * 2.)).max(px(theme.layout.density.interactive_size(1.)))
+    }
+
+    pub fn split_trailing_size(size: ControlSize) -> (f32, f32) {
+        // Trailing icon and sum of the two horizontal spaces from SplitButton*Tokens.
+        match size {
+            ControlSize::ExtraSmall | ControlSize::Small => (22., 48.),
+            ControlSize::Medium => (26., 56.),
+            ControlSize::Large => (38., 96.),
+            ControlSize::ExtraLarge => (50., 136.),
+        }
     }
 }
 

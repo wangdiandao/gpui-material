@@ -1,0 +1,17 @@
+[package]
+name = "gpui-material-extras"
+version = "0.0.4"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+expressive-groups = ["dep:gpui", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
+
+[dependencies]
+gpui = { workspace = true, optional = true }
+gpui-material-components = { path = "../components", optional = true }
+gpui-material-foundation = { path = "../foundation", optional = true }
+gpui-material-theme = { path = "../theme", optional = true }

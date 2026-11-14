@@ -348,8 +348,12 @@ impl RenderOnce for TextField {
                         outline_tint,
                         BorderStyle::Solid,
                     );
+                    // The outer edge and stroke width each snap independently.
+                    // Account for their combined rounding when opening the notch.
+                    let device_pixel = px(1. / window.scale_factor());
                     let Some(label_bounds) = cutout.get().filter(|label| {
-                        label.top() < bounds.top() + outline_width && label.bottom() > bounds.top()
+                        label.top() < bounds.top() + outline_width + device_pixel
+                            && label.bottom() > bounds.top() - device_pixel
                     }) else {
                         window.paint_quad(border);
                         return;
@@ -361,8 +365,11 @@ impl RenderOnce for TextField {
                     for (min, max) in [
                         (bounds.origin, point(left, bounds.bottom())),
                         (point(right, bounds.top()), bounds.bottom_right()),
+                        // Only the bottom edge must be restored between the two
+                        // side masks. Start in the interior, so outward clip
+                        // rounding cannot expose a snapped top-stroke pixel.
                         (
-                            point(left, bounds.top() + outline_width),
+                            point(left, bounds.center().y),
                             point(right, bounds.bottom()),
                         ),
                     ] {

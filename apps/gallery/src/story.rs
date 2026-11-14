@@ -11,6 +11,7 @@ use crate::{
     action_examples::ActionExamples,
     adaptive_examples::AdaptiveExamples,
     display_examples::DisplayExamples,
+    group_examples::GroupExamples,
     navigation_examples::NavigationExamples,
     overlay_examples::{MenuTooltipExamples, ModalExamples, SnackbarExamples},
     selection_examples::SelectionExamples,
@@ -26,6 +27,7 @@ pub(crate) enum Story {
     AppBar,
     Badge,
     Button,
+    ButtonGroup,
     Card,
     Checkbox,
     Chip,
@@ -47,6 +49,7 @@ pub(crate) enum Story {
     Sheets,
     Slider,
     Snackbar,
+    SplitButton,
     Switch,
     Tabs,
     Text,
@@ -63,6 +66,7 @@ impl Story {
         Self::AppBar,
         Self::Badge,
         Self::Button,
+        Self::ButtonGroup,
         Self::Card,
         Self::Checkbox,
         Self::Chip,
@@ -84,6 +88,7 @@ impl Story {
         Self::Sheets,
         Self::Slider,
         Self::Snackbar,
+        Self::SplitButton,
         Self::Switch,
         Self::Tabs,
         Self::Text,
@@ -94,6 +99,7 @@ impl Story {
 
     pub(crate) fn id(self) -> &'static str {
         match self {
+            Self::ButtonGroup => "button-group",
             Self::Introduction => "introduction",
             Self::AdaptiveLayout => "adaptive-layout",
             Self::AppBar => "app-bar",
@@ -120,6 +126,7 @@ impl Story {
             Self::Sheets => "sheets",
             Self::Slider => "slider",
             Self::Snackbar => "snackbar",
+            Self::SplitButton => "split-button",
             Self::Switch => "switch",
             Self::Tabs => "tabs",
             Self::Text => "text",
@@ -131,6 +138,7 @@ impl Story {
 
     pub(crate) fn name(self) -> &'static str {
         match self {
+            Self::ButtonGroup => "Button group",
             Self::Introduction => "Introduction",
             Self::AdaptiveLayout => "Adaptive layout",
             Self::AppBar => "App bar",
@@ -157,6 +165,7 @@ impl Story {
             Self::Sheets => "Sheet",
             Self::Slider => "Slider",
             Self::Snackbar => "Snackbar",
+            Self::SplitButton => "Split button",
             Self::Switch => "Switch",
             Self::Tabs => "Tabs",
             Self::Text => "Text",
@@ -168,6 +177,9 @@ impl Story {
 
     pub(crate) fn description(self) -> &'static str {
         match self {
+            Self::ButtonGroup => {
+                "Arrange actions or controlled choices in standard and connected rows."
+            }
             Self::Introduction => {
                 "Interactive examples from the Material 3 Expressive library for GPUI."
             }
@@ -206,6 +218,7 @@ impl Story {
             Self::Sheets => "Reveal supplementary content at the bottom or trailing edge.",
             Self::Slider => "Adjust a value or range with a pointer or keyboard.",
             Self::Snackbar => "Announce an outcome and offer a follow-up action such as Undo.",
+            Self::SplitButton => "Run a primary command or choose a related action from its menu.",
             Self::Switch => "Turn a setting on or off.",
             Self::Tabs => "Switch between related panels with fixed or scrolling tabs.",
             Self::Text => "Preview Material typography, font scaling, and mixed scripts.",
@@ -235,6 +248,9 @@ impl Story {
         let view = match self {
             Self::Introduction | Self::Foundation => return None,
             Self::AdaptiveLayout => cx.new(AdaptiveExamples::new).into(),
+            Self::ButtonGroup | Self::SplitButton => {
+                cx.new(|cx| GroupExamples::new(self, cx)).into()
+            }
             Self::Button
             | Self::ToggleButton
             | Self::IconButton

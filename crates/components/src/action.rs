@@ -62,6 +62,22 @@ impl ActionStyle {
     }
 }
 
+#[derive(Clone, Copy, Default)]
+pub(crate) struct ActionLayout {
+    pub(crate) segment: Option<SegmentShape>,
+    pub(crate) width: Option<Pixels>,
+    pub(crate) tab_stop: bool,
+    pub(crate) semantic_only: bool,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct SegmentShape {
+    pub(crate) leading: bool,
+    pub(crate) trailing: bool,
+    pub(crate) inner: CornerRole,
+    pub(crate) pressed: CornerRole,
+}
+
 pub(crate) struct ActionControl {
     pub(crate) id: ElementId,
     pub(crate) label: gpui::SharedString,
@@ -114,6 +130,24 @@ impl ActionControl {
     }
 
     pub(crate) fn render_scaled(self, scale: f32, window: &mut Window, cx: &mut App) -> AnyElement {
+        self.render_layout(
+            scale,
+            ActionLayout {
+                tab_stop: true,
+                ..Default::default()
+            },
+            window,
+            cx,
+        )
+    }
+
+    pub(crate) fn render_layout(
+        self,
+        scale: f32,
+        layout: ActionLayout,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> AnyElement {
         let feedback_id = (self.id.clone(), "material-feedback");
         let (feedback, focus) = window
             .use_keyed_state(feedback_id.clone(), cx, |_, cx| {
@@ -152,9 +186,13 @@ impl ActionControl {
         let disabled_outline =
             color(theme.colors.color(style.disabled.outline.0)).opacity(style.disabled.outline.1);
         let visual_height = px(density.visual_size(style.height) * scale);
-        let visual_width = px(density.visual_size(style.min_width) * scale);
+        let visual_width = layout
+            .width
+            .unwrap_or_else(|| px(density.visual_size(style.min_width) * scale));
         let target_height = px(density.interactive_size(style.height) * scale);
-        let target_width = px(density.interactive_size(style.min_width.max(1.)) * scale);
+        let target_width = layout
+            .width
+            .unwrap_or_else(|| px(density.interactive_size(style.min_width.max(1.)) * scale));
 
         let enabled = !self.disabled;
         let (hovered, pressed) = {
@@ -244,7 +282,8 @@ impl ActionControl {
         let paint_feedback = feedback.clone();
         let visual = canvas(
             move |bounds, _, _| {
-                let corners = interpolated_corners(bounds, style, selection, progress, scale);
+                let corners =
+                    interpolated_corners(bounds, style, selection, progress, scale, layout.segment);
                 let shape = Shape::rounded(bounds, corners, direction);
                 mesh.borrow_mut().shape = shape;
                 corners
@@ -324,21 +363,24 @@ impl ActionControl {
             Action::Invoke(on_activate) => {
                 let control = Button::new(id)
                     .track_focus(&focus)
+                    .tab_stop(layout.tab_stop)
                     .disabled(disabled)
                     .accessibility_label(label);
                 let control = match on_activate {
                     Some(on_activate) if enabled => {
                         let feedback = feedback.clone();
                         let invoke = on_activate.clone();
-                        control
+                        let control = control
                             .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
                                 invoke(window, cx)
-                            })
-                            .on_click(move |event, window, cx| {
+                            });
+                        control.when(!layout.semantic_only, |control| {
+                            control.on_click(move |event, window, cx| {
                                 activate_feedback(event, &feedback, window, cx);
                                 cx.stop_propagation();
                                 on_activate(window, cx);
                             })
+                        })
                     }
                     _ => control,
                 };
@@ -348,7 +390,7 @@ impl ActionControl {
                     feedback,
                     foreground,
                     target_height,
-                    target_width,
+                    (target_width, layout.width.is_some()),
                     enabled,
                 )
             }
@@ -358,6 +400,7 @@ impl ActionControl {
             } => {
                 let control = Toggle::new(id)
                     .track_focus(&focus)
+                    .tab_stop(layout.tab_stop)
                     .pressed(selected)
                     .disabled(disabled)
                     .accessibility_label(label);
@@ -383,7 +426,7 @@ impl ActionControl {
                     feedback,
                     foreground,
                     target_height,
-                    target_width,
+                    (target_width, layout.width.is_some()),
                     enabled,
                 )
             }
@@ -397,7 +440,7 @@ fn decorate(
     feedback: Rc<RefCell<FeedbackState>>,
     foreground: Hsla,
     height: Pixels,
-    width: Pixels,
+    (width, fixed_width): (Pixels, bool),
     enabled: bool,
 ) -> AnyElement {
     let hover = feedback.clone();
@@ -409,6 +452,7 @@ fn decorate(
     control
         .min_h(height)
         .min_w(width)
+        .when(fixed_width, |control| control.w(width))
         .max_w_full()
         .text_color(foreground)
         .child(content)
@@ -505,17 +549,38 @@ fn interpolated_corners(
     selection: f32,
     press: f32,
     scale: f32,
+    segment: Option<SegmentShape>,
 ) -> CornerShape {
     let width = f32::from(bounds.size.width) / scale;
     let height = f32::from(bounds.size.height) / scale;
     let direction = gpui_material_theme::Direction::Ltr;
-    let rest = style.corner.shape().radii(width, height, direction);
-    let selected = style
+    let mut rest = style.corner.shape().radii(width, height, direction);
+    let mut selected = style
         .selected_corner
         .unwrap_or(style.corner)
         .shape()
         .radii(width, height, direction);
-    let pressed = style.pressed_corner.shape().radii(width, height, direction);
+    let mut pressed = style.pressed_corner.shape().radii(width, height, direction);
+    if let Some(segment) = segment {
+        let inner = segment.inner.shape().radii(width, height, direction)[0];
+        let inner_pressed = segment.pressed.shape().radii(width, height, direction)[0];
+        let outer = width.min(height) * 0.5;
+        rest = [
+            segment.leading,
+            segment.trailing,
+            segment.trailing,
+            segment.leading,
+        ]
+        .map(|outer_edge| if outer_edge { outer } else { inner });
+        selected = [outer; 4];
+        pressed = [
+            segment.leading,
+            segment.trailing,
+            segment.trailing,
+            segment.leading,
+        ]
+        .map(|outer_edge| if outer_edge { outer } else { inner_pressed });
+    }
     CornerShape::Radii(std::array::from_fn(|ix| {
         let resting = rest[ix] + (selected[ix] - rest[ix]) * selection;
         (resting + (pressed[ix] - resting) * press) * scale

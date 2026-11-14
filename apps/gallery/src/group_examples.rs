@@ -1,0 +1,212 @@
+use gpui::prelude::FluentBuilder;
+use gpui::{Context, FocusHandle, ParentElement, Render, SharedString, Styled, Window, div};
+use gpui_material::{
+    ButtonGroup, ButtonGroupItem, ButtonGroupSelection, ButtonGroupVariant, ButtonVariant,
+    ControlSize, MenuItem, SplitButton, Text,
+};
+
+use crate::story::{Story, section, stack};
+
+pub(crate) struct GroupExamples {
+    story: Story,
+    selected: Vec<SharedString>,
+    message: SharedString,
+    split_focus: (FocusHandle, FocusHandle),
+}
+
+impl GroupExamples {
+    pub(crate) fn new(story: Story, cx: &Context<Self>) -> Self {
+        Self {
+            story,
+            selected: vec!["week".into()],
+            message: "No action yet".into(),
+            split_focus: (cx.focus_handle(), cx.focus_handle()),
+        }
+    }
+
+    fn command(
+        message: &'static str,
+        cx: &Context<Self>,
+    ) -> impl Fn(&mut Window, &mut gpui::App) + use<> {
+        let view = cx.weak_entity();
+        move |_, cx| {
+            let _ = view.update(cx, |this, cx| {
+                this.message = message.into();
+                cx.notify();
+            });
+        }
+    }
+}
+
+impl Render for GroupExamples {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
+        let mut body = stack();
+        if self.story == Story::ButtonGroup {
+            body = body.child(
+                section("Standard actions").child(ButtonGroup::new(
+                    "file-actions",
+                    "File actions",
+                    [
+                        ButtonGroupItem::new("copy", "Copy")
+                            .on_activate(Self::command("Copied", cx)),
+                        ButtonGroupItem::new("rename", "Rename")
+                            .on_activate(Self::command("Renamed", cx)),
+                        ButtonGroupItem::new("archive", "Archive").disabled(true),
+                    ],
+                )),
+            );
+            body = body.child(
+                section("Connected required selection").child(
+                    ButtonGroup::new(
+                        "period",
+                        "Period",
+                        [
+                            ButtonGroupItem::new("day", "Day"),
+                            ButtonGroupItem::new("week", "Week"),
+                            ButtonGroupItem::new("month", "Month"),
+                            ButtonGroupItem::new("quarter", "Quarter"),
+                            ButtonGroupItem::new("year", "Year"),
+                        ],
+                    )
+                    .variant(ButtonGroupVariant::Connected)
+                    .appearance(ButtonVariant::FilledTonal)
+                    .selection(ButtonGroupSelection::SingleRequired, self.selected.clone())
+                    .on_change({
+                        let view = cx.weak_entity();
+                        move |next, _, cx| {
+                            let _ = view.update(cx, |this, cx| {
+                                this.message = format!("Period: {}", next[0]).into();
+                                this.selected = next;
+                                cx.notify();
+                            });
+                        }
+                    }),
+                ),
+            );
+        } else {
+            let sizes = [
+                (
+                    "Extra small",
+                    ControlSize::ExtraSmall,
+                    ButtonVariant::Elevated,
+                ),
+                ("Small", ControlSize::Small, ButtonVariant::Filled),
+                ("Medium", ControlSize::Medium, ButtonVariant::FilledTonal),
+                ("Large", ControlSize::Large, ButtonVariant::Outlined),
+                (
+                    "Extra large",
+                    ControlSize::ExtraLarge,
+                    ButtonVariant::Filled,
+                ),
+            ];
+            for (title, size, variant) in sizes {
+                body = body.child(
+                    section(title).child(
+                        SplitButton::new(
+                            title,
+                            "Save",
+                            "More save options",
+                            [
+                                MenuItem::new("copy", "Save a copy")
+                                    .on_activate(Self::command("Saved a copy", cx)),
+                                MenuItem::new("template", "Save as template")
+                                    .on_activate(Self::command("Saved as template", cx)),
+                            ],
+                        )
+                        .size(size)
+                        .variant(variant)
+                        .when(size == ControlSize::ExtraSmall, |button| {
+                            button.track_focus(&self.split_focus.0, &self.split_focus.1)
+                        })
+                        .on_activate(Self::command("Saved", cx)),
+                    ),
+                );
+            }
+        }
+        div()
+            .w_full()
+            .child(body)
+            .child(Text::new(self.message.clone()))
+    }
+}
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn split_button_keeps_primary_activation_and_menu_focus_separate(cx: &mut gpui::TestAppContext) {
+    use gpui::{AppContext, InputEvent as _};
+    use gpui_base::test_support::find;
+    use gpui_material::MaterialRoot;
+
+    let (handle, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut view = None;
+        let handle = MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+            let entity = cx.new(|cx| GroupExamples::new(Story::SplitButton, cx));
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (handle, view.unwrap())
+    });
+    let frame = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+    };
+
+    frame(cx);
+    cx.update_window(handle.into(), |_, window, cx| {
+        view.read(cx).split_focus.0.clone().focus(window, cx);
+    })
+    .unwrap();
+    frame(cx);
+    cx.update_window(handle.into(), |_, window, cx| {
+        assert!(view.read(cx).split_focus.0.is_focused(window));
+        let keystroke = gpui::Keystroke::parse_with_os("space", cx.platform_info().os).unwrap();
+        window.dispatch_event(
+            gpui::KeyDownEvent {
+                keystroke: keystroke.clone(),
+                is_held: false,
+                prefer_character_input: false,
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(gpui::KeyUpEvent { keystroke }.to_platform_input(), cx);
+    })
+    .unwrap();
+    frame(cx);
+    cx.update(|cx| assert_eq!(view.read(cx).message, "Saved"));
+
+    cx.update_window(handle.into(), |_, window, cx| {
+        view.read(cx).split_focus.1.clone().focus(window, cx);
+    })
+    .unwrap();
+    frame(cx);
+    cx.simulate_keystrokes(handle.into(), "enter");
+    frame(cx);
+    frame(cx);
+    cx.update_window(handle.into(), |_, window, _| {
+        assert!(find(window, &[], &"copy".into()).is_some());
+    })
+    .unwrap();
+
+    cx.simulate_keystrokes(handle.into(), "escape");
+    frame(cx);
+    cx.update_window(handle.into(), |_, window, cx| {
+        assert!(view.read(cx).split_focus.1.is_focused(window));
+    })
+    .unwrap();
+    cx.simulate_keystrokes(handle.into(), "space");
+    frame(cx);
+    frame(cx);
+    cx.simulate_keystrokes(handle.into(), "down enter");
+    frame(cx);
+    cx.update_window(handle.into(), |_, window, cx| {
+        assert_eq!(view.read(cx).message, "Saved as template");
+        assert!(view.read(cx).split_focus.1.is_focused(window));
+    })
+    .unwrap();
+}

@@ -5,6 +5,8 @@ mod button;
 mod fab;
 mod motion;
 
+#[doc(hidden)]
+pub use button::composition as button_composition;
 pub use button::{
     Button, ButtonShape, ButtonVariant, ControlSize, IconButton, IconButtonVariant,
     IconButtonWidth, IconToggleButton, ToggleButton, ToggleButtonVariant,

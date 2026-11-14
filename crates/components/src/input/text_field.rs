@@ -3,9 +3,14 @@ use gpui::{
     MouseButton, ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
     TextAlign, Window, div, prelude::FluentBuilder, px,
 };
-use gpui_base::input::{InputAccessibility, InputBaseState, InputEditorStyle, InputModeKind};
+use gpui_base::{
+    TestSupportExt,
+    input::{InputAccessibility, InputBaseState, InputEditorStyle, InputModeKind},
+};
 use gpui_material_foundation::{color, window_material_theme};
-use gpui_material_theme::{ColorRole, CornerRole, Direction, TypeRole, TypographyEmphasis};
+use gpui_material_theme::{
+    ColorRole, CornerRole, Direction, LayoutPolicy, TypeRole, TypographyEmphasis,
+};
 
 use super::{TextAreaState, TextFieldState};
 
@@ -32,6 +37,7 @@ pub struct TextField {
     error: Option<SharedString>,
     trailing: Option<AnyElement>,
     expanded: Option<bool>,
+    font_scale: f32,
 }
 
 enum Editor {
@@ -84,11 +90,18 @@ impl TextField {
             error: None,
             trailing: None,
             expanded: None,
+            font_scale: 1.,
         }
     }
 
     pub fn variant(mut self, variant: TextFieldVariant) -> Self {
         self.variant = variant;
+        self
+    }
+
+    /// Applies the caller's user text scale to the editor, label, and supporting text.
+    pub fn font_scale(mut self, scale: f32) -> Self {
+        self.font_scale = scale;
         self
     }
 
@@ -179,8 +192,14 @@ impl RenderOnce for TextField {
             tone(SurfaceContainerHighest)
         };
         let radius = px(CornerRole::ExtraSmall.shape().radii(56., 56., direction)[0]);
-        let type_style = TypeRole::BodyLarge.style(TypographyEmphasis::Baseline);
-        let caption_style = TypeRole::BodySmall.style(TypographyEmphasis::Baseline);
+        let type_style = LayoutPolicy::scale_text(
+            TypeRole::BodyLarge.style(TypographyEmphasis::Baseline),
+            self.font_scale,
+        );
+        let caption_style = LayoutPolicy::scale_text(
+            TypeRole::BodySmall.style(TypographyEmphasis::Baseline),
+            self.font_scale,
+        );
         let families = theme.typography.families(type_style.typeface);
         let installed = cx.text_system().all_font_names();
         let font = std::iter::once(&families.primary)
@@ -259,6 +278,7 @@ impl RenderOnce for TextField {
             });
         div()
             .id(self.id)
+            .test_support()
             .w_full()
             .min_w_0()
             .flex()

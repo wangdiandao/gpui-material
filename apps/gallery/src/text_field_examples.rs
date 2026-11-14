@@ -127,6 +127,7 @@ pub(crate) struct TextFieldExamples {
     password: Entity<TextFieldState>,
     account: Entity<TextFieldState>,
     disabled: Entity<TextFieldState>,
+    scaled: Entity<TextFieldState>,
 }
 
 impl TextFieldExamples {
@@ -154,6 +155,7 @@ impl TextFieldExamples {
                 state.set_disabled(true, cx);
                 state
             }),
+            scaled: cx.new(|cx| TextFieldState::new(window, cx)),
         }
     }
 }
@@ -185,7 +187,48 @@ impl Render for TextFieldExamples {
                     ))
                     .child(TextField::new("status", "Account status", &self.disabled)),
             )
+            .child(
+                TextField::new(
+                    "scaled-label",
+                    "Preferred name for project correspondence",
+                    &self.scaled,
+                )
+                .font_scale(1.5)
+                .supporting_text("用于项目沟通，可输入中英文"),
+            )
     }
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn scaled_text_field_wraps_long_label_without_clipping(cx: &mut gpui::TestAppContext) {
+    use gpui::{WindowOptions, size};
+    use gpui_base::test_support::find;
+    use gpui_material::MaterialRoot;
+
+    let window = cx.update(|cx| {
+        crate::init_gallery(cx);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            cx.new(|cx| TextFieldExamples::new(window, cx))
+        })
+        .unwrap()
+    });
+    cx.simulate_window_resize(window.into(), size(px(290.), px(800.)));
+    cx.simulate_window_scale_factor_change(window.into(), 1.5);
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let scaled = find(window, &[], &"scaled-label".into()).unwrap();
+        let baseline = find(window, &[], &"name".into()).unwrap();
+        assert!(scaled.visible());
+        assert!(scaled.bounds().size.height > baseline.bounds().size.height);
+        assert!(scaled.bounds().right() <= window.viewport_size().width);
+        assert_eq!(
+            scaled.label(),
+            Some("Preferred name for project correspondence")
+        );
+    })
+    .unwrap();
 }
 
 #[cfg(all(test, feature = "test-support"))]

@@ -507,6 +507,81 @@ fn menu_skips_disabled_items_and_restores_trigger(cx: &mut gpui::TestAppContext)
 
 #[cfg(all(test, feature = "test-support"))]
 #[gpui::test]
+fn submenu_accepts_pointer_selection_before_dismissing_its_parent(cx: &mut gpui::TestAppContext) {
+    use gpui::{InputEvent as _, MouseButton, MouseDownEvent, MouseUpEvent, WindowOptions, point};
+    use gpui_base::test_support::find;
+    use gpui_material::MaterialRoot;
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            let entity = cx.new(|cx| MenuTooltipExamples::new(Story::Menu, cx));
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    let frame = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+    };
+    frame(cx);
+    cx.update_window(window.into(), |_, window, cx| {
+        view.read(cx).trigger.clone().focus(window, cx);
+    })
+    .unwrap();
+    cx.simulate_keystrokes(window.into(), "enter");
+    frame(cx);
+    frame(cx);
+    cx.simulate_keystrokes(window.into(), "down right");
+    frame(cx);
+    frame(cx);
+    cx.update_window(window.into(), |_, window, cx| {
+        let submenu = find(window, &[], &"submenu-content".into())
+            .unwrap()
+            .bounds();
+        let position = point(submenu.center().x, submenu.top() + px(68.));
+        window.dispatch_event(
+            MouseDownEvent {
+                button: MouseButton::Left,
+                position,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert!(find(window, &[], &"submenu-content".into()).is_some());
+        window.dispatch_event(
+            MouseUpEvent {
+                button: MouseButton::Left,
+                position,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+    })
+    .unwrap();
+    frame(cx);
+    cx.update_window(window.into(), |_, window, cx| {
+        assert_eq!(view.read(cx).output.as_ref(), "Sort by date modified");
+        assert!(find(window, &[], &"menu".into()).is_none());
+    })
+    .unwrap();
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
 fn rich_tooltip_keeps_its_action_available_while_focused(cx: &mut gpui::TestAppContext) {
     use gpui::{AppContext, WindowOptions};
     use gpui_base::test_support::find;

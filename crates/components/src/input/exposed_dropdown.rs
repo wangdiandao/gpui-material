@@ -194,10 +194,6 @@ impl RenderOnce for ExposedDropdown {
         let popup_width = bounds.get().size.width;
         let trigger = div()
             .id((self.id.clone(), "combobox"))
-            .role(Role::ComboBox)
-            .aria_label(self.label.clone())
-            .aria_expanded(open)
-            .aria_value(committed)
             .capture_key_down(move |event, window, cx| {
                 let key = event.keystroke.key.as_str();
                 if !matches!(key, "up" | "down" | "enter" | "escape") {
@@ -257,6 +253,7 @@ impl RenderOnce for ExposedDropdown {
             .child(
                 TextField::new("value", self.label, &input)
                     .variant(TextFieldVariant::Outlined)
+                    .expanded(open)
                     .trailing(
                         gpui_base::Button::new("toggle-options")
                             .accessibility_label(if open {

@@ -1,9 +1,9 @@
 schema_version = 1
 current_phase = "P5"
-allowed_paths = ["apps/gallery/src/", "crates/components/src/", "crates/foundation/src/lib.rs", "crates/foundation/src/root.rs", "crates/foundation/src/surface.rs"]
-blockers = [119]
-repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }, { phase = "P4", issue = 118, status = "completed", scope = "Foundation Gallery slider alignment", commit = "02b2d25dd252abf34a6719f8bc672bb0e663d98d" }, { phase = "P5", issue = 119, status = "open", scope = "Visual defects and acceptance coverage in Material components, Gallery and the window theme adapter" }]
-frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac", P4 = "02b2d25dd252abf34a6719f8bc672bb0e663d98d", P5 = "00eccf43c304e3587047b8a98bf120cb64e50304" }
+allowed_paths = []
+blockers = []
+repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }, { phase = "P4", issue = 118, status = "completed", scope = "Foundation Gallery slider alignment", commit = "02b2d25dd252abf34a6719f8bc672bb0e663d98d" }, { phase = "P5", issue = 119, status = "completed", scope = "Visual defects and acceptance coverage in Material components, Gallery and the window theme adapter", commit = "9b85f97034ea3253fdc9bc48eb6b0667be684224" }]
+frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac", P4 = "02b2d25dd252abf34a6719f8bc672bb0e663d98d", P5 = "9b85f97034ea3253fdc9bc48eb6b0667be684224" }
 
 [phases.P0]
 status = "frozen"
@@ -68,7 +68,7 @@ merged_deliverables = [
 ]
 
 [phases.P5]
-status = "blocked"
+status = "frozen"
 frozen_on = 2026-11-13
 entry_conditions = ["P4 is frozen", "Pinned Material sources and verified Foundation adapters are available"]
 merged_deliverables = [

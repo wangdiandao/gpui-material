@@ -5,6 +5,7 @@ use gpui::{
     MouseButton, ParentElement, Pixels, Render, RenderOnce, Role, SharedString,
     StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
+use gpui_base::TestSupportExt as _;
 use gpui_material_foundation::{
     DragCapture, Surface, color, isolated_scroll, scrim_color, window_material_theme,
 };
@@ -92,6 +93,7 @@ fn drag_handle(
     };
     div()
         .id("drag-handle")
+        .test_support()
         .track_focus(&focus)
         .w_full()
         .h(px(24.))

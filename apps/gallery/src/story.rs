@@ -24,6 +24,7 @@ pub(crate) enum Story {
     Progress,
     Dialog,
     Sheets,
+    TextField,
     Snackbar,
 }
 
@@ -54,6 +55,7 @@ impl Story {
             &[Self::TextIcon, Self::Card, Self::List, Self::DividerBadge],
         ),
         ("Overlays", &[Self::Dialog, Self::Sheets]),
+        ("Input", &[Self::TextField]),
         ("Feedback", &[Self::Progress, Self::Snackbar]),
     ];
 
@@ -76,6 +78,7 @@ impl Story {
             Self::Progress => "progress",
             Self::Dialog => "dialog",
             Self::Sheets => "sheets",
+            Self::TextField => "text-field",
             Self::Snackbar => "snackbar",
         }
     }
@@ -99,6 +102,7 @@ impl Story {
             Self::Progress => "Progress & Loading",
             Self::Dialog => "Dialogs",
             Self::Sheets => "Sheets",
+            Self::TextField => "Text fields",
             Self::Snackbar => "Snackbar",
         }
     }

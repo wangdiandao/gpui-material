@@ -6,6 +6,7 @@ mod overlay_examples;
 mod selection_examples;
 mod slider_examples;
 mod story;
+mod text_field_examples;
 
 use std::borrow::Cow;
 
@@ -185,6 +186,9 @@ impl Gallery {
                     Story::Slider => cx.new(slider_examples::SliderExamples::new).into(),
                     Story::Dialog | Story::Sheets => cx
                         .new(|cx| overlay_examples::ModalExamples::new(story, window, cx))
+                        .into(),
+                    Story::TextField => cx
+                        .new(|cx| text_field_examples::TextFieldExamples::new(window, cx))
                         .into(),
                     Story::Snackbar => cx.new(overlay_examples::SnackbarExamples::new).into(),
                     _ => cx

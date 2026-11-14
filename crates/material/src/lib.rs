@@ -9,6 +9,11 @@ pub use gpui_material_components::*;
 pub use gpui_material_extras::{
     ButtonGroup, ButtonGroupItem, ButtonGroupSelection, ButtonGroupVariant, SplitButton,
 };
+#[cfg(feature = "search")]
+pub use gpui_material_extras::{
+    SearchBar, SearchEvent, SearchOutcome, SearchRequest, SearchResult, SearchState, SearchView,
+    SearchViewVariant,
+};
 pub use gpui_material_foundation as foundation;
 pub use gpui_material_foundation::{MaterialRoot, Surface, material_theme, set_material_theme};
 pub use gpui_material_theme as theme;

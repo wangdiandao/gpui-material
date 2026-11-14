@@ -2211,6 +2211,7 @@ dependencies = [
 name = "gpui-material-extras"
 version = "0.0.4"
 dependencies = [
+ "gpui-base",
  "gpui-material-components",
  "gpui-material-foundation",
  "gpui-material-theme",

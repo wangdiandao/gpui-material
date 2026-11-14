@@ -153,7 +153,7 @@ impl Render for DisplayExamples {
                             .overline("Storage")
                             .supporting_text("Last updated today")
                             .trailing(Badge::count(
-                                Icon::custom("□")
+                                Icon::svg(crate::ARCHIVE_ICON)
                                     .label("archive-status", "More than 99 archived items"),
                                 125,
                                 99,

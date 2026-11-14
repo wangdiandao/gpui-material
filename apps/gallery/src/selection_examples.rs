@@ -248,6 +248,8 @@ mod tests {
                 let track = find(window, &[], &(id.clone(), "switch-track").into()).unwrap();
                 let thumb = find(window, &[], &(id, "switch-thumb").into()).unwrap();
                 assert_eq!(track.bounds().center().y, thumb.bounds().center().y);
+                assert!(thumb.bounds().left() >= track.bounds().left() + px(2.));
+                assert!(thumb.bounds().right() <= track.bounds().right() - px(2.));
             };
             draw(window, cx);
             assert_switch_centered(window);

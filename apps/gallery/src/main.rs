@@ -24,19 +24,23 @@ use gpui_material::{Fab, FloatingAction};
 
 const TITLE: &str = "Material Gallery";
 const FORWARD_ICON: &str = "forward.svg";
+const ARCHIVE_ICON: &str = "archive.svg";
 
 struct GalleryAssets;
 
 impl AssetSource for GalleryAssets {
     fn load(&self, path: &str) -> gpui::Result<Option<Cow<'static, [u8]>>> {
-        Ok((path == FORWARD_ICON).then_some(Cow::Borrowed(
-            br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11h12l-5-5 1.4-1.4 7.4 7.4-7.4 7.4L11 18l5-5H4z"/></svg>"#,
-        )))
+        let svg: &[u8] = match path {
+            FORWARD_ICON => br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11h11l-4-5 1.5-1.4L20 12l-7.5 7.4L11 18l4-5H4z"/></svg>"#,
+            ARCHIVE_ICON => br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M3 5h18v5h-1v10H4V10H3V5zm2 2v1h14V7H5zm1 3v8h12v-8H6zm3 2h6v2H9v-2z"/></svg>"#,
+            _ => return Ok(None),
+        };
+        Ok(Some(Cow::Borrowed(svg)))
     }
 
     fn list(&self, path: &str) -> gpui::Result<Vec<SharedString>> {
         Ok(if path.is_empty() {
-            vec![FORWARD_ICON.into()]
+            vec![FORWARD_ICON.into(), ARCHIVE_ICON.into()]
         } else {
             vec![]
         })

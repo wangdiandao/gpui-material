@@ -541,7 +541,7 @@ impl RenderOnce for Switch {
         } else {
             16.
         };
-        let offset = px(24. * progress);
+        let offset = px(2. + 20. * progress);
         let handle = div()
             .absolute()
             .top_0()

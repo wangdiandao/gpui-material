@@ -391,5 +391,7 @@ pub(crate) fn icon_slot(icon: AnyElement, side: f32) -> impl IntoElement {
         .flex()
         .items_center()
         .justify_center()
+        .text_size(px(side))
+        .line_height(px(side))
         .child(icon)
 }

@@ -6,7 +6,7 @@ use gpui_material_theme::{
     Appearance, ColorRole, CornerRole, MaterialTheme, TypeRole, TypographyEmphasis,
 };
 
-use crate::{color, typography::font_for_style};
+use crate::{color, font_for_style, typography::refresh_installed_fonts};
 
 struct ActiveMaterialTheme(MaterialTheme);
 
@@ -53,6 +53,7 @@ pub fn window_material_theme<'a>(window: &Window, cx: &'a App) -> &'a MaterialTh
 
 /// Sets or clears the override for Material elements in this window.
 pub fn set_window_material_theme(theme: Option<MaterialTheme>, window: &mut Window, cx: &mut App) {
+    refresh_installed_fonts(cx);
     if !cx.has_global::<WindowMaterialThemes>() {
         cx.set_global(WindowMaterialThemes::default());
         cx.on_window_closed(|cx, id| {
@@ -75,6 +76,7 @@ pub fn set_window_material_theme(theme: Option<MaterialTheme>, window: &mut Wind
 pub fn set_material_theme(theme: MaterialTheme, cx: &mut App) {
     use ColorRole::*;
 
+    refresh_installed_fonts(cx);
     let typography = &theme.typography;
     let sans = font_for_style(
         typography,

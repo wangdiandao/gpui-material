@@ -10,7 +10,7 @@ use gpui_material_theme::{
     TypographyEmphasis,
 };
 
-use crate::action::{Action, ActionControl, ActionStyle, Activate, icon_slot};
+use crate::action::{Action, ActionControl, ActionStyle, Activate, DisabledStyle, icon_slot};
 
 /// Expressive FAB sizes. Small is the 56 dp FAB and Small Extended FAB.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -103,6 +103,13 @@ impl FabContent {
             background: Some(background),
             background_color: None,
             foreground,
+            // Disabled FABs are a desktop extension; preserve the established
+            // Material disabled-container treatment for this extension.
+            disabled: DisabledStyle {
+                foreground: ColorRole::OnSurface,
+                background: Some((ColorRole::OnSurface, 0.12)),
+                outline: (ColorRole::OnSurface, 0.12),
+            },
             height,
             min_width: height,
             corner,
@@ -131,6 +138,8 @@ macro_rules! fab_builders {
             self
         }
 
+        /// Desktop compatibility extension. Material recommends hiding a FAB
+        /// when its primary action is unavailable instead of disabling it.
         pub fn disabled(mut self, disabled: bool) -> Self {
             self.content.disabled = disabled;
             self

@@ -56,7 +56,7 @@ impl Slider {
             state: state.clone(),
             kind: SliderKind::Standard,
             axis: Axis::Horizontal,
-            size: ControlSize::Small,
+            size: ControlSize::ExtraSmall,
             disabled: false,
             icon: None,
             tick_intervals: 0,
@@ -86,6 +86,7 @@ impl Slider {
         self
     }
 
+    /// Selects the expressive track size. ExtraSmall (16 dp) is the default.
     pub fn size(mut self, size: ControlSize) -> Self {
         self.size = size;
         self
@@ -507,7 +508,7 @@ impl RenderOnce for Slider {
                 let background = resolve(ColorRole::InverseSurface).opacity(opacity);
                 let line = shape_text(
                     text,
-                    TypeRole::LabelSmall.style(TypographyEmphasis::Baseline),
+                    TypeRole::LabelLarge.style(TypographyEmphasis::Baseline),
                     &theme.typography,
                     1.,
                     foreground,
@@ -519,8 +520,8 @@ impl RenderOnce for Slider {
                     |_, _, _| (),
                     move |thumb, _, window, cx| {
                         let size = gpui::size(
-                            line.line().width.ceil() + px(16.),
-                            line.line_height() + px(8.),
+                            (line.line().width.ceil() + px(16.)).max(px(48.)),
+                            line.line_height().max(px(44.)),
                         );
                         let visible = window.content_mask().bounds;
                         if !visible.contains(&thumb.center()) {
@@ -543,7 +544,11 @@ impl RenderOnce for Slider {
                             gpui::BorderStyle::Solid,
                         ));
                         let _ = line.paint(
-                            origin + point(px(8.), px(4.)),
+                            origin
+                                + point(
+                                    (size.width - line.line().width) / 2.,
+                                    (size.height - line.line_height()) / 2.,
+                                ),
                             gpui::TextAlign::Left,
                             None,
                             window,
@@ -841,7 +846,7 @@ fn value_label_origin(
     horizontal: bool,
     direction: Direction,
 ) -> Point<Pixels> {
-    let gap = px(8.);
+    let gap = px(12.);
     let x = if horizontal {
         thumb.center().x - label.width / 2.
     } else if direction == Direction::Ltr && thumb.right() + gap + label.width <= visible.right()
@@ -979,6 +984,22 @@ fn finish(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn value_labels_keep_material_gap_and_flip_inside_the_viewport() {
+        let visible = Bounds::new(point(px(0.), px(0.)), gpui::size(px(200.), px(200.)));
+        let label = gpui::size(px(48.), px(44.));
+        let thumb = Bounds::new(point(px(98.), px(100.)), gpui::size(px(4.), px(44.)));
+        let above = value_label_origin(thumb, label, visible, true, Direction::Ltr);
+        assert_eq!(above, point(px(76.), px(44.)));
+        assert_eq!(thumb.top() - above.y - label.height, px(12.));
+
+        let top = Bounds::new(point(px(0.), px(0.)), thumb.size);
+        let below = value_label_origin(top, label, visible, true, Direction::Rtl);
+        assert_eq!(below, point(px(0.), px(56.)));
+        let vertical = value_label_origin(thumb, label, visible, false, Direction::Rtl);
+        assert_eq!(vertical.x + label.width + px(12.), thumb.left());
+    }
 
     #[test]
     fn track_segments_stop_the_same_distance_from_each_handle() {

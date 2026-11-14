@@ -250,6 +250,73 @@ mod tests {
     use gpui_material::foundation::MaterialRoot;
 
     #[gpui::test]
+    fn keyboard_switch_press_uses_the_same_thumb_feedback_as_pointer(cx: &mut TestAppContext) {
+        let (handle, view) = cx.update(|cx| {
+            crate::init_gallery(cx);
+            cx.set_reduce_motion(true);
+            let mut view = None;
+            let handle = MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+                let selection = cx.new(|cx| SelectionExamples::for_story(Story::Switch, cx));
+                view = Some(selection.clone());
+                selection
+            })
+            .unwrap();
+            (handle, view.unwrap())
+        });
+        cx.update_window(handle.into(), |_, window, _| window.activate_window())
+            .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle.into(), |_, window, cx| {
+            assert!(window.is_window_active());
+            let draw = |window: &mut Window, cx: &mut gpui::App| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+            };
+            draw(window, cx);
+            window.focus_next(cx);
+            window.focus_next(cx);
+            draw(window, cx);
+            assert_eq!(
+                find(window, &[], &"sync-switch".into()).unwrap().focused(),
+                Some(true)
+            );
+            let width = |window: &Window| {
+                find(
+                    window,
+                    &[],
+                    &(ElementId::from("sync-switch"), "switch-thumb").into(),
+                )
+                .unwrap()
+                .bounds()
+                .size
+                .width
+            };
+            assert_eq!(width(window), px(16.));
+            let key = gpui::Keystroke::parse_with_os("space", cx.platform_info().os).unwrap();
+            window.dispatch_event(
+                gpui::KeyDownEvent {
+                    keystroke: key.clone(),
+                    is_held: false,
+                    prefer_character_input: false,
+                }
+                .to_platform_input(),
+                cx,
+            );
+            draw(window, cx);
+            assert_eq!(
+                width(window),
+                px(28.),
+                "keyboard press must expand the handle like pointer press"
+            );
+            window.dispatch_event(gpui::KeyUpEvent { keystroke: key }.to_platform_input(), cx);
+            draw(window, cx);
+            assert!(view.read(cx).plain_switch);
+            assert_eq!(width(window), px(24.));
+        })
+        .unwrap();
+    }
+
+    #[gpui::test]
     fn controlled_selection_and_chip_removal(cx: &mut TestAppContext) {
         let (handle, view) = cx.update(|cx| {
             crate::init_gallery(cx);

@@ -150,7 +150,9 @@ impl ActionControl {
                         ],
                     );
                 }
-                let outline = if enabled {
+                let outline = if style.outline == 0. {
+                    gpui::transparent_black()
+                } else if enabled {
                     outline
                 } else {
                     on_surface.opacity(0.12)

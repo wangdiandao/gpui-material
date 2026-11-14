@@ -1,8 +1,8 @@
 schema_version = 1
 current_phase = "P6"
-allowed_paths = []
-blockers = []
-repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }, { phase = "P4", issue = 118, status = "completed", scope = "Foundation Gallery slider alignment", commit = "02b2d25dd252abf34a6719f8bc672bb0e663d98d" }, { phase = "P5", issue = 119, status = "completed", scope = "Visual defects and acceptance coverage in Material components, Gallery and the window theme adapter", commit = "9b85f97034ea3253fdc9bc48eb6b0667be684224" }, { phase = "P5", issue = 125, status = "completed", scope = "Material Gallery component navigation and sample organization", commit = "33375c769b06d981126c9028612bc8b3df0ebcbe" }, { phase = "P6", issue = 149, status = "completed", scope = "Gallery alignment and Compose motion across delivered controls", commit = "8d05e56c2aa52e98a0a4fb4c1c305910d2d8cd4f" }, { phase = "P6", issue = 153, status = "completed", scope = "Replace the grouped Gallery with the searchable component catalog", commit = "3653a7a08c260e7ee4071df392c1c8c8ca6a7e08" }, { phase = "P6", issue = 156, status = "completed", scope = "Remove repeated font enumeration from Material render paths", commit = "694988982782cc1f5f09c608d5c051665d1fd835" }, { phase = "P6", issue = 160, status = "completed", scope = "Apply measured development-profile optimizations for Gallery runtime dependencies", commit = "408f03e696b0a01f71bc929b00dd0e48f1073dad" }]
+allowed_paths = ["apps/gallery/src/gallery.rs", "apps/gallery/src/main.rs"]
+blockers = [164]
+repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }, { phase = "P4", issue = 118, status = "completed", scope = "Foundation Gallery slider alignment", commit = "02b2d25dd252abf34a6719f8bc672bb0e663d98d" }, { phase = "P5", issue = 119, status = "completed", scope = "Visual defects and acceptance coverage in Material components, Gallery and the window theme adapter", commit = "9b85f97034ea3253fdc9bc48eb6b0667be684224" }, { phase = "P5", issue = 125, status = "completed", scope = "Material Gallery component navigation and sample organization", commit = "33375c769b06d981126c9028612bc8b3df0ebcbe" }, { phase = "P6", issue = 149, status = "completed", scope = "Gallery alignment and Compose motion across delivered controls", commit = "8d05e56c2aa52e98a0a4fb4c1c305910d2d8cd4f" }, { phase = "P6", issue = 153, status = "completed", scope = "Replace the grouped Gallery with the searchable component catalog", commit = "3653a7a08c260e7ee4071df392c1c8c8ca6a7e08" }, { phase = "P6", issue = 156, status = "completed", scope = "Remove repeated font enumeration from Material render paths", commit = "694988982782cc1f5f09c608d5c051665d1fd835" }, { phase = "P6", issue = 160, status = "completed", scope = "Apply measured development-profile optimizations for Gallery runtime dependencies", commit = "408f03e696b0a01f71bc929b00dd0e48f1073dad" }, { phase = "P6", issue = 164, status = "open", scope = "Apply the Material 3 list-detail layout to the Gallery" }]
 frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac", P4 = "02b2d25dd252abf34a6719f8bc672bb0e663d98d", P5 = "33375c769b06d981126c9028612bc8b3df0ebcbe", P6 = "408f03e696b0a01f71bc929b00dd0e48f1073dad" }
 
 [phases.P0]
@@ -85,7 +85,7 @@ merged_deliverables = [
 ]
 
 [phases.P6]
-status = "frozen"
+status = "blocked"
 frozen_on = 2026-11-14
 entry_conditions = ["P5 is frozen", "Pinned text and overlay probes and verified Foundation adapters are available"]
 merged_deliverables = [

@@ -276,13 +276,13 @@ impl NavigationExamples {
                                 .overflow_y_scroll()
                                 .occlude()
                                 .track_scroll(&self.scroll)
-                                .children(
-                                    DESTINATIONS
-                                        .iter()
-                                        .cycle()
-                                        .take(24)
-                                        .map(|(_, title, _)| div().p_3().child(Text::new(*title))),
-                                ),
+                                .children(DESTINATIONS.iter().cycle().take(24).enumerate().map(
+                                    |(index, (_, title, _))| {
+                                        div()
+                                            .p_3()
+                                            .child(Text::new(*title).id(("app-bar-line", index)))
+                                    },
+                                )),
                         ),
                 ),
             )

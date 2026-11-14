@@ -7,8 +7,8 @@ use gpui::{
 use gpui_base::TestSupportExt;
 use gpui_material::{
     Button, ButtonVariant, ControlSize, Fab, FloatingAction, Icon, IconButton, IconName, List,
-    ListItem, ListVariant, Text, TextField, TextFieldEvent, TextFieldState, TextFieldVariant,
-    ToggleButton, ToggleButtonVariant,
+    ListDetail, ListDetailPane, ListItem, ListVariant, Text, TextField, TextFieldEvent,
+    TextFieldState, TextFieldVariant, ToggleButton, ToggleButtonVariant,
     foundation::{
         Surface, color, set_material_theme, set_window_material_theme, window_material_theme,
     },
@@ -24,7 +24,6 @@ gpui::actions!(gallery, [CloseCatalog]);
 
 const COMPACT_MARGIN: Pixels = px(16.);
 const PANE_SPACING: Pixels = px(24.);
-const CATALOG_WIDTH: Pixels = px(360.);
 
 pub(crate) struct Gallery {
     local_theme: bool,
@@ -33,12 +32,14 @@ pub(crate) struct Gallery {
     current: Story,
     search: Entity<TextFieldState>,
     catalog_scroll: ScrollHandle,
+    catalog_focus: FocusHandle,
     content_scroll: ScrollHandle,
     content_focus: FocusHandle,
     stories: Vec<(Story, AnyView)>,
     drawing: Entity<drawing::Drawing>,
     input: Entity<input_examples::InputExamples>,
     _search: Subscription,
+    _bounds: Subscription,
 }
 
 impl Gallery {
@@ -70,6 +71,21 @@ impl Gallery {
             .iter()
             .filter_map(|&story| story.new_view(window, cx).map(|view| (story, view)))
             .collect();
+        let bounds = cx.observe_window_bounds(window, |this, window, cx| {
+            if Self::single_pane(Self::width_class(window)) {
+                let catalog_focused = this
+                    .search
+                    .read(cx)
+                    .focus_handle(cx)
+                    .contains_focused(window, cx)
+                    || this.catalog_focus.contains_focused(window, cx);
+                let content_focused = this.content_focus.contains_focused(window, cx);
+                if catalog_focused || content_focused {
+                    this.single_pane_catalog_open = catalog_focused;
+                }
+            }
+            cx.notify();
+        });
         Self {
             local_theme,
             catalog_collapsed: false,
@@ -77,12 +93,14 @@ impl Gallery {
             current: initial_story,
             search,
             catalog_scroll,
+            catalog_focus: cx.focus_handle(),
             content_scroll: ScrollHandle::new(),
             content_focus: cx.focus_handle(),
             stories,
             drawing: cx.new(drawing::Drawing::new),
             input: cx.new(|cx| input_examples::InputExamples::new(window, cx)),
             _search: observe_search,
+            _bounds: bounds,
         }
     }
 
@@ -182,6 +200,7 @@ impl Gallery {
             .id("gallery-catalog-pane")
             .key_context("GalleryCatalog")
             .test_support()
+            .track_focus(&self.catalog_focus)
             .on_action(cx.listener(move |this, _: &CloseCatalog, window, cx| {
                 if single_pane {
                     this.toggle_catalog(window, cx);
@@ -189,11 +208,8 @@ impl Gallery {
                     cx.propagate();
                 }
             }))
-            .when_else(
-                single_pane,
-                |panel| panel.flex_1().min_w_0(),
-                |panel| panel.w(CATALOG_WIDTH).flex_none(),
-            )
+            .flex_1()
+            .min_w_0()
             .min_h_0()
             .flex()
             .flex_col()
@@ -346,13 +362,15 @@ impl Gallery {
                     .overflow_y_scroll()
                     .flex_1()
                     .min_h_0()
-                    .child(
+                    .child(if self.current == Story::AdaptiveLayout {
+                        div().size_full().min_h_0().overflow_hidden().child(content)
+                    } else {
                         div()
                             .px(inset)
                             .py_4()
                             .when(self.current == Story::Fab, |content| content.pb_24())
-                            .child(content),
-                    ),
+                            .child(content)
+                    }),
             )
     }
 
@@ -474,7 +492,6 @@ impl Gallery {
 
 impl Render for Gallery {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
         let width_class = Self::width_class(window);
         let single_pane = Self::single_pane(width_class);
         let show_catalog = if single_pane {
@@ -509,18 +526,26 @@ impl Render for Gallery {
                 div()
                     .flex_1()
                     .min_h_0()
-                    .flex()
-                    .gap(PANE_SPACING)
                     .when(!single_pane, |body| body.px(margin))
-                    .when(rtl, Styled::flex_row_reverse)
-                    .children(
-                        show_catalog.then(|| {
+                    .child({
+                        let catalog = show_catalog.then(|| {
                             self.render_catalog(single_pane, inset, pane_radius, window, cx)
-                        }),
-                    )
-                    .children(
-                        show_story.then(|| self.render_story(inset, pane_radius, window, cx)),
-                    ),
+                                .into_any_element()
+                        });
+                        let story = self.render_story(inset, pane_radius, window, cx);
+                        ListDetail::new(
+                            "gallery-panes",
+                            window.viewport_size().width,
+                            div().flex().flex_col().size_full().children(catalog),
+                            story,
+                        )
+                        .active_pane(if show_catalog {
+                            ListDetailPane::List
+                        } else {
+                            ListDetailPane::Detail
+                        })
+                        .detail_only(!show_catalog)
+                    }),
             )
             .child(self.render_status_bar(margin, window, cx))
             .children((show_story && self.current == Story::Fab).then(|| {

@@ -328,7 +328,7 @@ impl NavigationItems {
         let row = div()
             .id(self.id.clone())
             .test_support()
-            .role(if tab { Role::TabList } else { Role::Navigation })
+            .role(if tab { Role::TabList } else { Role::ListBox })
             .aria_label(self.label)
             .flex()
             .w_full()
@@ -388,7 +388,7 @@ impl NavigationItems {
                 index + 1
             };
             Button::new(item.id.clone())
-                .role(if tab { Role::Tab } else { Role::Button })
+                .role(if tab { Role::Tab } else { Role::ListBoxOption })
                 .aria_selected(selected)
                 .aria_position_in_set(position)
                 .aria_size_of_set(count)

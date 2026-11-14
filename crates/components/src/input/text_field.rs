@@ -321,10 +321,9 @@ impl RenderOnce for TextField {
         } else {
             -caption_style.line_height * 0.5
         };
-        let cutout = Rc::new(Cell::new(None));
+        let cutout = Rc::new(Cell::new(None::<Bounds<gpui::Pixels>>));
         let measure_cutout = cutout.clone();
         let label_top = resting_top + (floating_top - resting_top) * floating;
-        let cut_outline = !filled && floating > 0. && label_top < 1. + focus_amount;
         let outline_width = px(1. + focus_amount);
         let hover = window
             .use_keyed_state((self.id.clone(), "field-hover"), cx, |_, _| {
@@ -349,15 +348,16 @@ impl RenderOnce for TextField {
                         outline_tint,
                         BorderStyle::Solid,
                     );
-                    let Some(label_bounds) = cutout.get() else {
+                    let Some(label_bounds) = cutout.get().filter(|label| {
+                        label.top() < bounds.top() + outline_width && label.bottom() > bounds.top()
+                    }) else {
                         window.paint_quad(border);
                         return;
                     };
-                    let label_bounds: Bounds<gpui::Pixels> = label_bounds;
-                    let label_center = label_bounds.center().x;
-                    let half_cut = label_bounds.size.width * floating / 2.;
-                    let left = (label_center - half_cut).max(bounds.left());
-                    let right = (label_center + half_cut).min(bounds.right());
+                    // The missing stroke must clear the complete label in each
+                    // frame that overlaps it, including when focus is leaving.
+                    let left = label_bounds.left().max(bounds.left());
+                    let right = label_bounds.right().min(bounds.right());
                     for (min, max) in [
                         (bounds.origin, point(left, bounds.bottom())),
                         (point(right, bounds.top()), bounds.bottom_right()),
@@ -392,13 +392,15 @@ impl RenderOnce for TextField {
             .when(direction == Direction::Rtl, Styled::justify_end)
             .child(
                 div()
+                    .id("label-text")
+                    .test_support()
                     .min_w_0()
                     .max_w_full()
                     .relative()
                     .truncate()
                     .when(!filled, |label| label.px(px(4.)))
                     .child(label.clone())
-                    .when(cut_outline, |label| {
+                    .when(!filled, |label| {
                         label.child(
                             canvas(
                                 move |bounds, _, _| measure_cutout.set(Some(bounds)),

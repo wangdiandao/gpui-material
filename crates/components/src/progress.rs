@@ -94,8 +94,14 @@ impl Progress {
         } else {
             0.
         };
-        let amplitude = (determinate / 0.1).min(1.) * ((1. - determinate) / 0.05).min(1.);
-        let amplitude = amplitude + (1. - amplitude) * indeterminate;
+        let amplitude = animate(
+            (self.id.clone(), "wave-amplitude"),
+            wave_amplitude(determinate) + (1. - wave_amplitude(determinate)) * indeterminate,
+            mode_spec,
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
         let elapsed = now.saturating_duration_since(epoch).as_secs_f32() * 1000.;
         let circular_segment = if !circular || reduced {
             (0., 0.25)
@@ -142,7 +148,8 @@ impl Progress {
                             });
                         center + point(radius * angle.cos(), radius * angle.sin())
                     };
-                    let gap = (px(4.) / (radius * TAU)).clamp(0., 0.12);
+                    // Round caps consume another stroke width around the 4 dp gap.
+                    let gap = (px(8.) / (radius * TAU)).clamp(0., 1.);
                     if extent == 0. {
                         stroke(0., 1., track, |f| sample(f, false), window);
                     } else {
@@ -162,15 +169,18 @@ impl Progress {
                         } else {
                             fraction
                         };
-                        let x = (bounds.size.width - px(4.)).max(px(0.)) * from_start + px(2.);
+                        let x = px(linear_position(f32::from(bounds.size.width), from_start));
                         let wave = if wave {
-                            px(3. * amplitude * ((f32::from(x) / 40. - wave_phase) * TAU).sin())
+                            let wavelength = 40. - 20. * indeterminate;
+                            px(3.
+                                * amplitude
+                                * ((f32::from(x) / wavelength - wave_phase) * TAU).sin())
                         } else {
                             px(0.)
                         };
                         point(bounds.left() + x, bounds.center().y + wave)
                     };
-                    let gap = (px(4.) / bounds.size.width.max(px(4.))).clamp(0., 0.12);
+                    let gap = (px(8.) / bounds.size.width.max(px(4.))).min(1.);
                     let [first, second] = lines;
                     let start = first.0 * indeterminate;
                     let finish = determinate + (first.1 - determinate) * indeterminate;
@@ -178,22 +188,24 @@ impl Progress {
                     let mut segments = [(start, finish), (second.0, second_end)];
                     segments.sort_by(|left, right| left.0.total_cmp(&right.0));
                     let mut position = 0.;
-                    let mut end: f32 = 0.;
                     for (start, finish) in segments {
                         if finish <= start {
                             continue;
                         }
                         stroke(position, start - gap, track, |f| sample(f, false), window);
                         position = position.max(finish + gap);
-                        end = end.max(finish);
                     }
                     stroke(position, 1., track, |f| sample(f, false), window);
                     stroke(start, finish, active, |f| sample(f, wavy), window);
                     if indeterminate > 0. {
                         stroke(second.0, second_end, active, |f| sample(f, wavy), window);
                     }
-                    if end < 1. - gap {
-                        let stop = sample(1., false);
+                    if value.is_some() {
+                        let stop = point(
+                            bounds.left()
+                                + px(stop_position(f32::from(bounds.size.width), side, direction)),
+                            bounds.center().y,
+                        );
                         window.paint_quad(gpui::quad(
                             Bounds::from_corners(
                                 stop - point(px(2.), px(2.)),
@@ -213,22 +225,17 @@ impl Progress {
             },
         )
         .size_full();
-        let mut element = div()
-            .id(self.id)
-            .role(Role::ProgressIndicator)
-            .aria_label(self.name)
+        // Base owns the controlled numeric semantics; Material owns the drawing.
+        let mut element = gpui_base::Progress::new(self.id)
+            .value(value.unwrap_or_default() * 100.)
+            .indeterminate(value.is_none())
+            .accessibility_label(self.name)
             .h(px(side))
             .child(picture);
         if circular {
             element = element.w(px(side)).flex_none();
         } else {
             element = element.w_full();
-        }
-        if let Some(value) = value {
-            element = element
-                .aria_numeric_value(f64::from(value) * 100.)
-                .aria_min_numeric_value(0.)
-                .aria_max_numeric_value(100.);
         }
         element
     }
@@ -297,6 +304,44 @@ fn stroke(
     }
     if let Ok(path) = path.build() {
         window.paint_path(path, tint);
+    }
+    // GPUI's path tessellator uses butt caps. Material uses round caps for
+    // all three presentations, with the same endpoints as the sampled path.
+    for center in [sample(start), sample(end)] {
+        window.paint_quad(gpui::quad(
+            Bounds::from_corners(
+                center - point(px(2.), px(2.)),
+                center + point(px(2.), px(2.)),
+            ),
+            px(2.),
+            tint,
+            px(0.),
+            tint,
+            gpui::BorderStyle::Solid,
+        ));
+    }
+}
+
+fn linear_position(width: f32, fraction: f32) -> f32 {
+    if width < 4. {
+        width * fraction
+    } else {
+        (width * fraction).clamp(2., width - 2.)
+    }
+}
+
+fn wave_amplitude(progress: f32) -> f32 {
+    // WavyProgressIndicatorDefaults.indicatorAmplitude suppresses waves at the
+    // beginning and end; only the change between these targets is animated.
+    f32::from(progress > 0.1 && progress < 0.95)
+}
+
+fn stop_position(width: f32, height: f32, direction: Direction) -> f32 {
+    let inset = 2. + ((height - 4.).max(0.) / 2.).min(4.);
+    if direction == Direction::Rtl {
+        inset.min(width / 2.)
+    } else {
+        (width - inset).max(width / 2.)
     }
 }
 
@@ -499,6 +544,31 @@ impl RenderOnce for LoadingIndicator {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rounded_progress_endpoints_and_stop_stay_inside_the_track() {
+        assert_eq!(linear_position(100., 0.), 2.);
+        assert_eq!(linear_position(100., 1.), 98.);
+        assert_eq!(linear_position(100., 0.5), 50.);
+        for height in [4., 10.] {
+            let ltr = stop_position(100., height, Direction::Ltr);
+            let rtl = stop_position(100., height, Direction::Rtl);
+            assert_eq!(ltr + rtl, 100.);
+            assert!(ltr + 2. <= 100. && rtl - 2. >= 0.);
+        }
+        assert_eq!(stop_position(100., 4., Direction::Ltr), 98.);
+        assert_eq!(stop_position(100., 10., Direction::Ltr), 95.);
+    }
+
+    #[test]
+    fn determinate_wave_is_flat_at_both_ends_of_the_range() {
+        for value in [0., 0.05, 0.1, 0.95, 0.99, 1.] {
+            assert_eq!(wave_amplitude(value), 0.);
+        }
+        for value in [0.11, 0.5, 0.94] {
+            assert_eq!(wave_amplitude(value), 1.);
+        }
+    }
 
     #[test]
     fn indeterminate_keyframes_use_both_linear_segments_and_periodic_rotation() {

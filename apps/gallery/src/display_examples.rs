@@ -408,3 +408,137 @@ mod tests {
         .unwrap();
     }
 }
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn list_roves_skips_disabled_and_wraps_supporting_text(cx: &mut gpui::TestAppContext) {
+    use gpui::{AppContext, WindowOptions};
+    use gpui_base::test_support::find;
+    use gpui_material::MaterialRoot;
+    struct Example;
+    impl Render for Example {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().w(px(220.)).child(List::new("audit-list").items([
+                ListItem::new("first", "First").on_activate(|_, _| {}),
+                ListItem::new("selected", "Selected").selected(true).on_activate(|_, _| {}),
+                ListItem::new("disabled", "Disabled").disabled(true).on_activate(|_, _| {}),
+                ListItem::new("last", "Last").supporting_text("中文 supporting text that wraps across several lines and remains readable").on_activate(|_, _| {}),
+            ]))
+        }
+    }
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| cx.new(|_| Example))
+            .unwrap()
+    });
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.activate_window();
+        for _ in 0..3 {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        }
+        window.focus_next(cx);
+    })
+    .unwrap();
+    let focused = |cx: &mut gpui::TestAppContext, id: &str| {
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            find(
+                window,
+                &[],
+                &(gpui::ElementId::from(id.to_owned()), "activate").into(),
+            )
+            .unwrap()
+            .focused()
+        })
+        .unwrap()
+    };
+    assert_eq!(focused(cx, "selected"), Some(true));
+    cx.simulate_keystrokes(handle.into(), "down");
+    assert_eq!(focused(cx, "last"), Some(true));
+    cx.simulate_keystrokes(handle.into(), "down");
+    assert_eq!(focused(cx, "first"), Some(true));
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let row = find(window, &[], &"last".into()).unwrap();
+        let supporting = find(window, row.path(), &"supporting".into()).unwrap();
+        assert!(
+            supporting.bounds().size.height >= px(40.),
+            "supporting text must wrap rather than truncate"
+        );
+        assert!(row.bounds().size.height >= px(88.));
+        assert!(supporting.bounds().right() <= row.bounds().right());
+    })
+    .unwrap();
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn disabled_card_supplies_content_color_without_fading_custom_children(
+    cx: &mut gpui::TestAppContext,
+) {
+    use gpui::{App, AppContext, Hsla, RenderOnce, WindowOptions};
+    use gpui_material::{
+        MaterialRoot,
+        foundation::{color, window_material_theme},
+        theme::ColorRole,
+    };
+    use std::{cell::Cell, rc::Rc};
+    #[derive(gpui::IntoElement)]
+    struct Probe(Rc<Cell<Hsla>>);
+    impl RenderOnce for Probe {
+        fn render(self, window: &mut Window, _: &mut App) -> impl IntoElement {
+            self.0.set(window.text_style().color);
+            Text::new("Inherited card content")
+        }
+    }
+    struct Example {
+        inherited: Rc<Cell<Hsla>>,
+        explicit: Rc<Cell<Hsla>>,
+    }
+    impl Render for Example {
+        fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let primary = color(
+                window_material_theme(window, cx)
+                    .colors
+                    .color(ColorRole::Primary),
+            );
+            Card::new("disabled-card")
+                .disabled(true)
+                .child(Probe(self.inherited.clone()))
+                .child(
+                    div()
+                        .text_color(primary)
+                        .child(Probe(self.explicit.clone())),
+                )
+        }
+    }
+    let inherited = Rc::new(Cell::new(gpui::transparent_black()));
+    let explicit = Rc::new(Cell::new(gpui::transparent_black()));
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            cx.new(|_| Example {
+                inherited: inherited.clone(),
+                explicit: explicit.clone(),
+            })
+        })
+        .unwrap()
+    });
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let theme = window_material_theme(window, cx);
+        assert_eq!(
+            inherited.get(),
+            color(theme.colors.color(ColorRole::OnSurface)).opacity(0.38)
+        );
+        assert_eq!(
+            explicit.get(),
+            color(theme.colors.color(ColorRole::Primary))
+        );
+    })
+    .unwrap();
+}

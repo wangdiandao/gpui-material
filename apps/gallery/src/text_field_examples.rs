@@ -357,6 +357,7 @@ fn empty_text_field_floats_its_label_on_focus(cx: &mut gpui::TestAppContext) {
     cx.executor().advance_clock(Duration::from_secs(1));
     let floated = sample(cx);
     assert!(floated < middle);
+    assert_eq!(floated, px(8.), "Compose filled label top padding");
     cx.update_window(window.into(), |_, window, cx| {
         cx.set_reduce_motion(true);
         window.blur(cx);
@@ -431,4 +432,70 @@ fn fields_preserve_native_editing_and_secure_copy(cx: &mut gpui::TestAppContext)
             Some("sentinel")
         );
     });
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn readonly_dropdown_opens_from_field_and_space(cx: &mut gpui::TestAppContext) {
+    use gpui::{InputEvent as _, MouseButton, MouseDownEvent, MouseUpEvent, WindowOptions};
+    use gpui_base::test_support::find;
+    use gpui_material::MaterialRoot;
+    let window = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            cx.new(|cx| DropdownExamples::new(window, cx))
+        })
+        .unwrap()
+    });
+    cx.update_window(window.into(), |_, window, cx| {
+        window.activate_window();
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let trigger = find(
+            window,
+            &[],
+            &(gpui::ElementId::from("language"), "combobox").into(),
+        )
+        .unwrap();
+        let position = trigger.bounds().center();
+        window.dispatch_event(
+            MouseDownEvent {
+                button: MouseButton::Left,
+                position,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.refresh();
+        window.draw(cx).clear(cx);
+        window.dispatch_event(
+            MouseUpEvent {
+                button: MouseButton::Left,
+                position,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+    })
+    .unwrap();
+    let is_open = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            find(window, &[], &"options".into()).is_some()
+        })
+        .unwrap()
+    };
+    assert!(is_open(cx), "the whole readonly field is the menu anchor");
+    cx.simulate_keystrokes(window.into(), "space");
+    assert!(!is_open(cx));
+    cx.simulate_keystrokes(window.into(), "space");
+    assert!(is_open(cx));
+    cx.simulate_keystrokes(window.into(), "escape");
+    assert!(!is_open(cx));
 }

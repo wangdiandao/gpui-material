@@ -1,10 +1,51 @@
 use std::{collections::HashSet, sync::Arc};
 
 use gpui::{
-    App, Font, FontFallbacks, FontWeight, Global, Hsla, Pixels, Point, ShapedLine, SharedString,
-    TextAlign, TextRun, Window, font, px,
+    App, Font, FontFallbacks, FontWeight, Global, Hsla, ParentElement, Pixels, Point, ShapedLine,
+    SharedString, Styled, TextAlign, TextRun, Window, div, font, px,
 };
-use gpui_material_theme::{LayoutPolicy, TypeStyle, Typography};
+use gpui_material_theme::{Direction, LayoutPolicy, TypeStyle, Typography};
+
+/// Native wrapping with Material font metrics and fallback, including explicit
+/// line breaks. GPUI owns shaping, Unicode line breaking, measurement and paint.
+/// The pinned GPUI has no letter-spacing option for wrapped text; unlike
+/// [`shape_text`], this path uses the font's native tracking.
+pub fn wrapped_text(
+    text: impl Into<SharedString>,
+    style: TypeStyle,
+    font_scale: f32,
+    tint: Hsla,
+    window: &Window,
+    cx: &App,
+) -> gpui::Div {
+    text_style(div().min_w_0(), style, font_scale, window, cx)
+        .text_color(tint)
+        .whitespace_normal()
+        .child(text.into())
+}
+
+/// Applies Material family, fallback, weight, size, line height and direction to
+/// native GPUI text. Native wrapping does not support custom tracking.
+pub fn text_style<E: Styled>(
+    element: E,
+    style: TypeStyle,
+    font_scale: f32,
+    window: &Window,
+    cx: &App,
+) -> E {
+    let theme = crate::window_material_theme(window, cx);
+    let style = LayoutPolicy::scale_text(style, font_scale);
+    let font = font_for_style(&theme.typography, style, cx);
+    element
+        .font(font)
+        .text_size(px(style.size))
+        .line_height(px(style.line_height))
+        .text_align(if theme.layout.direction == Direction::Rtl {
+            TextAlign::Right
+        } else {
+            TextAlign::Left
+        })
+}
 
 struct InstalledFonts(HashSet<String>);
 

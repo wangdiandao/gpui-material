@@ -185,7 +185,7 @@ impl RenderOnce for TextField {
         } else {
             tone(OnSurfaceVariant)
         };
-        let label_color = if focused || error {
+        let label_color = if !disabled && (focused || error) {
             indicator
         } else {
             secondary
@@ -287,7 +287,10 @@ impl RenderOnce for TextField {
                 (state.into_any_element(), role, value, set_value)
             }
             Editor::Multiple(state) => {
-                state.update(cx, |state, _| configure_editor(state, style));
+                state.update(cx, |state, cx| {
+                    state.set_text_align(align, cx);
+                    configure_editor(state, style);
+                });
                 let value = state.read(cx).value();
                 let set_value = (!readonly && !disabled).then(|| edit_handler(state.clone()));
                 (
@@ -314,7 +317,7 @@ impl RenderOnce for TextField {
             + (caption_style.line_height - type_style.line_height) * floating;
         let resting_top = (56. - type_style.line_height) * 0.5;
         let floating_top = if filled {
-            4.
+            8.
         } else {
             -caption_style.line_height * 0.5
         };
@@ -393,7 +396,7 @@ impl RenderOnce for TextField {
                     .max_w_full()
                     .relative()
                     .truncate()
-                    .when(!filled, |label| label.px_1())
+                    .when(!filled, |label| label.px(px(4.)))
                     .child(label.clone())
                     .when(cut_outline, |label| {
                         label.child(
@@ -419,7 +422,7 @@ impl RenderOnce for TextField {
             .min_w_0()
             .flex()
             .flex_col()
-            .gap_1()
+            .gap(px(4.))
             .font_family(font)
             .role(match (self.expanded, readonly) {
                 (Some(_), true) => Role::ComboBox,
@@ -465,12 +468,22 @@ impl RenderOnce for TextField {
                         Styled::justify_end,
                         Styled::justify_center,
                     )
-                    .min_h(px(56.).max(px(type_style.line_height + 16.)))
+                    .min_h(px(56.).max(px(type_style.line_height
+                        + if filled {
+                            caption_style.line_height + 16.
+                        } else {
+                            16.
+                        })))
                     .rounded(radius)
                     .border_color(indicator)
-                    .px_4()
-                    .py_1()
+                    .px(px(16.))
+                    .py(px(4.))
                     .when(filled, |mut field| {
+                        // Compose reserves 8 dp above the minimized label and below
+                        // the editor; larger text grows the container instead of overlapping.
+                        field = field
+                            .pt(px(caption_style.line_height + 8.))
+                            .pb(px(8.) - outline_width);
                         field.style().border_widths.bottom = Some(outline_width.into());
                         field
                             .bg(background)
@@ -494,7 +507,7 @@ impl RenderOnce for TextField {
                         div()
                             .flex()
                             .items_center()
-                            .gap_2()
+                            .gap(px(8.))
                             .min_w_0()
                             .text_size(px(type_style.size))
                             .line_height(px(type_style.line_height))
@@ -507,7 +520,7 @@ impl RenderOnce for TextField {
             .when_some(support, |field, text| {
                 field.child(
                     div()
-                        .px_4()
+                        .px(px(16.))
                         .text_size(px(caption_style.size))
                         .line_height(px(caption_style.line_height))
                         .text_color(if error && !disabled {

@@ -149,6 +149,87 @@ impl Render for ModalExamples {
 
 #[cfg(all(test, feature = "test-support"))]
 #[gpui::test]
+fn bottom_sheet_cancels_drag_and_accepts_next_gesture(cx: &mut gpui::TestAppContext) {
+    use gpui::{
+        InputEvent as _, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, WindowOptions,
+        point,
+    };
+    use gpui_base::test_support::find;
+    use gpui_material::MaterialRoot;
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let entity = cx.new(|cx| ModalExamples::new(Story::Sheets, window, cx));
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    let drag = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let origin = find(window, &[], &"drag-handle".into())
+                .unwrap()
+                .bounds()
+                .center();
+            let destination = origin - point(px(0.), px(44.));
+            window.dispatch_event(
+                MouseDownEvent {
+                    button: MouseButton::Left,
+                    position: origin,
+                    click_count: 1,
+                    ..Default::default()
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.dispatch_event(
+                MouseMoveEvent {
+                    position: destination,
+                    pressed_button: Some(MouseButton::Left),
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+            assert!(cx.has_active_drag());
+            destination
+        })
+        .unwrap()
+    };
+    let release = |cx: &mut gpui::TestAppContext, position| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.dispatch_event(
+                MouseUpEvent {
+                    button: MouseButton::Left,
+                    position,
+                    click_count: 1,
+                    ..Default::default()
+                }
+                .to_platform_input(),
+                cx,
+            );
+        })
+        .unwrap();
+    };
+    let destination = drag(cx);
+    cx.simulate_keystrokes(window.into(), "escape");
+    release(cx, destination);
+    cx.update(|cx| {
+        assert!(!cx.has_active_drag());
+        assert!(!view.read(cx).expanded);
+    });
+    let destination = drag(cx);
+    release(cx, destination);
+    cx.update(|cx| assert!(view.read(cx).expanded));
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
 fn escape_closes_nested_dialogs_and_restores_each_trigger(cx: &mut gpui::TestAppContext) {
     use gpui::WindowOptions;
     use gpui_material::MaterialRoot;

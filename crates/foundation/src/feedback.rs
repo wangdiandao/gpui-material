@@ -22,6 +22,16 @@ pub struct InteractionState {
 }
 
 impl InteractionState {
+    /// Resolves the non-press state layer when a ripple supplies press feedback.
+    /// Reduced motion uses the static pressed layer instead of an animated ripple.
+    pub fn layer_with_ripple(self, reduced_motion: bool) -> Option<StateLayer> {
+        Self {
+            pressed: self.pressed && reduced_motion,
+            ..self
+        }
+        .layer()
+    }
+
     pub fn layer(self) -> Option<StateLayer> {
         if self.disabled {
             None
@@ -84,32 +94,52 @@ impl Ripple {
         if reduced_motion {
             return;
         }
-        let elapsed = now.saturating_duration_since(self.started);
-        let fade_start = self
-            .released
-            .map(|time| time.max(self.started + RIPPLE_FADE_IN));
-        let fade = fade_start.map_or(0., |time| {
-            now.saturating_duration_since(time).as_secs_f32() / RIPPLE_FADE_OUT.as_secs_f32()
-        });
-        if fade >= 1. {
+        let (progress, alpha) = self.sample(now);
+        if alpha <= 0. && progress >= 1. {
             return;
         }
-        let progress = (elapsed.as_secs_f32() / RIPPLE_EXPANSION.as_secs_f32()).min(1.);
-        let fade_in = (elapsed.as_secs_f32() / RIPPLE_FADE_IN.as_secs_f32()).min(1.);
         let bounds = shape.bounds();
-        let origin = bounds.origin + self.origin;
-        let dx = f32::from(self.origin.x.max(bounds.size.width - self.origin.x));
-        let dy = f32::from(self.origin.y.max(bounds.size.height - self.origin.y));
-        let expansion = 1. - (1. - progress).powi(3);
+        let center = bounds.center() - bounds.origin;
+        let origin = bounds.origin + self.origin + (center - self.origin) * progress;
+        let width = f32::from(bounds.size.width);
+        let height = f32::from(bounds.size.height);
+        let start_radius = width.max(height) * 0.3;
+        let end_radius = width.hypot(height) * 0.5 + 10.;
+        let expansion = gpui_base::motion::Easing::CubicBezier {
+            x1: 0.4,
+            y1: 0.,
+            x2: 0.2,
+            y2: 1.,
+        }
+        .sample(progress);
         shape.paint_ripple(
             origin,
-            px(dx.hypot(dy) * expansion),
-            color.opacity(StateLayer::Pressed.opacity() * fade_in * (1. - fade)),
+            px(start_radius + (end_radius - start_radius) * expansion),
+            color.opacity(StateLayer::Pressed.opacity() * alpha),
             window,
         );
         if progress < 1. || self.released.is_some() {
             window.request_animation_frame();
         }
+    }
+
+    // Compose RippleAnimation waits for radius/center expansion before fading out.
+    // A quick release reaches full opacity immediately so short taps remain visible.
+    fn sample(&self, now: Instant) -> (f32, f32) {
+        let elapsed = now.saturating_duration_since(self.started);
+        let fade_start = self
+            .released
+            .map(|time| time.max(self.started + RIPPLE_EXPANSION));
+        let fade = fade_start.map_or(0., |time| {
+            now.saturating_duration_since(time).as_secs_f32() / RIPPLE_FADE_OUT.as_secs_f32()
+        });
+        let progress = (elapsed.as_secs_f32() / RIPPLE_EXPANSION.as_secs_f32()).min(1.);
+        let fade_in = if self.released.is_some_and(|released| now >= released) {
+            1.
+        } else {
+            (elapsed.as_secs_f32() / RIPPLE_FADE_IN.as_secs_f32()).min(1.)
+        };
+        (progress, fade_in * (1. - fade).clamp(0., 1.))
     }
 }
 
@@ -141,7 +171,9 @@ impl InteractionFeedback {
         self.paint_with_opacity(
             shape,
             ripple,
-            self.state.layer().map_or(0., |layer| layer.opacity()),
+            self.state
+                .layer_with_ripple(reduced_motion || ripple.is_none())
+                .map_or(0., |layer| layer.opacity()),
             now,
             reduced_motion,
             window,
@@ -175,6 +207,50 @@ impl InteractionFeedback {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ripple_owns_press_while_hover_focus_and_reduced_motion_remain_visible() {
+        let mut state = InteractionState {
+            pressed: true,
+            ..Default::default()
+        };
+        assert_eq!(state.layer_with_ripple(false), None);
+        assert_eq!(state.layer_with_ripple(true), Some(StateLayer::Pressed));
+        state.hovered = true;
+        assert_eq!(state.layer_with_ripple(false), Some(StateLayer::Hover));
+        state.focus_visible = true;
+        assert_eq!(state.layer_with_ripple(false), Some(StateLayer::Focus));
+        state.dragged = true;
+        assert_eq!(state.layer_with_ripple(false), Some(StateLayer::Dragged));
+        state.disabled = true;
+        assert_eq!(state.layer_with_ripple(false), None);
+        assert_eq!(state.layer_with_ripple(true), None);
+    }
+
+    #[test]
+    fn quick_tap_finishes_expansion_before_fading_and_held_ripple_settles() {
+        let now = Instant::now();
+        let mut ripple = Ripple {
+            origin: gpui::point(px(0.), px(0.)),
+            started: now,
+            released: None,
+        };
+        assert_eq!(ripple.sample(now), (0., 0.));
+        assert_eq!(ripple.sample(now + Duration::from_secs(1)), (1., 1.));
+        ripple.release(now + Duration::from_millis(10));
+        assert_eq!(ripple.sample(now + Duration::from_millis(10)).1, 1.);
+        assert_eq!(ripple.sample(now + RIPPLE_EXPANSION), (1., 1.));
+        assert_eq!(
+            ripple.sample(now + RIPPLE_EXPANSION + RIPPLE_FADE_OUT / 2),
+            (1., 0.5)
+        );
+        assert_eq!(
+            ripple.sample(now + RIPPLE_EXPANSION + RIPPLE_FADE_OUT),
+            (1., 0.)
+        );
+        ripple.release(now + Duration::from_secs(2));
+        assert_eq!(ripple.sample(now + Duration::from_secs(2)), (1., 0.));
+    }
 
     #[test]
     fn disabled_suppresses_the_layer_and_drag_precedes_press() {

@@ -51,6 +51,7 @@ fn selection_target(
     direction: Direction,
     reduced_motion: bool,
 ) -> Div {
+    let static_pressed = enabled && reduced_motion && ripple.borrow().pressed();
     div()
         .size(px(48.))
         .flex_none()
@@ -69,8 +70,13 @@ fn selection_target(
                 .when(enabled, |target| {
                     let hover = id.clone();
                     target
-                        .group_hover(hover, |style| {
-                            style.bg(accent.opacity(StateLayer::Hover.opacity()))
+                        .when(static_pressed, |target| {
+                            target.bg(accent.opacity(StateLayer::Pressed.opacity()))
+                        })
+                        .when(!static_pressed, |target| {
+                            target.group_hover(hover, |style| {
+                                style.bg(accent.opacity(StateLayer::Hover.opacity()))
+                            })
                         })
                         .when(reduced_motion, |target| {
                             target.group_active(id, |style| {
@@ -756,9 +762,15 @@ impl RenderOnce for Switch {
                                     window,
                                     cx,
                                 );
+                                let static_pressed = active && cx.reduce_motion();
                                 layer
-                                    .group_hover(group.clone(), move |style| {
-                                        style.bg(accent.opacity(StateLayer::Hover.opacity()))
+                                    .when(static_pressed, |layer| {
+                                        layer.bg(accent.opacity(StateLayer::Pressed.opacity()))
+                                    })
+                                    .when(!static_pressed, |layer| {
+                                        layer.group_hover(group.clone(), move |style| {
+                                            style.bg(accent.opacity(StateLayer::Hover.opacity()))
+                                        })
                                     })
                                     .when(cx.reduce_motion(), |layer| {
                                         layer.group_active(group.clone(), move |style| {

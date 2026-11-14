@@ -76,11 +76,33 @@ pub(crate) struct ActionControl {
 pub(crate) struct FeedbackState {
     hovered: bool,
     pressed: bool,
+    keyboard_focus: Option<FocusHandle>,
     shape: Option<Shape>,
     ripple: Option<Ripple>,
 }
 
 impl FeedbackState {
+    fn cancel_unavailable(&mut self, enabled: bool, window: &Window) {
+        if !enabled || !window.is_window_active() {
+            self.hovered = false;
+            self.cancel();
+        } else if self
+            .keyboard_focus
+            .as_ref()
+            .is_some_and(|focus| !focus.is_focused(window))
+        {
+            // Key-up is delivered to the new focus owner. Like Base's pending
+            // keyboard click, presentation must cancel when its owner blurs.
+            self.cancel();
+        }
+    }
+
+    fn cancel(&mut self) {
+        self.pressed = false;
+        self.keyboard_focus = None;
+        self.ripple = None;
+    }
+
     pub(crate) fn pressed(&self) -> bool {
         self.pressed
     }
@@ -137,10 +159,7 @@ impl ActionControl {
         let enabled = !self.disabled;
         let (hovered, pressed) = {
             let mut state = feedback.borrow_mut();
-            if !enabled || !window.is_window_active() {
-                state.pressed = false;
-                state.ripple = None;
-            }
+            state.cancel_unavailable(enabled, window);
             (
                 state.hovered,
                 enabled
@@ -406,6 +425,7 @@ fn decorate(
                 .on_mouse_down(MouseButton::Left, move |event, window, cx| {
                     let mut state = press.borrow_mut();
                     state.pressed = true;
+                    state.keyboard_focus = None;
                     state.hovered = true;
                     start_ripple(&mut state, Some(event.position), cx);
                     window.refresh();
@@ -423,11 +443,11 @@ fn decorate(
                     match event.keystroke.key.as_str() {
                         "space" | "enter" if !event.is_held => {
                             state.pressed = true;
+                            state.keyboard_focus = window.focused(cx);
                             start_ripple(&mut state, None, cx);
                         }
                         "escape" => {
-                            state.pressed = false;
-                            state.ripple = None;
+                            state.cancel();
                         }
                         _ => return,
                     }
@@ -464,6 +484,7 @@ fn activate_feedback(
 
 fn release_ripple(state: &mut FeedbackState, cx: &App) {
     state.pressed = false;
+    state.keyboard_focus = None;
     if let Some(ripple) = &mut state.ripple {
         ripple.release(cx.background_executor().now());
     }
@@ -514,6 +535,7 @@ where
         .on_mouse_down(MouseButton::Left, move |event, window, cx| {
             let mut state = press.borrow_mut();
             state.pressed = true;
+            state.keyboard_focus = None;
             start_ripple(&mut state, Some(event.position), cx);
             window.refresh();
         })
@@ -534,12 +556,12 @@ where
         .capture_key_down(move |event, window, cx| {
             if event.keystroke.key == "escape" {
                 let mut state = keyboard.borrow_mut();
-                state.pressed = false;
-                state.ripple = None;
+                state.cancel();
                 window.refresh();
             } else if matches!(event.keystroke.key.as_str(), "space" | "enter") && !event.is_held {
                 let mut state = keyboard.borrow_mut();
                 state.pressed = true;
+                state.keyboard_focus = window.focused(cx);
                 start_ripple(&mut state, None, cx);
                 window.refresh();
             }
@@ -564,10 +586,7 @@ pub(crate) fn ripple_state(
         })
         .read(cx)
         .clone();
-    if !enabled || !window.is_window_active() {
-        state.borrow_mut().ripple = None;
-        state.borrow_mut().pressed = false;
-    }
+    state.borrow_mut().cancel_unavailable(enabled, window);
     state
 }
 

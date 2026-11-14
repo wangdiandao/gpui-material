@@ -24,7 +24,7 @@ pub enum ChipVariant {
 }
 
 /// A Material chip. Filter and Input chips request controlled selection changes.
-/// An Input chip can expose a separate removal action with its own focus.
+/// Filter and Input chips can expose a separate removal action with its own focus.
 #[derive(IntoElement)]
 pub struct Chip {
     id: ElementId,
@@ -90,6 +90,7 @@ impl Chip {
         self
     }
 
+    /// Adds an independent removal action to a Filter or Input chip.
     /// The optional restoration target is focused before calling the owner.
     /// The owner can pass the next chip or a stable control outside the group.
     pub fn on_remove(
@@ -133,7 +134,7 @@ impl RenderOnce for Chip {
         };
         let theme = window_material_theme(window, cx).clone();
         let direction = theme.layout.direction;
-        let split = self.variant == ChipVariant::Input && self.remove.is_some();
+        let split = selectable && self.remove.is_some();
         let on_surface = color(theme.colors.color(OnSurface));
         let theme_color = |role| color(theme.colors.color(role));
         let idle = if elevated {
@@ -318,7 +319,7 @@ impl RenderOnce for Chip {
                 }
                 .render(window, cx),
             );
-        if let (ChipVariant::Input, Some((label, on_remove))) = (self.variant, self.remove) {
+        if let (true, Some((label, on_remove))) = (selectable, self.remove) {
             row.child(
                 ActionControl {
                     id: ElementId::from((self.id, "remove")),

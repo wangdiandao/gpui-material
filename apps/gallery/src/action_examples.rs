@@ -284,6 +284,80 @@ mod tests {
     use gpui_material::foundation::MaterialRoot;
 
     #[gpui::test]
+    fn button_keyboard_press_does_not_resume_after_focus_returns(cx: &mut TestAppContext) {
+        struct Buttons;
+        impl Render for Buttons {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                div()
+                    .flex()
+                    .gap_4()
+                    .child(Button::new("first", "First").on_activate(|_, _| {}))
+                    .child(Button::new("second", "Second").on_activate(|_, _| {}))
+            }
+        }
+        let handle = cx.update(|cx| {
+            crate::init_gallery(cx);
+            cx.set_reduce_motion(true);
+            MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+                cx.new(|_| Buttons)
+            })
+            .unwrap()
+        });
+        cx.update_window(handle.into(), |_, window, _| window.activate_window())
+            .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle.into(), |_, window, cx| {
+            let draw = |window: &mut Window, cx: &mut gpui::App| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+            };
+            let radius = |window: &Window, cx: &gpui::App| {
+                let tint = gpui_material::foundation::color(
+                    gpui_material::foundation::window_material_theme(window, cx)
+                        .colors
+                        .color(gpui_material::theme::ColorRole::Primary),
+                );
+                let quad = window
+                    .painted_quads()
+                    .into_iter()
+                    .find(|quad| quad.background == tint.into())
+                    .expect("filled button paints its primary container");
+                quad.corner_radii.top_left.0 / window.scale_factor()
+            };
+            draw(window, cx);
+            window.focus_next(cx);
+            draw(window, cx);
+            assert_eq!(radius(window, cx), 20.);
+            let key = gpui::Keystroke::parse_with_os("space", cx.platform_info().os).unwrap();
+            window.dispatch_event(
+                gpui::KeyDownEvent {
+                    keystroke: key,
+                    is_held: false,
+                    prefer_character_input: false,
+                }
+                .to_platform_input(),
+                cx,
+            );
+            draw(window, cx);
+            assert_eq!(radius(window, cx), 8.);
+            window.focus_next(cx);
+            draw(window, cx);
+            window.focus_prev(cx);
+            draw(window, cx);
+            assert_eq!(
+                find(window, &[], &"first".into()).unwrap().focused(),
+                Some(true)
+            );
+            assert_eq!(
+                radius(window, cx),
+                20.,
+                "a cancelled press must not resume when focus returns before key-up"
+            );
+        })
+        .unwrap();
+    }
+
+    #[gpui::test]
     fn extended_fab_interpolates_to_its_square_extent(cx: &mut TestAppContext) {
         use std::time::Duration;
 

@@ -162,7 +162,9 @@ impl Story {
             Self::ExtendedFab => "Give a prominent action a label that can expand or collapse.",
             Self::Fab => "Make the primary action easy to reach with a floating button.",
             Self::Foundation => "Inspect window scaling, typography, drawing, and input adapters.",
-            Self::Icon => "Render SVG icons with optional mirroring in right-to-left layouts.",
+            Self::Icon => {
+                "Use official Material Symbols with shared sizing, color and right-to-left mirroring."
+            }
             Self::IconButton => "Trigger or toggle actions with an icon.",
             Self::List => "Display selectable rows with supporting text and secondary actions.",
             Self::LoadingIndicator => {

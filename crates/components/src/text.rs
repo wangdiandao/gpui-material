@@ -1,7 +1,6 @@
 use gpui::{
-    AnyElement, App, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels,
-    RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, TextAlign, Transformation,
-    Window, canvas, div, prelude::FluentBuilder, px, size, svg,
+    App, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce, Role,
+    SharedString, StatefulInteractiveElement, Styled, TextAlign, Window, canvas, div, px,
 };
 use gpui_base::TestSupportExt;
 use gpui_material_foundation::{color, shape_text, window_material_theme, wrapped_text};
@@ -196,94 +195,4 @@ pub(crate) fn single_line(
             )
             .size_full(),
         )
-}
-
-/// A caller-provided SVG from the GPUI asset source, or a custom element.
-/// SVG mirroring is opt-in for icons whose meaning is directional.
-#[derive(IntoElement)]
-pub struct Icon {
-    content: IconContent,
-    name: Option<(ElementId, SharedString)>,
-    side: gpui::Pixels,
-    color: ColorRole,
-    mirror: bool,
-}
-
-enum IconContent {
-    Svg(SharedString),
-    Element(AnyElement),
-}
-
-impl Icon {
-    pub fn svg(path: impl Into<SharedString>) -> Self {
-        Self {
-            content: IconContent::Svg(path.into()),
-            name: None,
-            side: px(24.),
-            color: ColorRole::OnSurfaceVariant,
-            mirror: false,
-        }
-    }
-
-    pub fn custom(element: impl IntoElement) -> Self {
-        Self {
-            content: IconContent::Element(element.into_any_element()),
-            ..Self::svg("")
-        }
-    }
-
-    pub fn label(mut self, id: impl Into<ElementId>, name: impl Into<SharedString>) -> Self {
-        self.name = Some((id.into(), name.into()));
-        self
-    }
-
-    pub fn size(mut self, side: gpui::Pixels) -> Self {
-        self.side = side.max(px(0.));
-        self
-    }
-
-    pub fn color(mut self, color: ColorRole) -> Self {
-        self.color = color;
-        self
-    }
-
-    pub fn mirror_in_rtl(mut self, mirror: bool) -> Self {
-        self.mirror = mirror;
-        self
-    }
-}
-
-impl RenderOnce for Icon {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = window_material_theme(window, cx);
-        let tint = color(theme.colors.color(self.color));
-        let rtl = self.mirror && theme.layout.direction == Direction::Rtl;
-        let icon = match self.content {
-            IconContent::Svg(path) => svg()
-                .path(path)
-                .size_full()
-                .text_color(tint)
-                .when(rtl, |icon| {
-                    icon.with_transformation(Transformation::scale(size(-1., 1.)))
-                })
-                .into_any_element(),
-            IconContent::Element(element) => element,
-        };
-        let icon = div()
-            .size(self.side)
-            .flex_none()
-            .flex()
-            .items_center()
-            .justify_center()
-            .text_color(tint)
-            .child(icon);
-        match self.name {
-            Some((id, label)) => icon
-                .id(id)
-                .role(Role::Image)
-                .aria_label(label)
-                .into_any_element(),
-            None => icon.into_any_element(),
-        }
-    }
 }

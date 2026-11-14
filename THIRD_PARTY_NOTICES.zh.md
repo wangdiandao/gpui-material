@@ -11,7 +11,7 @@
 | [Google Material Design 3](https://m3.material.io/) | 设计参考。站点文字、图片和品牌素材遵循各自权利声明。 |
 | [AndroidX](https://github.com/androidx/androidx)与 [Material Components Android](https://github.com/material-components/material-components-android) | Apache-2.0 源码参考。Android Developers 页面另按其[站点许可](https://developer.android.com/license)处理。 |
 | [Material Color Utilities](https://github.com/material-foundation/material-color-utilities)、[material-color-utils](https://github.com/RuurdBijlsma/material-color-utilities-rs) 与 [polymorpher](https://github.com/Aiving/polymorpher) | Apache-2.0 算法参考或候选依赖。移植时保留原有版权、许可证和适用的 NOTICE。 |
-| [Material Symbols](https://developers.google.com/fonts/docs/material_symbols) | Apache-2.0 图标候选。纳入资产时记录文件、修改和许可副本。 |
+| [Material Symbols](https://developers.google.com/fonts/docs/material_symbols) | 内嵌 Google 官方 Material Symbols Outlined SVG，固定提交 `10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7`，原文件未修改（字重 400、grade 0、光学尺寸 24、FILL 0/1）。[资源路径和 SHA-256](crates/components/assets/material-symbols/manifest.toml) · [Apache-2.0 许可副本](crates/components/assets/material-symbols/LICENSE)。 |
 
 主题的 `dynamic-color` 功能依赖 crates.io 的 [material-color-utils 0.1.3](https://crates.io/crates/material-color-utils/0.1.3)。该包的 LICENSE 为 Apache-2.0。[主题 Token 索引](docs/theme/token-index.zh.md)逐项记录取自 Compose 或固定设计页的数值与引用。
 

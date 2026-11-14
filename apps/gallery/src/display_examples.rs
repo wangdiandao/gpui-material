@@ -1,8 +1,8 @@
 use gpui::{Context, IntoElement, ParentElement, Render, ScrollHandle, Styled, Window, div, px};
 use gpui_material::foundation::isolated_scroll;
-use gpui_material::theme::TypeRole;
+use gpui_material::theme::{ColorRole, TypeRole};
 use gpui_material::{
-    Badge, Button, ButtonVariant, Card, CardVariant, CircularProgress, Divider, Icon,
+    Badge, Button, ButtonVariant, Card, CardVariant, CircularProgress, Divider, Icon, IconName,
     LinearProgress, List, ListItem, ListVariant, LoadingIndicator, ProgressShape, Text,
 };
 
@@ -92,6 +92,43 @@ impl Render for DisplayExamples {
                     .child(Text::new("Material typography 中文混排").id("baseline-text"))
             }))
             .children(self.shows(Story::Icon).then(|| {
+                section("Outlined and filled symbols").child(
+                    div().flex().flex_wrap().gap_4().items_center().children(
+                        [20., 24., 40., 48.].into_iter().map(|side| {
+                            div()
+                                .flex()
+                                .items_center()
+                                .gap_2()
+                                .child(Icon::new(IconName::Favorite).size(px(side)))
+                                .child(
+                                    Icon::new(IconName::Favorite)
+                                        .filled(true)
+                                        .size(px(side))
+                                        .color(ColorRole::Primary),
+                                )
+                        }),
+                    ),
+                )
+            }))
+            .children(self.shows(Story::Icon).then(|| {
+                section("Shared size and color").child(
+                    div()
+                        .flex()
+                        .flex_wrap()
+                        .items_center()
+                        .gap_3()
+                        .child(
+                            Button::new("icon-inherited", "Add document")
+                                .leading_icon(Icon::new(IconName::Add)),
+                        )
+                        .child(
+                            Button::new("icon-inherited-disabled", "Unavailable")
+                                .leading_icon(Icon::new(IconName::Add))
+                                .disabled(true),
+                        ),
+                )
+            }))
+            .children(self.shows(Story::Icon).then(|| {
                 section("Directional and decorative SVGs").child(
                     div()
                         .flex()
@@ -99,12 +136,13 @@ impl Render for DisplayExamples {
                         .h_10()
                         .items_center()
                         .child(
-                            Icon::svg(crate::FORWARD_ICON)
+                            Icon::new(IconName::ArrowForward)
+                                .size(px(24.))
                                 .mirror_in_rtl(true)
                                 .label("forward", "Forward"),
                         )
                         .child(Divider::vertical().inset(px(4.), px(8.)))
-                        .child(Icon::svg(crate::FORWARD_ICON)),
+                        .child(Icon::new(IconName::ArrowForward).size(px(24.))),
                 )
             }))
             .children(self.shows(Story::Card).then(|| {
@@ -168,19 +206,26 @@ impl Render for DisplayExamples {
                         .gap_5()
                         .p_2()
                         .child(Badge::dot(
-                            Icon::custom("◆").label("new-activity", "New activity"),
+                            Icon::new(IconName::Notifications)
+                                .size(px(24.))
+                                .label("new-activity", "New activity"),
                         ))
                         .child(Badge::count(
-                            Icon::custom("▤").label("inbox", "Inbox"),
+                            Icon::new(IconName::Inbox)
+                                .size(px(24.))
+                                .label("inbox", "Inbox"),
                             8,
                             99,
                         ))
                         .child(Badge::label(
-                            Icon::custom("▤").label("new-file", "Files"),
+                            Icon::new(IconName::Description)
+                                .size(px(24.))
+                                .label("new-file", "Files"),
                             "New",
                         ))
                         .child(Badge::count(
-                            Icon::svg(crate::ARCHIVE_ICON)
+                            Icon::new(IconName::Archive)
+                                .size(px(24.))
                                 .label("archive-overflow", "More than 99 archived items"),
                             125,
                             99,
@@ -195,7 +240,7 @@ impl Render for DisplayExamples {
                             ListItem::new("documents", "Documents")
                                 .selected(self.selected)
                                 .supporting_text("12 items")
-                                .leading(Icon::custom("▤"))
+                                .leading(Icon::new(IconName::Description).size(px(24.)))
                                 .on_activate(move |_, cx| {
                                     list.update(cx, |this, cx| {
                                         this.selected = !this.selected;
@@ -206,13 +251,16 @@ impl Render for DisplayExamples {
                                 .overline("Storage")
                                 .supporting_text("Last updated today")
                                 .trailing(Badge::count(
-                                    Icon::svg(crate::ARCHIVE_ICON)
+                                    Icon::new(IconName::Archive)
+                                        .size(px(24.))
                                         .label("archive-status", "More than 99 archived items"),
                                     125,
                                     99,
                                 )),
                             ListItem::new("shared", "Shared").trailing(Badge::dot(
-                                Icon::custom("◆").label("shared-status", "New shared activity"),
+                                Icon::new(IconName::Notifications)
+                                    .size(px(24.))
+                                    .label("shared-status", "New shared activity"),
                             )),
                         ]),
                 )
@@ -356,6 +404,57 @@ mod tests {
     };
     use gpui_base::test_support::find;
     use gpui_material::foundation::MaterialRoot;
+
+    #[gpui::test]
+    fn symbols_inherit_slot_size_and_keep_image_semantics(cx: &mut TestAppContext) {
+        struct Example;
+        impl Render for Example {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                div()
+                    .flex()
+                    .children(
+                        [16., 24., 40.]
+                            .into_iter()
+                            .enumerate()
+                            .map(|(index, side)| {
+                                div().text_size(px(side)).child(
+                                    Icon::new(IconName::Favorite)
+                                        .filled(index == 1)
+                                        .label(("symbol", index), "Favorite"),
+                                )
+                            }),
+                    )
+                    .child(
+                        div().text_size(px(40.)).child(
+                            Icon::new(IconName::ArrowForward)
+                                .size(px(20.))
+                                .mirror_in_rtl(true)
+                                .label("explicit-symbol", "Forward"),
+                        ),
+                    )
+            }
+        }
+        let handle = cx.update(|cx| {
+            crate::init_gallery(cx);
+            MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+                cx.new(|_| Example)
+            })
+            .unwrap()
+        });
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            for (index, side) in [16., 24., 40.].into_iter().enumerate() {
+                let icon = find(window, &[], &("symbol", index).into()).unwrap();
+                assert_eq!(icon.bounds().size, size(px(side), px(side)));
+                assert_eq!(icon.role(), Some(gpui::Role::Image));
+            }
+            let explicit = find(window, &[], &"explicit-symbol".into()).unwrap();
+            assert_eq!(explicit.bounds().size, size(px(20.), px(20.)));
+            assert_eq!(explicit.role(), Some(gpui::Role::Image));
+        })
+        .unwrap();
+    }
 
     #[gpui::test]
     fn nested_card_action_does_not_activate_its_parent(cx: &mut TestAppContext) {

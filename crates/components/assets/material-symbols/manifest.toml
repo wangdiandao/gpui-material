@@ -1,0 +1,198 @@
+source = "https://github.com/google/material-design-icons"
+revision = "10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7"
+license = "Apache-2.0"
+style = "Material Symbols Outlined"
+weight = 400
+grade = 0
+optical_size = 24
+modifications = "None; SVG bytes are unchanged upstream originals"
+
+[[icons]]
+file = "add_24px.svg"
+upstream_path = "symbols/web/add/materialsymbolsoutlined/add_24px.svg"
+sha256 = "e9532de2b9be01ce951e899e98ee673bb97acd574f0db118feb72fe074a1c376"
+
+[[icons]]
+file = "add_fill1_24px.svg"
+upstream_path = "symbols/web/add/materialsymbolsoutlined/add_fill1_24px.svg"
+sha256 = "e9532de2b9be01ce951e899e98ee673bb97acd574f0db118feb72fe074a1c376"
+
+[[icons]]
+file = "remove_24px.svg"
+upstream_path = "symbols/web/remove/materialsymbolsoutlined/remove_24px.svg"
+sha256 = "82ba658d7b843721be92e7a5debbe5d31aa8a47b8dcae85aaa666b83a0d772f6"
+
+[[icons]]
+file = "remove_fill1_24px.svg"
+upstream_path = "symbols/web/remove/materialsymbolsoutlined/remove_fill1_24px.svg"
+sha256 = "82ba658d7b843721be92e7a5debbe5d31aa8a47b8dcae85aaa666b83a0d772f6"
+
+[[icons]]
+file = "check_24px.svg"
+upstream_path = "symbols/web/check/materialsymbolsoutlined/check_24px.svg"
+sha256 = "01edd53418816632be08e9565b8ca40d9028c230a8a67baaf4b8a1de20db00e6"
+
+[[icons]]
+file = "check_fill1_24px.svg"
+upstream_path = "symbols/web/check/materialsymbolsoutlined/check_fill1_24px.svg"
+sha256 = "01edd53418816632be08e9565b8ca40d9028c230a8a67baaf4b8a1de20db00e6"
+
+[[icons]]
+file = "close_24px.svg"
+upstream_path = "symbols/web/close/materialsymbolsoutlined/close_24px.svg"
+sha256 = "a82592b0faa0b104a4d4b0530bb05c6a4bfed5728f5aad03ae8e7a19f32b5511"
+
+[[icons]]
+file = "close_fill1_24px.svg"
+upstream_path = "symbols/web/close/materialsymbolsoutlined/close_fill1_24px.svg"
+sha256 = "a82592b0faa0b104a4d4b0530bb05c6a4bfed5728f5aad03ae8e7a19f32b5511"
+
+[[icons]]
+file = "chevron_right_24px.svg"
+upstream_path = "symbols/web/chevron_right/materialsymbolsoutlined/chevron_right_24px.svg"
+sha256 = "f6b777ee0ce9059b5f8eea987d813ab12c4f309ba431063153841c742e668ac0"
+
+[[icons]]
+file = "chevron_right_fill1_24px.svg"
+upstream_path = "symbols/web/chevron_right/materialsymbolsoutlined/chevron_right_fill1_24px.svg"
+sha256 = "f6b777ee0ce9059b5f8eea987d813ab12c4f309ba431063153841c742e668ac0"
+
+[[icons]]
+file = "arrow_forward_24px.svg"
+upstream_path = "symbols/web/arrow_forward/materialsymbolsoutlined/arrow_forward_24px.svg"
+sha256 = "717c65e2e704a07b7b73e194b202858f52befbaa6dd363565a1d75d117c3a2aa"
+
+[[icons]]
+file = "arrow_forward_fill1_24px.svg"
+upstream_path = "symbols/web/arrow_forward/materialsymbolsoutlined/arrow_forward_fill1_24px.svg"
+sha256 = "717c65e2e704a07b7b73e194b202858f52befbaa6dd363565a1d75d117c3a2aa"
+
+[[icons]]
+file = "arrow_drop_down_24px.svg"
+upstream_path = "symbols/web/arrow_drop_down/materialsymbolsoutlined/arrow_drop_down_24px.svg"
+sha256 = "f81cfc4fb9a9c22d3857038df5a979d96635e88a7a9cbd06a14606191fc7824d"
+
+[[icons]]
+file = "arrow_drop_down_fill1_24px.svg"
+upstream_path = "symbols/web/arrow_drop_down/materialsymbolsoutlined/arrow_drop_down_fill1_24px.svg"
+sha256 = "f81cfc4fb9a9c22d3857038df5a979d96635e88a7a9cbd06a14606191fc7824d"
+
+[[icons]]
+file = "favorite_24px.svg"
+upstream_path = "symbols/web/favorite/materialsymbolsoutlined/favorite_24px.svg"
+sha256 = "9aa246b56617782817301f5d940f501ea4b14fffb1faf29012c76fce8f07ed70"
+
+[[icons]]
+file = "favorite_fill1_24px.svg"
+upstream_path = "symbols/web/favorite/materialsymbolsoutlined/favorite_fill1_24px.svg"
+sha256 = "9cdbf13de19a1674c2a22ce290cc5b678596ec54654c4614b810a69fffdd21d1"
+
+[[icons]]
+file = "archive_24px.svg"
+upstream_path = "symbols/web/archive/materialsymbolsoutlined/archive_24px.svg"
+sha256 = "3ba7422beedd4e1058ee7a3676d079eac48fc840ca2d64f50444811e8b1c37bf"
+
+[[icons]]
+file = "archive_fill1_24px.svg"
+upstream_path = "symbols/web/archive/materialsymbolsoutlined/archive_fill1_24px.svg"
+sha256 = "7fa85303627ba8a269791351c2e2de6a4636614fc0201edaa69ae3d6a3b13ce0"
+
+[[icons]]
+file = "inbox_24px.svg"
+upstream_path = "symbols/web/inbox/materialsymbolsoutlined/inbox_24px.svg"
+sha256 = "505d4ba0b3f1a36589b43696c4a45ed2eadc98d9c142442cf7071911fd216de0"
+
+[[icons]]
+file = "inbox_fill1_24px.svg"
+upstream_path = "symbols/web/inbox/materialsymbolsoutlined/inbox_fill1_24px.svg"
+sha256 = "0ff415fd11b2fc7f8a2e5e2b09b7ef799100363f5e5c8aa5a6261adc34a42ede"
+
+[[icons]]
+file = "description_24px.svg"
+upstream_path = "symbols/web/description/materialsymbolsoutlined/description_24px.svg"
+sha256 = "65e2c1ac1ca2d0a894c8d8d89e530cb5df940d7ff0effbeb8c5f4b234a477670"
+
+[[icons]]
+file = "description_fill1_24px.svg"
+upstream_path = "symbols/web/description/materialsymbolsoutlined/description_fill1_24px.svg"
+sha256 = "42697373fd050683bd94bfdeb7244d1b8faa8a34ebb4dce5c92e40a06475ec6d"
+
+[[icons]]
+file = "notifications_24px.svg"
+upstream_path = "symbols/web/notifications/materialsymbolsoutlined/notifications_24px.svg"
+sha256 = "f6e1380c76f85851dbeafde7f8eb106c799d72232cd046bf30fabae4f0a0c821"
+
+[[icons]]
+file = "notifications_fill1_24px.svg"
+upstream_path = "symbols/web/notifications/materialsymbolsoutlined/notifications_fill1_24px.svg"
+sha256 = "f4b6af23e11cd4c254ba12282db338059bf9e4e2e372ab1ac70001a7c985fa1b"
+
+[[icons]]
+file = "motion_photos_on_24px.svg"
+upstream_path = "symbols/web/motion_photos_on/materialsymbolsoutlined/motion_photos_on_24px.svg"
+sha256 = "0a428458a2a62836fe6d23d4c0157459481098272e82d18201f2363b152e9a85"
+
+[[icons]]
+file = "motion_photos_on_fill1_24px.svg"
+upstream_path = "symbols/web/motion_photos_on/materialsymbolsoutlined/motion_photos_on_fill1_24px.svg"
+sha256 = "2c5ac469c7616d18cdeb8b34f39496f5e03e402171f11a8c65d2badc87ffc7fb"
+
+[[icons]]
+file = "contrast_24px.svg"
+upstream_path = "symbols/web/contrast/materialsymbolsoutlined/contrast_24px.svg"
+sha256 = "156a9ba3f9f56c1dd8d6d409d2ebd99b2ce2749215a34b0b61aa120715551320"
+
+[[icons]]
+file = "contrast_fill1_24px.svg"
+upstream_path = "symbols/web/contrast/materialsymbolsoutlined/contrast_fill1_24px.svg"
+sha256 = "156a9ba3f9f56c1dd8d6d409d2ebd99b2ce2749215a34b0b61aa120715551320"
+
+[[icons]]
+file = "search_24px.svg"
+upstream_path = "symbols/web/search/materialsymbolsoutlined/search_24px.svg"
+sha256 = "46d4ab85eba6eb4fe7c9a9a4c4db2fdf8fa9cc74c1f398ac72e7d872d490dd4c"
+
+[[icons]]
+file = "search_fill1_24px.svg"
+upstream_path = "symbols/web/search/materialsymbolsoutlined/search_fill1_24px.svg"
+sha256 = "46d4ab85eba6eb4fe7c9a9a4c4db2fdf8fa9cc74c1f398ac72e7d872d490dd4c"
+
+[[icons]]
+file = "error_24px.svg"
+upstream_path = "symbols/web/error/materialsymbolsoutlined/error_24px.svg"
+sha256 = "f02b30c23e0c004e47a128526ab417832b2fd475c4cfbcdfff58e9df8f6c30ab"
+
+[[icons]]
+file = "error_fill1_24px.svg"
+upstream_path = "symbols/web/error/materialsymbolsoutlined/error_fill1_24px.svg"
+sha256 = "bfe383b54c8af1e397b6a1c44488f1118fa42cf1d3feffcb5517d07013532167"
+
+[[icons]]
+file = "info_24px.svg"
+upstream_path = "symbols/web/info/materialsymbolsoutlined/info_24px.svg"
+sha256 = "33c77c7a4f193445d0136b970ad4b5a80ba8cc340603465d4cb46a1f8abec4ec"
+
+[[icons]]
+file = "info_fill1_24px.svg"
+upstream_path = "symbols/web/info/materialsymbolsoutlined/info_fill1_24px.svg"
+sha256 = "150f8e521fe23a439861c774722efd82f5c591144386609f19f3d59782580b7c"
+
+[[icons]]
+file = "edit_24px.svg"
+upstream_path = "symbols/web/edit/materialsymbolsoutlined/edit_24px.svg"
+sha256 = "f3f51206ef9bf7d34db55058aa6be3e4f307c2d749fb8071785c360a84fa1622"
+
+[[icons]]
+file = "edit_fill1_24px.svg"
+upstream_path = "symbols/web/edit/materialsymbolsoutlined/edit_fill1_24px.svg"
+sha256 = "89aa5277c052286fa06ea3ed3ea192a98e844e2d1cbe23a5710425268b074c53"
+
+[[icons]]
+file = "exposure_24px.svg"
+upstream_path = "symbols/web/exposure/materialsymbolsoutlined/exposure_24px.svg"
+sha256 = "342e88fa8ef1bb0174a85e7fd4ac78835732ed70d7284b5d3201a75ff44a2894"
+
+[[icons]]
+file = "exposure_fill1_24px.svg"
+upstream_path = "symbols/web/exposure/materialsymbolsoutlined/exposure_fill1_24px.svg"
+sha256 = "342e88fa8ef1bb0174a85e7fd4ac78835732ed70d7284b5d3201a75ff44a2894"

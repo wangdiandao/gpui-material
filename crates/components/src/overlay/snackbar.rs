@@ -165,7 +165,6 @@ fn snackbar_surface(
 ) -> impl IntoElement {
     let theme = window_material_theme(window, cx);
     let action_color = color(theme.colors.color(ColorRole::InversePrimary));
-    let icon_color = color(theme.colors.color(ColorRole::InverseOnSurface));
     let rtl = theme.layout.direction == Direction::Rtl;
     let spacing = motion.px(16.);
     let control = move |button: gpui_base::Button| {
@@ -256,7 +255,11 @@ fn snackbar_surface(
                                 .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
                                     this.finish(id, false, window, cx);
                                 }))
-                                .child(super::close_icon(icon_color, motion.scale)),
+                                .child(
+                                    crate::Icon::new(crate::IconName::Close)
+                                        .size(motion.px(24.))
+                                        .color(ColorRole::InverseOnSurface),
+                                ),
                         )
                     },
                     |surface| {
@@ -266,7 +269,11 @@ fn snackbar_surface(
                                 .flex()
                                 .items_center()
                                 .justify_center()
-                                .child(super::close_icon(icon_color, motion.scale)),
+                                .child(
+                                    crate::Icon::new(crate::IconName::Close)
+                                        .size(motion.px(24.))
+                                        .color(ColorRole::InverseOnSurface),
+                                ),
                         )
                     },
                 ),

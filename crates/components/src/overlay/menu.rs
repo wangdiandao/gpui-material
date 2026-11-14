@@ -2,6 +2,7 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use crate::motion::{OverlayMotion, ScaledOverlay, menu_pivot};
+use crate::{Icon, IconName};
 use gpui::{
     Anchor, AnyElement, App, Axis, Bounds, ElementId, FocusHandle, Focusable, InteractiveElement,
     IntoElement, MouseButton, ParentElement, RenderOnce, Role, ScrollHandle, SharedString,
@@ -370,18 +371,16 @@ fn menu_exit(
                         .justify_start()
                         .when(direction == Direction::Rtl, Styled::flex_row_reverse)
                         .when(item.selected, |row| row.bg(exit_selected))
-                        .child(div().w(dp(18.)).flex_none().child(if item.selected {
-                            "\u{2713}"
-                        } else {
-                            ""
+                        .child(div().w(dp(18.)).flex_none().when(item.selected, |slot| {
+                            slot.child(Icon::new(IconName::Check).size(dp(18.)))
                         }))
                         .child(div().flex_1().min_w_0().truncate().child(label.clone()))
                         .when(item.submenu, |row| {
-                            row.child(if direction == Direction::Rtl {
-                                "\u{2039}"
-                            } else {
-                                "\u{203a}"
-                            })
+                            row.child(
+                                Icon::new(IconName::ChevronRight)
+                                    .size(dp(18.))
+                                    .mirror_in_rtl(true),
+                            )
                         })
                 },
             )
@@ -619,18 +618,16 @@ fn menu_content(
                                     )
                                     .on_click(move |_, window, cx| activate(window, cx))
                                 })
-                                .child(div().w(dp(18.)).flex_none().child(if marked {
-                                    "✓"
-                                } else {
-                                    ""
+                                .child(div().w(dp(18.)).flex_none().when(marked, |slot| {
+                                    slot.child(Icon::new(IconName::Check).size(dp(18.)))
                                 }))
                                 .child(div().flex_1().min_w_0().truncate().child(item.label))
                                 .when(submenu, |row| {
-                                    row.child(if direction == Direction::Rtl {
-                                        "‹"
-                                    } else {
-                                        "›"
-                                    })
+                                    row.child(
+                                        Icon::new(IconName::ChevronRight)
+                                            .size(dp(18.))
+                                            .mirror_in_rtl(true),
+                                    )
                                 });
                             if let Kind::Submenu(children) = item.kind {
                                 Menu {

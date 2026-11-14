@@ -512,25 +512,17 @@ impl RenderOnce for ExposedDropdown {
     }
 }
 
-// Match the Compose dropdown glyph's two endpoints while keeping the Base
-// trigger's geometry and semantics independent of the rotating indicator.
+// The official dropdown symbol rotates with the existing expansion animation.
+// Keep this decorative element separate from the Base trigger's semantics.
 fn dropdown_arrow(progress: f32, ink: gpui::Hsla) -> impl IntoElement {
-    let (sin, cos) = (std::f32::consts::PI * progress).sin_cos();
-    canvas(
-        |_, _, _| (),
-        move |bounds, _, window, _| {
-            let center = bounds.center();
-            let rotate = |x, y| center + gpui::point(px(x * cos - y * sin), px(x * sin + y * cos));
-            let mut path = gpui::PathBuilder::fill();
-            path.move_to(rotate(-5., -2.));
-            path.line_to(rotate(5., -2.));
-            path.line_to(rotate(0., 3.));
-            path.close();
-            if let Ok(path) = path.build() {
-                window.paint_path(path, ink);
-            }
-        },
-    )
-    .size(px(16.))
-    .mx_auto()
+    div()
+        .flex()
+        .items_center()
+        .justify_center()
+        .text_color(ink)
+        .child(
+            crate::Icon::new(crate::IconName::ArrowDropDown)
+                .size(px(24.))
+                .rotate(gpui::radians(std::f32::consts::PI * progress)),
+        )
 }

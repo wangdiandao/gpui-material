@@ -1,5 +1,5 @@
 use gpui::{AppContext, Axis, Context, Entity, IntoElement, ParentElement, Render, Window, div};
-use gpui_material::{ControlSize, Slider, SliderKind, SliderState};
+use gpui_material::{ControlSize, Icon, IconName, Slider, SliderKind, SliderState};
 
 use crate::story::{section, stack};
 
@@ -42,7 +42,7 @@ impl Render for SliderExamples {
                         Slider::new("level", "Level", &self.level)
                             .tick_intervals(10)
                             .size(ControlSize::Medium)
-                            .icon("+"),
+                            .icon(Icon::new(IconName::Add)),
                     ),
             )
             .child(
@@ -67,7 +67,7 @@ impl Render for SliderExamples {
                             .kind(SliderKind::Centered)
                             .axis(Axis::Vertical)
                             .size(ControlSize::Medium)
-                            .icon("±"),
+                            .icon(Icon::new(IconName::Exposure)),
                     ),
             )
             .child(
@@ -84,7 +84,7 @@ impl Render for SliderExamples {
                         div().child(name.clone()).child(
                             Slider::new(("slider-size", index), name, &self.sizes[index])
                                 .size(size)
-                                .icon("+")
+                                .icon(Icon::new(IconName::Add))
                                 .disabled(size == ControlSize::ExtraLarge),
                         )
                     }),

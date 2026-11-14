@@ -12,6 +12,7 @@ mod selection_examples;
 mod slider_examples;
 mod story;
 mod text_field_examples;
+mod toolbar_examples;
 
 use gpui::{
     App, AppContext, QuitMode, TitlebarOptions, WindowBounds, WindowHandle, WindowOptions, px, size,

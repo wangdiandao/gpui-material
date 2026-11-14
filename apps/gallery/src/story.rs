@@ -18,6 +18,7 @@ use crate::{
     selection_examples::SelectionExamples,
     slider_examples::SliderExamples,
     text_field_examples::{DropdownExamples, TextFieldExamples},
+    toolbar_examples::ToolbarExamples,
 };
 
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
@@ -37,6 +38,7 @@ pub(crate) enum Story {
     ExposedDropdown,
     ExtendedFab,
     Fab,
+    FabMenu,
     Foundation,
     Icon,
     IconButton,
@@ -57,6 +59,7 @@ pub(crate) enum Story {
     Text,
     TextField,
     ToggleButton,
+    Toolbars,
     Tooltip,
 }
 
@@ -77,6 +80,7 @@ impl Story {
         Self::ExposedDropdown,
         Self::ExtendedFab,
         Self::Fab,
+        Self::FabMenu,
         Self::Foundation,
         Self::Icon,
         Self::IconButton,
@@ -97,6 +101,7 @@ impl Story {
         Self::Text,
         Self::TextField,
         Self::ToggleButton,
+        Self::Toolbars,
         Self::Tooltip,
     ];
 
@@ -116,6 +121,7 @@ impl Story {
             Self::ExposedDropdown => "exposed-dropdown",
             Self::ExtendedFab => "extended-fab",
             Self::Fab => "fab",
+            Self::FabMenu => "fab-menu",
             Self::Foundation => "foundation",
             Self::Icon => "icon",
             Self::IconButton => "icon-button",
@@ -136,6 +142,7 @@ impl Story {
             Self::Text => "text",
             Self::TextField => "text-field",
             Self::ToggleButton => "toggle-button",
+            Self::Toolbars => "toolbars",
             Self::Tooltip => "tooltip",
         }
     }
@@ -156,6 +163,7 @@ impl Story {
             Self::ExposedDropdown => "Exposed dropdown",
             Self::ExtendedFab => "Extended FAB",
             Self::Fab => "FAB",
+            Self::FabMenu => "FAB menu",
             Self::Foundation => "Foundation",
             Self::Icon => "Icon",
             Self::IconButton => "Icon button",
@@ -176,6 +184,7 @@ impl Story {
             Self::Text => "Text",
             Self::TextField => "Text field",
             Self::ToggleButton => "Toggle button",
+            Self::Toolbars => "Toolbars",
             Self::Tooltip => "Tooltip",
         }
     }
@@ -204,6 +213,7 @@ impl Story {
             Self::ExposedDropdown => "Pick an option from an editable or fixed list.",
             Self::ExtendedFab => "Give a prominent action a label that can expand or collapse.",
             Self::Fab => "Make the primary action easy to reach with a floating button.",
+            Self::FabMenu => "Open a stack of related commands from a floating action button.",
             Self::Foundation => "Inspect window scaling, typography, drawing, and input adapters.",
             Self::Icon => {
                 "Use official Material Symbols with shared sizing, color and right-to-left mirroring."
@@ -232,6 +242,7 @@ impl Story {
                 "Edit single-line, multiline, and secure text with supporting feedback."
             }
             Self::ToggleButton => "Keep the on or off state of an action visible.",
+            Self::Toolbars => "Group editing commands in floating and docked toolbars.",
             Self::Tooltip => "Provide contextual help for a control on hover or focus.",
         }
     }
@@ -275,6 +286,7 @@ impl Story {
             Self::TextField => cx.new(|cx| TextFieldExamples::new(window, cx)).into(),
             Self::ExposedDropdown => cx.new(|cx| DropdownExamples::new(window, cx)).into(),
             Self::Snackbar => cx.new(SnackbarExamples::new).into(),
+            Self::FabMenu | Self::Toolbars => cx.new(|cx| ToolbarExamples::new(self, cx)).into(),
             Self::Badge
             | Self::Card
             | Self::Divider

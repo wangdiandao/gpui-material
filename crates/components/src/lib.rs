@@ -41,3 +41,6 @@ pub fn init_components(cx: &mut gpui::App) {
 }
 pub use overlay::{Dialog, DialogState, DialogVariant, Sheet, SheetEdge, SheetMode};
 pub use overlay::{Snackbar, SnackbarHost};
+
+mod navigation;
+pub use navigation::*;

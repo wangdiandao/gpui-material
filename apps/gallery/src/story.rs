@@ -10,6 +10,7 @@ use gpui_material::{
 use crate::{
     action_examples::ActionExamples,
     display_examples::DisplayExamples,
+    navigation_examples::NavigationExamples,
     overlay_examples::{MenuTooltipExamples, ModalExamples, SnackbarExamples},
     selection_examples::SelectionExamples,
     slider_examples::SliderExamples,
@@ -20,6 +21,7 @@ use crate::{
 pub(crate) enum Story {
     #[default]
     Introduction,
+    AppBar,
     Badge,
     Button,
     Card,
@@ -36,12 +38,15 @@ pub(crate) enum Story {
     List,
     LoadingIndicator,
     Menu,
+    NavigationBar,
+    NavigationRail,
     Progress,
     Radio,
     Sheets,
     Slider,
     Snackbar,
     Switch,
+    Tabs,
     Text,
     TextField,
     ToggleButton,
@@ -52,6 +57,7 @@ impl Story {
     // Introduction is the landing page. The component index follows display-name order.
     pub(crate) const ALL: &[Self] = &[
         Self::Introduction,
+        Self::AppBar,
         Self::Badge,
         Self::Button,
         Self::Card,
@@ -68,12 +74,15 @@ impl Story {
         Self::List,
         Self::LoadingIndicator,
         Self::Menu,
+        Self::NavigationBar,
+        Self::NavigationRail,
         Self::Progress,
         Self::Radio,
         Self::Sheets,
         Self::Slider,
         Self::Snackbar,
         Self::Switch,
+        Self::Tabs,
         Self::Text,
         Self::TextField,
         Self::ToggleButton,
@@ -83,6 +92,7 @@ impl Story {
     pub(crate) fn id(self) -> &'static str {
         match self {
             Self::Introduction => "introduction",
+            Self::AppBar => "app-bar",
             Self::Badge => "badge",
             Self::Button => "button",
             Self::Card => "card",
@@ -99,12 +109,15 @@ impl Story {
             Self::List => "list",
             Self::LoadingIndicator => "loading-indicator",
             Self::Menu => "menu",
+            Self::NavigationBar => "navigation-bar",
+            Self::NavigationRail => "navigation-rail",
             Self::Progress => "progress",
             Self::Radio => "radio",
             Self::Sheets => "sheets",
             Self::Slider => "slider",
             Self::Snackbar => "snackbar",
             Self::Switch => "switch",
+            Self::Tabs => "tabs",
             Self::Text => "text",
             Self::TextField => "text-field",
             Self::ToggleButton => "toggle-button",
@@ -115,6 +128,7 @@ impl Story {
     pub(crate) fn name(self) -> &'static str {
         match self {
             Self::Introduction => "Introduction",
+            Self::AppBar => "App bar",
             Self::Badge => "Badge",
             Self::Button => "Button",
             Self::Card => "Card",
@@ -131,12 +145,15 @@ impl Story {
             Self::List => "List",
             Self::LoadingIndicator => "Loading indicator",
             Self::Menu => "Menu",
+            Self::NavigationBar => "Navigation bar",
+            Self::NavigationRail => "Navigation rail",
             Self::Progress => "Progress",
             Self::Radio => "Radio group",
             Self::Sheets => "Sheet",
             Self::Slider => "Slider",
             Self::Snackbar => "Snackbar",
             Self::Switch => "Switch",
+            Self::Tabs => "Tabs",
             Self::Text => "Text",
             Self::TextField => "Text field",
             Self::ToggleButton => "Toggle button",
@@ -149,6 +166,7 @@ impl Story {
             Self::Introduction => {
                 "Interactive examples from the Material 3 Expressive library for GPUI."
             }
+            Self::AppBar => "Place navigation, titles, and commands above scrolling content.",
             Self::Badge => "Annotate icons with a dot, label, or count.",
             Self::Button => {
                 "Trigger commands with Material button variants, sizes, and icon slots."
@@ -171,12 +189,17 @@ impl Story {
                 "Show that an operation is underway while waiting for a result."
             }
             Self::Menu => "Offer commands through a trigger, context menu, or submenu.",
+            Self::NavigationBar => "Switch between primary destinations from a short bottom bar.",
+            Self::NavigationRail => {
+                "Keep destinations at the leading edge or open them in a modal rail."
+            }
             Self::Progress => "Visualize measured or indeterminate work as a line or a circle.",
             Self::Radio => "Choose one option from a group.",
             Self::Sheets => "Reveal supplementary content at the bottom or trailing edge.",
             Self::Slider => "Adjust a value or range with a pointer or keyboard.",
             Self::Snackbar => "Announce an outcome and offer a follow-up action such as Undo.",
             Self::Switch => "Turn a setting on or off.",
+            Self::Tabs => "Switch between related panels with fixed or scrolling tabs.",
             Self::Text => "Preview Material typography, font scaling, and mixed scripts.",
             Self::TextField => {
                 "Edit single-line, multiline, and secure text with supporting feedback."
@@ -212,6 +235,9 @@ impl Story {
                 cx.new(|cx| SelectionExamples::for_story(self, cx)).into()
             }
             Self::Slider => cx.new(SliderExamples::new).into(),
+            Self::AppBar | Self::NavigationBar | Self::NavigationRail | Self::Tabs => {
+                cx.new(|cx| NavigationExamples::new(self, cx)).into()
+            }
             Self::Menu | Self::Tooltip => cx.new(|cx| MenuTooltipExamples::new(self, cx)).into(),
             Self::Dialog | Self::Sheets => cx.new(|cx| ModalExamples::new(self, window, cx)).into(),
             Self::TextField => cx.new(|cx| TextFieldExamples::new(window, cx)).into(),

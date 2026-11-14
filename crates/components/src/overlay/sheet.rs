@@ -230,7 +230,8 @@ impl RenderOnce for Sheet {
             .map(|(expanded, change)| drag_handle(&self.id, *expanded, change.clone(), window, cx));
         let panel = div()
             .id(self.id)
-            .role(Role::Group)
+            .test_support()
+            .role(if modal { Role::Dialog } else { Role::Group })
             .aria_label(self.title.clone())
             .occlude()
             .when(modal, |panel| {

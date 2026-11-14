@@ -282,6 +282,52 @@ fn escape_closes_nested_dialogs_and_restores_each_trigger(cx: &mut gpui::TestApp
     .unwrap();
 }
 
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn modal_side_sheet_mirrors_and_fits_a_compact_scaled_window(cx: &mut gpui::TestAppContext) {
+    use gpui::{WindowOptions, size};
+    use gpui_base::test_support::find;
+    use gpui_material::{MaterialRoot, material_theme, set_material_theme, theme::Direction};
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let entity = cx.new(|cx| ModalExamples::new(Story::Sheets, window, cx));
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    cx.simulate_window_resize(window.into(), size(px(408.), px(420.)));
+    cx.simulate_window_scale_factor_change(window.into(), 1.5);
+    let assert_side = |cx: &mut gpui::TestAppContext, side| {
+        cx.update_window(window.into(), |_, window, cx| {
+            let mut theme = material_theme(cx).clone();
+            theme.layout.direction = side;
+            set_material_theme(theme, cx);
+            let state = view.read(cx).secondary.clone();
+            state.update(cx, |state, cx| state.open(window, cx));
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let sheet = find(window, &[], &"details-sheet".into()).unwrap();
+            assert_eq!(sheet.role(), Some(gpui::Role::Dialog));
+            let bounds = sheet.bounds();
+            let viewport = window.viewport_size();
+            assert!(bounds.size.width > px(0.) && bounds.size.width < viewport.width);
+            assert_eq!(bounds.bottom(), viewport.height);
+            match side {
+                Direction::Ltr => assert_eq!(bounds.right(), viewport.width),
+                Direction::Rtl => assert_eq!(bounds.left(), px(0.)),
+            }
+        })
+        .unwrap();
+    };
+    assert_side(cx, Direction::Ltr);
+    assert_side(cx, Direction::Rtl);
+}
+
 pub(crate) struct SnackbarExamples {
     host: Entity<SnackbarHost>,
 }

@@ -2,6 +2,7 @@ mod action_examples;
 mod display_examples;
 mod drawing;
 mod input_examples;
+mod overlay_examples;
 mod selection_examples;
 mod slider_examples;
 mod story;
@@ -186,6 +187,7 @@ impl Gallery {
                     Story::TextField => cx
                         .new(|cx| text_field_examples::TextFieldExamples::new(window, cx))
                         .into(),
+                    Story::Snackbar => cx.new(overlay_examples::SnackbarExamples::new).into(),
                     _ => cx
                         .new(|_| display_examples::DisplayExamples::for_story(story))
                         .into(),

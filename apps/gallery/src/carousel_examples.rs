@@ -91,15 +91,15 @@ pub(crate) struct CarouselExamples {
 
 impl Render for CarouselExamples {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
-        let mut body = stack().child(Text::new(
-            "Use arrow keys to browse and Enter to open an item.",
-        ));
+        let mut body = stack().child(
+            Text::new("Use arrow keys to browse and Enter to open an item.").id("carousel-hint"),
+        );
         if let Some(active) = self
             .active
             .as_ref()
             .and_then(|active| PLACES.iter().find(|place| place.id == active.as_ref()))
         {
-            body = body.child(Text::new(format!("Opened {}", active.title)));
+            body = body.child(Text::new(format!("Opened {}", active.title)).id("carousel-status"));
         }
         body.children(STRATEGIES.iter().map(|&(id, name, variant)| {
             let view = cx.weak_entity();

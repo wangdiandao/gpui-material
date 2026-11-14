@@ -193,6 +193,9 @@ impl Gallery {
                     Story::TextField => cx
                         .new(|cx| text_field_examples::TextFieldExamples::new(window, cx))
                         .into(),
+                    Story::ExposedDropdown => cx
+                        .new(|cx| text_field_examples::DropdownExamples::new(window, cx))
+                        .into(),
                     Story::Snackbar => cx.new(overlay_examples::SnackbarExamples::new).into(),
                     _ => cx
                         .new(|_| display_examples::DisplayExamples::for_story(story))

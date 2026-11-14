@@ -27,6 +27,7 @@ pub(crate) enum Story {
     Dialog,
     Sheets,
     TextField,
+    ExposedDropdown,
     Snackbar,
 }
 
@@ -60,7 +61,7 @@ impl Story {
             "Overlays",
             &[Self::Menu, Self::Tooltip, Self::Dialog, Self::Sheets],
         ),
-        ("Input", &[Self::TextField]),
+        ("Input", &[Self::TextField, Self::ExposedDropdown]),
         ("Feedback", &[Self::Progress, Self::Snackbar]),
     ];
 
@@ -86,6 +87,7 @@ impl Story {
             Self::Dialog => "dialog",
             Self::Sheets => "sheets",
             Self::TextField => "text-field",
+            Self::ExposedDropdown => "exposed-dropdown",
             Self::Snackbar => "snackbar",
         }
     }
@@ -112,6 +114,7 @@ impl Story {
             Self::Dialog => "Dialogs",
             Self::Sheets => "Sheets",
             Self::TextField => "Text fields",
+            Self::ExposedDropdown => "Exposed dropdown",
             Self::Snackbar => "Snackbar",
         }
     }

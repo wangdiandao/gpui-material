@@ -4,9 +4,9 @@ use gpui::{
 };
 use gpui::{FocusHandle, SharedString};
 use gpui_base::TestSupportExt as _;
-use gpui_base::input::{Input, InputState};
 use gpui_material::{
-    Button, Dialog, DialogState, DialogVariant, Sheet, SheetEdge, SheetMode, Snackbar, SnackbarHost,
+    Button, Dialog, DialogState, DialogVariant, Sheet, SheetEdge, SheetMode, Snackbar,
+    SnackbarHost, TextField, TextFieldState, TextFieldVariant,
 };
 use gpui_material::{ButtonVariant, Menu, MenuItem, Text, Tooltip};
 
@@ -17,7 +17,7 @@ pub(crate) struct ModalExamples {
     primary: Entity<DialogState>,
     secondary: Entity<DialogState>,
     standard: Entity<DialogState>,
-    name: Entity<InputState>,
+    name: Entity<TextFieldState>,
     expanded: bool,
 }
 
@@ -33,7 +33,7 @@ impl ModalExamples {
             primary,
             secondary,
             standard,
-            name: cx.new(|cx| InputState::new(window, cx).placeholder("名称")),
+            name: cx.new(|cx| TextFieldState::new(window, cx).placeholder("名称")),
             expanded: false,
         }
     }
@@ -56,11 +56,8 @@ impl ModalExamples {
                     .body(
                         stack()
                             .child(
-                                div()
-                                    .rounded_sm()
-                                    .border_1()
-                                    .p_2()
-                                    .child(Input::new(&editor)),
+                                TextField::new("project-name", "Project name", &editor)
+                                    .variant(TextFieldVariant::Outlined),
                             )
                             .child(Self::trigger(
                                 "guidelines",

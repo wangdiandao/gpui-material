@@ -137,9 +137,14 @@ impl AdaptiveExamples {
             |index| {
                 Card::new(("feed-card", index))
                     .variant(CardVariant::Outlined)
-                    .child(Text::new(format!("Update {}", index + 1)).role(TypeRole::TitleMedium))
+                    .child(
+                        Text::new(format!("Update {}", index + 1))
+                            .id("title")
+                            .role(TypeRole::TitleMedium),
+                    )
                     .child(
                         Text::new("Workspace activity")
+                            .id("description")
                             .role(TypeRole::BodyMedium)
                             .wrap(),
                     )

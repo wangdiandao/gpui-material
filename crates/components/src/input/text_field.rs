@@ -1,7 +1,7 @@
 use gpui::{
-    AnyElement, App, ElementId, Entity, InteractiveElement, IntoElement, MouseButton,
-    ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, TextAlign,
-    Window, div, prelude::FluentBuilder, px,
+    AccessibleAction, AnyElement, App, ElementId, Entity, InteractiveElement, IntoElement,
+    MouseButton, ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
+    TextAlign, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::input::{InputAccessibility, InputBaseState, InputEditorStyle, InputModeKind};
 use gpui_material_foundation::{color, window_material_theme};
@@ -31,6 +31,7 @@ pub struct TextField {
     supporting_text: Option<SharedString>,
     error: Option<SharedString>,
     trailing: Option<AnyElement>,
+    expanded: Option<bool>,
 }
 
 enum Editor {
@@ -82,6 +83,7 @@ impl TextField {
             supporting_text: None,
             error: None,
             trailing: None,
+            expanded: None,
         }
     }
 
@@ -106,22 +108,30 @@ impl TextField {
         self.trailing = Some(element.into_any_element());
         self
     }
+
+    pub(super) fn expanded(mut self, expanded: bool) -> Self {
+        self.expanded = Some(expanded);
+        self
+    }
 }
 
-fn configure_editor<M: InputModeKind>(
-    state: &mut InputBaseState<M>,
-    role: Role,
-    label: SharedString,
-    style: InputEditorStyle,
-    id: SharedString,
-) {
-    state.set_accessibility(
-        InputAccessibility::new(Some(role))
-            .with_label(Some(label))
-            .with_accessibility_id(Some(id))
-            .with_value_exposed(role != Role::PasswordInput),
-    );
+fn configure_editor<M: InputModeKind>(state: &mut InputBaseState<M>, style: InputEditorStyle) {
+    // The surrounding element exposes one semantic node for the Base focus
+    // handle. Base still owns text layout, key dispatch, and input handling.
+    state.set_accessibility(InputAccessibility::new(None).with_value_exposed(false));
     state.set_editor_style(style);
+}
+
+type SetValue = Box<dyn Fn(SharedString, &mut Window, &mut App)>;
+
+fn edit_handler<M: InputModeKind>(state: Entity<InputBaseState<M>>) -> SetValue {
+    Box::new(move |value, window, cx| {
+        state.update(cx, |state, cx| {
+            if state.is_editable() {
+                state.replace_all(value, window, cx);
+            }
+        });
+    })
 }
 
 impl RenderOnce for TextField {
@@ -136,6 +146,7 @@ impl RenderOnce for TextField {
             Editor::Multiple(state) => state.read(cx).presentation(),
         };
         let disabled = presentation.is_disabled();
+        let readonly = presentation.is_readonly();
         let focus = presentation.focus_handle().clone();
         let focused = !disabled && focus.is_focused(window);
         let filled = self.variant == TextFieldVariant::Filled;
@@ -189,13 +200,13 @@ impl RenderOnce for TextField {
             ..Default::default()
         };
         let label = self.label;
-        let accessible_id = self.id.to_string().into();
+        let accessible_id = self.id.to_string();
         let align = if direction == Direction::Rtl {
             TextAlign::Right
         } else {
             TextAlign::Left
         };
-        let editor = match self.editor {
+        let (editor, role, value, set_value): (_, _, _, Option<SetValue>) = match self.editor {
             Editor::Single(state) => {
                 let role = if presentation.is_masked() {
                     Role::PasswordInput
@@ -204,21 +215,23 @@ impl RenderOnce for TextField {
                 };
                 state.update(cx, |state, cx| {
                     state.set_text_align(align, cx);
-                    configure_editor(state, role, label.clone(), style, accessible_id);
+                    configure_editor(state, style);
                 });
-                state.into_any_element()
+                let value = (role != Role::PasswordInput).then(|| state.read(cx).value());
+                let set_value = (!readonly && !disabled && role != Role::PasswordInput)
+                    .then(|| edit_handler(state.clone()));
+                (state.into_any_element(), role, value, set_value)
             }
             Editor::Multiple(state) => {
-                state.update(cx, |state, _| {
-                    configure_editor(
-                        state,
-                        Role::MultilineTextInput,
-                        label.clone(),
-                        style,
-                        accessible_id,
-                    )
-                });
-                state.into_any_element()
+                state.update(cx, |state, _| configure_editor(state, style));
+                let value = state.read(cx).value();
+                let set_value = (!readonly && !disabled).then(|| edit_handler(state.clone()));
+                (
+                    state.into_any_element(),
+                    Role::MultilineTextInput,
+                    Some(value),
+                    set_value,
+                )
             }
             Editor::Secure(state) => {
                 state.update(cx, |state, cx| {
@@ -226,15 +239,9 @@ impl RenderOnce for TextField {
                         state.set_masked(true, window, cx);
                     }
                     state.set_text_align(align, cx);
-                    configure_editor(
-                        state,
-                        Role::PasswordInput,
-                        label.clone(),
-                        style,
-                        accessible_id,
-                    );
+                    configure_editor(state, style);
                 });
-                state.into_any_element()
+                (state.into_any_element(), Role::PasswordInput, None, None)
             }
         };
         let support = self.error.or(self.supporting_text);
@@ -243,8 +250,9 @@ impl RenderOnce for TextField {
             .text_size(px(caption_style.size))
             .line_height(px(caption_style.line_height))
             .text_color(label_color)
-            .child(label)
+            .child(label.clone())
             .when(!disabled, |label| {
+                let focus = focus.clone();
                 label.on_mouse_down(MouseButton::Left, move |_, window, cx| {
                     focus.focus(window, cx);
                 })
@@ -257,7 +265,26 @@ impl RenderOnce for TextField {
             .flex_col()
             .gap_1()
             .font_family(font)
-            .role(Role::Group)
+            .role(match (self.expanded, readonly) {
+                (Some(_), true) => Role::ComboBox,
+                (Some(_), false) => Role::EditableComboBox,
+                _ => role,
+            })
+            .aria_label(label)
+            .accessibility_id(accessible_id)
+            .aria_placeholder(presentation.placeholder().clone())
+            .when_some(self.expanded, |field, expanded| {
+                field.aria_expanded(expanded)
+            })
+            .when(!disabled, |field| field.track_focus(&focus).tab_stop(false))
+            .when_some(value, |field, value| field.aria_value(value))
+            .when_some(set_value, |field, set_value| {
+                field.on_a11y_action(AccessibleAction::SetValue, move |data, window, cx| {
+                    if let Some(gpui::accesskit::ActionData::Value(value)) = data {
+                        set_value(value.to_string().into(), window, cx);
+                    }
+                })
+            })
             .when_some(support.clone(), |field, text| field.aria_description(text))
             .a11y_synthetic_children(move |tree| {
                 let node = tree.parent_node();
@@ -266,6 +293,9 @@ impl RenderOnce for TextField {
                 }
                 if disabled {
                     node.set_disabled();
+                }
+                if readonly || disabled {
+                    node.set_read_only();
                 }
             })
             .child(

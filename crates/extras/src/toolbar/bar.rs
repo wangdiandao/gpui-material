@@ -312,19 +312,18 @@ impl RenderOnce for Toolbar {
         // GPUI clamps scroll offsets from the physical left edge. Reverse the
         // children before laying out an RTL strip so overflow grows rightward.
         let physical_index = |index| if mirrored { count - index - 1 } else { index };
-        let reveal =
-            window.use_keyed_state(
-                (self.id.clone(), "focused-action"),
-                cx,
-                |_, _| None::<usize>,
-            );
-        let reveal_index = focused.or(first_tab).map(physical_index);
+        let reveal = window.use_keyed_state((self.id.clone(), "focused-action"), cx, |_, _| {
+            None::<(usize, gpui::Size<Pixels>)>
+        });
+        let reveal_target = focused
+            .or(first_tab)
+            .map(|index| (physical_index(index), toolbar_scroll.bounds().size));
         reveal.update(cx, |previous, _| {
-            if *previous != reveal_index {
-                if let Some(index) = reveal_index {
+            if *previous != reveal_target {
+                if let Some((index, _)) = reveal_target {
                     toolbar_scroll.scroll_to_item(index);
                 }
-                *previous = reveal_index;
+                *previous = reveal_target;
             }
         });
 
@@ -353,6 +352,7 @@ impl RenderOnce for Toolbar {
             .items_center()
             .min_w_0()
             .min_h_0()
+            .flex_shrink(1.)
             .when(horizontal, |strip| strip.max_w_full().overflow_x_scroll())
             .when(!horizontal, |strip| {
                 strip.flex_col().max_h_full().overflow_y_scroll()
@@ -486,6 +486,8 @@ impl RenderOnce for Toolbar {
             .items_center()
             .min_w_0()
             .min_h_0()
+            .max_w_full()
+            .max_h_full()
             .when(horizontal && rtl, Styled::flex_row_reverse)
             .when(!horizontal, Styled::flex_col)
             .when(docked && horizontal, Styled::w_full)

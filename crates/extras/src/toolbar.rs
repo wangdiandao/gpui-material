@@ -258,7 +258,11 @@ where
         .px(px(24.))
         .gap(px(8.))
         .child(Icon::new(item.icon).size(px(24.)))
-        .child(Text::new(item.label.clone()).role(TypeRole::TitleMedium))
+        .child(
+            Text::new(item.label.clone())
+                .id((ElementId::from("fab-menu-label"), item.id.clone()))
+                .role(TypeRole::TitleMedium),
+        )
 }
 
 impl RenderOnce for FabMenu {

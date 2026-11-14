@@ -709,17 +709,20 @@ pub mod composition {
                 let padding = metrics
                     .padding
                     .min((f32::from(self.width) - 16.).max(0.) / 2.);
+                let label_width = (self.width - px(2. * padding)).max(px(0.));
                 div()
                     .flex()
                     .min_w_0()
                     .max_w_full()
+                    .w(self.width)
+                    .justify_center()
                     .px(px(padding))
                     .child(crate::text::single_line(
                         self.common.label.clone(),
                         typography,
                         1.,
                         tint,
-                        (None, 1., 1.),
+                        (Some(label_width), 1., 1.),
                         window,
                         cx,
                     ))
@@ -769,7 +772,11 @@ pub mod composition {
         let theme = window_material_theme(window, cx);
         let style = metrics.label.style(TypographyEmphasis::Baseline);
         let width = gpui_material_foundation::shape_text(
-            label,
+            if label.contains(['\r', '\n']) {
+                label.replace(['\r', '\n'], " ").into()
+            } else {
+                label
+            },
             style,
             &theme.typography,
             1.,
@@ -777,7 +784,7 @@ pub mod composition {
             window,
             cx,
         )
-        .map_or(px(0.), |text| text.line().width);
+        .map_or(px(0.), |text| text.line().width.ceil());
         (width + px(metrics.padding * 2.)).max(px(theme.layout.density.interactive_size(1.)))
     }
 

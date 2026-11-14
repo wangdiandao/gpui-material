@@ -238,6 +238,58 @@ mod tests {
             assert!(find(window, &[], &"gallery-search".into()).is_none());
         })
         .unwrap();
+
+        let catalog_id = ElementId::from("gallery-catalog-pane");
+        let detail_id = ElementId::from((ElementId::from("gallery-story-pane"), "button"));
+        for (width, inset) in [
+            (599., 16.),
+            (600., 24.),
+            (839., 24.),
+            (840., 24.),
+            (839., 24.),
+        ] {
+            cx.simulate_window_resize(handle.into(), size(px(width), px(560.)));
+            cx.update_window(handle.into(), |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+                let detail = find(window, &[], &detail_id).unwrap().bounds();
+                let catalog = find(window, &[], &catalog_id);
+                assert_eq!(
+                    detail.right(),
+                    px(width - if width >= 840. { inset } else { 0. })
+                );
+                if width >= 840. {
+                    let catalog = catalog.unwrap().bounds();
+                    assert_eq!(catalog.left(), px(inset));
+                    assert_eq!(catalog.size.width, px(360.));
+                    assert_eq!(detail.left() - catalog.right(), px(24.));
+                    assert_eq!(detail.top(), catalog.top());
+                    assert_eq!(detail.bottom(), catalog.bottom());
+                } else {
+                    assert!(catalog.is_none());
+                    let heading = find(window, &[], &"story-title".into()).unwrap();
+                    assert_eq!(heading.bounds().left(), px(inset));
+                }
+            })
+            .unwrap();
+        }
+
+        cx.simulate_window_resize(handle.into(), size(px(840.), px(560.)));
+        cx.update(|cx| {
+            let mut theme = material_theme(cx).clone();
+            theme.layout.direction = gpui_material::theme::Direction::Rtl;
+            set_material_theme(theme, cx);
+        });
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let detail = find(window, &[], &detail_id).unwrap().bounds();
+            let catalog = find(window, &[], &catalog_id).unwrap().bounds();
+            assert_eq!(detail.left(), px(24.));
+            assert_eq!(catalog.left() - detail.right(), px(24.));
+            assert_eq!(catalog.right(), px(816.));
+        })
+        .unwrap();
     }
 
     #[gpui::test]

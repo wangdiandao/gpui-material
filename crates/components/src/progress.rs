@@ -461,6 +461,17 @@ fn loading_scale(shapes: &[polymorpher::RoundedPolygon]) -> f32 {
     })
 }
 
+fn loading_center(cubics: &[polymorpher::Cubic]) -> polymorpher::geometry::Point {
+    let mut minimum = polymorpher::geometry::Point::new(f32::INFINITY, f32::INFINITY);
+    let mut maximum = polymorpher::geometry::Point::new(f32::NEG_INFINITY, f32::NEG_INFINITY);
+    for cubic in cubics {
+        let bounds = cubic.aabb(true);
+        minimum = minimum.min(bounds.min);
+        maximum = maximum.max(bounds.max);
+    }
+    polymorpher::geometry::Point::new((minimum.x + maximum.x) * 0.5, (minimum.y + maximum.y) * 0.5)
+}
+
 impl RenderOnce for LoadingIndicator {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = window_material_theme(window, cx);
@@ -512,11 +523,14 @@ impl RenderOnce for LoadingIndicator {
                     (1. - (-decay * spring_time).exp() * (t.cos() + 0.75 * t.sin())).clamp(0., 1.);
                 let index = progress.floor() as usize % state.shapes.len();
                 let cubics = state.shapes[index].as_cubics(eased);
+                // Compose processPath centers the current path, not the endpoints'
+                // original unit square; asymmetric intermediate morphs can drift.
+                let center = loading_center(&cubics);
                 let angle = (progress * 0.65 / 4.666 + (1. + progress.floor() + eased) / 4.) * TAU;
                 let (sin, cos) = angle.sin_cos();
                 let project = |p: polymorpher::geometry::Point| {
-                    let x = p.x - 0.5;
-                    let y = p.y - 0.5;
+                    let x = p.x - center.x;
+                    let y = p.y - center.y;
                     bounds.center()
                         + point(
                             bounds.size.width * state.scale * (cos * x - sin * y),
@@ -576,10 +590,12 @@ mod tests {
         assert!(motion.scale > 0. && motion.scale < 1.);
         for morph in &motion.shapes {
             for step in 0..=20 {
-                for cubic in morph.as_cubics(step as f32 / 20.) {
+                let cubics = morph.as_cubics(step as f32 / 20.);
+                let center = loading_center(&cubics);
+                for cubic in cubics {
                     for sample in 0..=20 {
                         let p = cubic.point_on_curve(sample as f32 / 20.);
-                        let radius = (p.x - 0.5).hypot(p.y - 0.5) * motion.scale;
+                        let radius = (p.x - center.x).hypot(p.y - center.y) * motion.scale;
                         // All rotation angles are bounded by the radial envelope.
                         assert!(
                             radius <= 0.501,

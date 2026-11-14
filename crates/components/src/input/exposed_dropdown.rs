@@ -11,9 +11,7 @@ use gpui::{
     px,
 };
 use gpui_base::{Popup, TestSupportExt};
-use gpui_material_foundation::{
-    Surface, animate, color, font_for_style, logical_anchor, window_material_theme,
-};
+use gpui_material_foundation::{Surface, animate, color, logical_anchor, window_material_theme};
 use gpui_material_theme::{
     ColorRole, Elevation, MotionKind, MotionSpeed, TypeRole, TypographyEmphasis,
 };
@@ -200,7 +198,6 @@ impl RenderOnce for ExposedDropdown {
         let selected = color(theme.colors.color(ColorRole::SecondaryContainer));
         let selected_ink = color(theme.colors.color(ColorRole::OnSecondaryContainer));
         let text_style = TypeRole::LabelLarge.style(TypographyEmphasis::Baseline);
-        let font = font_for_style(&theme.typography, text_style, cx);
         let arrow = animate(
             (self.id.clone(), "arrow"),
             f32::from(open),
@@ -392,10 +389,6 @@ impl RenderOnce for ExposedDropdown {
                 .test_support()
                 .opacity(motion.alpha)
                 .w(width * motion.scale)
-                .font_family(font.family)
-                .font_weight(font.weight)
-                .text_size(dp(text_style.size))
-                .line_height(dp(text_style.line_height))
                 .text_color(ink)
                 .max_h(height * motion.scale)
                 .when(open, |list| {
@@ -489,7 +482,9 @@ impl RenderOnce for ExposedDropdown {
                 .when(!open, |list| {
                     list.child(div().absolute().inset_0().occlude())
                 });
-            ScaledOverlay::new(motion.text(content, window), motion, move |menu| {
+            let content =
+                gpui_material_foundation::text_style(content, text_style, motion.scale, window, cx);
+            ScaledOverlay::new(content, motion, move |menu| {
                 menu_pivot(
                     menu,
                     if open {

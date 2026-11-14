@@ -209,8 +209,8 @@ impl Render for ActionExamples {
                     }),
                 ))
             }))
-            .children(self.shows(Story::Fab).then(|| {
-                section("Extended FAB").child(row().children(
+            .children(self.shows(Story::ExtendedFab).then(|| {
+                section("Sizes and expansion").child(row().children(
                     fab_sizes.into_iter().enumerate().map(|(ix, size)| {
                         let view = cx.entity();
                         ExtendedFab::new(
@@ -291,7 +291,7 @@ mod tests {
             crate::init_gallery(cx);
             let mut view = None;
             let handle = MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
-                let actions = cx.new(|_| ActionExamples::for_story(Story::Fab));
+                let actions = cx.new(|_| ActionExamples::for_story(Story::ExtendedFab));
                 view = Some(actions.clone());
                 actions
             })
@@ -342,7 +342,7 @@ mod tests {
             .unwrap();
             (handle, view.unwrap())
         });
-        cx.simulate_window_resize(handle.into(), size(px(1000.), px(1450.)));
+        cx.simulate_window_resize(handle.into(), size(px(1000.), px(2000.)));
         let draw = |window: &mut Window, cx: &mut gpui::App| {
             window.refresh();
             window.draw(cx).clear(cx);
@@ -355,7 +355,7 @@ mod tests {
                 (
                     gpui::ElementId::from(("action-variant", 0_usize)),
                     1,
-                    Some(gpui::point(px(999.), px(1449.))),
+                    Some(gpui::point(px(999.), px(1999.))),
                 ),
                 (gpui::ElementId::from("action-disabled"), 1, None),
                 (gpui::ElementId::from(("toggle-variant", 0_usize)), 1, None),

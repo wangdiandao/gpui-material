@@ -1,9 +1,7 @@
-use gpui::{
-    AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, div, px,
-};
+use gpui::{AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, px};
 use gpui_material::{TextAreaState, TextField, TextFieldState, TextFieldVariant};
 
-use crate::story::stack;
+use crate::story::{section, stack};
 
 use gpui_material::{DropdownOption, ExposedDropdown, ExposedDropdownState, Text};
 
@@ -191,37 +189,45 @@ impl Render for TextFieldExamples {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         stack()
             .max_w(px(440.))
-            .child(TextField::new("name", "姓名", &self.name).supporting_text("可使用微软拼音输入"))
             .child(
-                TextField::new("email", "Email", &self.email)
-                    .variant(TextFieldVariant::Outlined)
-                    .error("Enter a domain after @"),
+                section("Filled and outlined")
+                    .child(
+                        TextField::new("name", "姓名", &self.name)
+                            .supporting_text("可使用微软拼音输入"),
+                    )
+                    .child(
+                        TextField::new("email", "Email", &self.email)
+                            .variant(TextFieldVariant::Outlined)
+                            .error("Enter a domain after @"),
+                    ),
             )
             .child(
-                TextField::multiline("notes", "备注", &self.notes)
-                    .variant(TextFieldVariant::Outlined),
+                section("Multiline and secure")
+                    .child(
+                        TextField::multiline("notes", "备注", &self.notes)
+                            .variant(TextFieldVariant::Outlined),
+                    )
+                    .child(TextField::secure("password", "Password", &self.password)),
             )
-            .child(TextField::secure("password", "Password", &self.password))
             .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap_2()
+                section("Readonly and disabled")
                     .child(TextField::new(
                         "account",
-                        "Account (read only)",
+                        "Account (readonly)",
                         &self.account,
                     ))
                     .child(TextField::new("status", "Account status", &self.disabled)),
             )
             .child(
-                TextField::new(
-                    "scaled-label",
-                    "Preferred name for project correspondence",
-                    &self.scaled,
-                )
-                .font_scale(1.5)
-                .supporting_text("用于项目沟通，可输入中英文"),
+                section("Scaled label").child(
+                    TextField::new(
+                        "scaled-label",
+                        "Preferred name for project correspondence",
+                        &self.scaled,
+                    )
+                    .font_scale(1.5)
+                    .supporting_text("用于项目沟通，可输入中英文"),
+                ),
             )
     }
 }

@@ -24,6 +24,8 @@ pub(crate) enum Story {
     Progress,
     Menu,
     Tooltip,
+    TextField,
+    Snackbar,
 }
 
 impl Story {
@@ -52,8 +54,9 @@ impl Story {
             "Display",
             &[Self::TextIcon, Self::Card, Self::List, Self::DividerBadge],
         ),
-        ("Feedback", &[Self::Progress]),
         ("Overlays", &[Self::Menu, Self::Tooltip]),
+        ("Input", &[Self::TextField]),
+        ("Feedback", &[Self::Progress, Self::Snackbar]),
     ];
 
     pub(crate) fn id(self) -> &'static str {
@@ -75,6 +78,8 @@ impl Story {
             Self::Progress => "progress",
             Self::Menu => "menu",
             Self::Tooltip => "tooltip",
+            Self::TextField => "text-field",
+            Self::Snackbar => "snackbar",
         }
     }
 
@@ -97,6 +102,8 @@ impl Story {
             Self::Progress => "Progress & Loading",
             Self::Menu => "Menus",
             Self::Tooltip => "Tooltips",
+            Self::TextField => "Text fields",
+            Self::Snackbar => "Snackbar",
         }
     }
 

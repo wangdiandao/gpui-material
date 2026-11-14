@@ -192,7 +192,6 @@ impl RenderOnce for Menu {
                 });
                 menu_content(
                     self.items,
-                    submenu,
                     close,
                     submenu.then_some(close_level),
                     state.focus_handle(cx),
@@ -207,7 +206,6 @@ impl RenderOnce for Menu {
 
 fn menu_content(
     items: Vec<MenuItem>,
-    submenu: bool,
     close: Action,
     close_level: Option<Action>,
     popup_focus: FocusHandle,
@@ -243,7 +241,11 @@ fn menu_content(
     }
     let limit = (window.viewport_size().height * 0.7).min(px(420.));
     div()
-        .id(if submenu { "submenu-content" } else { "menu" })
+        .id(if close_level.is_some() {
+            "submenu-content"
+        } else {
+            "menu"
+        })
         .test_support()
         .role(Role::Menu)
         .overflow_y_scroll()

@@ -6,6 +6,7 @@ mod overlay_examples;
 mod selection_examples;
 mod slider_examples;
 mod story;
+mod text_field_examples;
 
 use std::borrow::Cow;
 
@@ -186,6 +187,10 @@ impl Gallery {
                     Story::Menu | Story::Tooltip => cx
                         .new(|cx| overlay_examples::MenuTooltipExamples::new(story, cx))
                         .into(),
+                    Story::TextField => cx
+                        .new(|cx| text_field_examples::TextFieldExamples::new(window, cx))
+                        .into(),
+                    Story::Snackbar => cx.new(overlay_examples::SnackbarExamples::new).into(),
                     _ => cx
                         .new(|_| display_examples::DisplayExamples::for_story(story))
                         .into(),

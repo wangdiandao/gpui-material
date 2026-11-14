@@ -169,4 +169,17 @@ fn search_preview_updates_results_and_restores_focus(cx: &mut gpui::TestAppConte
         assert_eq!(find(window, &[], &trigger).unwrap().focused(), Some(true));
     })
     .unwrap();
+
+    cx.update_window(handle.into(), |_, window, cx| {
+        let fullscreen = view.read(cx).fullscreen.clone();
+        fullscreen.update(cx, |state, cx| state.open(window, cx));
+    })
+    .unwrap();
+    frame(cx);
+    cx.simulate_input(handle.into(), "meeting");
+    frame(cx);
+    cx.update(|cx| assert_eq!(view.read(cx).fullscreen.read(cx).query(), "meeting"));
+    cx.simulate_keystrokes(handle.into(), "escape");
+    frame(cx);
+    cx.update(|cx| assert!(!view.read(cx).fullscreen.read(cx).is_open()));
 }

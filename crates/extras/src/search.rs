@@ -383,7 +383,10 @@ impl RenderOnce for SearchBar {
                         .focus_handle(scope)
                         .backdrop(div().absolute().inset_0().bg(scrim))
                         .on_ok(|_, _, _| false)
-                        .on_cancel(|_, _, _| false)
+                        .on_cancel(move |_, window, cx| {
+                            dismiss_search(&state, window, cx);
+                            false
+                        })
                         .popup(view),
                 )
                 .into_any_element(),
@@ -464,7 +467,6 @@ impl RenderOnce for SearchView {
         let fullscreen = self.variant == SearchViewVariant::FullScreen;
         let close = self.state.clone();
         let dismiss = self.state.clone();
-        let close_input = input.clone();
         let mut results = isolated_scroll((self.id.clone(), "results"), &model.scroll)
             .flex()
             .flex_col()
@@ -513,12 +515,7 @@ impl RenderOnce for SearchView {
             .id(self.id.clone())
             .test_support()
             .capture_key_down(move |event, window, cx| {
-                if event.keystroke.key == "escape"
-                    && !close_input.update(cx, |input, cx| {
-                        input.marked_text_range(window, cx).is_some()
-                    })
-                {
-                    dismiss.update(cx, |state, cx| state.close(window, cx));
+                if event.keystroke.key == "escape" && dismiss_search(&dismiss, window, cx) {
                     cx.stop_propagation();
                 }
             })
@@ -566,6 +563,18 @@ impl RenderOnce for SearchView {
                     .child(results),
             )
     }
+}
+
+fn dismiss_search(state: &Entity<SearchState>, window: &mut Window, cx: &mut App) -> bool {
+    state.update(cx, |state, cx| {
+        let composing = state.input.update(cx, |input, cx| {
+            input.marked_text_range(window, cx).is_some()
+        });
+        if !composing {
+            state.close(window, cx);
+        }
+        !composing
+    })
 }
 
 #[cfg(test)]

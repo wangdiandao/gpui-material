@@ -9,12 +9,28 @@ use gpui_material::{
     ToggleButtonVariant,
 };
 
+use crate::story::{Story, section};
+
 #[derive(Default)]
 pub(crate) struct ActionExamples {
+    story: Option<Story>,
     count: usize,
     toggles: [bool; 5],
     icon_toggles: [bool; 5],
     collapsed: bool,
+}
+
+impl ActionExamples {
+    pub(crate) fn for_story(story: Story) -> Self {
+        Self {
+            story: Some(story),
+            ..Self::default()
+        }
+    }
+
+    fn shows(&self, story: Story) -> bool {
+        self.story.is_none_or(|active| active == story)
+    }
 }
 
 impl Render for ActionExamples {
@@ -59,176 +75,198 @@ impl Render for ActionExamples {
             .flex()
             .flex_col()
             .gap_3()
-            .child(div().text_lg().child("Actions"))
-            .child(
-                row().children(
-                    button_variants
-                        .into_iter()
-                        .enumerate()
-                        .map(|(ix, variant)| {
-                            let view = cx.entity();
-                            Button::new(("action-variant", ix), format!("{variant:?}"))
-                                .variant(variant)
-                                .on_activate(move |_, cx| {
-                                    view.update(cx, |this, cx| {
-                                        this.count += 1;
-                                        cx.notify();
+            .children(self.shows(Story::Button).then(|| {
+                section("Variants").child(
+                    row().children(
+                        button_variants
+                            .into_iter()
+                            .enumerate()
+                            .map(|(ix, variant)| {
+                                let view = cx.entity();
+                                Button::new(("action-variant", ix), format!("{variant:?}"))
+                                    .variant(variant)
+                                    .on_activate(move |_, cx| {
+                                        view.update(cx, |this, cx| {
+                                            this.count += 1;
+                                            cx.notify();
+                                        })
                                     })
-                                })
-                        }),
-                ),
-            )
-            .child(
-                row().children(sizes.into_iter().enumerate().map(|(ix, size)| {
-                    Button::new(("action-size", ix), format!("{size:?}"))
-                        .size(size)
-                        .shape(ButtonShape::Square)
-                        .leading_icon("+")
-                        .trailing_icon("›")
-                })),
-            )
-            .child(
-                row().children(sizes.into_iter().enumerate().map(|(ix, size)| {
-                    let view = cx.entity();
-                    let variant = toggle_variants[ix % toggle_variants.len()];
-                    ToggleButton::new(
-                        ("toggle-variant", ix),
-                        format!("{variant:?} {size:?}"),
-                        self.toggles[ix],
-                    )
-                    .variant(variant)
-                    .size(size)
-                    .shape(if ix % 2 == 0 {
-                        ButtonShape::Round
-                    } else {
-                        ButtonShape::Square
-                    })
-                    .on_change(move |value, _, cx| {
-                        view.update(cx, |this, cx| {
-                            this.toggles[ix] = value;
-                            cx.notify();
-                        })
-                    })
-                })),
-            )
-            .child(
-                row().children(sizes.into_iter().enumerate().map(|(ix, size)| {
-                    let variant = icon_variants[ix % icon_variants.len()];
-                    IconButton::new(
-                        ("icon-variant", ix),
-                        format!("{variant:?} {size:?} action"),
-                        "+",
-                    )
-                    .variant(variant)
-                    .size(size)
-                    .shape(if ix % 2 == 0 {
-                        ButtonShape::Round
-                    } else {
-                        ButtonShape::Square
-                    })
-                    .width(
-                        [
-                            IconButtonWidth::Narrow,
-                            IconButtonWidth::Uniform,
-                            IconButtonWidth::Wide,
-                            IconButtonWidth::Uniform,
-                            IconButtonWidth::Narrow,
-                        ][ix],
-                    )
-                })),
-            )
-            .child(
-                row().children(sizes.into_iter().enumerate().map(|(ix, size)| {
-                    let view = cx.entity();
-                    let variant = icon_variants[ix % icon_variants.len()];
-                    IconToggleButton::new(
-                        ("icon-toggle-variant", ix),
-                        format!("{variant:?} {size:?} favorite"),
-                        "♡",
-                        self.icon_toggles[ix],
-                    )
-                    .selected_icon("♥")
-                    .variant(variant)
-                    .size(size)
-                    .shape(if ix % 2 == 0 {
-                        ButtonShape::Square
-                    } else {
-                        ButtonShape::Round
-                    })
-                    .width(
-                        [
-                            IconButtonWidth::Narrow,
-                            IconButtonWidth::Uniform,
-                            IconButtonWidth::Wide,
-                        ][ix % 3],
-                    )
-                    .on_change(move |value, _, cx| {
-                        view.update(cx, |this, cx| {
-                            this.icon_toggles[ix] = value;
-                            cx.notify();
-                        })
-                    })
-                })),
-            )
-            .child(
-                row().children(fab_colors.into_iter().enumerate().map(|(ix, color)| {
-                    let size = fab_sizes[ix % fab_sizes.len()];
-                    Fab::new(
-                        ("fab-size", ix),
-                        format!("Create {color:?} ({size:?})"),
-                        "+",
-                    )
-                    .size(size)
-                    .color(color)
-                })),
-            )
-            .child(
-                row().children(fab_sizes.into_iter().enumerate().map(|(ix, size)| {
-                    let view = cx.entity();
-                    ExtendedFab::new(
-                        ("extended-fab-size", ix),
-                        "Create a new document 新建文档",
-                        "+",
-                    )
-                    .size(size)
-                    .expanded(!self.collapsed)
-                    .on_activate(move |_, cx| {
-                        view.update(cx, |this, cx| {
-                            this.collapsed = !this.collapsed;
-                            cx.notify();
-                        })
-                    })
-                })),
-            )
-            .child(
-                row()
-                    .child(Button::new("action-disabled", "Unavailable").disabled(true))
-                    .child(
-                        ToggleButton::new("toggle-disabled", "Unavailable toggle", true)
-                            .disabled(true),
-                    )
-                    .child(
-                        IconButton::new("icon-disabled", "Unavailable action", "+").disabled(true),
-                    )
-                    .child(
-                        IconToggleButton::new(
-                            "icon-toggle-disabled",
-                            "Unavailable favorite",
-                            "♥",
-                            true,
-                        )
-                        .disabled(true),
-                    )
-                    .child({
-                        let label = format!("Activations: {}", self.count);
-                        div()
-                            .id("action-count")
-                            .role(Role::Status)
-                            .aria_label(label.clone())
-                            .test_support()
-                            .child(label)
+                            }),
+                    ),
+                )
+            }))
+            .children(self.shows(Story::Button).then(|| {
+                section("Sizes and icon slots").child(row().children(
+                    sizes.into_iter().enumerate().map(|(ix, size)| {
+                        Button::new(("action-size", ix), format!("{size:?}"))
+                            .size(size)
+                            .shape(ButtonShape::Square)
+                            .leading_icon("+")
+                            .trailing_icon("›")
                     }),
-            )
+                ))
+            }))
+            .children(self.shows(Story::ToggleButton).then(|| {
+                section("Toggle variants").child(row().children(sizes.into_iter().enumerate().map(
+                    |(ix, size)| {
+                        let view = cx.entity();
+                        let variant = toggle_variants[ix % toggle_variants.len()];
+                        ToggleButton::new(
+                            ("toggle-variant", ix),
+                            format!("{variant:?} {size:?}"),
+                            self.toggles[ix],
+                        )
+                        .variant(variant)
+                        .size(size)
+                        .shape(if ix % 2 == 0 {
+                            ButtonShape::Round
+                        } else {
+                            ButtonShape::Square
+                        })
+                        .on_change(move |value, _, cx| {
+                            view.update(cx, |this, cx| {
+                                this.toggles[ix] = value;
+                                cx.notify();
+                            })
+                        })
+                    },
+                )))
+            }))
+            .children(self.shows(Story::IconButton).then(|| {
+                section("Icon button variants").child(row().children(
+                    sizes.into_iter().enumerate().map(|(ix, size)| {
+                        let variant = icon_variants[ix % icon_variants.len()];
+                        IconButton::new(
+                            ("icon-variant", ix),
+                            format!("{variant:?} {size:?} action"),
+                            "+",
+                        )
+                        .variant(variant)
+                        .size(size)
+                        .shape(if ix % 2 == 0 {
+                            ButtonShape::Round
+                        } else {
+                            ButtonShape::Square
+                        })
+                        .width(
+                            [
+                                IconButtonWidth::Narrow,
+                                IconButtonWidth::Uniform,
+                                IconButtonWidth::Wide,
+                                IconButtonWidth::Uniform,
+                                IconButtonWidth::Narrow,
+                            ][ix],
+                        )
+                    }),
+                ))
+            }))
+            .children(self.shows(Story::IconButton).then(|| {
+                section("Toggle and selected icons").child(row().children(
+                    sizes.into_iter().enumerate().map(|(ix, size)| {
+                        let view = cx.entity();
+                        let variant = icon_variants[ix % icon_variants.len()];
+                        IconToggleButton::new(
+                            ("icon-toggle-variant", ix),
+                            format!("{variant:?} {size:?} favorite"),
+                            "♡",
+                            self.icon_toggles[ix],
+                        )
+                        .selected_icon("♥")
+                        .variant(variant)
+                        .size(size)
+                        .shape(if ix % 2 == 0 {
+                            ButtonShape::Square
+                        } else {
+                            ButtonShape::Round
+                        })
+                        .width(
+                            [
+                                IconButtonWidth::Narrow,
+                                IconButtonWidth::Uniform,
+                                IconButtonWidth::Wide,
+                            ][ix % 3],
+                        )
+                        .on_change(move |value, _, cx| {
+                            view.update(cx, |this, cx| {
+                                this.icon_toggles[ix] = value;
+                                cx.notify();
+                            })
+                        })
+                    }),
+                ))
+            }))
+            .children(self.shows(Story::Fab).then(|| {
+                section("Colors and sizes").child(row().children(
+                    fab_colors.into_iter().enumerate().map(|(ix, color)| {
+                        let size = fab_sizes[ix % fab_sizes.len()];
+                        Fab::new(
+                            ("fab-size", ix),
+                            format!("Create {color:?} ({size:?})"),
+                            "+",
+                        )
+                        .size(size)
+                        .color(color)
+                    }),
+                ))
+            }))
+            .children(self.shows(Story::Fab).then(|| {
+                section("Extended FAB").child(row().children(
+                    fab_sizes.into_iter().enumerate().map(|(ix, size)| {
+                        let view = cx.entity();
+                        ExtendedFab::new(
+                            ("extended-fab-size", ix),
+                            "Create a new document 新建文档",
+                            "+",
+                        )
+                        .size(size)
+                        .expanded(!self.collapsed)
+                        .on_activate(move |_, cx| {
+                            view.update(cx, |this, cx| {
+                                this.collapsed = !this.collapsed;
+                                cx.notify();
+                            })
+                        })
+                    }),
+                ))
+            }))
+            .children(self.shows(Story::Button).then(|| {
+                let label = format!("Activations: {}", self.count);
+                section("Disabled and activation").child(
+                    row()
+                        .child(Button::new("action-disabled", "Unavailable").disabled(true))
+                        .child(
+                            div()
+                                .id("action-count")
+                                .role(Role::Status)
+                                .aria_label(label.clone())
+                                .test_support()
+                                .child(label),
+                        ),
+                )
+            }))
+            .children(self.shows(Story::ToggleButton).then(|| {
+                section("Disabled").child(row().child(
+                    ToggleButton::new("toggle-disabled", "Unavailable toggle", true).disabled(true),
+                ))
+            }))
+            .children(self.shows(Story::IconButton).then(|| {
+                section("Disabled").child(
+                    row()
+                        .child(
+                            IconButton::new("icon-disabled", "Unavailable action", "+")
+                                .disabled(true),
+                        )
+                        .child(
+                            IconToggleButton::new(
+                                "icon-toggle-disabled",
+                                "Unavailable favorite",
+                                "♥",
+                                true,
+                            )
+                            .disabled(true),
+                        ),
+                )
+            }))
     }
 }
 

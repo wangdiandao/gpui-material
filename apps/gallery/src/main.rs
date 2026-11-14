@@ -4,23 +4,37 @@ mod drawing;
 mod input_examples;
 mod selection_examples;
 mod slider_examples;
+mod story;
 
 use std::borrow::Cow;
 
 use gpui::{
-    App, AppContext, AssetSource, Context, InteractiveElement, IntoElement, ParentElement,
-    QuitMode, Render, Role, SharedString, StatefulInteractiveElement, Styled, TextAlign,
-    TitlebarOptions, Window, WindowBounds, WindowHandle, WindowOptions, canvas, div, px, size,
+    AnyView, App, AppContext, AssetSource, Context, ElementId, Entity, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement, QuitMode, Render, Role, ScrollHandle,
+    SharedString, StatefulInteractiveElement, Styled, Subscription, TitlebarOptions, Window,
+    WindowBounds, WindowHandle, WindowOptions, div, point, prelude::FluentBuilder, px, size,
 };
-use gpui_base::{Button, Root, TestSupportExt};
+use gpui_base::{
+    Root, TestSupportExt,
+    input::{Input, InputAccessibility, InputState},
+};
+#[cfg(all(test, feature = "test-support"))]
+use gpui_material::foundation::shape_text;
 use gpui_material::foundation::{
     MaterialRoot, Surface, color, material_theme, set_material_theme, set_window_material_theme,
-    shape_text, window_material_theme,
+    window_material_theme,
 };
-use gpui_material::theme::{
-    Appearance, ColorRole, Elevation, MaterialTheme, TypeRole, TypographyEmphasis,
+#[cfg(all(test, feature = "test-support"))]
+use gpui_material::theme::TypographyEmphasis;
+use gpui_material::theme::{Appearance, ColorRole, Direction, Elevation, MaterialTheme, TypeRole};
+use gpui_material::{
+    Button, ButtonVariant, ControlSize, Divider, Fab, FloatingAction, List, ListItem, ListVariant,
+    Text, ToggleButton, ToggleButtonVariant,
 };
-use gpui_material::{Fab, FloatingAction};
+
+use story::{Story, section, stack};
+
+gpui::actions!(gallery, [BrowseComponents]);
 
 const TITLE: &str = "Material Gallery";
 const FORWARD_ICON: &str = "forward.svg";
@@ -87,11 +101,14 @@ fn main() {
 
 fn init_gallery(cx: &mut App) {
     MaterialRoot::init(MaterialTheme::default(), cx);
-    cx.bind_keys([gpui::KeyBinding::new(
-        "escape",
-        input_examples::CancelDrag,
-        Some("FoundationInput"),
-    )]);
+    cx.bind_keys([
+        gpui::KeyBinding::new(
+            "escape",
+            input_examples::CancelDrag,
+            Some("FoundationInput"),
+        ),
+        gpui::KeyBinding::new("escape", BrowseComponents, Some("GalleryCatalog")),
+    ]);
 }
 
 fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Root>> {
@@ -107,7 +124,7 @@ fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Roo
             ),
             ..Default::default()
         }),
-        window_bounds: Some(WindowBounds::centered(size(px(580.), px(620.)), cx)),
+        window_bounds: Some(WindowBounds::centered(size(px(1040.), px(744.)), cx)),
         window_min_size: Some(size(px(320.), px(240.))),
         ..Default::default()
     };
@@ -117,87 +134,217 @@ fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Roo
             theme.colors = gpui_material::theme::ColorScheme::baseline(Appearance::Dark);
             set_window_material_theme(Some(theme), window, cx);
         }
-        cx.new(|cx| Gallery {
-            display: cx.new(|_| display_examples::DisplayExamples::default()),
-            sliders: cx.new(slider_examples::SliderExamples::new),
-            selection: cx.new(selection_examples::SelectionExamples::new),
-            actions: cx.new(|_| action_examples::ActionExamples::default()),
-            drawing: cx.new(drawing::Drawing::new),
-            input: cx.new(|cx| input_examples::InputExamples::new(window, cx)),
-        })
+        cx.new(|cx| Gallery::new(local_dark, window, cx))
     })
 }
 
 struct Gallery {
-    display: gpui::Entity<display_examples::DisplayExamples>,
-    sliders: gpui::Entity<slider_examples::SliderExamples>,
-    selection: gpui::Entity<selection_examples::SelectionExamples>,
-    actions: gpui::Entity<action_examples::ActionExamples>,
-    drawing: gpui::Entity<drawing::Drawing>,
-    input: gpui::Entity<input_examples::InputExamples>,
+    local_theme: bool,
+    catalog_open: bool,
+    current: Story,
+    search: Entity<InputState>,
+    catalog_scroll: ScrollHandle,
+    content_scroll: ScrollHandle,
+    content_focus: FocusHandle,
+    stories: Vec<(Story, AnyView)>,
+    drawing: Entity<drawing::Drawing>,
+    input: Entity<input_examples::InputExamples>,
+    _search: Subscription,
 }
 
-impl Render for Gallery {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = window_material_theme(window, cx);
-        let appearance = theme.colors.appearance();
-        let sample = "Material 3 · 中文排版";
-        let title = shape_text(
-            sample,
-            TypeRole::HeadlineSmall.style(TypographyEmphasis::Baseline),
-            &theme.typography,
-            1.,
-            color(theme.colors.color(ColorRole::OnSurface)),
-            window,
-            cx,
-        )
-        .expect("single-line gallery sample");
-        let height = title.line_height();
-        let colors = &theme.colors;
-        let accent = color(colors.color(ColorRole::Primary));
-        let on_accent = color(colors.color(ColorRole::OnPrimary));
-        let focus = color(colors.color(ColorRole::Secondary));
-        let status = format!("Display scale {:.0}%", window.scale_factor() * 100.);
-        let theme_status = format!("Window theme {appearance:?}");
+impl Gallery {
+    fn new(local_theme: bool, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let search = cx.new(|cx| {
+            let mut input = InputState::new(window, cx).placeholder("Search components");
+            input.set_accessibility(
+                InputAccessibility::new(Some(Role::TextInput))
+                    .with_label(Some("Search components".into()))
+                    .with_accessibility_id(Some("gallery-search".into())),
+            );
+            input
+        });
+        let catalog_scroll = ScrollHandle::new();
+        let scroll = catalog_scroll.clone();
+        let observe_search = cx.observe(&search, move |_, _, cx| {
+            scroll.set_offset(point(px(0.), px(0.)));
+            cx.notify();
+        });
+        let stories = Story::GROUPS
+            .iter()
+            .flat_map(|(_, stories)| stories.iter().copied())
+            .filter(|story| *story != Story::Foundation)
+            .map(|story| {
+                let view: AnyView = match story {
+                    Story::Button | Story::ToggleButton | Story::IconButton | Story::Fab => cx
+                        .new(|_| action_examples::ActionExamples::for_story(story))
+                        .into(),
+                    Story::Checkbox | Story::Radio | Story::Switch | Story::Chip => cx
+                        .new(|cx| selection_examples::SelectionExamples::for_story(story, cx))
+                        .into(),
+                    Story::Slider => cx.new(slider_examples::SliderExamples::new).into(),
+                    _ => cx
+                        .new(|_| display_examples::DisplayExamples::for_story(story))
+                        .into(),
+                };
+                (story, view)
+            })
+            .collect();
+        Self {
+            local_theme,
+            catalog_open: false,
+            current: Story::default(),
+            search,
+            catalog_scroll,
+            content_scroll: ScrollHandle::new(),
+            content_focus: cx.focus_handle(),
+            stories,
+            drawing: cx.new(drawing::Drawing::new),
+            input: cx.new(|cx| input_examples::InputExamples::new(window, cx)),
+            _search: observe_search,
+        }
+    }
 
-        Surface::new(ColorRole::Surface)
-            .size_full()
+    fn navigate(
+        &mut self,
+        story: Story,
+        compact: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.current != story {
+            self.current = story;
+            self.content_scroll.set_offset(point(px(0.), px(0.)));
+        }
+        if compact {
+            self.catalog_open = false;
+            self.content_focus.focus(window, cx);
+        }
+        cx.notify();
+    }
+
+    fn catalog(&self, compact: bool, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let query = self.search.read(cx).value().trim().to_ascii_lowercase();
+        let theme = window_material_theme(window, cx);
+        let outline = color(theme.colors.color(
+            if self.search.read(cx).focus_handle(cx).is_focused(window) {
+                ColorRole::Primary
+            } else {
+                ColorRole::OutlineVariant
+            },
+        ));
+        let results: Vec<_> = Story::GROUPS
+            .iter()
+            .filter_map(|&(group, stories)| {
+                let items: Vec<_> = stories
+                    .iter()
+                    .copied()
+                    .filter(|story| story.matches(&query))
+                    .collect();
+                (!items.is_empty()).then_some((group, items))
+            })
+            .collect();
+        let no_results = results.is_empty();
+        let owner = cx.entity();
+        div()
+            .id("gallery-catalog-pane")
+            .key_context("GalleryCatalog")
+            .on_action(cx.listener(move |this, _: &BrowseComponents, window, cx| {
+                if compact {
+                    this.catalog_open = false;
+                    this.content_focus.focus(window, cx);
+                    cx.notify();
+                }
+            }))
+            .when_else(
+                compact,
+                |panel| panel.flex_1().min_w_0(),
+                |panel| panel.w(px(232.)).flex_none(),
+            )
+            .min_h_0()
             .flex()
             .flex_col()
             .child(
-                div()
-                    .id("gallery-scroll")
-                    .tab_group()
-                    .overflow_y_scroll()
-                    .w_full()
-                    .flex_1()
+                Surface::new(ColorRole::SurfaceContainerLow)
+                    .size_full()
                     .min_h_0()
                     .flex()
                     .flex_col()
-                    .p_6()
-                    .gap_4()
+                    .child(
+                        div().flex_none().px_4().pt_2().pb_3().child(
+                            div()
+                                .id("gallery-search-field")
+                                .rounded_md()
+                                .border_1()
+                                .border_color(outline)
+                                .px_3()
+                                .py_2()
+                                .text_sm()
+                                .child(Input::new(&self.search)),
+                        ),
+                    )
                     .child(
                         div()
-                            .id("typography")
-                            .role(Role::Label)
-                            .aria_label(sample)
-                            .test_support()
-                            .child(
-                                canvas(
-                                    |_, _, _| (),
-                                    move |bounds, _, window, cx| {
-                                        let _ = title.paint(
-                                            bounds.origin,
-                                            TextAlign::Left,
-                                            None,
-                                            window,
-                                            cx,
-                                        );
-                                    },
+                            .id("gallery-catalog")
+                            .tab_group()
+                            .track_scroll(&self.catalog_scroll)
+                            .overflow_y_scroll()
+                            .min_h_0()
+                            .flex_1()
+                            .px_3()
+                            .pb_3()
+                            .children(results.into_iter().map(|(group, items)| {
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .pb_2()
+                                    .child(
+                                        div().px_2().pt_2().child(
+                                            Text::new(group)
+                                                .id(group)
+                                                .role(TypeRole::LabelMedium)
+                                                .color(ColorRole::OnSurfaceVariant),
+                                        ),
+                                    )
+                                    .child(
+                                        List::new((ElementId::from("catalog-group"), group))
+                                            .variant(ListVariant::Segmented)
+                                            .items(items.into_iter().map(|story| {
+                                                let owner = owner.clone();
+                                                ListItem::new(
+                                                    (ElementId::from("gallery-story"), story.id()),
+                                                    story.name(),
+                                                )
+                                                .selected(story == self.current)
+                                                .on_activate(move |window, cx| {
+                                                    owner.update(cx, |this, cx| {
+                                                        this.navigate(story, compact, window, cx)
+                                                    })
+                                                })
+                                            })),
+                                    )
+                            }))
+                            .when(no_results, |panel| {
+                                panel.child(
+                                    div().p_2().child(
+                                        Text::new("No matching components").id("no-components"),
+                                    ),
                                 )
-                                .w_full()
-                                .h(height),
-                            ),
+                            }),
+                    ),
+            )
+    }
+
+    fn foundation(&self, window: &Window, cx: &App) -> impl IntoElement {
+        let appearance = window_material_theme(window, cx).colors.appearance();
+        let status = format!("Display scale {:.0}%", window.scale_factor() * 100.);
+        let theme_status = format!("Window theme {appearance:?}");
+        stack()
+            .child(
+                section("Window and typography")
+                    .child(
+                        Text::new("Material 3 · 中文排版")
+                            .id("typography")
+                            .role(TypeRole::HeadlineSmall),
                     )
                     .child(
                         Surface::new(ColorRole::Surface)
@@ -221,49 +368,247 @@ impl Render for Gallery {
                                     .test_support()
                                     .child(status),
                             ),
-                    )
-                    .child(self.drawing.clone())
-                    .child(self.input.clone())
-                    .child(self.actions.clone())
-                    .child(self.display.clone())
-                    .child(self.sliders.clone())
-                    .child(self.selection.clone())
-                    .child(
-                        Button::new("toggle-theme")
-                            .px_4()
-                            .py_2()
-                            .rounded_full()
-                            .border_2()
-                            .border_color(accent)
-                            .bg(accent)
-                            .text_color(on_accent)
-                            .focus_visible(|style| style.border_color(focus))
-                            .accessibility_label("Switch app theme")
-                            .child("Switch app theme")
-                            .on_click(|_, _, cx| {
-                                let appearance = match material_theme(cx).colors.appearance() {
-                                    Appearance::Light => Appearance::Dark,
-                                    Appearance::Dark => Appearance::Light,
-                                };
-                                let mut theme = material_theme(cx).clone();
-                                theme.colors =
-                                    gpui_material::theme::ColorScheme::baseline(appearance);
-                                set_material_theme(theme, cx);
-                            }),
                     ),
             )
-            .child(div().h(px(88.)).flex_none())
-            .child(FloatingAction::new(
-                Fab::new("floating-theme", "Toggle reduced motion", "◐")
-                    .on_activate(|_, cx| cx.set_reduce_motion(!cx.reduce_motion())),
-            ))
+            .child(section("Shape and interaction").child(self.drawing.clone()))
+            .child(section("Input and overlays").child(self.input.clone()))
+    }
+}
+
+impl Render for Gallery {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = window_material_theme(window, cx);
+        let rtl = theme.layout.direction == Direction::Rtl;
+        let compact = window.viewport_size().width < px(700.);
+        let show_catalog = !compact || self.catalog_open;
+        let show_story = !compact || !self.catalog_open;
+        let toolbar_motion = cx.reduce_motion();
+        let local_theme = self.local_theme;
+        let story_title = self.current.name();
+        let story_content = if self.current == Story::Foundation {
+            self.foundation(window, cx).into_any_element()
+        } else {
+            self.stories
+                .iter()
+                .find(|(story, _)| *story == self.current)
+                .map(|(_, view)| view.clone().into_any_element())
+                .expect("registered story")
+        };
+        let focus = self.content_focus.clone();
+        let search_focus = self.search.read(cx).focus_handle(cx);
+
+        Surface::new(ColorRole::Surface)
+            .size_full()
+            .flex()
+            .flex_col()
+            .child(
+                Surface::new(ColorRole::SurfaceContainerLow)
+                    .flex_none()
+                    .w_full()
+                    .px_3()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap_x_2()
+                    .when(rtl, Styled::flex_row_reverse)
+                    .when(compact, |toolbar| {
+                        toolbar.child(
+                            Button::new(
+                                "browse-components",
+                                if self.catalog_open {
+                                    "Back"
+                                } else {
+                                    "Components"
+                                },
+                            )
+                            .variant(ButtonVariant::Outlined)
+                            .size(ControlSize::ExtraSmall)
+                            .on_activate({
+                                let owner = cx.entity();
+                                move |window, cx| {
+                                    owner.update(cx, |this, cx| {
+                                        this.catalog_open = !this.catalog_open;
+                                        if this.catalog_open {
+                                            search_focus.focus(window, cx);
+                                        } else {
+                                            focus.focus(window, cx);
+                                        }
+                                        cx.notify();
+                                    })
+                                }
+                            }),
+                        )
+                    })
+                    .child(
+                        div().min_w_0().flex_1().child(
+                            Text::new(if compact {
+                                if self.catalog_open {
+                                    "Components"
+                                } else {
+                                    story_title
+                                }
+                            } else {
+                                TITLE
+                            })
+                            .id("gallery-title")
+                            .role(TypeRole::TitleMedium),
+                        ),
+                    )
+                    .child(
+                        Button::new(
+                            "toggle-theme",
+                            if theme.colors.appearance() == Appearance::Dark {
+                                "Light theme"
+                            } else {
+                                "Dark theme"
+                            },
+                        )
+                        .variant(ButtonVariant::Text)
+                        .size(ControlSize::ExtraSmall)
+                        .on_activate(move |window, cx| {
+                            let mut theme = window_material_theme(window, cx).clone();
+                            let appearance = match theme.colors.appearance() {
+                                Appearance::Light => Appearance::Dark,
+                                Appearance::Dark => Appearance::Light,
+                            };
+                            theme.colors = gpui_material::theme::ColorScheme::baseline(appearance);
+                            if local_theme {
+                                set_window_material_theme(Some(theme), window, cx);
+                            } else {
+                                set_material_theme(theme, cx);
+                            }
+                        }),
+                    )
+                    .child(
+                        ToggleButton::new("toggle-motion", "Reduced motion", toolbar_motion)
+                            .variant(ToggleButtonVariant::Outlined)
+                            .size(ControlSize::ExtraSmall)
+                            .on_change(|next, _, cx| cx.set_reduce_motion(next)),
+                    ),
+            )
+            .child(Divider::horizontal())
+            .child(
+                div()
+                    .flex_1()
+                    .min_h_0()
+                    .flex()
+                    .when(rtl, Styled::flex_row_reverse)
+                    .children(show_catalog.then(|| self.catalog(compact, window, cx)))
+                    .when(!compact, |body| body.child(Divider::vertical()))
+                    .children(show_story.then(|| {
+                        div()
+                            .id((ElementId::from("gallery-story-pane"), self.current.id()))
+                            .track_focus(&self.content_focus)
+                            .flex()
+                            .flex_col()
+                            .flex_1()
+                            .min_h_0()
+                            .min_w_0()
+                            .when(!compact, |pane| {
+                                pane.child(
+                                    div().flex_none().px_6().py_4().child(
+                                        Text::new(story_title)
+                                            .id("story-title")
+                                            .role(TypeRole::HeadlineSmall),
+                                    ),
+                                )
+                            })
+                            .child(
+                                div()
+                                    .id("gallery-scroll")
+                                    .tab_group()
+                                    .track_scroll(&self.content_scroll)
+                                    .overflow_y_scroll()
+                                    .flex_1()
+                                    .min_h_0()
+                                    .p_6()
+                                    .child(story_content),
+                            )
+                            .when(self.current == Story::Fab, |pane| {
+                                pane.child(div().h(px(88.)).flex_none())
+                            })
+                    })),
+            )
+            .children((show_story && self.current == Story::Fab).then(|| {
+                FloatingAction::new(
+                    Fab::new("floating-motion", "Toggle reduced motion", "◐")
+                        .on_activate(|_, cx| cx.set_reduce_motion(!cx.reduce_motion())),
+                )
+            }))
     }
 }
 #[cfg(all(test, feature = "test-support"))]
 mod tests {
     use super::*;
-    use gpui::TestAppContext;
+    use gpui::{InputEvent, TestAppContext};
     use gpui_base::{Theme, ThemeAppearance, test_support::find};
+
+    #[gpui::test]
+    fn catalog_filters_and_opens_a_story_on_a_compact_window(cx: &mut TestAppContext) {
+        let handle = cx.update(|cx| {
+            init_gallery(cx);
+            open_gallery(cx, false).unwrap()
+        });
+        cx.simulate_window_resize(handle.into(), size(px(340.), px(560.)));
+
+        let focus_control = |cx: &mut TestAppContext, id: ElementId| {
+            cx.update_window(handle.into(), |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+                let target = find(window, &[], &id).unwrap();
+                assert!(target.visible());
+                let position = target.bounds().center();
+                for input in [
+                    gpui::MouseDownEvent {
+                        button: gpui::MouseButton::Left,
+                        position,
+                        click_count: 1,
+                        first_mouse: false,
+                        modifiers: Default::default(),
+                    }
+                    .to_platform_input(),
+                    gpui::MouseUpEvent {
+                        button: gpui::MouseButton::Left,
+                        position,
+                        click_count: 1,
+                        modifiers: Default::default(),
+                    }
+                    .to_platform_input(),
+                ] {
+                    window.dispatch_event(input, cx);
+                }
+            })
+            .unwrap();
+            cx.run_until_parked();
+        };
+
+        focus_control(cx, "browse-components".into());
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        cx.simulate_input(handle.into(), "slider");
+        cx.run_until_parked();
+        let story = ElementId::from((ElementId::from("gallery-story"), "slider"));
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let excluded = ElementId::from((ElementId::from("gallery-story"), "checkbox"));
+            assert!(find(window, &[], &(excluded, "activate").into()).is_none());
+        })
+        .unwrap();
+        focus_control(cx, (story, "activate").into());
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let level = ElementId::from((ElementId::from("level"), "end"));
+            let slider = find(window, &[], &level).unwrap();
+            assert_eq!(slider.role(), Some(Role::Slider));
+            assert!(slider.visible());
+        })
+        .unwrap();
+    }
 
     #[gpui::test]
     fn projects_theme_and_paints_status_in_two_windows(cx: &mut TestAppContext) {

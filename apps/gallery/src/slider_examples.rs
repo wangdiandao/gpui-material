@@ -1,7 +1,7 @@
-use gpui::{
-    AppContext, Axis, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, div,
-};
+use gpui::{AppContext, Axis, Context, Entity, IntoElement, ParentElement, Render, Window, div};
 use gpui_material::{ControlSize, Slider, SliderKind, SliderState};
+
+use crate::story::{section, stack};
 
 pub(crate) struct SliderExamples {
     level: Entity<SliderState>,
@@ -34,62 +34,70 @@ impl Render for SliderExamples {
         let level = self.level.read(cx).value().end();
         let range = self.range.read(cx).value();
         let balance = self.centered.read(cx).value().end();
-        div()
-            .flex()
-            .flex_col()
-            .gap_2()
-            .child(div().text_lg().child("Sliders"))
-            .child(div().child(format!("Level {level}")))
+        stack()
             .child(
-                Slider::new("level", "Level", &self.level)
-                    .size(ControlSize::Medium)
-                    .icon("+"),
+                section("Discrete")
+                    .child(div().child(format!("Level {level}")))
+                    .child(
+                        Slider::new("level", "Level", &self.level)
+                            .size(ControlSize::Medium)
+                            .icon("+"),
+                    ),
             )
-            .child(div().child(format!("Range {}–{}", range.start(), range.end())))
             .child(
-                Slider::range(
-                    "material-range",
-                    "Minimum level",
-                    "Maximum level",
-                    &self.range,
-                )
-                .size(ControlSize::ExtraSmall),
+                section("Range")
+                    .child(div().child(format!("Range {}–{}", range.start(), range.end())))
+                    .child(
+                        Slider::range(
+                            "material-range",
+                            "Minimum level",
+                            "Maximum level",
+                            &self.range,
+                        )
+                        .size(ControlSize::ExtraSmall),
+                    ),
             )
-            .child(div().child(format!("Balance {balance:.2}")))
             .child(
-                Slider::new("balance", "Balance", &self.centered)
-                    .kind(SliderKind::Centered)
-                    .axis(Axis::Vertical)
-                    .size(ControlSize::Medium)
-                    .icon("±"),
+                section("Centered, vertical")
+                    .child(div().child(format!("Balance {balance:.2}")))
+                    .child(
+                        Slider::new("balance", "Balance", &self.centered)
+                            .kind(SliderKind::Centered)
+                            .axis(Axis::Vertical)
+                            .size(ControlSize::Medium)
+                            .icon("±"),
+                    ),
             )
-            .children(
-                [
-                    ControlSize::Small,
-                    ControlSize::Large,
-                    ControlSize::ExtraLarge,
-                ]
-                .into_iter()
-                .enumerate()
-                .map(|(index, size)| {
-                    let name = format!("{size:?} level");
-                    div().child(name.clone()).child(
-                        Slider::new(("slider-size", index), name, &self.sizes[index])
-                            .size(size)
-                            .icon("+")
-                            .disabled(size == ControlSize::ExtraLarge),
+            .child(
+                section("Sizes and disabled").children(
+                    [
+                        ControlSize::Small,
+                        ControlSize::Large,
+                        ControlSize::ExtraLarge,
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, size)| {
+                        let name = format!("{size:?} level");
+                        div().child(name.clone()).child(
+                            Slider::new(("slider-size", index), name, &self.sizes[index])
+                                .size(size)
+                                .icon("+")
+                                .disabled(size == ControlSize::ExtraLarge),
+                        )
+                    }),
+                ),
+            )
+            .child(
+                section("Overlapping range").child(
+                    Slider::range(
+                        "overlapping-range",
+                        "Overlap start",
+                        "Overlap end",
+                        &self.overlap,
                     )
-                }),
-            )
-            .child(div().child("Overlapping range"))
-            .child(
-                Slider::range(
-                    "overlapping-range",
-                    "Overlap start",
-                    "Overlap end",
-                    &self.overlap,
-                )
-                .size(ControlSize::Large),
+                    .size(ControlSize::Large),
+                ),
             )
     }
 }

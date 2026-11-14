@@ -181,7 +181,16 @@ fn bottom_sheet_cancels_drag_and_accepts_next_gesture(cx: &mut gpui::TestAppCont
                 .unwrap()
                 .bounds()
                 .center();
-            let destination = origin - point(px(0.), px(44.));
+            let handle = find(window, &[], &"drag-handle".into()).unwrap().bounds();
+            let expand = find(window, &[], &"expand".into()).unwrap().bounds();
+            let panel = find(window, &[], &"standard".into()).unwrap().bounds();
+            assert_eq!(handle.size.height, px(48.));
+            assert!(expand.top() >= handle.bottom());
+            assert!(
+                expand.bottom() <= panel.bottom(),
+                "collapsed sheet keeps its action visible"
+            );
+            let destination = origin - point(px(0.), px(36.));
             window.dispatch_event(
                 MouseDownEvent {
                     button: MouseButton::Left,
@@ -260,7 +269,7 @@ fn bottom_sheet_cancels_drag_and_accepts_next_gesture(cx: &mut gpui::TestAppCont
     assert_eq!(height(cx), dragged_height);
     cx.executor()
         .advance_clock(std::time::Duration::from_secs(1));
-    assert_eq!(height(cx), px(88.));
+    assert_eq!(height(cx), px(120.));
 
     let (destination, _) = drag(cx);
     release(cx, destination);
@@ -811,6 +820,15 @@ fn menu_skips_disabled_items_and_restores_trigger(cx: &mut gpui::TestAppContext)
     assert!(collapsed.size.width < expanded.size.width);
     assert!(collapsed.size.height < expanded.size.height);
     assert_eq!(collapsed.top(), expanded.top());
+    cx.update_window(window.into(), |_, window, _| {
+        let row = gpui_base::test_support::find(window, &[], &"labels".into()).unwrap();
+        assert_eq!(
+            row.bounds().size.height,
+            px(48.),
+            "Compose MenuListItemContainerHeight"
+        );
+    })
+    .unwrap();
     cx.simulate_keystrokes(window.into(), "down");
     frame(cx);
     cx.simulate_keystrokes(window.into(), "right");
@@ -995,4 +1013,78 @@ fn rich_tooltip_keeps_its_action_available_while_focused(cx: &mut gpui::TestAppC
         assert!(find(window, &[], &"tooltip-exit".into()).is_none());
     })
     .unwrap();
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn task_dialog_adapts_at_compact_breakpoint_without_losing_state(cx: &mut gpui::TestAppContext) {
+    use gpui::{WindowOptions, size};
+    use gpui_base::test_support::find;
+    use gpui_material::MaterialRoot;
+    use std::time::Duration;
+
+    let (window, state) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut state = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            cx.new(|cx| {
+                let view = ModalExamples::new(Story::Dialog, window, cx);
+                state = Some(view.secondary.clone());
+                view
+            })
+        })
+        .unwrap();
+        (window, state.unwrap())
+    });
+    cx.simulate_window_resize(window.into(), size(px(400.), px(600.)));
+    cx.update_window(window.into(), |_, window, cx| {
+        state.update(cx, |state, cx| state.open(window, cx));
+        window.refresh();
+        window.draw(cx).clear(cx);
+    })
+    .unwrap();
+    cx.executor().advance_clock(Duration::from_millis(250));
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let panel = find(window, &[], &"guidelines-dialog".into())
+            .unwrap()
+            .bounds();
+        let bar = find(window, &[], &"dialog-app-bar".into())
+            .unwrap()
+            .bounds();
+        let body = find(window, &[], &"dialog-content".into())
+            .unwrap()
+            .bounds();
+        assert_eq!(panel.size, window.viewport_size());
+        assert_eq!(bar.size.height, px(56.));
+        assert!(body.top() >= bar.bottom());
+        assert!(body.bottom() <= panel.bottom());
+    })
+    .unwrap();
+    let focus = cx
+        .update_window(window.into(), |_, window, cx| {
+            window.focus_next(cx);
+            window.focused(cx).unwrap()
+        })
+        .unwrap();
+    cx.simulate_window_resize(window.into(), size(px(800.), px(600.)));
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert!(state.read(cx).is_open());
+        assert!(
+            focus.is_focused(window),
+            "resizing preserves the keyboard focus handle"
+        );
+        assert!(find(window, &[], &"dialog-app-bar".into()).is_none());
+        let panel = find(window, &[], &"guidelines-dialog".into())
+            .unwrap()
+            .bounds();
+        assert_eq!(panel.size.width, px(560.));
+        assert!(panel.size.height < window.viewport_size().height);
+    })
+    .unwrap();
+    cx.simulate_keystrokes(window.into(), "escape");
+    cx.update(|cx| assert!(!state.read(cx).is_open()));
 }

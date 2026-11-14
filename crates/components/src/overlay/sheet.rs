@@ -9,7 +9,9 @@ use gpui_base::TestSupportExt as _;
 use gpui_material_foundation::{
     DragCapture, Surface, animate, color, isolated_scroll, scrim_color, window_material_theme,
 };
-use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpec, MotionSpeed, TypeRole};
+use gpui_material_theme::{
+    ColorRole, Direction, Elevation, MotionKind, MotionSpec, MotionSpeed, TypeRole,
+};
 
 use crate::{Button, ButtonVariant, Text};
 
@@ -95,7 +97,8 @@ fn drag_handle(
         .test_support()
         .track_focus(&focus)
         .w_full()
-        .h(px(24.))
+        .h(px(48.))
+        .flex_none()
         .flex()
         .items_center()
         .justify_center()
@@ -148,11 +151,7 @@ fn drag_handle(
 }
 
 fn drag_handle_mark(tint: gpui::Hsla) -> gpui::Div {
-    div()
-        .w(px(32.))
-        .h(px(4.))
-        .rounded_full()
-        .bg(tint.opacity(0.55))
+    div().w(px(32.)).h(px(4.)).rounded_full().bg(tint)
 }
 
 /// A docked or modal Material sheet. Standard sheets take part in parent layout.
@@ -272,7 +271,8 @@ impl RenderOnce for Sheet {
             })
             .read(cx)
             .clone();
-        let collapsed = px(88.).min(extent);
+        // The 48dp handle and 48dp header actions must remain operable at rest.
+        let collapsed = px(48. + 8. + 48. + 16.).min(extent);
         let travel = extent - collapsed;
         let height = if self.expansion.is_some() && bottom {
             let drag = gesture.borrow();
@@ -318,7 +318,8 @@ impl RenderOnce for Sheet {
                     let tint = color(theme.colors.color(ColorRole::OnSurfaceVariant));
                     div()
                         .w_full()
-                        .h(px(24.))
+                        .h(px(48.))
+                        .flex_none()
                         .flex()
                         .items_center()
                         .justify_center()
@@ -326,6 +327,7 @@ impl RenderOnce for Sheet {
                         .into_any_element()
                 }
             });
+        let has_handle = handle.is_some();
         let panel =
             div()
                 .id(self.id.clone())
@@ -354,10 +356,13 @@ impl RenderOnce for Sheet {
                 })
                 .child(
                     Surface::new(ColorRole::SurfaceContainerLow)
+                        .shadow_elevation(Elevation::Level1)
                         .flex()
                         .flex_col()
-                        .gap_2()
-                        .p_4()
+                        .gap(px(8.))
+                        .px(px(16.))
+                        .pb(px(16.))
+                        .when(!has_handle, |surface| surface.pt(px(16.)))
                         .children(handle)
                         .when_else(
                             bottom,
@@ -374,6 +379,7 @@ impl RenderOnce for Sheet {
                         .child(
                             div()
                                 .flex()
+                                .flex_none()
                                 .items_center()
                                 .justify_between()
                                 .gap_2()

@@ -7,10 +7,12 @@ use gpui::{
     px,
 };
 use gpui_base::TestSupportExt;
-use gpui_material_foundation::{Surface, isolated_scroll, scrim_color, window_material_theme};
-use gpui_material_theme::{ColorRole, CornerRole, TypeRole};
+use gpui_material_foundation::{
+    Surface, color, isolated_scroll, scrim_color, window_material_theme,
+};
+use gpui_material_theme::{ColorRole, CornerRole, Elevation, TypeRole};
 
-use crate::{Button, ButtonVariant, Text};
+use crate::{Button, ButtonVariant, IconButton, Text};
 
 pub(super) fn exiting_panel<E: StatefulInteractiveElement + ParentElement>(
     panel: E,
@@ -59,6 +61,8 @@ pub(super) fn exiting_panel<E: StatefulInteractiveElement + ParentElement>(
 pub struct DialogState {
     pub(super) focus: FocusHandle,
     previous: Option<FocusHandle>,
+    cancel_focus: FocusHandle,
+    confirm_focus: FocusHandle,
     open: bool,
     pub(super) scroll: ScrollHandle,
 }
@@ -68,6 +72,8 @@ impl DialogState {
         Self {
             focus: cx.focus_handle(),
             previous: None,
+            cancel_focus: cx.focus_handle(),
+            confirm_focus: cx.focus_handle(),
             open: false,
             scroll: ScrollHandle::new(),
         }
@@ -111,6 +117,8 @@ impl DialogState {
 pub enum DialogVariant {
     #[default]
     Basic,
+    /// Uses a full-screen task surface in compact windows, and a basic dialog
+    /// at wider breakpoints, as required by Material dialog guidance.
     FullScreen,
 }
 
@@ -192,13 +200,15 @@ impl RenderOnce for Dialog {
         let open = state.open;
         let focus = state.focus.clone();
         let scroll = state.scroll.clone();
+        let cancel_focus = state.cancel_focus.clone();
+        let confirm_focus = state.confirm_focus.clone();
         let presence = crate::motion::presence(&self.id, open, 200, window, cx);
         if !presence.should_render() {
             return div().into_any_element();
         }
         let progress = presence.progress;
-        let full_screen = self.variant == DialogVariant::FullScreen;
         let viewport = window.viewport_size();
+        let full_screen = self.variant == DialogVariant::FullScreen && viewport.width < px(600.);
         let theme = window_material_theme(window, cx);
         let rtl = theme.layout.direction == gpui_material_theme::Direction::Rtl;
         let radius = px(CornerRole::ExtraLarge
@@ -208,69 +218,149 @@ impl RenderOnce for Dialog {
         let width = if full_screen {
             viewport.width
         } else {
-            px(480.).min((viewport.width - px(24.)).max(px(0.)))
+            px(560.).min((viewport.width - px(48.)).max(px(0.)))
         };
         let motion_offset = px((1. - progress) * if full_screen { 32. } else { 8. });
-        let surface = Surface::new(ColorRole::SurfaceContainerHigh)
-            .flex()
-            .flex_col()
-            .gap_4()
-            .p_6()
-            .w(width)
-            .max_h(viewport.height)
-            .when_else(
-                full_screen,
-                |surface| surface.h(viewport.height),
-                |surface| surface.rounded(radius),
-            );
         let confirm_action = self.confirm.as_ref().map(|(_, action)| action.clone());
         let close = self.state.clone();
         let click_cancel = close.clone();
         let click_confirm = close.clone();
+        let cancel = move |window: &mut Window, cx: &mut App| {
+            if open {
+                click_cancel.update(cx, |state, cx| state.close(window, cx));
+            }
+        };
+        let confirm = self.confirm.map(|(label, action)| {
+            Button::new("confirm", label)
+                .track_focus(&confirm_focus)
+                .variant(ButtonVariant::Text)
+                .on_activate(move |window, cx| {
+                    if open && action(window, cx) {
+                        click_confirm.update(cx, |state, cx| state.close(window, cx));
+                    }
+                })
+        });
+        let heading = if full_screen {
+            Text::new(self.title.clone())
+                .role(TypeRole::TitleLarge)
+                .into_any_element()
+        } else {
+            super::text_style(
+                div().child(self.title.clone()),
+                TypeRole::HeadlineSmall,
+                1.,
+                window,
+                cx,
+            )
+            .into_any_element()
+        };
+        let supporting = self.description.map(|description| {
+            super::text_style(
+                div()
+                    .id("description")
+                    .role(Role::Label)
+                    .text_color(color(theme.colors.color(ColorRole::OnSurfaceVariant)))
+                    .child(description),
+                TypeRole::BodyMedium,
+                1.,
+                window,
+                cx,
+            )
+        });
+        let mut surface = Surface::new(ColorRole::SurfaceContainerHigh)
+            .flex()
+            .flex_col()
+            .w(width)
+            .max_h(if full_screen {
+                viewport.height
+            } else {
+                (viewport.height - px(48.)).max(px(0.))
+            });
+        if full_screen {
+            // Full-screen dialogs are task surfaces with a persistent app bar,
+            // not enlarged alert dialogs with bottom-aligned confirmation.
+            surface = surface
+                .h(viewport.height)
+                .child(
+                    div()
+                        .id("dialog-app-bar")
+                        .test_support()
+                        .flex()
+                        .flex_none()
+                        .items_center()
+                        .h(px(56.))
+                        .px(px(4.))
+                        .gap(px(8.))
+                        .when(rtl, Styled::flex_row_reverse)
+                        .child(
+                            IconButton::new(
+                                "cancel",
+                                self.cancel,
+                                super::close_icon(
+                                    color(theme.colors.color(ColorRole::OnSurface)),
+                                    1.,
+                                ),
+                            )
+                            .track_focus(&cancel_focus)
+                            .on_activate(cancel),
+                        )
+                        .child(div().flex_1().min_w_0().child(heading))
+                        .children(confirm),
+                )
+                .child(
+                    isolated_scroll("dialog-content", &scroll)
+                        .test_support()
+                        .flex_1()
+                        .min_h_0()
+                        .p(px(24.))
+                        .flex()
+                        .flex_col()
+                        .gap(px(16.))
+                        .children(supporting)
+                        .children(self.body),
+                );
+        } else {
+            surface = surface
+                .rounded(radius)
+                .shadow_elevation(Elevation::Level3)
+                .p(px(24.))
+                .child(div().flex_none().mb(px(16.)).child(heading))
+                .child(
+                    isolated_scroll("dialog-content", &scroll)
+                        .test_support()
+                        .min_h_0()
+                        .flex()
+                        .flex_col()
+                        .gap(px(16.))
+                        .children(supporting)
+                        .children(self.body),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .flex_none()
+                        .mt(px(24.))
+                        .when(rtl, Styled::flex_row_reverse)
+                        .justify_end()
+                        .flex_wrap()
+                        .gap(px(8.))
+                        .child(
+                            Button::new("cancel", self.cancel)
+                                .track_focus(&cancel_focus)
+                                .variant(ButtonVariant::Text)
+                                .on_activate(cancel),
+                        )
+                        .children(confirm),
+                );
+        }
         let panel = div()
             .id(self.id.clone())
+            .test_support()
             .relative()
             .opacity(progress)
             .mt(motion_offset)
             .when(open, |panel| panel.occlude())
-            .child(
-                surface
-                    .child(Text::new(self.title.clone()).role(TypeRole::HeadlineSmall))
-                    .children(self.description.map(|description| {
-                        div().id("description").role(Role::Label).child(description)
-                    }))
-                    .children(self.body.map(|body| {
-                        isolated_scroll("dialog-content", &scroll)
-                            .test_support()
-                            .child(body)
-                    }))
-                    .child(
-                        div()
-                            .flex()
-                            .when(rtl, Styled::flex_row_reverse)
-                            .justify_end()
-                            .flex_wrap()
-                            .gap_2()
-                            .child(
-                                Button::new("cancel", self.cancel)
-                                    .variant(ButtonVariant::Text)
-                                    .on_activate(move |window, cx| {
-                                        if open {
-                                            click_cancel
-                                                .update(cx, |state, cx| state.close(window, cx));
-                                        }
-                                    }),
-                            )
-                            .children(self.confirm.map(|(label, confirm)| {
-                                Button::new("confirm", label).on_activate(move |window, cx| {
-                                    if open && confirm(window, cx) {
-                                        click_confirm
-                                            .update(cx, |state, cx| state.close(window, cx));
-                                    }
-                                })
-                            })),
-                    ),
-            );
+            .child(surface);
         if !open {
             return gpui::deferred(
                 anchored().position(point(px(0.), px(0.))).child(

@@ -341,8 +341,9 @@ fn menu_exit(
     let exit_ink = color(theme.colors.color(ColorRole::OnSurface));
     let exit_muted = color(theme.colors.color(ColorRole::OnSurfaceVariant));
     let exit_selected = color(theme.colors.color(ColorRole::SecondaryContainer));
+    let exit_selected_ink = color(theme.colors.color(ColorRole::OnSecondaryContainer));
     let dp = |value| motion.px(value);
-    let spacing = window.rem_size() * motion.scale;
+    let spacing = motion.px(16.);
     let items = bounds.items.borrow();
     let rows = items
         .iter()
@@ -352,6 +353,8 @@ fn menu_exit(
                 exit_muted
             } else if item.disabled {
                 exit_ink.opacity(0.38)
+            } else if item.selected {
+                exit_selected_ink
             } else {
                 exit_ink
             };
@@ -359,10 +362,10 @@ fn menu_exit(
                 item.group,
                 |row| row.py(spacing * 0.5).child(label.clone()),
                 |row| {
-                    row.min_h(dp(40.))
+                    row.min_h(dp(48.))
                         .flex()
                         .items_center()
-                        .line_height(gpui::relative(1.))
+                        .line_height(dp(20.))
                         .gap(spacing * 0.5)
                         .justify_start()
                         .when(direction == Direction::Rtl, Styled::flex_row_reverse)
@@ -409,9 +412,17 @@ fn menu_exit(
     Some(
         gpui::deferred(
             gpui_base::Positioner::corner(gpui::Anchor::TopLeft, exit.origin).child(
-                ScaledOverlay::new(motion.text(surface, window), motion, move |bounds| {
-                    menu_pivot(bounds, trigger)
-                }),
+                ScaledOverlay::new(
+                    super::text_style(
+                        surface,
+                        gpui_material_theme::TypeRole::LabelLarge,
+                        motion.scale,
+                        window,
+                        cx,
+                    ),
+                    motion,
+                    move |bounds| menu_pivot(bounds, trigger),
+                ),
             ),
         )
         .with_priority(100 + depth)
@@ -432,6 +443,8 @@ fn menu_content(
     let ink = color(theme.colors.color(ColorRole::OnSurface));
     let muted = color(theme.colors.color(ColorRole::OnSurfaceVariant));
     let selected_color = color(theme.colors.color(ColorRole::SecondaryContainer));
+    let selected_ink = color(theme.colors.color(ColorRole::OnSecondaryContainer));
+    let container = color(theme.colors.color(ColorRole::SurfaceContainer));
     let focus = items
         .iter()
         .map(|item| {
@@ -458,7 +471,7 @@ fn menu_content(
     let limit = (viewport.height * 0.7).min(px(420.)) * motion.scale;
     let available_width = (viewport.width - px(16.)).max(px(0.)) * motion.scale;
     let dp = |value| motion.px(value);
-    let spacing = window.rem_size() * motion.scale;
+    let spacing = motion.px(16.);
     let menu = div()
         .id(if close_level.is_some() {
             "submenu-content"
@@ -539,14 +552,37 @@ fn menu_content(
                                 .justify_start()
                                 .gap(spacing * 0.5)
                                 .w_full()
-                                .min_h(dp(40.))
+                                .min_h(dp(48.))
+                                .line_height(dp(20.))
                                 .px(spacing * 0.75)
-                                .text_color(if enabled { ink } else { ink.opacity(0.38) })
+                                .text_color(if !enabled {
+                                    ink.opacity(0.38)
+                                } else if marked {
+                                    selected_ink
+                                } else {
+                                    ink
+                                })
                                 .when(marked, |row| row.bg(selected_color))
                                 .when(direction == Direction::Rtl, Styled::flex_row_reverse)
                                 .when(enabled, |row| {
-                                    row.hover(move |style| style.bg(ink.opacity(0.08)))
-                                        .focus_visible(move |style| style.bg(ink.opacity(0.12)))
+                                    let background =
+                                        if marked { selected_color } else { container };
+                                    let foreground = if marked { selected_ink } else { ink };
+                                    row.hover(move |style| {
+                                        style.bg(background.blend(foreground.opacity(
+                                            gpui_material_theme::StateLayer::Hover.opacity(),
+                                        )))
+                                    })
+                                    .focus_visible(move |style| {
+                                        style.bg(background.blend(foreground.opacity(
+                                            gpui_material_theme::StateLayer::Focus.opacity(),
+                                        )))
+                                    })
+                                    .active(move |style| {
+                                        style.bg(background.blend(foreground.opacity(
+                                            gpui_material_theme::StateLayer::Focus.opacity(),
+                                        )))
+                                    })
                                 })
                                 .when(role == Role::MenuItemCheckBox, |row| {
                                     row.aria_toggled(if marked {
@@ -611,5 +647,12 @@ fn menu_content(
                         }),
                 ),
         );
-    motion.text(menu, window).into_any_element()
+    super::text_style(
+        menu,
+        gpui_material_theme::TypeRole::LabelLarge,
+        motion.scale,
+        window,
+        cx,
+    )
+    .into_any_element()
 }

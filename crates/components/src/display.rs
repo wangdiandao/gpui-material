@@ -1,11 +1,12 @@
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{
-    AccessibleAction, AnyElement, App, Axis, ElementId, InteractiveElement, IntoElement,
-    MouseButton, ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
-    Window, div, prelude::FluentBuilder, px,
+    AccessibleAction, AnyElement, App, Axis, ElementId, FocusHandle, InteractiveElement,
+    IntoElement, MouseButton, ParentElement, RenderOnce, Role, SharedString,
+    StatefulInteractiveElement, Styled, Window, canvas, div, prelude::FluentBuilder, px,
 };
-use gpui_material_foundation::{animate, color, window_material_theme};
+use gpui_base::TestSupportExt;
+use gpui_material_foundation::{animate, color, move_roving_focus, window_material_theme};
 use gpui_material_theme::{
     ColorRole, CornerRole, Direction, Elevation, MotionKind, MotionSpeed, StateLayer, TypeRole,
 };
@@ -77,9 +78,22 @@ impl RenderOnce for Card {
             CardVariant::Filled => (ColorRole::SurfaceContainerHighest, Elevation::Level0, false),
             CardVariant::Outlined => (ColorRole::Surface, Elevation::Level0, true),
         };
-        let border = tone(ColorRole::OutlineVariant, window, cx);
+        let border = if self.disabled {
+            tone(ColorRole::SurfaceContainerLow, window, cx)
+                .blend(tone(ColorRole::Outline, window, cx).opacity(0.12))
+        } else {
+            tone(ColorRole::OutlineVariant, window, cx)
+        };
         let focus = tone(ColorRole::Secondary, window, cx);
-        let background = tone(background, window, cx);
+        let background = if self.disabled {
+            match self.variant {
+                CardVariant::Filled => tone(background, window, cx)
+                    .blend(tone(ColorRole::SurfaceVariant, window, cx).opacity(0.38)),
+                _ => tone(ColorRole::Surface, window, cx),
+            }
+        } else {
+            tone(background, window, cx)
+        };
         let foreground = tone(ColorRole::OnSurface, window, cx);
         let (feedback, opacity) = surface_feedback(
             &self.id,
@@ -89,12 +103,14 @@ impl RenderOnce for Card {
         );
         let hover_elevation = match self.variant {
             CardVariant::Elevated => Elevation::Level2,
-            _ => Elevation::Level1,
+            CardVariant::Filled => Elevation::Level1,
+            // CardDefaults.outlinedCardElevation keeps the surface flat on hover.
+            CardVariant::Outlined => Elevation::Level0,
         };
         let elevation = animate(
             (self.id.clone(), "card-shadow"),
             if self.disabled {
-                0.
+                shadow.dp()
             } else if feedback.get() == Some(StateLayer::Hover) {
                 hover_elevation.dp()
             } else {
@@ -120,10 +136,9 @@ impl RenderOnce for Card {
             .text_color(foreground)
             .when(elevation > 0., |surface| {
                 let shadow = tone(ColorRole::Shadow, window, cx);
-                surface.shadow(vec![
-                    gpui_base::box_shadow(0., elevation * 0.4, elevation, 0., shadow.opacity(0.18)),
-                    gpui_base::box_shadow(0., 1., elevation * 0.5, 0., shadow.opacity(0.13)),
-                ])
+                surface.shadow(gpui_material_foundation::elevation_shadows(
+                    elevation, 1., shadow,
+                ))
             })
             .border_1()
             .border_color(if outline {
@@ -131,12 +146,11 @@ impl RenderOnce for Card {
             } else {
                 gpui::transparent_black()
             })
-            .when(self.disabled, |card| card.opacity(0.55))
             .w_full()
-            .p_4()
+            .p(px(16.))
             .flex()
             .flex_col()
-            .gap_2()
+            .gap(px(8.))
             .when(interactive, |surface| {
                 surface.child(ripple_ink(
                     ripple.clone(),
@@ -145,7 +159,16 @@ impl RenderOnce for Card {
                     direction,
                 ))
             })
-            .children(self.children)
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(8.))
+                    .when(self.disabled, |content| {
+                        content.text_color(foreground.opacity(0.38))
+                    })
+                    .children(self.children),
+            )
             .when(interactive, |surface| ripple_target(surface, ripple));
         match self.activation {
             Some((name, activate)) => {
@@ -247,7 +270,13 @@ impl ListItem {
         self
     }
 
-    fn row(self, corners: [f32; 4], window: &mut Window, cx: &mut App) -> AnyElement {
+    fn row(
+        self,
+        corners: [f32; 4],
+        focus: Option<(&FocusHandle, bool)>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> AnyElement {
         let motion = window_material_theme(window, cx).motion;
         let reduced = cx.reduce_motion();
         let effects = motion.spec(MotionKind::Effects, MotionSpeed::Default, reduced);
@@ -273,25 +302,45 @@ impl ListItem {
         });
         let background = crate::motion::mix(
             tone(ColorRole::Surface, window, cx),
-            tone(ColorRole::SecondaryContainer, window, cx),
+            if self.disabled {
+                tone(ColorRole::OnSurface, window, cx).opacity(0.38)
+            } else {
+                tone(ColorRole::SecondaryContainer, window, cx)
+            },
             selection,
         );
-        let foreground = if self.selected {
+        let foreground = if self.selected && !self.disabled {
             ColorRole::OnSecondaryContainer
         } else {
             ColorRole::OnSurface
         };
-        let secondary = if self.selected {
+        let secondary = if self.disabled {
+            ColorRole::OnSurface
+        } else if self.selected {
             ColorRole::OnSecondaryContainer
         } else {
             ColorRole::OnSurfaceVariant
         };
+        let text_height = window
+            .use_keyed_state((self.id.clone(), "list-text-height"), cx, |_, _| {
+                Rc::new(Cell::new(px(0.)))
+            })
+            .read(cx)
+            .clone();
+        let measure = text_height.clone();
+        let three_lines = self.overline.is_some() && self.supporting.is_some()
+            || self
+                .supporting
+                .as_ref()
+                .is_some_and(|text| text.contains('\n'))
+            || text_height.get() > px(44.);
         let height = match (self.overline.is_some(), self.supporting.is_some()) {
+            _ if three_lines => 88.,
             (false, false) => 56.,
-            (true, true) => 88.,
             _ => 72.,
         };
         let content = div()
+            .relative()
             .flex()
             .flex_col()
             .flex_1()
@@ -309,9 +358,22 @@ impl ListItem {
                     .id("supporting")
                     .role(TypeRole::BodyMedium)
                     .color(secondary)
-            }));
+                    .wrap()
+            }))
+            .child(
+                canvas(
+                    move |bounds, window, _| {
+                        if measure.replace(bounds.size.height) != bounds.size.height {
+                            window.refresh();
+                        }
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .inset_0(),
+            );
         let state_layer = tone(foreground, window, cx);
-        let focus = tone(ColorRole::Secondary, window, cx);
+        let focus_ring = tone(ColorRole::Secondary, window, cx);
         let (feedback, opacity) = surface_feedback(
             &self.id,
             self.activation.is_some() && !self.disabled,
@@ -327,10 +389,10 @@ impl ListItem {
             .min_h(px(height))
             .w_full()
             .flex()
-            .items_center()
-            .gap_3()
-            .px_4()
-            .py(px(10.))
+            .when_else(three_lines, Styled::items_start, Styled::items_center)
+            .gap(px(12.))
+            .px(px(16.))
+            .py(px(if three_lines { 12. } else { 10. }))
             .when(
                 window_material_theme(window, cx).layout.direction == Direction::Rtl,
                 Styled::flex_row_reverse,
@@ -340,7 +402,6 @@ impl ListItem {
             .rounded_br(px(corners[2]))
             .rounded_bl(px(corners[3]))
             .bg(background.blend(state_layer.opacity(opacity)))
-            .when(self.disabled, |row| row.opacity(0.55))
             .when(interactive, |row| {
                 row.child(ripple_ink(
                     ripple.clone(),
@@ -350,13 +411,28 @@ impl ListItem {
                 ))
             })
             .when(interactive, |row| ripple_target(row, ripple))
-            .children(self.leading)
-            .child(content)
-            .children(self.trailing);
+            .children(self.leading.map(|leading| {
+                div()
+                    .when(self.disabled, |part| {
+                        part.text_color(tone(ColorRole::OnSurface, window, cx).opacity(0.38))
+                    })
+                    .child(leading)
+            }))
+            .child(content.when(self.disabled, |content| content.opacity(0.38)))
+            .children(self.trailing.map(|trailing| {
+                div()
+                    .when(self.disabled, |part| {
+                        part.text_color(tone(ColorRole::OnSurface, window, cx).opacity(0.38))
+                    })
+                    .child(trailing)
+            }));
         let row = match self.activation {
             Some(activate) => {
                 let invoke = activate.clone();
                 gpui_base::Button::new((self.id.clone(), "activate"))
+                    .when_some(focus, |button, (focus, tab_stop)| {
+                        button.track_focus(focus).tab_stop(tab_stop)
+                    })
                     .when(!self.disabled, |button| monitor_surface(button, feedback))
                     .w_full()
                     .accessibility_label(self.label)
@@ -365,7 +441,7 @@ impl ListItem {
                     .border_2()
                     .border_color(gpui::transparent_black())
                     .rounded_md()
-                    .focus_visible(move |style| style.border_color(focus))
+                    .focus_visible(move |style| style.border_color(focus_ring))
                     .when(!self.disabled, |control| {
                         control.on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
                             invoke(window, cx)
@@ -383,6 +459,7 @@ impl ListItem {
         div()
             .id(self.id)
             .role(Role::ListItem)
+            .test_support()
             .aria_selected(self.selected)
             .child(row)
             .into_any_element()
@@ -391,7 +468,7 @@ impl ListItem {
 
 impl RenderOnce for ListItem {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        self.row([0.; 4], window, cx)
+        self.row([0.; 4], None, window, cx)
     }
 }
 
@@ -427,12 +504,66 @@ impl List {
 impl RenderOnce for List {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let last = self.items.len().saturating_sub(1);
+        let direction = window_material_theme(window, cx).layout.direction;
+        let focus: Vec<_> = self
+            .items
+            .iter()
+            .map(|item| {
+                window.with_id((self.id.clone(), "list-focus"), |window| {
+                    window
+                        .use_keyed_state(item.id.clone(), cx, |_, cx| cx.focus_handle())
+                        .read(cx)
+                        .clone()
+                })
+            })
+            .collect();
+        let enabled: Vec<_> = self
+            .items
+            .iter()
+            .map(|item| !item.disabled && item.activation.is_some())
+            .collect();
+        let tab_stop = focus
+            .iter()
+            .enumerate()
+            .position(|(ix, focus)| enabled[ix] && focus.is_focused(window))
+            .or_else(|| {
+                self.items
+                    .iter()
+                    .enumerate()
+                    .position(|(ix, item)| enabled[ix] && item.selected)
+            })
+            .or_else(|| enabled.iter().position(|enabled| *enabled));
+        let navigation = focus.clone();
         div()
             .id(self.id)
             .role(Role::List)
             .flex()
             .flex_col()
             .w_full()
+            .on_key_down(move |event, window, cx| {
+                // Nested controls keep their own arrow-key behavior.
+                if !navigation.iter().any(|focus| focus.is_focused(window)) {
+                    return;
+                }
+                let items: Vec<_> = navigation
+                    .iter()
+                    .zip(&enabled)
+                    .map(|(focus, enabled)| (focus, *enabled))
+                    .collect();
+                if move_roving_focus(
+                    &items,
+                    &event.keystroke.key,
+                    Axis::Vertical,
+                    direction,
+                    window,
+                    cx,
+                )
+                .is_some()
+                {
+                    cx.stop_propagation();
+                    window.refresh();
+                }
+            })
             .when(self.variant == ListVariant::Segmented, |list| {
                 list.gap(px(2.))
             })
@@ -446,7 +577,12 @@ impl RenderOnce for List {
                     let bottom = if ix == last { 16. } else { 4. };
                     [top, top, bottom, bottom]
                 };
-                item.row(corners, window, cx)
+                item.row(
+                    corners,
+                    Some((&focus[ix], Some(ix) == tab_stop)),
+                    window,
+                    cx,
+                )
             }))
     }
 }
@@ -557,14 +693,23 @@ impl RenderOnce for Badge {
                 |badge| badge.right(gpui::relative(1.)).mr(-overlap),
                 |badge| badge.left(gpui::relative(1.)).ml(-overlap),
             )
-            .when(large, |badge| badge.px_1())
+            .when(large, |badge| badge.px(px(4.)))
             .bg(tone(ColorRole::Error, window, cx))
             .text_color(tone(ColorRole::OnError, window, cx))
             .flex()
             .items_center()
             .justify_center()
-            .text_size(px(11.))
-            .children(self.text);
+            .children(self.text.map(|text| {
+                crate::text::single_line(
+                    text,
+                    TypeRole::LabelSmall.style(gpui_material_theme::TypographyEmphasis::Baseline),
+                    1.,
+                    tone(ColorRole::OnError, window, cx),
+                    (None, 1., 1.),
+                    window,
+                    cx,
+                )
+            }));
         div().relative().child(self.host).child(mark)
     }
 }

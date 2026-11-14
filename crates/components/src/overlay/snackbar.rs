@@ -8,7 +8,7 @@ use gpui::{
 };
 use gpui_base::TestSupportExt as _;
 use gpui_material_foundation::{Surface, color, window_material_theme};
-use gpui_material_theme::{ColorRole, Direction, Elevation};
+use gpui_material_theme::{ColorRole, Direction, Elevation, TypeRole};
 
 type Action = Rc<dyn Fn(&mut Window, &mut App)>;
 
@@ -165,25 +165,33 @@ fn snackbar_surface(
 ) -> impl IntoElement {
     let theme = window_material_theme(window, cx);
     let action_color = color(theme.colors.color(ColorRole::InversePrimary));
+    let icon_color = color(theme.colors.color(ColorRole::InverseOnSurface));
     let rtl = theme.layout.direction == Direction::Rtl;
-    let spacing = window.rem_size() * motion.scale;
+    let spacing = motion.px(16.);
     let control = move |button: gpui_base::Button| {
         button
-            .min_h(motion.px(36.))
+            .min_h(motion.px(48.))
             .px(spacing * 0.5)
             .rounded(spacing * 0.375)
             .text_color(action_color)
-            .hover(move |style| style.bg(action_color.opacity(0.12)))
+            .font_weight(gpui::FontWeight::MEDIUM)
+            .hover(move |style| {
+                style.bg(action_color.opacity(gpui_material_theme::StateLayer::Hover.opacity()))
+            })
+            .active(move |style| {
+                style.bg(action_color.opacity(gpui_material_theme::StateLayer::Pressed.opacity()))
+            })
             .focus_visible(move |style| style.border(motion.px(2.)).border_color(action_color))
     };
     let passive = move |label: SharedString| {
         div()
-            .min_h(motion.px(36.))
+            .min_h(motion.px(48.))
             .px(spacing * 0.5)
             .flex()
             .items_center()
             .line_height(gpui::relative(1.))
             .text_color(action_color)
+            .font_weight(gpui::FontWeight::MEDIUM)
             .child(label)
     };
     let surface = div()
@@ -200,7 +208,6 @@ fn snackbar_surface(
                 .min_h(motion.px(48.))
                 .gap(spacing * 0.5)
                 .px(spacing)
-                .py(spacing * 0.25)
                 .rounded(spacing * 0.25)
                 .when(rtl, Styled::flex_row_reverse)
                 .child(
@@ -219,6 +226,7 @@ fn snackbar_surface(
                         })
                         .min_w_0()
                         .flex_1()
+                        .py(motion.px(14.))
                         .child(message.message.clone()),
                 )
                 .when_some(message.action.as_ref(), |surface, (label, _)| {
@@ -248,11 +256,20 @@ fn snackbar_surface(
                                 .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
                                     this.finish(id, false, window, cx);
                                 }))
-                                .child("Dismiss"),
+                                .child(super::close_icon(icon_color, motion.scale)),
                         )
                     },
-                    |surface| surface.child(passive("Dismiss".into())),
+                    |surface| {
+                        surface.child(
+                            div()
+                                .size(motion.px(48.))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(super::close_icon(icon_color, motion.scale)),
+                        )
+                    },
                 ),
         );
-    motion.text(surface, window)
+    super::text_style(surface, TypeRole::BodyMedium, motion.scale, window, cx)
 }

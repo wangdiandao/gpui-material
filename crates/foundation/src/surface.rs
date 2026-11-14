@@ -16,6 +16,20 @@ pub fn scrim_color(theme: &MaterialTheme, opacity: f32) -> Hsla {
     color(theme.colors.color(ColorRole::Scrim)).opacity(opacity.clamp(0., 1.))
 }
 
+/// Desktop shadow projection shared by surfaces and custom-painted controls.
+/// `elevation` is in Material logical units; `scale` follows the component geometry.
+/// Compose delegates shadows to its platform renderer; GPUI uses these two layers.
+pub fn elevation_shadows(elevation: f32, scale: f32, shadow: Hsla) -> Vec<gpui::BoxShadow> {
+    let dp = elevation * scale;
+    if !dp.is_finite() || dp <= 0. || !scale.is_finite() || scale <= 0. {
+        return Vec::new();
+    }
+    vec![
+        gpui_base::box_shadow(0., dp * 0.4, dp, 0., shadow.opacity(0.18)),
+        gpui_base::box_shadow(0., scale, dp * 0.5, 0., shadow.opacity(0.13)),
+    ]
+}
+
 /// A Material surface with semantic foreground, tonal elevation, and optional shadow.
 #[derive(IntoElement)]
 pub struct Surface {
@@ -90,13 +104,13 @@ impl RenderOnce for Surface {
         if let Some(pair) = scheme.pair(self.role) {
             element = element.text_color(color(pair.foreground));
         }
-        let dp = self.shadow_elevation.dp() * self.shadow_scale;
-        if dp > 0. {
-            let shadow = color(scheme.color(ColorRole::Shadow));
-            element = element.shadow(vec![
-                gpui_base::box_shadow(0., dp * 0.4, dp, 0., shadow.opacity(0.18)),
-                gpui_base::box_shadow(0., self.shadow_scale, dp * 0.5, 0., shadow.opacity(0.13)),
-            ]);
+        let shadows = elevation_shadows(
+            self.shadow_elevation.dp(),
+            self.shadow_scale,
+            color(scheme.color(ColorRole::Shadow)),
+        );
+        if !shadows.is_empty() {
+            element = element.shadow(shadows);
         }
         element
     }

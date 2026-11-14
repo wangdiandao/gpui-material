@@ -10,7 +10,9 @@ use gpui_material_theme::{
     TypographyEmphasis,
 };
 
-use crate::action::{Action, ActionControl, ActionStyle, Activate, Change, icon_slot};
+use crate::action::{
+    Action, ActionControl, ActionStyle, Activate, Change, DisabledStyle, icon_slot,
+};
 
 /// Material Expressive sizes, from extra small to extra large.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -228,8 +230,10 @@ impl Slots {
         metrics: Metrics,
         scale: f32,
         window: &Window,
-        direction: Direction,
+        tint: gpui::Hsla,
+        cx: &App,
     ) -> AnyElement {
+        let direction = window_material_theme(window, cx).layout.direction;
         let typography = metrics.label.style(TypographyEmphasis::Baseline);
         let mut row = div()
             .flex()
@@ -252,7 +256,15 @@ impl Slots {
             self.leading
                 .map(|icon| icon_slot(icon, metrics.icon * scale)),
         )
-        .child(div().min_w_0().truncate().child(label))
+        .child(crate::text::single_line(
+            label,
+            typography,
+            scale,
+            tint,
+            (None, 1., 1.),
+            window,
+            cx,
+        ))
         .children(
             self.trailing
                 .map(|icon| icon_slot(icon, metrics.icon * scale)),
@@ -322,13 +334,18 @@ impl RenderOnce for Button {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let metrics = self.common.size.metrics();
         let appearance = button_appearance(self.variant, None);
-        let style = appearance.style(metrics, self.common.shape.corner(metrics.square, false), 0.);
+        let style = appearance.style(
+            metrics,
+            self.common.shape.corner(metrics.square, false),
+            58.,
+        );
         let content = self.slots.render(
             self.common.label.clone(),
             metrics,
             self.scale,
             window,
-            window_material_theme(window, cx).layout.direction,
+            style.foreground(self.common.disabled, window, cx),
+            cx,
         );
         self.common.render_scaled(
             content,
@@ -397,7 +414,8 @@ impl RenderOnce for ToggleButton {
             metrics,
             1.,
             window,
-            window_material_theme(window, cx).layout.direction,
+            style.foreground(self.common.disabled, window, cx),
+            cx,
         );
         self.common.render(
             content,
@@ -560,6 +578,7 @@ struct Appearance {
     background: Option<ColorRole>,
     foreground: ColorRole,
     outlined: bool,
+    disabled: DisabledStyle,
     elevation: Elevation,
     hover_elevation: Elevation,
 }
@@ -570,6 +589,7 @@ impl Appearance {
             background: self.background,
             background_color: None,
             foreground: self.foreground,
+            disabled: self.disabled,
             height: metrics.height,
             min_width,
             corner,
@@ -615,12 +635,29 @@ fn button_appearance(variant: ButtonVariant, selected: Option<bool>) -> Appearan
             Level0,
         ),
         (ButtonVariant::Outlined, _) => (None, OnSurfaceVariant, true, Level0, Level0),
-        (ButtonVariant::Text, _) => (None, OnSurfaceVariant, false, Level0, Level0),
+        // Compose overrides the outdated TextButtonTokens.LabelColor to Primary.
+        (ButtonVariant::Text, _) => (None, Primary, false, Level0, Level0),
     };
     Appearance {
         background,
         foreground,
         outlined,
+        disabled: DisabledStyle {
+            // FilledTonalButton retains the baseline tokens; the expressive
+            // toggle uses TonalButtonTokens instead.
+            foreground: if variant == ButtonVariant::FilledTonal && selected.is_none() {
+                OnSurface
+            } else {
+                OnSurfaceVariant
+            },
+            background: match (variant, selected) {
+                (ButtonVariant::Outlined, Some(_)) => Some((OutlineVariant, 0.10)),
+                (ButtonVariant::Outlined | ButtonVariant::Text, _) => None,
+                (ButtonVariant::FilledTonal, None) => Some((OnSurface, 0.12)),
+                _ => Some((OnSurface, 0.10)),
+            },
+            outline: (OutlineVariant, 0.10),
+        },
         elevation,
         hover_elevation,
     }
@@ -633,9 +670,96 @@ fn icon_appearance(variant: IconButtonVariant, selected: Option<bool>) -> Appear
         IconButtonVariant::FilledTonal => button_appearance(ButtonVariant::FilledTonal, selected),
         IconButtonVariant::Outlined => button_appearance(ButtonVariant::Outlined, selected),
     };
-    if variant == IconButtonVariant::Standard && selected == Some(true) {
-        appearance.foreground = ColorRole::Primary;
+    if variant == IconButtonVariant::Standard {
+        appearance.foreground = if selected == Some(true) {
+            ColorRole::Primary
+        } else {
+            ColorRole::OnSurfaceVariant
+        };
     }
+    appearance.disabled = DisabledStyle {
+        foreground: ColorRole::OnSurface,
+        // Compose icon toggle disabled colors do not depend on selection.
+        background: match variant {
+            IconButtonVariant::Filled | IconButtonVariant::FilledTonal => {
+                Some((ColorRole::OnSurface, 0.10))
+            }
+            IconButtonVariant::Standard | IconButtonVariant::Outlined => None,
+        },
+        outline: (ColorRole::OutlineVariant, 0.38),
+    };
     appearance.hover_elevation = Elevation::Level0;
     appearance
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn text_action_and_standard_icon_keep_distinct_compose_colors() {
+        // Button.kt corrects TextButtonTokens.LabelColor, whereas a standard
+        // icon remains neutral until selected (IconButtonDefaults.kt).
+        assert_eq!(
+            button_appearance(ButtonVariant::Text, None).foreground,
+            ColorRole::Primary
+        );
+        for selected in [None, Some(false)] {
+            assert_eq!(
+                icon_appearance(IconButtonVariant::Standard, selected).foreground,
+                ColorRole::OnSurfaceVariant
+            );
+        }
+        assert_eq!(
+            icon_appearance(IconButtonVariant::Standard, Some(true)).foreground,
+            ColorRole::Primary
+        );
+    }
+
+    #[test]
+    fn disabled_tokens_are_not_inferred_from_enabled_selection_colors() {
+        use ColorRole::*;
+        for selected in [Some(false), Some(true)] {
+            let outlined = button_appearance(ButtonVariant::Outlined, selected);
+            assert_eq!(outlined.disabled.background, Some((OutlineVariant, 0.10)));
+            assert_eq!(outlined.disabled.foreground, OnSurfaceVariant);
+            assert_eq!(outlined.disabled.outline, (OutlineVariant, 0.10));
+            let icon = icon_appearance(IconButtonVariant::Outlined, selected);
+            assert_eq!(icon.disabled.background, None);
+            assert_eq!(icon.disabled.foreground, OnSurface);
+            assert_eq!(icon.disabled.outline, (OutlineVariant, 0.38));
+        }
+        assert_eq!(
+            button_appearance(ButtonVariant::Outlined, None)
+                .disabled
+                .background,
+            None
+        );
+        assert_eq!(
+            button_appearance(ButtonVariant::Filled, None)
+                .disabled
+                .background,
+            Some((OnSurface, 0.10))
+        );
+        // FilledTonalButton and its expressive toggle reference different token
+        // generations in the pinned Compose release.
+        assert_eq!(
+            button_appearance(ButtonVariant::FilledTonal, None)
+                .disabled
+                .background,
+            Some((OnSurface, 0.12))
+        );
+        assert_eq!(
+            button_appearance(ButtonVariant::FilledTonal, Some(false))
+                .disabled
+                .background,
+            Some((OnSurface, 0.10))
+        );
+        assert_eq!(
+            icon_appearance(IconButtonVariant::FilledTonal, None)
+                .disabled
+                .background,
+            Some((OnSurface, 0.10))
+        );
+    }
 }

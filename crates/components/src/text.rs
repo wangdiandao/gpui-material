@@ -3,7 +3,8 @@ use gpui::{
     RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, TextAlign, Transformation,
     Window, canvas, div, prelude::FluentBuilder, px, size, svg,
 };
-use gpui_material_foundation::{color, shape_text, window_material_theme};
+use gpui_base::TestSupportExt;
+use gpui_material_foundation::{color, shape_text, window_material_theme, wrapped_text};
 use gpui_material_theme::{ColorRole, Direction, TypeRole, TypeStyle, TypographyEmphasis};
 
 /// Single-line Material text. Measurement and painting share Foundation's
@@ -15,8 +16,9 @@ pub struct Text {
     role: TypeRole,
     emphasis: TypographyEmphasis,
     font_scale: f32,
-    color: ColorRole,
+    color: Option<ColorRole>,
     max_width: Option<gpui::Pixels>,
+    wrap: bool,
 }
 
 impl Text {
@@ -27,8 +29,9 @@ impl Text {
             role: TypeRole::BodyLarge,
             emphasis: TypographyEmphasis::Baseline,
             font_scale: 1.,
-            color: ColorRole::OnSurface,
+            color: None,
             max_width: None,
+            wrap: false,
         }
     }
 
@@ -58,31 +61,56 @@ impl Text {
     }
 
     pub fn color(mut self, role: ColorRole) -> Self {
-        self.color = role;
+        self.color = Some(role);
         self
     }
 
     pub fn truncate(mut self, max_width: gpui::Pixels) -> Self {
         self.max_width = Some(max_width.max(px(0.)));
+        self.wrap = false;
+        self
+    }
+
+    /// Wraps at the available width and preserves explicit line breaks.
+    /// This uses GPUI's native Unicode layout, whose pinned version does not
+    /// expose custom tracking for wrapped text. Single-line text retains tracking.
+    pub fn wrap(mut self) -> Self {
+        self.wrap = true;
+        self.max_width = None;
         self
     }
 }
 
 impl RenderOnce for Text {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let tint = color(window_material_theme(window, cx).colors.color(self.color));
-        single_line(
-            self.value.clone(),
-            self.role.style(self.emphasis),
-            self.font_scale,
-            tint,
-            (self.max_width, 1., 1.),
-            window,
-            cx,
-        )
-        .id(self.id.unwrap_or_else(|| "material-text".into()))
-        .role(Role::Label)
-        .aria_label(self.value)
+        let tint = self.color.map_or_else(
+            || window.text_style().color,
+            |role| color(window_material_theme(window, cx).colors.color(role)),
+        );
+        let text = if self.wrap {
+            wrapped_text(
+                self.value.clone(),
+                self.role.style(self.emphasis),
+                self.font_scale,
+                tint,
+                window,
+                cx,
+            )
+        } else {
+            single_line(
+                self.value.clone(),
+                self.role.style(self.emphasis),
+                self.font_scale,
+                tint,
+                (self.max_width, 1., 1.),
+                window,
+                cx,
+            )
+        };
+        text.id(self.id.unwrap_or_else(|| "material-text".into()))
+            .test_support()
+            .role(Role::Label)
+            .aria_label(self.value)
     }
 }
 

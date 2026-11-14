@@ -49,7 +49,9 @@ fn selection_target(
     enabled: bool,
     ripple: Rc<std::cell::RefCell<FeedbackState>>,
     direction: Direction,
+    reduced_motion: bool,
 ) -> Div {
+    let static_pressed = enabled && reduced_motion && ripple.borrow().pressed();
     div()
         .size(px(48.))
         .flex_none()
@@ -68,11 +70,18 @@ fn selection_target(
                 .when(enabled, |target| {
                     let hover = id.clone();
                     target
-                        .group_hover(hover, |style| {
-                            style.bg(accent.opacity(StateLayer::Hover.opacity()))
+                        .when(static_pressed, |target| {
+                            target.bg(accent.opacity(StateLayer::Pressed.opacity()))
                         })
-                        .group_active(id, |style| {
-                            style.bg(accent.opacity(StateLayer::Pressed.opacity()))
+                        .when(!static_pressed, |target| {
+                            target.group_hover(hover, |style| {
+                                style.bg(accent.opacity(StateLayer::Hover.opacity()))
+                            })
+                        })
+                        .when(reduced_motion, |target| {
+                            target.group_active(id, |style| {
+                                style.bg(accent.opacity(StateLayer::Pressed.opacity()))
+                            })
                         })
                 })
                 .child(ripple_ink(
@@ -270,6 +279,7 @@ impl RenderOnce for Checkbox {
                         !self.disabled,
                         ripple,
                         direction,
+                        cx.reduce_motion(),
                     ))
                     .child(label),
             );
@@ -393,6 +403,7 @@ impl Radio {
                         !self.disabled,
                         ripple,
                         direction,
+                        cx.reduce_motion(),
                     ))
                     .child(div().min_w_0().truncate().child(self.label)),
             )
@@ -621,20 +632,31 @@ impl RenderOnce for Switch {
         )
         .clamp(0., 1.);
         let outline = tone(Outline, window, cx);
+        // Compose precomposites disabled switch pigments over surface. Keeping
+        // these translucent lets the track bleed through the handle and icon.
+        let disabled_tone = |role, opacity| {
+            tone(Surface, window, cx).blend(tone(role, window, cx).opacity(opacity))
+        };
         let (track, thumb, outline) = if self.disabled {
             (
-                if self.checked {
-                    tone(OnSurface, window, cx)
-                } else {
-                    tone(SurfaceContainerHighest, window, cx)
-                }
-                .opacity(0.12),
+                disabled_tone(
+                    if self.checked {
+                        OnSurface
+                    } else {
+                        SurfaceContainerHighest
+                    },
+                    0.12,
+                ),
                 if self.checked {
                     tone(Surface, window, cx)
                 } else {
-                    tone(OnSurface, window, cx).opacity(0.38)
+                    disabled_tone(OnSurface, 0.38)
                 },
-                tone(OnSurface, window, cx).opacity(if self.checked { 0. } else { 0.12 }),
+                if self.checked {
+                    gpui::transparent_black()
+                } else {
+                    disabled_tone(OnSurface, 0.12)
+                },
             )
         } else {
             (
@@ -647,6 +669,26 @@ impl RenderOnce for Switch {
                 outline.opacity(1. - tint),
             )
         };
+        let icon_color = if self.disabled {
+            disabled_tone(
+                if self.checked {
+                    OnSurface
+                } else {
+                    SurfaceContainerHighest
+                },
+                0.38,
+            )
+        } else {
+            tone(
+                if self.checked {
+                    OnPrimaryContainer
+                } else {
+                    SurfaceContainerHighest
+                },
+                window,
+                cx,
+            )
+        };
         let icon = if self.checked {
             self.checked_icon
         } else {
@@ -657,16 +699,8 @@ impl RenderOnce for Switch {
         } else {
             16.
         };
-        let pressed = window
-            .use_keyed_state((self.id.clone(), "switch-press"), cx, |_, _| {
-                Rc::new(std::cell::Cell::new(false))
-            })
-            .read(cx)
-            .clone();
-        let active = !self.disabled && window.is_window_active() && pressed.get();
-        if !window.is_window_active() || self.disabled {
-            pressed.set(false);
-        }
+        let ripple = ripple_state(&self.id, !self.disabled, window, cx);
+        let active = ripple.borrow().pressed();
         let diameter = animate(
             (self.id.clone(), "thumb-diameter"),
             if active { 28. } else { normal_size },
@@ -689,8 +723,8 @@ impl RenderOnce for Switch {
         );
         // Offset and diameter are sampled independently, including a reversal on release.
         let offset = px(offset.clamp(2., 50. - diameter));
-        let ripple = ripple_state(&self.id, !self.disabled, window, cx);
         let ink = ripple.clone();
+        let group: SharedString = format!("material-switch/{}", self.id).into();
         let handle = div()
             .absolute()
             .top_0()
@@ -709,33 +743,48 @@ impl RenderOnce for Switch {
                     .size(px(diameter))
                     .rounded_full()
                     .bg(thumb)
-                    .text_color(tone(
-                        if self.checked {
-                            OnPrimaryContainer
-                        } else {
-                            SurfaceContainerHighest
-                        },
-                        window,
-                        cx,
-                    ))
+                    .text_color(icon_color)
                     .text_size(px(16.))
                     .flex()
                     .items_center()
                     .justify_center()
-                    .child(ripple_ink(
-                        ink,
-                        tone(
-                            if self.checked {
-                                OnPrimaryContainer
-                            } else {
-                                OnSurface
-                            },
-                            window,
-                            cx,
-                        ),
-                        gpui_material_theme::CornerRole::Full.shape(),
-                        direction,
-                    ))
+                    .child(
+                        div()
+                            .id("switch-state-layer")
+                            .absolute()
+                            .size(px(40.))
+                            .left(px((diameter - 40.) / 2.))
+                            .top(px((diameter - 40.) / 2.))
+                            .rounded_full()
+                            .when(!self.disabled, |layer| {
+                                let accent = tone(
+                                    if self.checked { Primary } else { OnSurface },
+                                    window,
+                                    cx,
+                                );
+                                let static_pressed = active && cx.reduce_motion();
+                                layer
+                                    .when(static_pressed, |layer| {
+                                        layer.bg(accent.opacity(StateLayer::Pressed.opacity()))
+                                    })
+                                    .when(!static_pressed, |layer| {
+                                        layer.group_hover(group.clone(), move |style| {
+                                            style.bg(accent.opacity(StateLayer::Hover.opacity()))
+                                        })
+                                    })
+                                    .when(cx.reduce_motion(), |layer| {
+                                        layer.group_active(group.clone(), move |style| {
+                                            style.bg(accent.opacity(StateLayer::Pressed.opacity()))
+                                        })
+                                    })
+                            })
+                            .child(ripple_ink(
+                                ink,
+                                tone(if self.checked { Primary } else { OnSurface }, window, cx),
+                                gpui_material_theme::CornerRole::Full.shape(),
+                                direction,
+                            )),
+                    )
                     .children(icon),
             );
         let track = div()
@@ -757,34 +806,12 @@ impl RenderOnce for Switch {
                 )
             })
             .child(handle);
-        let press_start = pressed.clone();
-        let release = pressed.clone();
-        let release_outside = pressed.clone();
-        let leave = pressed;
         let control = BaseSwitch::new(self.id)
             .checked(self.checked)
             .disabled(self.disabled)
+            .group(group)
             .accessibility_label(self.label.clone())
-            .when(!self.disabled, |control| {
-                control
-                    .on_mouse_down(gpui::MouseButton::Left, move |_, window, _| {
-                        press_start.set(true);
-                        window.refresh();
-                    })
-                    .on_mouse_up(gpui::MouseButton::Left, move |_, window, _| {
-                        release.set(false);
-                        window.refresh();
-                    })
-                    .on_mouse_up_out(gpui::MouseButton::Left, move |_, window, _| {
-                        release_outside.set(false);
-                        window.refresh();
-                    })
-                    .on_hover(move |hovered, window, _| {
-                        if !*hovered && leave.replace(false) {
-                            window.refresh();
-                        }
-                    })
-            })
+            .when(!self.disabled, |control| ripple_target(control, ripple))
             .border_2()
             .border_color(gpui::transparent_black())
             .rounded_md()
@@ -792,7 +819,6 @@ impl RenderOnce for Switch {
             .child(
                 row(direction)
                     .id("switch-row")
-                    .when(!self.disabled, |row| ripple_target(row, ripple))
                     .min_h(px(48.))
                     .px_1()
                     .child(track)

@@ -8,8 +8,8 @@ pub use root::{
     MaterialRoot, material_theme, set_material_theme, set_window_material_theme,
     window_material_theme,
 };
-pub use surface::{Surface, color, scrim_color};
-pub use typography::{ShapedText, font_for_style, shape_text};
+pub use surface::{Surface, color, elevation_shadows, scrim_color};
+pub use typography::{ShapedText, font_for_style, shape_text, text_style, wrapped_text};
 
 mod feedback;
 mod motion;

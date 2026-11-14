@@ -5,9 +5,14 @@ use gpui::{
     RenderOnce, SharedString, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_material_foundation::{animate, color, window_material_theme};
-use gpui_material_theme::{ColorRole, CornerRole, Direction, Elevation, MotionKind, MotionSpeed};
+use gpui_material_theme::{
+    ColorRole, CornerRole, Direction, Elevation, MotionKind, MotionSpeed, TypeRole,
+    TypographyEmphasis,
+};
 
-use crate::action::{Action, ActionControl, ActionStyle, Activate, Change, icon_slot};
+use crate::action::{
+    Action, ActionControl, ActionStyle, Activate, Change, DisabledStyle, icon_slot,
+};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ChipVariant {
@@ -19,7 +24,7 @@ pub enum ChipVariant {
 }
 
 /// A Material chip. Filter and Input chips request controlled selection changes.
-/// An Input chip can expose a separate removal action with its own focus.
+/// Filter and Input chips can expose a separate removal action with its own focus.
 #[derive(IntoElement)]
 pub struct Chip {
     id: ElementId,
@@ -85,6 +90,7 @@ impl Chip {
         self
     }
 
+    /// Adds an independent removal action to a Filter or Input chip.
     /// The optional restoration target is focused before calling the owner.
     /// The owner can pass the next chip or a stable control outside the group.
     pub fn on_remove(
@@ -128,7 +134,7 @@ impl RenderOnce for Chip {
         };
         let theme = window_material_theme(window, cx).clone();
         let direction = theme.layout.direction;
-        let split = self.variant == ChipVariant::Input && self.remove.is_some();
+        let split = selectable && self.remove.is_some();
         let on_surface = color(theme.colors.color(OnSurface));
         let theme_color = |role| color(theme.colors.color(role));
         let idle = if elevated {
@@ -170,6 +176,11 @@ impl RenderOnce for Chip {
             background: background.filter(|_| !split),
             background_color: (!split).then_some(container),
             foreground,
+            disabled: DisabledStyle {
+                foreground: OnSurface,
+                background: background.filter(|_| !split).map(|_| (OnSurface, 0.12)),
+                outline: (OnSurface, 0.12),
+            },
             height: 32.,
             min_width: 0.,
             corner: CornerRole::Small,
@@ -184,6 +195,8 @@ impl RenderOnce for Chip {
             },
             hover_elevation: if elevated {
                 Elevation::Level2
+            } else if selected && self.variant == ChipVariant::Filter {
+                Elevation::Level1
             } else {
                 Elevation::Level0
             },
@@ -193,9 +206,23 @@ impl RenderOnce for Chip {
         } else {
             0.
         };
+        let leading_tint = if self.disabled {
+            on_surface.opacity(0.38)
+        } else {
+            theme_color(match (self.variant, selected) {
+                (ChipVariant::Input, false) => OnSurfaceVariant,
+                (ChipVariant::Filter, true) => OnSecondaryContainer,
+                _ => Primary,
+            })
+        };
         let leading = self
             .leading
-            .map(|icon| icon_slot(icon, 18.).into_any_element())
+            .map(|icon| {
+                div()
+                    .text_color(leading_tint)
+                    .child(icon_slot(icon, 18.))
+                    .into_any_element()
+            })
             .or_else(|| {
                 (filter_mark > 0.).then(|| {
                     div()
@@ -207,19 +234,46 @@ impl RenderOnce for Chip {
                         .into_any_element()
                 })
             });
+        // Label edges have 16 dp; an icon consumes the outer 8 dp. The
+        // generated filter check animates both its slot and its leading inset.
+        let start_padding = if filter_mark > 0. {
+            16. - 8. * filter_mark
+        } else if leading.is_some() {
+            8.
+        } else {
+            16.
+        };
+        let end_padding = if split { 8. } else { 16. };
         let content = div()
             .flex()
             .items_center()
             .min_w_0()
             .when(
                 self.variant != ChipVariant::Filter || filter_mark == 0.,
-                Styled::gap_2,
+                |row| row.gap(px(8.)),
             )
-            .px_3()
+            .pl(px(if direction == Direction::Rtl {
+                end_padding
+            } else {
+                start_padding
+            }))
+            .pr(px(if direction == Direction::Rtl {
+                start_padding
+            } else {
+                end_padding
+            }))
             .text_size(px(14.))
             .when(direction == Direction::Rtl, Styled::flex_row_reverse)
             .children(leading)
-            .child(div().min_w_0().truncate().child(self.label.clone()));
+            .child(crate::text::single_line(
+                self.label.clone(),
+                TypeRole::LabelLarge.style(TypographyEmphasis::Baseline),
+                1.,
+                style.foreground(self.disabled, window, cx),
+                (None, 1., 1.),
+                window,
+                cx,
+            ));
         let action = if selectable {
             Action::Toggle {
                 selected,
@@ -265,7 +319,7 @@ impl RenderOnce for Chip {
                 }
                 .render(window, cx),
             );
-        if let (ChipVariant::Input, Some((label, on_remove))) = (self.variant, self.remove) {
+        if let (true, Some((label, on_remove))) = (selectable, self.remove) {
             row.child(
                 ActionControl {
                     id: ElementId::from((self.id, "remove")),
@@ -277,6 +331,11 @@ impl RenderOnce for Chip {
                         background: None,
                         background_color: None,
                         foreground,
+                        disabled: DisabledStyle {
+                            foreground: OnSurface,
+                            background: None,
+                            outline: (OnSurface, 0.12),
+                        },
                         height: 32.,
                         min_width: 32.,
                         corner: CornerRole::Small,

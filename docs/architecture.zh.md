@@ -32,6 +32,8 @@ controls/display 可被 inputs、overlays、navigation 使用。TextField 的编
 - P4 集中将 Base 的真实交互状态转成 Material 呈现。禁用会压制 hover/active 样式。P1 验证禁用、取消、键盘与焦点可见状态的公共读取路径。
 - Token 用受控数据文件作唯一数值源。xtask 生成 Rust 表和索引并提交生成物，日常构建使用仓库内数据。形状适用范围由探针覆盖的圆角多边形限定。
 
+Foundation 为各组件族共享排版、涟漪反馈和桌面阴影投影。按压涟漪与悬停、焦点、拖动状态层分离；减少动效时使用静态按压提示。单行文字用同一份含字距的字形布局测量和绘制。换行文字将断行交给 GPUI，应用 Material 字体族、字重、字号和行高；固定版本的原生换行接口不开放自定义字距。GPUI 的双层阴影投影属于桌面适配，并非逐像素复刻 Android 的平台阴影渲染器。
+
 <a id="candidate-dependencies"></a>
 
 ## 候选依赖

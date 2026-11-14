@@ -5,9 +5,10 @@ use gpui::{
     FocusHandle, Hsla, IntoElement, MouseButton, ParentElement, Pixels, Point,
     StatefulInteractiveElement, Styled, Window, canvas, div, prelude::FluentBuilder, px, quad,
 };
-use gpui_base::{Button, Toggle, box_shadow};
+use gpui_base::{Button, Toggle};
 use gpui_material_foundation::{
-    InteractionFeedback, InteractionState, Ripple, Shape, animate, color, window_material_theme,
+    InteractionFeedback, InteractionState, Ripple, Shape, animate, color, elevation_shadows,
+    window_material_theme,
 };
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Elevation, MotionKind, MotionSpec, MotionSpeed,
@@ -29,6 +30,7 @@ pub(crate) struct ActionStyle {
     pub(crate) background: Option<ColorRole>,
     pub(crate) background_color: Option<Hsla>,
     pub(crate) foreground: ColorRole,
+    pub(crate) disabled: DisabledStyle,
     pub(crate) height: f32,
     pub(crate) min_width: f32,
     pub(crate) corner: CornerRole,
@@ -38,6 +40,26 @@ pub(crate) struct ActionStyle {
     pub(crate) outline: f32,
     pub(crate) elevation: Elevation,
     pub(crate) hover_elevation: Elevation,
+}
+
+/// Disabled pigments are component tokens, not a universal opacity applied to
+/// the enabled colors. In particular buttons and chips use different fills.
+#[derive(Clone, Copy)]
+pub(crate) struct DisabledStyle {
+    pub(crate) foreground: ColorRole,
+    pub(crate) background: Option<(ColorRole, f32)>,
+    pub(crate) outline: (ColorRole, f32),
+}
+
+impl ActionStyle {
+    pub(crate) fn foreground(self, disabled: bool, window: &Window, cx: &App) -> Hsla {
+        let colors = &window_material_theme(window, cx).colors;
+        if disabled {
+            color(colors.color(self.disabled.foreground)).opacity(0.38)
+        } else {
+            color(colors.color(self.foreground))
+        }
+    }
 }
 
 pub(crate) struct ActionControl {
@@ -54,8 +76,36 @@ pub(crate) struct ActionControl {
 pub(crate) struct FeedbackState {
     hovered: bool,
     pressed: bool,
+    keyboard_focus: Option<FocusHandle>,
     shape: Option<Shape>,
     ripple: Option<Ripple>,
+}
+
+impl FeedbackState {
+    fn cancel_unavailable(&mut self, enabled: bool, window: &Window) {
+        if !enabled || !window.is_window_active() {
+            self.hovered = false;
+            self.cancel();
+        } else if self
+            .keyboard_focus
+            .as_ref()
+            .is_some_and(|focus| !focus.is_focused(window))
+        {
+            // Key-up is delivered to the new focus owner. Like Base's pending
+            // keyboard click, presentation must cancel when its owner blurs.
+            self.cancel();
+        }
+    }
+
+    fn cancel(&mut self) {
+        self.pressed = false;
+        self.keyboard_focus = None;
+        self.ripple = None;
+    }
+
+    pub(crate) fn pressed(&self) -> bool {
+        self.pressed
+    }
 }
 
 impl ActionControl {
@@ -91,7 +141,16 @@ impl ActionControl {
         let outline = color(theme.colors.color(ColorRole::OutlineVariant));
         let ring = color(theme.colors.color(ColorRole::Secondary));
         let shadow = color(theme.colors.color(ColorRole::Shadow));
-        let on_surface = color(theme.colors.color(ColorRole::OnSurface));
+        let disabled_foreground =
+            color(theme.colors.color(style.disabled.foreground)).opacity(0.38);
+        let disabled_background = style
+            .disabled
+            .background
+            .map_or_else(Hsla::default, |(role, opacity)| {
+                color(theme.colors.color(role)).opacity(opacity)
+            });
+        let disabled_outline =
+            color(theme.colors.color(style.disabled.outline.0)).opacity(style.disabled.outline.1);
         let visual_height = px(density.visual_size(style.height) * scale);
         let visual_width = px(density.visual_size(style.min_width) * scale);
         let target_height = px(density.interactive_size(style.height) * scale);
@@ -100,10 +159,7 @@ impl ActionControl {
         let enabled = !self.disabled;
         let (hovered, pressed) = {
             let mut state = feedback.borrow_mut();
-            if !enabled || !window.is_window_active() {
-                state.pressed = false;
-                state.ripple = None;
-            }
+            state.cancel_unavailable(enabled, window);
             (
                 state.hovered,
                 enabled
@@ -140,7 +196,9 @@ impl ActionControl {
         interaction.focus_visible = focus_visible;
         let layer = animate(
             (self.id.clone(), "state-layer"),
-            interaction.layer().map_or(0., |layer| layer.opacity()),
+            interaction
+                .layer_with_ripple(reduced)
+                .map_or(0., |layer| layer.opacity()),
             if enabled {
                 effects
             } else {
@@ -157,18 +215,14 @@ impl ActionControl {
             window,
             cx,
         )
-        .max(0.)
-            * scale;
+        .max(0.);
         let (foreground, background) = if enabled {
             (
                 foreground,
                 style.background_color.or(background).unwrap_or_default(),
             )
         } else {
-            (
-                on_surface.opacity(0.38),
-                background.map_or_else(Hsla::default, |_| on_surface.opacity(0.12)),
-            )
+            (disabled_foreground, disabled_background)
         };
         let elevation = if !enabled {
             0.
@@ -213,17 +267,10 @@ impl ActionControl {
                     window.paint_drop_shadows(
                         bounds,
                         radii,
-                        &[
-                            box_shadow(0., elevation * 0.4, elevation, 0., shadow.opacity(0.18)),
-                            box_shadow(0., scale, elevation * 0.5, 0., shadow.opacity(0.13)),
-                        ],
+                        &elevation_shadows(elevation, scale, shadow),
                     );
                 }
-                let outline = if enabled {
-                    outline
-                } else {
-                    on_surface.opacity(0.12)
-                };
+                let outline = if enabled { outline } else { disabled_outline };
                 // A zero-width outline is still visible through antialiasing on some
                 // backends if its pigment is opaque.
                 if background.a > 0. || outline_width > 0. {
@@ -378,6 +425,7 @@ fn decorate(
                 .on_mouse_down(MouseButton::Left, move |event, window, cx| {
                     let mut state = press.borrow_mut();
                     state.pressed = true;
+                    state.keyboard_focus = None;
                     state.hovered = true;
                     start_ripple(&mut state, Some(event.position), cx);
                     window.refresh();
@@ -390,22 +438,22 @@ fn decorate(
                     release_ripple(&mut cancel.borrow_mut(), cx);
                     window.refresh();
                 })
-                .on_key_down(move |event, window, cx| {
+                .capture_key_down(move |event, window, cx| {
                     let mut state = keys.borrow_mut();
                     match event.keystroke.key.as_str() {
                         "space" | "enter" if !event.is_held => {
                             state.pressed = true;
+                            state.keyboard_focus = window.focused(cx);
                             start_ripple(&mut state, None, cx);
                         }
                         "escape" => {
-                            state.pressed = false;
-                            state.ripple = None;
+                            state.cancel();
                         }
                         _ => return,
                     }
                     window.refresh();
                 })
-                .on_key_up(move |event, window, cx| {
+                .capture_key_up(move |event, window, cx| {
                     if matches!(event.keystroke.key.as_str(), "space" | "enter") {
                         release_ripple(&mut key_up.borrow_mut(), cx);
                         window.refresh();
@@ -436,16 +484,19 @@ fn activate_feedback(
 
 fn release_ripple(state: &mut FeedbackState, cx: &App) {
     state.pressed = false;
+    state.keyboard_focus = None;
     if let Some(ripple) = &mut state.ripple {
         ripple.release(cx.background_executor().now());
     }
 }
 
 fn start_ripple(state: &mut FeedbackState, pointer: Option<Point<Pixels>>, cx: &App) {
-    state.ripple = state
-        .shape
-        .as_ref()
-        .and_then(|shape| Ripple::press(shape, pointer, cx.background_executor().now()));
+    state.ripple = state.shape.as_ref().and_then(|shape| {
+        // The accessible hit target can extend beyond the painted container.
+        // Its activation still needs feedback, centered in the visible shape.
+        let pointer = pointer.filter(|pointer| shape.contains(*pointer));
+        Ripple::press(shape, pointer, cx.background_executor().now())
+    });
 }
 
 fn interpolated_corners(
@@ -484,12 +535,8 @@ where
         .on_mouse_down(MouseButton::Left, move |event, window, cx| {
             let mut state = press.borrow_mut();
             state.pressed = true;
-            let pointer = state
-                .shape
-                .as_ref()
-                .filter(|shape| shape.contains(event.position))
-                .map(|_| event.position);
-            start_ripple(&mut state, pointer, cx);
+            state.keyboard_focus = None;
+            start_ripple(&mut state, Some(event.position), cx);
             window.refresh();
         })
         .on_mouse_up(MouseButton::Left, move |_, window, cx| {
@@ -506,15 +553,20 @@ where
                 window.refresh();
             }
         })
-        .on_key_down(move |event, window, cx| {
-            if matches!(event.keystroke.key.as_str(), "space" | "enter") && !event.is_held {
+        .capture_key_down(move |event, window, cx| {
+            if event.keystroke.key == "escape" {
+                let mut state = keyboard.borrow_mut();
+                state.cancel();
+                window.refresh();
+            } else if matches!(event.keystroke.key.as_str(), "space" | "enter") && !event.is_held {
                 let mut state = keyboard.borrow_mut();
                 state.pressed = true;
+                state.keyboard_focus = window.focused(cx);
                 start_ripple(&mut state, None, cx);
                 window.refresh();
             }
         })
-        .on_key_up(move |event, window, cx| {
+        .capture_key_up(move |event, window, cx| {
             if matches!(event.keystroke.key.as_str(), "space" | "enter") {
                 release_ripple(&mut state.borrow_mut(), cx);
                 window.refresh();
@@ -534,10 +586,7 @@ pub(crate) fn ripple_state(
         })
         .read(cx)
         .clone();
-    if !enabled || !window.is_window_active() {
-        state.borrow_mut().ripple = None;
-        state.borrow_mut().pressed = false;
-    }
+    state.borrow_mut().cancel_unavailable(enabled, window);
     state
 }
 

@@ -11,7 +11,7 @@ use gpui_material_foundation::{Surface, color, window_material_theme};
 use gpui_material_theme::{ColorRole, Elevation, TypeRole, TypographyEmphasis};
 
 use crate::{
-    Button, ButtonVariant, Text,
+    Button, ButtonVariant,
     motion::{OverlayMotion, ScaledOverlay},
 };
 
@@ -344,10 +344,17 @@ impl RenderOnce for Tooltip {
                 })
         });
         let content = motion.map(|motion| {
-            let spacing = window.rem_size() * motion.scale;
+            let spacing = motion.px(16.);
             let dp = |value| motion.px(value);
             let theme = window_material_theme(window, cx);
             let tint = color(theme.colors.color(ColorRole::OnSurfaceVariant));
+            let corner = if self.rich {
+                gpui_material_theme::CornerRole::Medium
+            } else {
+                gpui_material_theme::CornerRole::ExtraSmall
+            }
+            .shape()
+            .radii(40., 24., theme.layout.direction)[0];
             let label_type = TypeRole::LabelLarge.style(TypographyEmphasis::Baseline);
             let content = div()
                 .relative()
@@ -401,7 +408,7 @@ impl RenderOnce for Tooltip {
                     Surface::new(role)
                         .flex()
                         .flex_col()
-                        .rounded(spacing * 0.25)
+                        .rounded(dp(corner))
                         .min_w(px(40.).min(width) * motion.scale)
                         .min_h(dp(24.))
                         .max_w(width.min(px(if self.rich { 320. } else { 200. })) * motion.scale)
@@ -424,11 +431,31 @@ impl RenderOnce for Tooltip {
                             },
                         )
                         .children(self.title.map(|title| {
-                            Text::new(title)
-                                .role(TypeRole::TitleSmall)
-                                .font_scale(motion.scale)
+                            super::text_style(
+                                div().text_color(tint).child(title),
+                                TypeRole::TitleSmall,
+                                motion.scale,
+                                window,
+                                cx,
+                            )
                         }))
-                        .child(self.text)
+                        .child(super::text_style(
+                            div()
+                                .text_color(if self.rich {
+                                    tint
+                                } else {
+                                    color(theme.colors.color(ColorRole::InverseOnSurface))
+                                })
+                                .child(self.text),
+                            if self.rich {
+                                TypeRole::BodyMedium
+                            } else {
+                                TypeRole::BodySmall
+                            },
+                            motion.scale,
+                            window,
+                            cx,
+                        ))
                         .children(self.action.map(|action| {
                             if open {
                                 Button::new("tooltip-action", action.label)
@@ -450,7 +477,9 @@ impl RenderOnce for Tooltip {
                                             .truncate()
                                             .text_size(dp(label_type.size))
                                             .line_height(dp(label_type.line_height))
-                                            .text_color(tint)
+                                            .text_color(color(
+                                                theme.colors.color(ColorRole::Primary),
+                                            ))
                                             .child(action.label),
                                     )
                                     .into_any_element()

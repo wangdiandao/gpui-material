@@ -155,6 +155,18 @@ mod tests {
             let start = find(window, &[], &id).unwrap();
             assert_eq!(start.label(), Some("Minimum level"));
             assert_eq!(start.focused(), Some(true));
+            let bounds = state.read(cx).bounds();
+            let end = find(
+                window,
+                &[],
+                &(ElementId::from("material-range"), "end").into(),
+            )
+            .unwrap();
+            for (thumb, fraction) in [(start, 0.4), (end, 0.7)] {
+                let expected = bounds.left() + bounds.size.width * fraction;
+                assert!((thumb.bounds().center().x - expected).abs() <= px(1.));
+                assert_eq!(thumb.bounds().center().y, bounds.center().y);
+            }
         })
         .unwrap();
         cx.simulate_keystrokes(handle.into(), "right");

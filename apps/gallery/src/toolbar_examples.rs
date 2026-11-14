@@ -74,6 +74,7 @@ impl ToolbarExamples {
                     menu.track_focus(&self.menu_focus)
                 });
                 div()
+                    .id(id)
                     .flex()
                     .flex_col()
                     .items_center()
@@ -206,7 +207,10 @@ impl ToolbarExamples {
                                     .flex_col()
                                     .gap_4()
                                     .children((1..=12).map(|index| {
-                                        Text::new(format!("Document section {index}"))
+                                        div()
+                                            .id(("document-section", index as usize))
+                                            .flex_none()
+                                            .child(Text::new(format!("Document section {index}")))
                                     })),
                             )
                             .bottom_bar(docked),

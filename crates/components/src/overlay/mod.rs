@@ -23,13 +23,7 @@ fn text_style<E: gpui::Styled>(
     cx: &gpui::App,
 ) -> E {
     let style = role.style(gpui_material_theme::TypographyEmphasis::Baseline);
-    let theme = gpui_material_foundation::window_material_theme(window, cx);
-    let font = gpui_material_foundation::font_for_style(&theme.typography, style, cx);
-    element
-        .font_family(font.family)
-        .font_weight(font.weight)
-        .text_size(gpui::px(style.size * scale))
-        .line_height(gpui::px(style.line_height * scale))
+    gpui_material_foundation::text_style(element, style, scale, window, cx)
 }
 
 fn close_icon(tint: gpui::Hsla, scale: f32) -> impl gpui::IntoElement {

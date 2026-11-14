@@ -5,8 +5,8 @@ use std::{
 
 use gpui::{
     App, Bounds, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement, PathBuilder,
-    Pixels, Point, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Window,
-    canvas, div, point, px,
+    Pixels, Point, RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window, canvas,
+    div, point, px,
 };
 use gpui_base::motion::Easing;
 use gpui_material_foundation::{animate, color, window_material_theme};
@@ -417,6 +417,7 @@ struct LoadingMotion {
     epoch: Option<Instant>,
     elapsed: Duration,
     shapes: [Morph; 7],
+    scale: f32,
 }
 
 impl Default for LoadingMotion {
@@ -433,11 +434,31 @@ impl Default for LoadingMotion {
         Self {
             epoch: None,
             elapsed: Duration::ZERO,
+            scale: loading_scale(&shapes),
             shapes: std::array::from_fn(|ix| {
-                Morph::new(shapes[ix].clone(), shapes[(ix + 1) % shapes.len()].clone())
+                Morph::new(
+                    shapes[ix].clone().normalized(),
+                    shapes[(ix + 1) % shapes.len()].clone().normalized(),
+                )
             }),
         }
     }
+}
+
+// Compose LoadingIndicator.calculateScaleFactor and graphics-shapes
+// RoundedPolygon.calculateMaxBounds compare the ordinary bounds with the
+// rotation envelope sampled at each cubic's anchor and midpoint.
+fn loading_scale(shapes: &[polymorpher::RoundedPolygon]) -> f32 {
+    shapes.iter().fold(1., |scale, shape| {
+        let bounds = shape.aabb(true).size();
+        let radius = shape
+            .cubics
+            .iter()
+            .flat_map(|cubic| [cubic.anchor0(), cubic.point_on_curve(0.5)])
+            .map(|point| (point - shape.center).length())
+            .fold(0_f32, f32::max);
+        scale.min(bounds.width.max(bounds.height) / (2. * radius))
+    })
 }
 
 impl RenderOnce for LoadingIndicator {
@@ -498,8 +519,8 @@ impl RenderOnce for LoadingIndicator {
                     let y = p.y - 0.5;
                     bounds.center()
                         + point(
-                            bounds.size.width * (cos * x - sin * y),
-                            bounds.size.height * (sin * x + cos * y),
+                            bounds.size.width * state.scale * (cos * x - sin * y),
+                            bounds.size.height * state.scale * (sin * x + cos * y),
                         )
                 };
                 if let Some(first) = cubics.first() {
@@ -523,27 +544,52 @@ impl RenderOnce for LoadingIndicator {
             },
         )
         .size_full();
-        let mut element = div().id(self.id).size(px(48.)).flex_none();
+        let element = div().size(px(48.)).flex_none();
         if self.active {
-            element = element
-                .role(Role::Status)
-                .aria_label(self.label)
+            let mut progress = gpui_base::Progress::new(self.id)
+                .indeterminate(true)
+                .accessibility_label(self.label)
+                .size(px(48.))
+                .flex_none()
                 .a11y_synthetic_children(|node| {
                     node.parent_node().set_live(gpui::accesskit::Live::Polite);
                     node.parent_node().set_live_atomic();
                 })
                 .child(icon);
             if self.contained {
-                element = element.rounded_full().bg(background);
+                progress = progress.rounded_full().bg(background);
             }
+            progress.into_any_element()
+        } else {
+            element.id(self.id).into_any_element()
         }
-        element
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn loading_shapes_fit_the_active_size_through_rotation_and_morphs() {
+        let motion = LoadingMotion::default();
+        assert!(motion.scale > 0. && motion.scale < 1.);
+        for morph in &motion.shapes {
+            for step in 0..=20 {
+                for cubic in morph.as_cubics(step as f32 / 20.) {
+                    for sample in 0..=20 {
+                        let p = cubic.point_on_curve(sample as f32 / 20.);
+                        let radius = (p.x - 0.5).hypot(p.y - 0.5) * motion.scale;
+                        // All rotation angles are bounded by the radial envelope.
+                        assert!(
+                            radius <= 0.501,
+                            "active shape escapes its 38 dp envelope: {radius}"
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn rounded_progress_endpoints_and_stop_stay_inside_the_track() {

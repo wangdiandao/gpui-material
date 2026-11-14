@@ -136,10 +136,9 @@ impl RenderOnce for Card {
             .text_color(foreground)
             .when(elevation > 0., |surface| {
                 let shadow = tone(ColorRole::Shadow, window, cx);
-                surface.shadow(vec![
-                    gpui_base::box_shadow(0., elevation * 0.4, elevation, 0., shadow.opacity(0.18)),
-                    gpui_base::box_shadow(0., 1., elevation * 0.5, 0., shadow.opacity(0.13)),
-                ])
+                surface.shadow(gpui_material_foundation::elevation_shadows(
+                    elevation, 1., shadow,
+                ))
             })
             .border_1()
             .border_color(if outline {

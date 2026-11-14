@@ -10,6 +10,7 @@ use gpui_material::{
 use crate::{
     action_examples::ActionExamples,
     adaptive_examples::AdaptiveExamples,
+    carousel_examples::CarouselExamples,
     date_time_examples::DateTimeExamples,
     display_examples::DisplayExamples,
     group_examples::GroupExamples,
@@ -32,6 +33,7 @@ pub(crate) enum Story {
     Button,
     ButtonGroup,
     Card,
+    Carousel,
     Checkbox,
     Chip,
     DatePicker,
@@ -77,6 +79,7 @@ impl Story {
         Self::Button,
         Self::ButtonGroup,
         Self::Card,
+        Self::Carousel,
         Self::Checkbox,
         Self::Chip,
         Self::DatePicker,
@@ -121,6 +124,7 @@ impl Story {
             Self::Badge => "badge",
             Self::Button => "button",
             Self::Card => "card",
+            Self::Carousel => "carousel",
             Self::Checkbox => "checkbox",
             Self::Chip => "chip",
             Self::DatePicker => "date-picker",
@@ -166,6 +170,7 @@ impl Story {
             Self::Badge => "Badge",
             Self::Button => "Button",
             Self::Card => "Card",
+            Self::Carousel => "Carousel",
             Self::Checkbox => "Checkbox",
             Self::Chip => "Chip",
             Self::DatePicker => "Date picker",
@@ -219,6 +224,7 @@ impl Story {
                 "Trigger commands with Material button variants, sizes, and icon slots."
             }
             Self::Card => "Group related content and actions on a Material surface.",
+            Self::Carousel => "Browse a collection using six Material layouts.",
             Self::Checkbox => "Select multiple options and represent a mixed selection.",
             Self::Chip => "Offer suggestions, filter results, or represent removable inputs.",
             Self::DatePicker => "Choose an available date in a docked calendar or a dialog.",
@@ -286,6 +292,7 @@ impl Story {
             Self::DatePicker | Self::DateRangePicker | Self::TimePicker => {
                 cx.new(|cx| DateTimeExamples::new(self, window, cx)).into()
             }
+            Self::Carousel => cx.new(|_| CarouselExamples::default()).into(),
             Self::ButtonGroup | Self::SplitButton => {
                 cx.new(|cx| GroupExamples::new(self, cx)).into()
             }

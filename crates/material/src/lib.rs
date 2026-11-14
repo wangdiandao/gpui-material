@@ -11,6 +11,8 @@ pub use gpui_material_extras::date_time;
 pub use gpui_material_extras::{
     ButtonGroup, ButtonGroupItem, ButtonGroupSelection, ButtonGroupVariant, SplitButton,
 };
+#[cfg(feature = "carousel")]
+pub use gpui_material_extras::{Carousel, CarouselItem, CarouselVariant};
 #[cfg(feature = "toolbars")]
 pub use gpui_material_extras::{
     FabMenu, FabMenuItem, Toolbar, ToolbarAction, ToolbarColor, ToolbarFabPosition,

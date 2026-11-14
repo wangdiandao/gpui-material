@@ -14,6 +14,7 @@ use crate::{
     group_examples::GroupExamples,
     navigation_examples::NavigationExamples,
     overlay_examples::{MenuTooltipExamples, ModalExamples, SnackbarExamples},
+    search_examples::SearchExamples,
     selection_examples::SelectionExamples,
     slider_examples::SliderExamples,
     text_field_examples::{DropdownExamples, TextFieldExamples},
@@ -46,6 +47,7 @@ pub(crate) enum Story {
     NavigationRail,
     Progress,
     Radio,
+    Search,
     Sheets,
     Slider,
     Snackbar,
@@ -85,6 +87,7 @@ impl Story {
         Self::NavigationRail,
         Self::Progress,
         Self::Radio,
+        Self::Search,
         Self::Sheets,
         Self::Slider,
         Self::Snackbar,
@@ -123,6 +126,7 @@ impl Story {
             Self::NavigationRail => "navigation-rail",
             Self::Progress => "progress",
             Self::Radio => "radio",
+            Self::Search => "search",
             Self::Sheets => "sheets",
             Self::Slider => "slider",
             Self::Snackbar => "snackbar",
@@ -162,6 +166,7 @@ impl Story {
             Self::NavigationRail => "Navigation rail",
             Self::Progress => "Progress",
             Self::Radio => "Radio group",
+            Self::Search => "Search",
             Self::Sheets => "Sheet",
             Self::Slider => "Slider",
             Self::Snackbar => "Snackbar",
@@ -215,6 +220,7 @@ impl Story {
             }
             Self::Progress => "Visualize measured or indeterminate work as a line or a circle.",
             Self::Radio => "Choose one option from a group.",
+            Self::Search => "Search from a docked surface or a full-screen app bar.",
             Self::Sheets => "Reveal supplementary content at the bottom or trailing edge.",
             Self::Slider => "Adjust a value or range with a pointer or keyboard.",
             Self::Snackbar => "Announce an outcome and offer a follow-up action such as Undo.",
@@ -260,6 +266,7 @@ impl Story {
                 cx.new(|cx| SelectionExamples::for_story(self, cx)).into()
             }
             Self::Slider => cx.new(SliderExamples::new).into(),
+            Self::Search => cx.new(|cx| SearchExamples::new(window, cx)).into(),
             Self::AppBar | Self::NavigationBar | Self::NavigationRail | Self::Tabs => {
                 cx.new(|cx| NavigationExamples::new(self, cx)).into()
             }

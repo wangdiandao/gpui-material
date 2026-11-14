@@ -7,6 +7,7 @@ mod group_examples;
 mod input_examples;
 mod navigation_examples;
 mod overlay_examples;
+mod search_examples;
 mod selection_examples;
 mod slider_examples;
 mod story;

@@ -9,9 +9,11 @@ publish.workspace = true
 [features]
 default = []
 expressive-groups = ["dep:gpui", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
+search = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
 
 [dependencies]
 gpui = { workspace = true, optional = true }
+gpui-base = { workspace = true, optional = true }
 gpui-material-components = { path = "../components", optional = true }
 gpui-material-foundation = { path = "../foundation", optional = true }
 gpui-material-theme = { path = "../theme", optional = true }

@@ -3,6 +3,7 @@ mod tooltip;
 
 pub use menu::{Menu, MenuItem};
 pub use tooltip::Tooltip;
+pub(crate) use tooltip::init as init_tooltip;
 mod dialog;
 mod sheet;
 

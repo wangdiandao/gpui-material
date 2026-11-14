@@ -259,6 +259,15 @@ impl RenderOnce for TextField {
             .font_family(font)
             .role(Role::Group)
             .when_some(support.clone(), |field, text| field.aria_description(text))
+            .a11y_synthetic_children(move |tree| {
+                let node = tree.parent_node();
+                if error {
+                    node.set_invalid(gpui::accesskit::Invalid::True);
+                }
+                if disabled {
+                    node.set_disabled();
+                }
+            })
             .child(
                 div()
                     .id("container")

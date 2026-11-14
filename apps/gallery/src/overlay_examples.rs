@@ -8,7 +8,7 @@ use gpui_material::{
     Button, Dialog, DialogState, DialogVariant, Sheet, SheetEdge, SheetMode, Snackbar,
     SnackbarHost, TextField, TextFieldState, TextFieldVariant,
 };
-use gpui_material::{ButtonVariant, Menu, MenuItem, Text, Tooltip};
+use gpui_material::{Menu, MenuItem, Text, Tooltip};
 
 use crate::story::{Story, stack};
 
@@ -315,6 +315,7 @@ pub(crate) struct MenuTooltipExamples {
     story: Story,
     trigger: FocusHandle,
     rich_trigger: FocusHandle,
+    rich_action: FocusHandle,
     labels: bool,
     output: SharedString,
 }
@@ -325,6 +326,7 @@ impl MenuTooltipExamples {
             story,
             trigger: cx.focus_handle(),
             rich_trigger: cx.focus_handle(),
+            rich_action: cx.focus_handle(),
             labels: false,
             output: "Sort by name".into(),
         }
@@ -420,14 +422,14 @@ impl Render for MenuTooltipExamples {
                     )
                     .track_focus(&self.rich_trigger)
                     .action(
-                        Button::new("dismiss-policy", "Show retention period")
-                            .variant(ButtonVariant::Text)
-                            .on_activate(move |_, cx| {
-                                let _ = tooltip_owner.update(cx, |state, cx| {
-                                    state.output = "30 days".into();
-                                    cx.notify();
-                                });
-                            }),
+                        "Show retention period",
+                        &self.rich_action,
+                        move |_, cx| {
+                            let _ = tooltip_owner.update(cx, |state, cx| {
+                                state.output = "30 days".into();
+                                cx.notify();
+                            });
+                        },
                     ),
                 )
                 .child(Text::new(if self.output.as_ref() == "Sort by name" {
@@ -499,6 +501,65 @@ fn menu_skips_disabled_items_and_restores_trigger(cx: &mut gpui::TestAppContext)
         let view = view.read(cx);
         assert_eq!(view.output.as_ref(), "Sort by date modified");
         assert!(view.trigger.is_focused(window));
+    })
+    .unwrap();
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn rich_tooltip_keeps_its_action_available_while_focused(cx: &mut gpui::TestAppContext) {
+    use gpui::{AppContext, WindowOptions};
+    use gpui_base::test_support::find;
+    use gpui_material::MaterialRoot;
+    use std::time::Duration;
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            let entity = cx.new(|cx| MenuTooltipExamples::new(Story::Tooltip, cx));
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    let frame = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            find(window, &[], &"tooltip".into()).is_some()
+        })
+        .unwrap()
+    };
+    assert!(!frame(cx));
+    cx.update_window(window.into(), |_, window, cx| {
+        view.read(cx).rich_trigger.clone().focus(window, cx);
+    })
+    .unwrap();
+    frame(cx);
+    cx.run_until_parked();
+    cx.executor().advance_clock(Duration::from_millis(10));
+    cx.run_until_parked();
+    assert!(frame(cx));
+    cx.simulate_keystrokes(window.into(), "tab");
+    frame(cx);
+    cx.update_window(window.into(), |_, window, cx| {
+        assert!(
+            view.read(cx).rich_action.is_focused(window),
+            "tooltip action focused"
+        );
+    })
+    .unwrap();
+    cx.executor().advance_clock(Duration::from_millis(250));
+    cx.run_until_parked();
+    assert!(frame(cx));
+    cx.simulate_keystrokes(window.into(), "enter");
+    cx.update(|cx| assert_eq!(view.read(cx).output.as_ref(), "30 days"));
+    cx.simulate_keystrokes(window.into(), "escape");
+    assert!(!frame(cx));
+    cx.update_window(window.into(), |_, window, cx| {
+        assert!(view.read(cx).rich_trigger.is_focused(window));
     })
     .unwrap();
 }

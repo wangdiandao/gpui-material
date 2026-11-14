@@ -150,6 +150,11 @@ impl Render for SnackbarHost {
                             .test_support()
                             .role(Role::Status)
                             .aria_label(message.message.clone())
+                            .a11y_synthetic_children(|tree| {
+                                let node = tree.parent_node();
+                                node.set_live(gpui::accesskit::Live::Polite);
+                                node.set_live_atomic();
+                            })
                             .min_w_0()
                             .flex_1()
                             .child(message.message.clone()),

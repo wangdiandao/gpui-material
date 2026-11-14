@@ -2,14 +2,46 @@ use std::time::Duration;
 
 use gpui::{
     Anchor, AnyElement, App, Context, ElementId, FocusHandle, InteractiveElement, IntoElement,
-    ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
+    KeyBinding, ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
     Subscription, Task, Window, div, prelude::FluentBuilder, px,
 };
-use gpui_base::Popup;
+use gpui_base::{Popup, TestSupportExt};
 use gpui_material_foundation::Surface;
 use gpui_material_theme::{ColorRole, Elevation, TypeRole};
 
-use crate::Text;
+use crate::{Button, ButtonVariant, Text};
+
+gpui::actions!(
+    material_tooltip,
+    [
+        FocusTooltipAction,
+        FocusTooltipTrigger,
+        DismissTooltip,
+        ActivateTooltipAction
+    ]
+);
+
+pub(crate) fn init(cx: &mut App) {
+    cx.bind_keys([
+        KeyBinding::new("tab", FocusTooltipAction, Some("MaterialTooltipTrigger")),
+        KeyBinding::new(
+            "shift-tab",
+            FocusTooltipTrigger,
+            Some("MaterialTooltipAction"),
+        ),
+        KeyBinding::new("escape", DismissTooltip, Some("MaterialTooltip")),
+        KeyBinding::new(
+            "enter",
+            ActivateTooltipAction,
+            Some("MaterialTooltipAction"),
+        ),
+        KeyBinding::new(
+            "space",
+            ActivateTooltipAction,
+            Some("MaterialTooltipAction"),
+        ),
+    ]);
+}
 
 /// A delayed plain or interactive rich Material tooltip anchored to a trigger.
 #[derive(IntoElement)]
@@ -18,9 +50,17 @@ pub struct Tooltip {
     trigger: AnyElement,
     text: SharedString,
     title: Option<SharedString>,
-    action: Option<AnyElement>,
+    action: Option<TooltipAction>,
     rich: bool,
     trigger_focus: Option<FocusHandle>,
+}
+
+type TooltipCallback = std::rc::Rc<dyn Fn(&mut Window, &mut App)>;
+
+struct TooltipAction {
+    label: SharedString,
+    focus: FocusHandle,
+    callback: TooltipCallback,
 }
 
 impl Tooltip {
@@ -54,9 +94,18 @@ impl Tooltip {
     }
 
     /// Adds a control to a rich tooltip.
-    pub fn action(mut self, element: impl IntoElement) -> Self {
+    pub fn action(
+        mut self,
+        label: impl Into<SharedString>,
+        focus: &FocusHandle,
+        callback: impl Fn(&mut Window, &mut App) + 'static,
+    ) -> Self {
         self.rich = true;
-        self.action = Some(element.into_any_element());
+        self.action = Some(TooltipAction {
+            label: label.into(),
+            focus: focus.clone(),
+            callback: std::rc::Rc::new(callback),
+        });
         self
     }
 
@@ -73,20 +122,31 @@ struct TooltipState {
     trigger_hover: bool,
     surface_hover: bool,
     keyboard: bool,
+    suppress_focus: bool,
+    surface_focus: bool,
     task: Option<Task<()>>,
-    focus: Option<(FocusHandle, Subscription, Subscription)>,
+    focus: Option<TooltipFocus>,
+}
+
+struct TooltipFocus {
+    trigger: FocusHandle,
+    surface: FocusHandle,
+    _subscriptions: [Subscription; 4],
 }
 
 impl TooltipState {
     fn schedule(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let open = self.trigger_hover || self.surface_hover || self.keyboard;
+        let open = self.trigger_hover || self.surface_hover || self.keyboard || self.surface_focus;
         self.task = None;
         if open == self.open {
             return;
         }
-        let delay = if self.keyboard {
-            Duration::ZERO
-        } else if open {
+        if self.keyboard && open {
+            self.open = true;
+            window.refresh();
+            return;
+        }
+        let delay = if open {
             Duration::from_millis(500)
         } else {
             Duration::from_millis(200)
@@ -101,16 +161,14 @@ impl TooltipState {
         }));
     }
 
-    fn dismiss(&mut self, window: &mut Window) -> bool {
-        let was_active = self.open || self.task.is_some();
+    fn dismiss(&mut self, window: &mut Window) {
         self.open = false;
         self.task = None;
         self.surface_hover = false;
         self.keyboard = false;
-        if was_active {
-            window.refresh();
-        }
-        was_active
+        self.surface_focus = false;
+        self.suppress_focus = true;
+        window.refresh();
     }
 }
 
@@ -130,34 +188,79 @@ impl RenderOnce for Tooltip {
                 if state
                     .focus
                     .as_ref()
-                    .is_some_and(|(previous, ..)| previous == &focus)
+                    .is_some_and(|previous| previous.trigger == focus)
                 {
                     return;
                 }
                 let enter = cx.entity().downgrade();
                 let leave = enter.clone();
+                let enter_surface = enter.clone();
+                let leave_surface = enter.clone();
+                let surface = cx.focus_handle();
                 let on_enter = window.on_focus_in(&focus, cx, move |window, cx| {
                     let _ = enter.update(cx, |state, cx| {
-                        state.keyboard = true;
+                        state.keyboard = !state.suppress_focus;
                         state.schedule(window, cx);
                     });
                 });
                 let on_leave = window.on_focus_out(&focus, cx, move |_, window, cx| {
                     let _ = leave.update(cx, |state, cx| {
                         state.keyboard = false;
+                        state.suppress_focus = false;
                         state.schedule(window, cx);
                     });
                 });
-                state.focus = Some((focus, on_enter, on_leave));
+                let on_enter_surface = window.on_focus_in(&surface, cx, move |window, cx| {
+                    let _ = enter_surface.update(cx, |state, cx| {
+                        state.surface_focus = true;
+                        state.schedule(window, cx);
+                    });
+                });
+                let on_leave_surface = window.on_focus_out(&surface, cx, move |_, window, cx| {
+                    let _ = leave_surface.update(cx, |state, cx| {
+                        state.surface_focus = false;
+                        state.schedule(window, cx);
+                    });
+                });
+                state.focus = Some(TooltipFocus {
+                    trigger: focus,
+                    surface,
+                    _subscriptions: [on_enter, on_leave, on_enter_surface, on_leave_surface],
+                });
             });
         }
-        let open = state.read(cx).open;
+        let observed = state.read(cx);
+        let open = observed.open
+            || (!observed.suppress_focus
+                && observed.focus.as_ref().is_some_and(|focus| {
+                    focus.trigger.is_focused(window) || focus.surface.contains_focused(window, cx)
+                }))
+            || self
+                .action
+                .as_ref()
+                .is_some_and(|action| action.focus.is_focused(window));
+        let surface_focus = observed.focus.as_ref().map(|focus| focus.surface.clone());
+        let trigger_focus = observed.focus.as_ref().map(|focus| focus.trigger.clone());
+        let action_focus = self.action.as_ref().map(|action| action.focus.clone());
+        let dismiss_action = action_focus.clone();
+        let action_callback = self.action.as_ref().map(|action| action.callback.clone());
         let hover = state.clone();
         let dismiss = state.clone();
+        let to_action = action_focus;
+        let to_trigger = trigger_focus.clone();
         Popup::new(
             self.id,
             div()
                 .id("tooltip-trigger")
+                .when(open && to_action.is_some(), |trigger| {
+                    trigger.key_context("MaterialTooltipTrigger").on_action(
+                        move |_: &FocusTooltipAction, window, cx| {
+                            if let Some(action) = &to_action {
+                                action.focus(window, cx);
+                            }
+                        },
+                    )
+                })
                 .role(Role::Group)
                 .aria_description(self.text.clone())
                 .on_hover(move |hovering, window, cx| {
@@ -170,18 +273,45 @@ impl RenderOnce for Tooltip {
         )
         .anchor(Anchor::TopCenter)
         .offset(px(4.))
-        .capture_key_down(move |event, window, cx| {
-            if event.keystroke.key == "escape"
-                && dismiss.update(cx, |state, _| state.dismiss(window))
-            {
-                cx.stop_propagation();
-            }
+        .when(open, |popup| {
+            popup
+                .key_context("MaterialTooltip")
+                .on_action(move |_: &DismissTooltip, window, cx| {
+                    let return_to = dismiss.read(cx).focus.as_ref().and_then(|focus| {
+                        (focus.surface.contains_focused(window, cx)
+                            || dismiss_action
+                                .as_ref()
+                                .is_some_and(|action| action.is_focused(window)))
+                        .then(|| focus.trigger.clone())
+                    });
+                    if let Some(trigger) = return_to {
+                        trigger.focus(window, cx);
+                    }
+                    dismiss.update(cx, |state, _| state.dismiss(window));
+                })
         })
         .when(open, |popup| {
             popup.content(
                 div()
                     .id("tooltip")
+                    .test_support()
                     .role(Role::Tooltip)
+                    .key_context("MaterialTooltipAction")
+                    .on_action(move |_: &FocusTooltipTrigger, window, cx| {
+                        if let Some(trigger) = &to_trigger {
+                            trigger.focus(window, cx);
+                        } else {
+                            cx.propagate();
+                        }
+                    })
+                    .on_action(move |_: &ActivateTooltipAction, window, cx| {
+                        if let Some(action) = &action_callback {
+                            action(window, cx);
+                        } else {
+                            cx.propagate();
+                        }
+                    })
+                    .when_some(surface_focus, |tip, focus| tip.track_focus(&focus))
                     .aria_label(self.text.clone())
                     .on_hover(move |hovering, window, cx| {
                         state.update(cx, |state, cx| {
@@ -205,7 +335,12 @@ impl RenderOnce for Tooltip {
                                     .map(|title| Text::new(title).role(TypeRole::TitleSmall)),
                             )
                             .child(self.text)
-                            .children(self.action),
+                            .children(self.action.map(|action| {
+                                Button::new("tooltip-action", action.label)
+                                    .track_focus(&action.focus)
+                                    .variant(ButtonVariant::Text)
+                                    .on_activate(move |window, cx| (action.callback)(window, cx))
+                            })),
                     ),
             )
         })

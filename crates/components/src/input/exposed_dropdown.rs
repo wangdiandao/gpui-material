@@ -449,7 +449,13 @@ impl RenderOnce for ExposedDropdown {
                                         })
                                         .when(open && current, |row| row.aria_active_descendant())
                                         .when(open, |row| {
-                                            row.hover(move |style| style.bg(ink.opacity(0.08)))
+                                            row.hover(move |style| {
+                                                style.bg(if current {
+                                                    selected.blend(selected_ink.opacity(0.08))
+                                                } else {
+                                                    ink.opacity(0.08)
+                                                })
+                                            })
                                         })
                                         .min_h(dp(48.))
                                         .px(spacing * 0.75)

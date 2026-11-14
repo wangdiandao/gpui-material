@@ -1,6 +1,19 @@
 schema_version = 1
-current_phase = "P5"
-allowed_paths = []
+current_phase = "P6"
+allowed_paths = [
+    "status.toml",
+    "docs/phases/P06.md",
+    "docs/phases/P06.zh.md",
+    "docs/phases/P06.i18n.yaml",
+    "crates/components/src/lib.rs",
+    "crates/components/src/input/",
+    "crates/components/src/overlay/",
+    "crates/material/src/lib.rs",
+    "apps/gallery/src/main.rs",
+    "apps/gallery/src/story.rs",
+    "apps/gallery/src/text_field_examples.rs",
+    "apps/gallery/src/overlay_examples.rs",
+]
 blockers = []
 repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }, { phase = "P4", issue = 118, status = "completed", scope = "Foundation Gallery slider alignment", commit = "02b2d25dd252abf34a6719f8bc672bb0e663d98d" }, { phase = "P5", issue = 119, status = "completed", scope = "Visual defects and acceptance coverage in Material components, Gallery and the window theme adapter", commit = "9b85f97034ea3253fdc9bc48eb6b0667be684224" }, { phase = "P5", issue = 125, status = "completed", scope = "Material Gallery component navigation and sample organization", commit = "33375c769b06d981126c9028612bc8b3df0ebcbe" }]
 frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac", P4 = "02b2d25dd252abf34a6719f8bc672bb0e663d98d", P5 = "33375c769b06d981126c9028612bc8b3df0ebcbe" }
@@ -85,7 +98,8 @@ merged_deliverables = [
 ]
 
 [phases.P6]
-status = "planned"
+status = "active"
+entry_conditions = ["P5 is frozen", "Pinned text and overlay probes and verified Foundation adapters are available"]
 
 [phases.P7]
 status = "planned"

@@ -15,5 +15,6 @@ English | [中文](index.zh.md)
 11. [Pure theme](theme/theme.md) records theme values, defaults, and data sources.
 12. [P4 Foundation primitives](phases/P04.md) records the adapters and Windows acceptance criteria.
 13. [P5 Basic components](phases/P05.md) records the component families, facade, Gallery, and preview acceptance criteria.
+14. [P6 Text fields and overlays](phases/P06.md) records the input and overlay families, dependency order, and native acceptance criteria.
 
 Add design, component, and phase documents to this index when the corresponding work starts. Git preserves the history.

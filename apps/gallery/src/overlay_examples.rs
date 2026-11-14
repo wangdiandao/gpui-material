@@ -172,6 +172,11 @@ fn bottom_sheet_cancels_drag_and_accepts_next_gesture(cx: &mut gpui::TestAppCont
         cx.update_window(window.into(), |_, window, cx| {
             window.refresh();
             window.draw(cx).clear(cx);
+            let start_height = find(window, &[], &"standard".into())
+                .unwrap()
+                .bounds()
+                .size
+                .height;
             let origin = find(window, &[], &"drag-handle".into())
                 .unwrap()
                 .bounds()
@@ -197,7 +202,24 @@ fn bottom_sheet_cancels_drag_and_accepts_next_gesture(cx: &mut gpui::TestAppCont
                 cx,
             );
             assert!(cx.has_active_drag());
-            destination
+            window.dispatch_event(
+                MouseMoveEvent {
+                    position: destination,
+                    pressed_button: Some(MouseButton::Left),
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let height = find(window, &[], &"standard".into())
+                .unwrap()
+                .bounds()
+                .size
+                .height;
+            assert!(height > start_height && height < px(160.));
+            (destination, height)
         })
         .unwrap()
     };
@@ -216,14 +238,31 @@ fn bottom_sheet_cancels_drag_and_accepts_next_gesture(cx: &mut gpui::TestAppCont
         })
         .unwrap();
     };
-    let destination = drag(cx);
+    let (destination, dragged_height) = drag(cx);
     cx.simulate_keystrokes(window.into(), "escape");
     release(cx, destination);
     cx.update(|cx| {
         assert!(!cx.has_active_drag());
         assert!(!view.read(cx).expanded);
     });
-    let destination = drag(cx);
+    let height = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            find(window, &[], &"standard".into())
+                .unwrap()
+                .bounds()
+                .size
+                .height
+        })
+        .unwrap()
+    };
+    assert_eq!(height(cx), dragged_height);
+    cx.executor()
+        .advance_clock(std::time::Duration::from_secs(1));
+    assert_eq!(height(cx), px(88.));
+
+    let (destination, _) = drag(cx);
     release(cx, destination);
     cx.update(|cx| assert!(view.read(cx).expanded));
 }
@@ -284,6 +323,89 @@ fn escape_closes_nested_dialogs_and_restores_each_trigger(cx: &mut gpui::TestApp
 
 #[cfg(all(test, feature = "test-support"))]
 #[gpui::test]
+fn dialog_body_stays_with_the_panel_during_dismissal(cx: &mut gpui::TestAppContext) {
+    use gpui::{WindowOptions, px};
+    use gpui_base::test_support::find;
+    use gpui_material::MaterialRoot;
+    use std::time::Duration;
+
+    let (window, dialog) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut dialog = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            cx.new(|cx| {
+                let view = ModalExamples::new(Story::Dialog, window, cx);
+                dialog = Some(view.primary.clone());
+                view
+            })
+        })
+        .unwrap();
+        (window, dialog.unwrap())
+    });
+    cx.update_window(window.into(), |_, window, cx| {
+        dialog.update(cx, |dialog, cx| dialog.open(window, cx));
+        window.refresh();
+        window.draw(cx).clear(cx);
+    })
+    .unwrap();
+    cx.executor().advance_clock(Duration::from_millis(220));
+    let body = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            find(window, &[], &"dialog-content".into()).map(|body| body.bounds())
+        })
+        .unwrap()
+    };
+    let opened = body(cx).unwrap();
+    cx.simulate_keystrokes(window.into(), "escape");
+    let first_exit = body(cx).unwrap();
+    assert_eq!(first_exit.size, opened.size);
+    assert!((first_exit.top() - opened.top()).abs() <= px(1.));
+    cx.executor().advance_clock(Duration::from_millis(60));
+    let exiting = body(cx).unwrap();
+    assert_eq!(opened.size, exiting.size);
+    assert!(exiting.top() > opened.top() && exiting.top() < opened.top() + px(8.));
+    cx.executor().advance_clock(Duration::from_millis(250));
+    assert!(body(cx).is_none());
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn bottom_sheets_center_with_the_compose_width_limit(cx: &mut gpui::TestAppContext) {
+    use gpui::{WindowOptions, size};
+    use gpui_base::test_support::find;
+    use gpui_material::MaterialRoot;
+
+    let (handle, examples) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut examples = None;
+        let handle = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let view = cx.new(|cx| ModalExamples::new(Story::Sheets, window, cx));
+            examples = Some(view.clone());
+            view
+        })
+        .unwrap();
+        (handle, examples.unwrap())
+    });
+    cx.simulate_window_resize(handle.into(), size(px(1024.), px(720.)));
+    cx.update_window(handle.into(), |_, window, cx| {
+        let state = examples.read(cx).primary.clone();
+        state.update(cx, |state, cx| state.open(window, cx));
+        window.refresh();
+        window.draw(cx).clear(cx);
+        for id in ["standard", "activity-sheet"] {
+            let bounds = find(window, &[], &id.into()).unwrap().bounds();
+            assert_eq!(bounds.size.width, px(640.));
+            assert_eq!(bounds.center().x, window.viewport_size().width / 2.);
+        }
+    })
+    .unwrap();
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
 fn modal_side_sheet_mirrors_and_fits_a_compact_scaled_window(cx: &mut gpui::TestAppContext) {
     use gpui::{WindowOptions, size};
     use gpui_base::test_support::find;
@@ -302,13 +424,45 @@ fn modal_side_sheet_mirrors_and_fits_a_compact_scaled_window(cx: &mut gpui::Test
     });
     cx.simulate_window_resize(window.into(), size(px(408.), px(420.)));
     cx.simulate_window_scale_factor_change(window.into(), 1.5);
-    let assert_side = |cx: &mut gpui::TestAppContext, side| {
+    let assert_side = |cx: &mut gpui::TestAppContext, side, reduced| {
         cx.update_window(window.into(), |_, window, cx| {
+            cx.set_reduce_motion(reduced);
             let mut theme = material_theme(cx).clone();
             theme.layout.direction = side;
             set_material_theme(theme, cx);
             let state = view.read(cx).secondary.clone();
             state.update(cx, |state, cx| state.open(window, cx));
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let bounds = find(window, &[], &"details-sheet".into()).unwrap().bounds();
+            match (side, reduced) {
+                (Direction::Ltr, false) => assert!(bounds.right() > window.viewport_size().width),
+                (Direction::Rtl, false) => assert!(bounds.left() < px(0.)),
+                (Direction::Ltr, true) => assert_eq!(bounds.right(), window.viewport_size().width),
+                (Direction::Rtl, true) => assert_eq!(bounds.left(), px(0.)),
+            }
+        })
+        .unwrap();
+        cx.executor()
+            .advance_clock(std::time::Duration::from_millis(60));
+        if !reduced {
+            cx.update_window(window.into(), |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+                let bounds = find(window, &[], &"details-sheet".into()).unwrap().bounds();
+                match side {
+                    Direction::Ltr => assert!(
+                        bounds.left() < window.viewport_size().width
+                            && bounds.right() > window.viewport_size().width
+                    ),
+                    Direction::Rtl => assert!(bounds.right() > px(0.) && bounds.left() < px(0.)),
+                }
+            })
+            .unwrap();
+        }
+        cx.executor()
+            .advance_clock(std::time::Duration::from_millis(250));
+        cx.update_window(window.into(), |_, window, cx| {
             window.refresh();
             window.draw(cx).clear(cx);
             let sheet = find(window, &[], &"details-sheet".into()).unwrap();
@@ -321,11 +475,35 @@ fn modal_side_sheet_mirrors_and_fits_a_compact_scaled_window(cx: &mut gpui::Test
                 Direction::Ltr => assert_eq!(bounds.right(), viewport.width),
                 Direction::Rtl => assert_eq!(bounds.left(), px(0.)),
             }
+            let state = view.read(cx).secondary.clone();
+            state.update(cx, |state, cx| state.close(window, cx));
+            window.refresh();
+            window.draw(cx).clear(cx);
+            assert_eq!(
+                find(window, &[], &"sheet-content".into()).is_none(),
+                reduced
+            );
         })
         .unwrap();
+        if !reduced {
+            cx.executor()
+                .advance_clock(std::time::Duration::from_millis(60));
+            cx.update_window(window.into(), |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+                let body = find(window, &[], &"sheet-content".into()).unwrap().bounds();
+                match side {
+                    Direction::Ltr => assert!(body.right() > window.viewport_size().width),
+                    Direction::Rtl => assert!(body.left() < px(0.)),
+                }
+            })
+            .unwrap();
+        }
     };
-    assert_side(cx, Direction::Ltr);
-    assert_side(cx, Direction::Rtl);
+    assert_side(cx, Direction::Ltr, false);
+    cx.executor()
+        .advance_clock(std::time::Duration::from_millis(250));
+    assert_side(cx, Direction::Rtl, true);
 }
 
 pub(crate) struct SnackbarExamples {
@@ -428,6 +606,20 @@ fn snackbar_advances_after_timeout_and_accepts_undo(cx: &mut gpui::TestAppContex
         .unwrap()
     };
     click(cx, "save-region".into());
+    let snackbar_bounds = |cx: &mut gpui::TestAppContext, state, id| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            find(window, &[], &(state, id).into()).map(|surface| surface.bounds())
+        })
+        .unwrap()
+    };
+    let collapsed = snackbar_bounds(cx, "snackbar", 1usize).unwrap();
+    cx.executor().advance_clock(Duration::from_millis(250));
+    let expanded = snackbar_bounds(cx, "snackbar", 1usize).unwrap();
+    assert!(collapsed.size.width < expanded.size.width);
+    assert!(collapsed.size.height < expanded.size.height);
+    assert!((collapsed.center().x - expanded.center().x).abs() <= px(1.));
     click(cx, "archive-region".into());
     assert_eq!(message(cx, 1usize).as_deref(), Some("Changes saved"));
     assert_eq!(message(cx, 2usize), None);
@@ -603,13 +795,22 @@ fn menu_skips_disabled_items_and_restores_trigger(cx: &mut gpui::TestAppContext)
     cx.simulate_keystrokes(window.into(), "enter");
     frame(cx);
     frame(cx);
-    cx.update_window(window.into(), |_, window, _| {
-        assert!(
-            gpui_base::test_support::find(window, &[], &"menu".into()).is_some(),
-            "menu opened"
-        );
-    })
-    .unwrap();
+    let bounds = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(window.into(), |_, window, _| {
+            gpui_base::test_support::find(window, &[], &"menu".into())
+                .unwrap()
+                .bounds()
+        })
+        .unwrap()
+    };
+    let collapsed = bounds(cx);
+    cx.executor()
+        .advance_clock(std::time::Duration::from_millis(250));
+    frame(cx);
+    let expanded = bounds(cx);
+    assert!(collapsed.size.width < expanded.size.width);
+    assert!(collapsed.size.height < expanded.size.height);
+    assert_eq!(collapsed.top(), expanded.top());
     cx.simulate_keystrokes(window.into(), "down");
     frame(cx);
     cx.simulate_keystrokes(window.into(), "right");
@@ -638,6 +839,8 @@ fn submenu_accepts_pointer_selection_before_dismissing_its_parent(cx: &mut gpui:
     use gpui::{InputEvent as _, MouseButton, MouseDownEvent, MouseUpEvent, WindowOptions, point};
     use gpui_base::test_support::find;
     use gpui_material::MaterialRoot;
+    use std::time::Duration;
+    let submenu_exit = (gpui::ElementId::from("options"), "submenu-exit-1").into();
 
     let (window, view) = cx.update(|cx| {
         crate::init_gallery(cx);
@@ -668,6 +871,8 @@ fn submenu_accepts_pointer_selection_before_dismissing_its_parent(cx: &mut gpui:
     frame(cx);
     cx.simulate_keystrokes(window.into(), "down right");
     frame(cx);
+    frame(cx);
+    cx.executor().advance_clock(Duration::from_millis(250));
     frame(cx);
     cx.update_window(window.into(), |_, window, cx| {
         let submenu = find(window, &[], &"submenu-content".into())
@@ -703,6 +908,13 @@ fn submenu_accepts_pointer_selection_before_dismissing_its_parent(cx: &mut gpui:
     cx.update_window(window.into(), |_, window, cx| {
         assert_eq!(view.read(cx).output.as_ref(), "Sort by date modified");
         assert!(find(window, &[], &"menu".into()).is_none());
+        assert!(find(window, &[], &submenu_exit).is_some());
+    })
+    .unwrap();
+    cx.executor().advance_clock(Duration::from_millis(250));
+    frame(cx);
+    cx.update_window(window.into(), |_, window, _| {
+        assert!(find(window, &[], &submenu_exit).is_none());
     })
     .unwrap();
 }
@@ -744,6 +956,13 @@ fn rich_tooltip_keeps_its_action_available_while_focused(cx: &mut gpui::TestAppC
     cx.executor().advance_clock(Duration::from_millis(10));
     cx.run_until_parked();
     assert!(frame(cx));
+    let bounds = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(window.into(), |_, window, _| {
+            find(window, &[], &"tooltip".into()).unwrap().bounds()
+        })
+        .unwrap()
+    };
+    let collapsed = bounds(cx);
     cx.simulate_keystrokes(window.into(), "tab");
     frame(cx);
     cx.update_window(window.into(), |_, window, cx| {
@@ -756,12 +975,24 @@ fn rich_tooltip_keeps_its_action_available_while_focused(cx: &mut gpui::TestAppC
     cx.executor().advance_clock(Duration::from_millis(250));
     cx.run_until_parked();
     assert!(frame(cx));
+    let expanded = bounds(cx);
+    assert!(collapsed.size.width < expanded.size.width);
+    assert!(collapsed.size.height < expanded.size.height);
+    assert!((collapsed.center().x - expanded.center().x).abs() <= px(1.));
     cx.simulate_keystrokes(window.into(), "enter");
     cx.update(|cx| assert_eq!(view.read(cx).output.as_ref(), "30 days"));
     cx.simulate_keystrokes(window.into(), "escape");
     assert!(!frame(cx));
     cx.update_window(window.into(), |_, window, cx| {
         assert!(view.read(cx).rich_trigger.is_focused(window));
+        assert!(find(window, &[], &"tooltip-exit".into()).is_some());
+        assert!(find(window, &[], &"tooltip-action".into()).is_none());
+    })
+    .unwrap();
+    cx.executor().advance_clock(Duration::from_millis(200));
+    assert!(!frame(cx));
+    cx.update_window(window.into(), |_, window, _| {
+        assert!(find(window, &[], &"tooltip-exit".into()).is_none());
     })
     .unwrap();
 }

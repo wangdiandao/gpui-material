@@ -1,9 +1,10 @@
 use std::cell::{Cell, RefCell};
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
+use crate::motion::{OverlayMotion, ScaledOverlay, menu_pivot};
 use gpui::{
     Anchor, AnyElement, App, Axis, Bounds, ElementId, FocusHandle, Focusable, InteractiveElement,
-    IntoElement, MouseButton, ParentElement, RenderOnce, Role, SharedString,
+    IntoElement, MouseButton, ParentElement, RenderOnce, Role, ScrollHandle, SharedString,
     StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{Popover, PopoverState, TestSupportExt};
@@ -28,6 +29,26 @@ enum Kind {
     Select(bool, Option<Action>),
     Group,
     Submenu(Vec<MenuItem>),
+}
+
+struct MenuExitRow {
+    label: SharedString,
+    disabled: bool,
+    group: bool,
+    selected: bool,
+    submenu: bool,
+}
+
+impl From<&MenuItem> for MenuExitRow {
+    fn from(item: &MenuItem) -> Self {
+        Self {
+            label: item.label.clone(),
+            disabled: item.disabled,
+            group: matches!(item.kind, Kind::Group),
+            selected: matches!(item.kind, Kind::Check(true, _) | Kind::Select(true, _)),
+            submenu: matches!(item.kind, Kind::Submenu(_)),
+        }
+    }
 }
 
 impl MenuItem {
@@ -105,7 +126,11 @@ pub struct Menu {
 struct PopupBounds {
     trigger: Cell<Bounds<gpui::Pixels>>,
     popup: Cell<Bounds<gpui::Pixels>>,
-    child: RefCell<Option<Weak<PopupBounds>>>,
+    child: RefCell<Option<Rc<PopupBounds>>>,
+    items: RefCell<Vec<MenuExitRow>>,
+    scroll: ScrollHandle,
+    motion: Cell<Option<OverlayMotion>>,
+    open: Rc<Cell<bool>>,
 }
 
 impl PopupBounds {
@@ -116,8 +141,7 @@ impl PopupBounds {
                 .child
                 .borrow()
                 .as_ref()
-                .and_then(Weak::upgrade)
-                .is_some_and(|child| child.contains(point))
+                .is_some_and(|child| child.open.get() && child.contains(point))
     }
 }
 
@@ -158,14 +182,6 @@ impl RenderOnce for Menu {
         if !self.enabled {
             return self.trigger;
         }
-        let open_state = window
-            .use_keyed_state((self.id.clone(), "menu-open"), cx, |_, _| {
-                Rc::new(Cell::new(false))
-            })
-            .read(cx)
-            .clone();
-        let open = open_state.get();
-        let key_state = open_state.clone();
         let view = window.current_view();
         let bounds = window
             .use_keyed_state((self.id.clone(), "menu-bounds"), cx, |_, _| {
@@ -173,21 +189,62 @@ impl RenderOnce for Menu {
             })
             .read(cx)
             .clone();
+        let open_state = bounds.open.clone();
+        let open = open_state.get();
+        let key_state = open_state.clone();
+        let motion = OverlayMotion::sample(&self.id, open, window, cx);
         let position = bounds.clone();
         let ancestor = self.ancestor.clone();
-        let clear_ancestor = ancestor.clone();
+        if open {
+            let mut rows = bounds.items.borrow_mut();
+            rows.clear();
+            rows.extend(self.items.iter().map(MenuExitRow::from));
+        }
+        bounds.motion.set(motion);
         let forward = if direction == Direction::Rtl {
             "left"
         } else {
             "right"
         };
-        Popover::new(self.id)
+        let exit_view = motion.filter(|_| !open).map(|motion| {
+            // Closing the parent removes Base's nested popup hosts immediately.
+            // Use the last presented branch to finish their own visual exits.
+            let mut exits = div();
+            let mut level = Some(bounds.clone());
+            let mut depth = 0;
+            while let Some(bounds) = level {
+                let Some(previous) = bounds.motion.get() else {
+                    break;
+                };
+                let motion = if depth == 0 {
+                    motion
+                } else {
+                    OverlayMotion {
+                        scale: 0.8 + (motion.scale - 0.8) * (previous.scale - 0.8) / 0.2,
+                        alpha: motion.alpha * previous.alpha,
+                    }
+                };
+                exits = exits.children(menu_exit(
+                    (&self.id, depth),
+                    &bounds,
+                    motion,
+                    direction,
+                    window,
+                    cx,
+                ));
+                level = bounds.child.borrow().clone();
+                depth += 1;
+            }
+            exits
+        });
+        if !open && motion.is_none() {
+            bounds.items.borrow_mut().clear();
+            bounds.child.borrow_mut().take();
+        }
+        let menu = Popover::new(self.id)
             .open(open)
             .on_open_change(move |open, _, cx| {
                 open_state.set(*open);
-                if !*open && let Some(ancestor) = &clear_ancestor {
-                    *ancestor.child.borrow_mut() = None;
-                }
                 cx.notify(view);
             })
             .anchor(logical_anchor(self.anchor, direction))
@@ -198,7 +255,7 @@ impl RenderOnce for Menu {
                 position.trigger.set(trigger);
                 position.popup.set(resolved.bounds);
                 if let Some(ancestor) = &ancestor {
-                    *ancestor.child.borrow_mut() = Some(Rc::downgrade(&position));
+                    *ancestor.child.borrow_mut() = Some(position.clone());
                 }
             })
             .trigger_with(move |open, _, _| {
@@ -217,6 +274,7 @@ impl RenderOnce for Menu {
                     .into_any_element()
             })
             .content(move |state, window, cx| {
+                let motion = motion.expect("open menu has motion");
                 let own = cx.entity().downgrade();
                 let close_level = own.clone();
                 let close_level: Action = Rc::new(move |window, cx| {
@@ -232,17 +290,19 @@ impl RenderOnce for Menu {
                     }
                 });
                 let dismissal = close_level.clone();
+                let item_bounds = bounds.clone();
                 let content = menu_content(
                     self.items,
                     close,
                     submenu.then_some(close_level),
                     state.focus_handle(cx),
-                    (direction, bounds.clone()),
+                    (direction, bounds.clone(), bounds.scroll.clone(), motion),
                     window,
                     cx,
                 );
-                div()
+                let popup = div()
                     .id("dismiss-menu")
+                    .opacity(motion.alpha)
                     .on_mouse_down_out(move |event, window, cx| {
                         let point = &event.position;
                         if bounds.contains(point) {
@@ -250,10 +310,113 @@ impl RenderOnce for Menu {
                         }
                         dismissal(window, cx);
                     })
-                    .child(content)
-            })
+                    .child(content);
+                ScaledOverlay::new(popup, motion, move |menu| {
+                    menu_pivot(menu, item_bounds.trigger.get())
+                })
+                .into_any_element()
+            });
+        div()
+            .relative()
+            .child(menu)
+            .children(exit_view)
             .into_any_element()
     }
+}
+
+fn menu_exit(
+    (id, depth): (&ElementId, usize),
+    bounds: &PopupBounds,
+    motion: OverlayMotion,
+    direction: Direction,
+    window: &Window,
+    cx: &App,
+) -> Option<AnyElement> {
+    let exit = bounds.popup.get();
+    if exit.size.width <= px(0.) {
+        return None;
+    }
+    let trigger = bounds.trigger.get();
+    let theme = window_material_theme(window, cx);
+    let exit_ink = color(theme.colors.color(ColorRole::OnSurface));
+    let exit_muted = color(theme.colors.color(ColorRole::OnSurfaceVariant));
+    let exit_selected = color(theme.colors.color(ColorRole::SecondaryContainer));
+    let dp = |value| motion.px(value);
+    let spacing = window.rem_size() * motion.scale;
+    let items = bounds.items.borrow();
+    let rows = items
+        .iter()
+        .map(|item| {
+            let label = item.label.clone();
+            let tint = if item.group {
+                exit_muted
+            } else if item.disabled {
+                exit_ink.opacity(0.38)
+            } else {
+                exit_ink
+            };
+            div().px(spacing * 0.75).text_color(tint).when_else(
+                item.group,
+                |row| row.py(spacing * 0.5).child(label.clone()),
+                |row| {
+                    row.min_h(dp(40.))
+                        .flex()
+                        .items_center()
+                        .line_height(gpui::relative(1.))
+                        .gap(spacing * 0.5)
+                        .justify_start()
+                        .when(direction == Direction::Rtl, Styled::flex_row_reverse)
+                        .when(item.selected, |row| row.bg(exit_selected))
+                        .child(div().w(dp(18.)).flex_none().child(if item.selected {
+                            "\u{2713}"
+                        } else {
+                            ""
+                        }))
+                        .child(div().flex_1().min_w_0().truncate().child(label.clone()))
+                        .when(item.submenu, |row| {
+                            row.child(if direction == Direction::Rtl {
+                                "\u{2039}"
+                            } else {
+                                "\u{203a}"
+                            })
+                        })
+                },
+            )
+        })
+        .collect::<Vec<_>>();
+    let surface = div()
+        .id(if depth == 0 {
+            ElementId::from((id.clone(), "menu-exit"))
+        } else {
+            ElementId::from((id.clone(), format!("submenu-exit-{depth}")))
+        })
+        .test_support()
+        .h(exit.size.height * motion.scale)
+        .w(exit.size.width * motion.scale)
+        .opacity(motion.alpha)
+        .overflow_y_scroll()
+        .track_scroll(&bounds.scroll)
+        .child(
+            Surface::new(ColorRole::SurfaceContainer)
+                .shadow_elevation(Elevation::Level2)
+                .shadow_scale(motion.scale)
+                .w_full()
+                .rounded(spacing * 0.25)
+                .py(spacing * 0.5)
+                .children(rows),
+        )
+        .child(div().absolute().inset_0().occlude());
+    Some(
+        gpui::deferred(
+            gpui_base::Positioner::corner(gpui::Anchor::TopLeft, exit.origin).child(
+                ScaledOverlay::new(motion.text(surface, window), motion, move |bounds| {
+                    menu_pivot(bounds, trigger)
+                }),
+            ),
+        )
+        .with_priority(100 + depth)
+        .into_any_element(),
+    )
 }
 
 fn menu_content(
@@ -261,7 +424,7 @@ fn menu_content(
     close: Action,
     close_level: Option<Action>,
     popup_focus: FocusHandle,
-    (direction, bounds): (Direction, Rc<PopupBounds>),
+    (direction, bounds, scroll, motion): (Direction, Rc<PopupBounds>, ScrollHandle, OverlayMotion),
     window: &mut Window,
     cx: &mut App,
 ) -> AnyElement {
@@ -291,8 +454,12 @@ fn menu_content(
             }
         });
     }
-    let limit = (window.viewport_size().height * 0.7).min(px(420.));
-    div()
+    let viewport = window.viewport_size();
+    let limit = (viewport.height * 0.7).min(px(420.)) * motion.scale;
+    let available_width = (viewport.width - px(16.)).max(px(0.)) * motion.scale;
+    let dp = |value| motion.px(value);
+    let spacing = window.rem_size() * motion.scale;
+    let menu = div()
         .id(if close_level.is_some() {
             "submenu-content"
         } else {
@@ -301,6 +468,7 @@ fn menu_content(
         .test_support()
         .role(Role::Menu)
         .overflow_y_scroll()
+        .track_scroll(&scroll)
         .max_h(limit)
         .on_key_down(move |event, window, cx| {
             let backward = if direction == Direction::Rtl {
@@ -335,9 +503,11 @@ fn menu_content(
         .child(
             Surface::new(ColorRole::SurfaceContainer)
                 .shadow_elevation(Elevation::Level2)
-                .rounded_sm()
-                .min_w(px(180.).min(window.viewport_size().width))
-                .py_2()
+                .shadow_scale(motion.scale)
+                .rounded(spacing * 0.25)
+                .min_w(dp(112.).min(available_width))
+                .max_w(dp(280.).min(available_width))
+                .py(spacing * 0.5)
                 .children(
                     items
                         .into_iter()
@@ -347,8 +517,8 @@ fn menu_content(
                                 return div()
                                     .id(item.id)
                                     .role(Role::Label)
-                                    .px_3()
-                                    .py_2()
+                                    .px(spacing * 0.75)
+                                    .py(spacing * 0.5)
                                     .text_color(muted)
                                     .child(item.label)
                                     .into_any_element();
@@ -367,10 +537,10 @@ fn menu_content(
                                 .accessibility_label(item.label.clone())
                                 .flex()
                                 .justify_start()
-                                .gap_2()
+                                .gap(spacing * 0.5)
                                 .w_full()
-                                .min_h(px(40.))
-                                .px_3()
+                                .min_h(dp(40.))
+                                .px(spacing * 0.75)
                                 .text_color(if enabled { ink } else { ink.opacity(0.38) })
                                 .when(marked, |row| row.bg(selected_color))
                                 .when(direction == Direction::Rtl, Styled::flex_row_reverse)
@@ -413,12 +583,12 @@ fn menu_content(
                                     )
                                     .on_click(move |_, window, cx| activate(window, cx))
                                 })
-                                .child(div().w(px(18.)).flex_none().child(if marked {
+                                .child(div().w(dp(18.)).flex_none().child(if marked {
                                     "✓"
                                 } else {
                                     ""
                                 }))
-                                .child(div().flex_1().min_w_0().child(item.label))
+                                .child(div().flex_1().min_w_0().truncate().child(item.label))
                                 .when(submenu, |row| {
                                     row.child(if direction == Direction::Rtl {
                                         "‹"
@@ -440,6 +610,6 @@ fn menu_content(
                             }
                         }),
                 ),
-        )
-        .into_any_element()
+        );
+    motion.text(menu, window).into_any_element()
 }

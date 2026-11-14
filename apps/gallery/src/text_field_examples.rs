@@ -71,7 +71,9 @@ impl Render for DropdownExamples {
 #[gpui::test]
 fn dropdown_filters_cancels_and_commits_to_owner(cx: &mut gpui::TestAppContext) {
     use gpui::{InputEvent as _, WindowOptions};
+    use gpui_base::test_support::find;
     use gpui_material::MaterialRoot;
+    use std::time::Duration;
 
     let (window, view) = cx.update(|cx| {
         crate::init_gallery(cx);
@@ -111,6 +113,20 @@ fn dropdown_filters_cancels_and_commits_to_owner(cx: &mut gpui::TestAppContext) 
     cx.update(|cx| assert!(view.read(cx).destination.is_empty()));
     cx.simulate_input(window.into(), "上");
     cx.run_until_parked();
+    let options_bounds = |cx: &mut gpui::TestAppContext, state| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            find(window, &[], &state).map(|row| row.bounds())
+        })
+        .unwrap()
+    };
+    let collapsed = options_bounds(cx, "options".into()).unwrap();
+    cx.executor().advance_clock(Duration::from_millis(250));
+    let expanded = options_bounds(cx, "options".into()).unwrap();
+    assert!(collapsed.size.width < expanded.size.width);
+    assert!(collapsed.size.height < expanded.size.height);
+    assert_eq!(collapsed.top(), expanded.top());
     cx.update_window(window.into(), |_, window, cx| {
         window.refresh();
         window.draw(cx).clear(cx);
@@ -118,6 +134,17 @@ fn dropdown_filters_cancels_and_commits_to_owner(cx: &mut gpui::TestAppContext) 
     .unwrap();
     cx.simulate_keystrokes(window.into(), "enter");
     cx.update(|cx| assert_eq!(view.read(cx).destination.as_ref(), "上海"));
+    assert!(options_bounds(cx, "options-exit".into()).is_some());
+    cx.executor().advance_clock(Duration::from_millis(60));
+    assert!(
+        options_bounds(cx, "options-exit".into())
+            .unwrap()
+            .size
+            .width
+            < expanded.size.width
+    );
+    cx.executor().advance_clock(Duration::from_millis(250));
+    assert!(options_bounds(cx, "options-exit".into()).is_none());
 }
 
 pub(crate) struct TextFieldExamples {
@@ -229,6 +256,107 @@ fn scaled_text_field_wraps_long_label_without_clipping(cx: &mut gpui::TestAppCon
         );
     })
     .unwrap();
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn outlined_floating_label_cuts_the_top_border(cx: &mut gpui::TestAppContext) {
+    use gpui::{WindowOptions, point, px};
+    use gpui_base::test_support::find;
+    use gpui_material::foundation::MaterialRoot;
+
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            cx.new(|cx| TextFieldExamples::new(window, cx))
+        })
+        .unwrap()
+    });
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let field = find(window, &[], &"email".into()).unwrap();
+        let label = find(window, field.path(), &"label".into()).unwrap();
+        let factor = window.scale_factor();
+        // The outlined example starts with a value, so its label overlaps the top stroke.
+        let y = field.bounds().top() + px(0.25);
+        let inside_label = point(label.bounds().left() + px(9.), y).scale(factor);
+        let before_label = point(field.bounds().left() + px(10.), y).scale(factor);
+        let outline: Vec<_> = window
+            .painted_quads()
+            .into_iter()
+            .filter(|quad| {
+                quad.bounds.origin.y == field.bounds().origin.y.scale(factor)
+                    && quad.border_widths.top > px(0.).scale(factor)
+            })
+            .collect();
+        assert!(
+            outline
+                .iter()
+                .any(|quad| quad.content_mask.bounds.contains(&before_label))
+        );
+        assert!(
+            outline
+                .iter()
+                .all(|quad| !quad.content_mask.bounds.contains(&inside_label))
+        );
+    })
+    .unwrap();
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn empty_text_field_floats_its_label_on_focus(cx: &mut gpui::TestAppContext) {
+    use gpui::WindowOptions;
+    use gpui_base::test_support::find;
+    use gpui_material::MaterialRoot;
+    use std::time::Duration;
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let examples = cx.new(|cx| TextFieldExamples::new(window, cx));
+            view = Some(examples.clone());
+            examples
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    let sample = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let field = find(window, &[], &"name".into()).unwrap();
+            let label = find(window, field.path(), &"label".into()).unwrap();
+            label.bounds().top() - field.bounds().top()
+        })
+        .unwrap()
+    };
+    let rest = sample(cx);
+    cx.update_window(window.into(), |_, window, cx| {
+        view.read(cx)
+            .name
+            .read(cx)
+            .presentation()
+            .focus_handle()
+            .clone()
+            .focus(window, cx);
+    })
+    .unwrap();
+    assert_eq!(sample(cx), rest);
+    cx.executor().advance_clock(Duration::from_millis(40));
+    let middle = sample(cx);
+    assert!(middle < rest);
+    cx.executor().advance_clock(Duration::from_secs(1));
+    let floated = sample(cx);
+    assert!(floated < middle);
+    cx.update_window(window.into(), |_, window, cx| {
+        cx.set_reduce_motion(true);
+        window.blur(cx);
+    })
+    .unwrap();
+    assert_eq!(sample(cx), rest);
 }
 
 #[cfg(all(test, feature = "test-support"))]

@@ -3,6 +3,7 @@
 mod action;
 mod button;
 mod fab;
+mod motion;
 
 pub use button::{
     Button, ButtonShape, ButtonVariant, ControlSize, IconButton, IconButtonVariant,

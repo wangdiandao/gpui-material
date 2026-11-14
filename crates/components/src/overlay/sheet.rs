@@ -1,19 +1,19 @@
 use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
-    AnyElement, App, AppContext, Context, ElementId, Entity, InteractiveElement, IntoElement,
-    MouseButton, ParentElement, Pixels, Render, RenderOnce, Role, SharedString,
-    StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
+    AnyElement, App, AppContext, Context, DragMoveEvent, ElementId, Entity, InteractiveElement,
+    IntoElement, MouseButton, ParentElement, Pixels, Render, RenderOnce, Role, SharedString,
+    StatefulInteractiveElement, Styled, Window, anchored, div, point, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt as _;
 use gpui_material_foundation::{
-    DragCapture, Surface, color, isolated_scroll, scrim_color, window_material_theme,
+    DragCapture, Surface, animate, color, isolated_scroll, scrim_color, window_material_theme,
 };
-use gpui_material_theme::{ColorRole, Direction, TypeRole};
+use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpec, MotionSpeed, TypeRole};
 
 use crate::{Button, ButtonVariant, Text};
 
-use super::dialog::DialogState;
+use super::dialog::{DialogState, exiting_panel};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum SheetEdge {
@@ -44,10 +44,13 @@ impl Render for SheetDrag {
 struct Gesture {
     origin: Option<Pixels>,
     capture: Option<DragCapture>,
+    offset: Pixels,
 }
 
 fn drag_handle(
     id: &ElementId,
+    gesture: Rc<RefCell<Gesture>>,
+    travel: Pixels,
     expanded: bool,
     change: Change,
     window: &mut Window,
@@ -58,12 +61,6 @@ fn drag_handle(
             .colors
             .color(ColorRole::OnSurfaceVariant),
     );
-    let gesture = window
-        .use_keyed_state((id.clone(), "drag"), cx, |_, _| {
-            Rc::new(RefCell::new(Gesture::default()))
-        })
-        .read(cx)
-        .clone();
     let focus = window
         .use_keyed_state((id.clone(), "drag-focus"), cx, |_, cx| cx.focus_handle())
         .read(cx)
@@ -72,6 +69,7 @@ fn drag_handle(
     let start = gesture.clone();
     let release = gesture.clone();
     let outside = gesture.clone();
+    let moving = gesture.clone();
     let cancel = gesture;
     let drag_focus = focus.clone();
     let release_change = change.clone();
@@ -81,6 +79,7 @@ fn drag_handle(
                        window: &mut Window,
                        cx: &mut App| {
         let active = std::mem::take(&mut *gesture.borrow_mut());
+        window.refresh();
         if active.capture.is_none() {
             return;
         }
@@ -101,13 +100,7 @@ fn drag_handle(
         .items_center()
         .justify_center()
         .cursor_ns_resize()
-        .child(
-            div()
-                .w(px(32.))
-                .h(px(4.))
-                .rounded_full()
-                .bg(tint.opacity(0.55)),
-        )
+        .child(drag_handle_mark(tint))
         .on_mouse_down(MouseButton::Left, move |event, _, _| {
             down.borrow_mut().origin = Some(event.position.y);
         })
@@ -122,6 +115,20 @@ fn drag_handle(
             cx.stop_propagation();
             cx.new(|_| SheetDrag)
         })
+        .on_drag_move(move |event: &DragMoveEvent<SheetDrag>, window, _| {
+            let mut state = moving.borrow_mut();
+            if state.capture.is_some()
+                && let Some(origin) = state.origin
+            {
+                let offset = event.event.position.y - origin;
+                state.offset = if expanded {
+                    offset.clamp(px(0.), travel)
+                } else {
+                    offset.clamp(-travel, px(0.))
+                };
+                window.refresh();
+            }
+        })
         .on_mouse_up(MouseButton::Left, move |event, window, cx| {
             settle(&release, event.position.y, &release_change, window, cx);
         })
@@ -133,10 +140,19 @@ fn drag_handle(
                 && let Some(capture) = std::mem::take(&mut *cancel.borrow_mut()).capture
             {
                 capture.cancel(window, cx);
+                window.refresh();
                 cx.stop_propagation();
             }
         })
         .into_any_element()
+}
+
+fn drag_handle_mark(tint: gpui::Hsla) -> gpui::Div {
+    div()
+        .w(px(32.))
+        .h(px(4.))
+        .rounded_full()
+        .bg(tint.opacity(0.55))
 }
 
 /// A docked or modal Material sheet. Standard sheets take part in parent layout.
@@ -202,18 +218,45 @@ impl Sheet {
 impl RenderOnce for Sheet {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let modal = self.mode == SheetMode::Modal;
-        if modal && !self.state.read(cx).is_open() {
+        let open = !modal || self.state.read(cx).is_open();
+        let presence = modal.then(|| crate::motion::presence(&self.id, open, 240, window, cx));
+        if presence.is_some_and(|presence| !presence.should_render()) {
             return div().into_any_element();
         }
+        let visibility = presence.map_or(1., |presence| presence.progress);
         let viewport = window.viewport_size();
-        let theme = window_material_theme(window, cx);
+        let corner = px(28.);
+        let bottom_width = viewport.width.min(px(640.));
+        let bottom_left = (viewport.width - bottom_width) / 2.;
+        let theme = window_material_theme(window, cx).clone();
         let left = match self.edge {
             SheetEdge::Start => theme.layout.direction == Direction::Ltr,
             SheetEdge::End => theme.layout.direction == Direction::Rtl,
             SheetEdge::Bottom => false,
         };
         let bottom = self.edge == SheetEdge::Bottom;
-        let scrim = scrim_color(theme, 0.32);
+        let scrim = scrim_color(&theme, 0.32 * visibility);
+        let extent = if !bottom && !modal {
+            px(animate(
+                (self.id.clone(), "side-sheet-width"),
+                f32::from(self.extent),
+                theme.motion.spec(
+                    MotionKind::Spatial,
+                    MotionSpeed::Default,
+                    cx.reduce_motion(),
+                ),
+                window,
+                cx,
+            ))
+            .min(viewport.width)
+        } else {
+            self.extent.min(if bottom {
+                viewport.height
+            } else {
+                viewport.width
+            })
+        };
+
         let expanded = !bottom
             || self
                 .expansion
@@ -223,93 +266,182 @@ impl RenderOnce for Sheet {
         let focus = self.state.read(cx).focus.clone();
         let scroll = self.state.read(cx).scroll.clone();
         let close_button = close.clone();
+        let gesture = window
+            .use_keyed_state((self.id.clone(), "drag"), cx, |_, _| {
+                Rc::new(RefCell::new(Gesture::default()))
+            })
+            .read(cx)
+            .clone();
+        let collapsed = px(88.).min(extent);
+        let travel = extent - collapsed;
+        let height = if self.expansion.is_some() && bottom {
+            let drag = gesture.borrow();
+            let tracked = drag.capture.is_some();
+            let target = if expanded { extent } else { collapsed } - drag.offset;
+            let policy = if tracked {
+                MotionSpec::Instant
+            } else {
+                theme.motion.spec(
+                    MotionKind::Spatial,
+                    MotionSpeed::Default,
+                    cx.reduce_motion(),
+                )
+            };
+            px(animate(
+                (self.id.clone(), "sheet-height"),
+                f32::from(target),
+                policy,
+                window,
+                cx,
+            ))
+            .clamp(collapsed, extent)
+        } else {
+            extent
+        };
+        let offscreen = -(if bottom { height } else { extent }) * (1. - visibility);
         let handle = self
             .expansion
             .as_ref()
             .filter(|_| bottom)
-            .map(|(expanded, change)| drag_handle(&self.id, *expanded, change.clone(), window, cx));
-        let panel = div()
-            .id(self.id)
-            .test_support()
-            .role(if modal { Role::Dialog } else { Role::Group })
-            .aria_label(self.title.clone())
-            .occlude()
-            .when(modal, |panel| {
-                panel.absolute().when_else(
-                    bottom,
-                    |panel| panel.bottom_0().left_0().right_0(),
-                    |panel| {
-                        panel
-                            .top_0()
-                            .bottom_0()
-                            .when_else(left, Styled::left_0, Styled::right_0)
-                    },
-                )
-            })
-            .child(
-                Surface::new(ColorRole::SurfaceContainerLow)
-                    .flex()
-                    .flex_col()
-                    .gap_2()
-                    .p_4()
-                    .children(handle)
-                    .when_else(
+            .map(|(expanded, change)| {
+                if open {
+                    drag_handle(
+                        &self.id,
+                        gesture,
+                        travel,
+                        *expanded,
+                        change.clone(),
+                        window,
+                        cx,
+                    )
+                } else {
+                    let tint = color(theme.colors.color(ColorRole::OnSurfaceVariant));
+                    div()
+                        .w_full()
+                        .h(px(24.))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(drag_handle_mark(tint))
+                        .into_any_element()
+                }
+            });
+        let panel =
+            div()
+                .id(self.id.clone())
+                .test_support()
+                .when(open, |panel| {
+                    panel
+                        .role(if modal { Role::Dialog } else { Role::Group })
+                        .aria_label(self.title.clone())
+                        .occlude()
+                })
+                .when(bottom && !modal, |panel| {
+                    panel.w_full().max_w(px(640.)).mx_auto()
+                })
+                .when(modal, |panel| {
+                    panel.absolute().when_else(
                         bottom,
-                        |surface| {
-                            surface.w_full().when(expanded, |surface| {
-                                surface.h(self.extent.min(viewport.height))
-                            })
-                        },
-                        |surface| surface.w(self.extent.min(viewport.width)).h_full(),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .justify_between()
-                            .gap_2()
-                            .flex_wrap()
-                            .child(Text::new(self.title).role(TypeRole::TitleMedium))
-                            .when_some(
-                                self.expansion.filter(|_| bottom),
-                                |header, (expanded, change)| {
-                                    header.child(
-                                        Button::new(
-                                            "expand",
-                                            if expanded { "Collapse" } else { "Expand" },
-                                        )
-                                        .variant(ButtonVariant::Text)
-                                        .on_activate(
-                                            move |window, cx| change(!expanded, window, cx),
-                                        ),
-                                    )
-                                },
+                        |panel| panel.bottom(offscreen).left(bottom_left).w(bottom_width),
+                        |panel| {
+                            panel.top_0().bottom_0().when_else(
+                                left,
+                                |panel| panel.left(offscreen),
+                                |panel| panel.right(offscreen),
                             )
-                            .when(modal, |header| {
-                                header.child(
-                                    Button::new("close", "Close")
-                                        .variant(ButtonVariant::Text)
-                                        .on_activate(move |window, cx| {
-                                            close_button
-                                                .update(cx, |state, cx| state.close(window, cx))
-                                        }),
-                                )
-                            }),
+                        },
                     )
-                    .when(expanded, |surface| {
-                        surface.child(
-                            isolated_scroll("sheet-content", &scroll)
-                                .flex_1()
-                                .child(self.content),
+                })
+                .child(
+                    Surface::new(ColorRole::SurfaceContainerLow)
+                        .flex()
+                        .flex_col()
+                        .gap_2()
+                        .p_4()
+                        .children(handle)
+                        .when_else(
+                            bottom,
+                            |surface| {
+                                surface
+                                    .w_full()
+                                    .h(height)
+                                    .overflow_hidden()
+                                    .rounded_tl(corner)
+                                    .rounded_tr(corner)
+                            },
+                            |surface| surface.w(extent).h_full(),
                         )
-                    }),
-            );
-        if modal {
+                        .child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .justify_between()
+                                .gap_2()
+                                .flex_wrap()
+                                .child(Text::new(self.title).role(TypeRole::TitleMedium))
+                                .when_some(
+                                    self.expansion.filter(|_| bottom),
+                                    |header, (expanded, change)| {
+                                        header.child(
+                                            Button::new(
+                                                "expand",
+                                                if expanded { "Collapse" } else { "Expand" },
+                                            )
+                                            .variant(ButtonVariant::Text)
+                                            .on_activate(move |window, cx| {
+                                                if open {
+                                                    change(!expanded, window, cx);
+                                                }
+                                            }),
+                                        )
+                                    },
+                                )
+                                .when(modal, |header| {
+                                    header.child(
+                                        Button::new("close", "Close")
+                                            .variant(ButtonVariant::Text)
+                                            .on_activate(move |window, cx| {
+                                                if open {
+                                                    close_button.update(cx, |state, cx| {
+                                                        state.close(window, cx)
+                                                    });
+                                                }
+                                            }),
+                                    )
+                                }),
+                        )
+                        .when(expanded || height > collapsed, |surface| {
+                            surface.child(
+                                isolated_scroll("sheet-content", &scroll)
+                                    .test_support()
+                                    .flex_1()
+                                    .child(self.content),
+                            )
+                        }),
+                );
+        if !open {
+            gpui::deferred(
+                anchored().position(point(px(0.), px(0.))).child(
+                    div()
+                        .id((self.id.clone(), "sheet-exit"))
+                        .absolute()
+                        .top_0()
+                        .left_0()
+                        .w(viewport.width)
+                        .h(viewport.height)
+                        .overflow_hidden()
+                        .child(div().absolute().inset_0().bg(scrim))
+                        .child(exiting_panel(panel, &self.id, &focus, window, cx)),
+                ),
+            )
+            .with_priority(9)
+            .into_any_element()
+        } else if modal {
             gpui::deferred(
                 gpui_base::Sheet::new(cx)
                     .focus_handle(focus)
                     .overlay(div().absolute().inset_0().bg(scrim))
-                    .surface(panel)
+                    .surface(div().absolute().inset_0().overflow_hidden().child(panel))
                     .request_close(move |window, cx| {
                         close.update(cx, |state, cx| state.close(window, cx));
                     }),

@@ -1,14 +1,19 @@
-use std::rc::Rc;
+use std::{cell::Cell, rc::Rc};
 
 use gpui::{
     AccessibleAction, AnyElement, App, Axis, ElementId, InteractiveElement, IntoElement,
-    ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Window, div,
-    prelude::FluentBuilder, px,
+    MouseButton, ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
+    Window, div, prelude::FluentBuilder, px,
 };
-use gpui_material_foundation::{color, window_material_theme};
-use gpui_material_theme::{ColorRole, CornerRole, Direction, Elevation, StateLayer, TypeRole};
+use gpui_material_foundation::{animate, color, window_material_theme};
+use gpui_material_theme::{
+    ColorRole, CornerRole, Direction, Elevation, MotionKind, MotionSpeed, StateLayer, TypeRole,
+};
 
-use crate::{Text, action::Activate};
+use crate::{
+    Text,
+    action::{Activate, ripple_ink, ripple_state, ripple_target},
+};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum CardVariant {
@@ -76,12 +81,42 @@ impl RenderOnce for Card {
         let focus = tone(ColorRole::Secondary, window, cx);
         let background = tone(background, window, cx);
         let foreground = tone(ColorRole::OnSurface, window, cx);
-        let state_group = SharedString::from(format!("{}-card-surface", self.id));
-        let elevation = if self.disabled { 0. } else { shadow.dp() };
+        let (feedback, opacity) = surface_feedback(
+            &self.id,
+            self.activation.is_some() && !self.disabled,
+            window,
+            cx,
+        );
+        let hover_elevation = match self.variant {
+            CardVariant::Elevated => Elevation::Level2,
+            _ => Elevation::Level1,
+        };
+        let elevation = animate(
+            (self.id.clone(), "card-shadow"),
+            if self.disabled {
+                0.
+            } else if feedback.get() == Some(StateLayer::Hover) {
+                hover_elevation.dp()
+            } else {
+                shadow.dp()
+            },
+            window_material_theme(window, cx).motion.spec(
+                MotionKind::Spatial,
+                MotionSpeed::Fast,
+                cx.reduce_motion(),
+            ),
+            window,
+            cx,
+        )
+        .max(0.);
+        let interactive = self.activation.is_some() && !self.disabled;
+        let ripple = ripple_state(&self.id, interactive, window, cx);
+        let direction = window_material_theme(window, cx).layout.direction;
         let surface = div()
             .id("card-surface")
+            .relative()
             .rounded(px(12.))
-            .bg(background)
+            .bg(background.blend(foreground.opacity(opacity)))
             .text_color(foreground)
             .when(elevation > 0., |surface| {
                 let shadow = tone(ColorRole::Shadow, window, cx);
@@ -102,15 +137,21 @@ impl RenderOnce for Card {
             .flex()
             .flex_col()
             .gap_2()
+            .when(interactive, |surface| {
+                surface.child(ripple_ink(
+                    ripple.clone(),
+                    foreground,
+                    gpui_material_theme::CornerShape::Radii([12.; 4]),
+                    direction,
+                ))
+            })
             .children(self.children)
-            .when(self.activation.is_some() && !self.disabled, |surface| {
-                surface_feedback(surface, state_group.clone(), background, foreground)
-            });
+            .when(interactive, |surface| ripple_target(surface, ripple));
         match self.activation {
             Some((name, activate)) => {
                 let invoke = activate.clone();
                 gpui_base::Button::new(self.id)
-                    .group(state_group)
+                    .when(!self.disabled, |button| monitor_surface(button, feedback))
                     .w_full()
                     .accessibility_label(name)
                     .disabled(self.disabled)
@@ -206,12 +247,35 @@ impl ListItem {
         self
     }
 
-    fn row(self, corners: [f32; 4], window: &Window, cx: &App) -> AnyElement {
-        let background = if self.selected {
-            ColorRole::SecondaryContainer
-        } else {
-            ColorRole::Surface
-        };
+    fn row(self, corners: [f32; 4], window: &mut Window, cx: &mut App) -> AnyElement {
+        let motion = window_material_theme(window, cx).motion;
+        let reduced = cx.reduce_motion();
+        let effects = motion.spec(MotionKind::Effects, MotionSpeed::Default, reduced);
+        let spatial = motion.spec(MotionKind::Spatial, MotionSpeed::Fast, reduced);
+        let selection = animate(
+            (self.id.clone(), "list-selection"),
+            f32::from(self.selected),
+            effects,
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
+        let corners = std::array::from_fn::<_, 4, _>(|idx| {
+            let id = gpui::ElementId::from((self.id.clone(), "list-corners"));
+            animate(
+                gpui::ElementId::NamedChild(id.into(), ["tl", "tr", "br", "bl"][idx].into()),
+                corners[idx],
+                spatial,
+                window,
+                cx,
+            )
+            .max(0.)
+        });
+        let background = crate::motion::mix(
+            tone(ColorRole::Surface, window, cx),
+            tone(ColorRole::SecondaryContainer, window, cx),
+            selection,
+        );
         let foreground = if self.selected {
             ColorRole::OnSecondaryContainer
         } else {
@@ -246,12 +310,20 @@ impl ListItem {
                     .role(TypeRole::BodyMedium)
                     .color(secondary)
             }));
-        let background = tone(background, window, cx);
         let state_layer = tone(foreground, window, cx);
         let focus = tone(ColorRole::Secondary, window, cx);
-        let state_group = SharedString::from(format!("{}-list-surface", self.id));
+        let (feedback, opacity) = surface_feedback(
+            &self.id,
+            self.activation.is_some() && !self.disabled,
+            window,
+            cx,
+        );
+        let interactive = self.activation.is_some() && !self.disabled;
+        let ripple = ripple_state(&self.id, interactive, window, cx);
+        let direction = window_material_theme(window, cx).layout.direction;
         let row = div()
             .id("list-surface")
+            .relative()
             .min_h(px(height))
             .w_full()
             .flex()
@@ -267,11 +339,17 @@ impl ListItem {
             .rounded_tr(px(corners[1]))
             .rounded_br(px(corners[2]))
             .rounded_bl(px(corners[3]))
-            .bg(background)
-            .when(self.activation.is_some() && !self.disabled, |row| {
-                surface_feedback(row, state_group.clone(), background, state_layer)
-            })
+            .bg(background.blend(state_layer.opacity(opacity)))
             .when(self.disabled, |row| row.opacity(0.55))
+            .when(interactive, |row| {
+                row.child(ripple_ink(
+                    ripple.clone(),
+                    state_layer,
+                    gpui_material_theme::CornerShape::Radii(corners),
+                    direction,
+                ))
+            })
+            .when(interactive, |row| ripple_target(row, ripple))
             .children(self.leading)
             .child(content)
             .children(self.trailing);
@@ -279,7 +357,7 @@ impl ListItem {
             Some(activate) => {
                 let invoke = activate.clone();
                 gpui_base::Button::new((self.id.clone(), "activate"))
-                    .group(state_group)
+                    .when(!self.disabled, |button| monitor_surface(button, feedback))
                     .w_full()
                     .accessibility_label(self.label)
                     .disabled(self.disabled)
@@ -467,19 +545,17 @@ impl RenderOnce for Badge {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let large = self.text.is_some();
         let side = px(if large { 16. } else { 6. });
+        let overlap = if large { px(12.) } else { px(6.) };
         let mark = div()
             .absolute()
-            .top(px(-3.))
+            .top(if large { px(-2.) } else { px(0.) })
             .min_w(side)
             .h(side)
             .rounded_full()
-            .when(
+            .when_else(
                 window_material_theme(window, cx).layout.direction == Direction::Rtl,
-                |badge| badge.left(px(-3.)),
-            )
-            .when(
-                window_material_theme(window, cx).layout.direction == Direction::Ltr,
-                |badge| badge.right(px(-3.)),
+                |badge| badge.right(gpui::relative(1.)).mr(-overlap),
+                |badge| badge.left(gpui::relative(1.)).ml(-overlap),
             )
             .when(large, |badge| badge.px_1())
             .bg(tone(ColorRole::Error, window, cx))
@@ -498,16 +574,57 @@ fn tone(role: ColorRole, window: &Window, cx: &App) -> gpui::Hsla {
 }
 
 fn surface_feedback(
-    surface: gpui::Stateful<gpui::Div>,
-    group: SharedString,
-    background: gpui::Hsla,
-    foreground: gpui::Hsla,
-) -> gpui::Stateful<gpui::Div> {
-    surface
-        .group_hover(group.clone(), move |style| {
-            style.bg(background.blend(foreground.opacity(StateLayer::Hover.opacity())))
+    id: &ElementId,
+    enabled: bool,
+    window: &mut Window,
+    cx: &mut App,
+) -> (Rc<Cell<Option<StateLayer>>>, f32) {
+    let state = window
+        .use_keyed_state((id.clone(), "surface-interaction"), cx, |_, _| {
+            Rc::new(Cell::new(None::<StateLayer>))
         })
-        .group_active(group, move |style| {
-            style.bg(background.blend(foreground.opacity(StateLayer::Pressed.opacity())))
+        .read(cx)
+        .clone();
+    if !enabled || !window.is_window_active() {
+        state.set(None);
+    }
+    let alpha = animate(
+        (id.clone(), "surface-opacity"),
+        state.get().map_or(0., StateLayer::opacity),
+        window_material_theme(window, cx).motion.spec(
+            MotionKind::Effects,
+            MotionSpeed::Fast,
+            cx.reduce_motion() || !enabled,
+        ),
+        window,
+        cx,
+    )
+    .clamp(0., 1.);
+    (state, alpha)
+}
+
+fn monitor_surface(
+    button: gpui_base::Button,
+    state: Rc<Cell<Option<StateLayer>>>,
+) -> gpui_base::Button {
+    let hover = state.clone();
+    let down = state.clone();
+    let up = state.clone();
+    button
+        .on_hover(move |hovering, window, _| {
+            hover.set(hovering.then_some(StateLayer::Hover));
+            window.refresh();
+        })
+        .on_mouse_down(MouseButton::Left, move |_, window, _| {
+            down.set(Some(StateLayer::Pressed));
+            window.refresh();
+        })
+        .on_mouse_up(MouseButton::Left, move |_, window, _| {
+            up.set(Some(StateLayer::Hover));
+            window.refresh();
+        })
+        .on_mouse_up_out(MouseButton::Left, move |_, window, _| {
+            state.set(None);
+            window.refresh();
         })
 }

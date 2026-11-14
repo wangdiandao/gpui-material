@@ -4,8 +4,8 @@ use gpui::{
     AnyElement, App, ElementId, FocusHandle, InteractiveElement, IntoElement, ParentElement,
     RenderOnce, SharedString, Styled, Window, div, prelude::FluentBuilder, px,
 };
-use gpui_material_foundation::{color, window_material_theme};
-use gpui_material_theme::{ColorRole, CornerRole, Direction, Elevation};
+use gpui_material_foundation::{animate, color, window_material_theme};
+use gpui_material_theme::{ColorRole, CornerRole, Direction, Elevation, MotionKind, MotionSpeed};
 
 use crate::action::{Action, ActionControl, ActionStyle, Activate, Change, icon_slot};
 
@@ -126,32 +126,57 @@ impl RenderOnce for Chip {
         } else {
             OnSurfaceVariant
         };
-        let theme = window_material_theme(window, cx);
+        let theme = window_material_theme(window, cx).clone();
         let direction = theme.layout.direction;
         let split = self.variant == ChipVariant::Input && self.remove.is_some();
         let on_surface = color(theme.colors.color(OnSurface));
-        let container = if self.disabled && background.is_some() {
-            on_surface.opacity(0.12)
+        let theme_color = |role| color(theme.colors.color(role));
+        let idle = if elevated {
+            theme_color(SurfaceContainerLow)
         } else {
-            background.map_or_else(gpui::transparent_black, |role| {
-                color(theme.colors.color(role))
-            })
+            theme_color(SecondaryContainer).opacity(0.)
+        };
+        let effects = theme.motion.spec(
+            MotionKind::Effects,
+            MotionSpeed::Fast,
+            cx.reduce_motion() || self.disabled,
+        );
+        let selection = if selectable {
+            animate(
+                (self.id.clone(), "chip-tint"),
+                f32::from(selected),
+                effects,
+                window,
+                cx,
+            )
+            .clamp(0., 1.)
+        } else {
+            0.
+        };
+        let container = if self.disabled {
+            on_surface.opacity(if background.is_some() { 0.12 } else { 0. })
+        } else {
+            crate::motion::mix(idle, theme_color(SecondaryContainer), selection)
         };
         let border = if self.disabled {
             on_surface.opacity(0.12)
         } else {
-            color(theme.colors.color(OutlineVariant))
+            theme_color(OutlineVariant)
         };
+        let outline_opacity = if elevated { 0. } else { 1. - selection };
         let height = px(theme.layout.density.visual_size(32.));
         let radius = px(CornerRole::Small.shape().radii(32., 32., direction)[0]);
         let style = ActionStyle {
             background: background.filter(|_| !split),
+            background_color: (!split).then_some(container),
             foreground,
             height: 32.,
             min_width: 0.,
             corner: CornerRole::Small,
             pressed_corner: CornerRole::Small,
-            outline: f32::from(!split && background.is_none()),
+            selected_corner: None,
+            corner_motion: (MotionKind::Spatial, MotionSpeed::Fast),
+            outline: f32::from(!split && !elevated && !selected),
             elevation: if elevated {
                 Elevation::Level1
             } else {
@@ -163,18 +188,37 @@ impl RenderOnce for Chip {
                 Elevation::Level0
             },
         };
-        let leading = self.leading.or_else(|| {
-            (self.variant == ChipVariant::Filter && selected).then(|| "✓".into_any_element())
-        });
+        let filter_mark = if self.variant == ChipVariant::Filter && self.leading.is_none() {
+            selection
+        } else {
+            0.
+        };
+        let leading = self
+            .leading
+            .map(|icon| icon_slot(icon, 18.).into_any_element())
+            .or_else(|| {
+                (filter_mark > 0.).then(|| {
+                    div()
+                        .w(px(26. * filter_mark))
+                        .flex_none()
+                        .overflow_hidden()
+                        .opacity(filter_mark)
+                        .child(icon_slot("\u{2713}".into_any_element(), 18.))
+                        .into_any_element()
+                })
+            });
         let content = div()
             .flex()
             .items_center()
             .min_w_0()
-            .gap_2()
+            .when(
+                self.variant != ChipVariant::Filter || filter_mark == 0.,
+                Styled::gap_2,
+            )
             .px_3()
             .text_size(px(14.))
             .when(direction == Direction::Rtl, Styled::flex_row_reverse)
-            .children(leading.map(|icon| icon_slot(icon, 18.)))
+            .children(leading)
             .child(div().min_w_0().truncate().child(self.label.clone()));
         let action = if selectable {
             Action::Toggle {
@@ -202,8 +246,10 @@ impl RenderOnce for Chip {
                         .h(height)
                         .rounded(radius)
                         .bg(container)
-                        .when(background.is_none(), |surface| {
-                            surface.border_1().border_color(border)
+                        .when(outline_opacity > 0., |surface| {
+                            surface
+                                .border_1()
+                                .border_color(border.opacity(outline_opacity))
                         }),
                 )
             })
@@ -229,11 +275,17 @@ impl RenderOnce for Chip {
                     action: Action::Invoke(Some(on_remove)),
                     style: ActionStyle {
                         background: None,
+                        background_color: None,
                         foreground,
                         height: 32.,
                         min_width: 32.,
                         corner: CornerRole::Small,
                         pressed_corner: CornerRole::Small,
+                        selected_corner: None,
+                        corner_motion: (
+                            gpui_material_theme::MotionKind::Spatial,
+                            gpui_material_theme::MotionSpeed::Fast,
+                        ),
                         outline: 0.,
                         elevation: Elevation::Level0,
                         hover_elevation: Elevation::Level0,

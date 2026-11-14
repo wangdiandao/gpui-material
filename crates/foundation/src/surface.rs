@@ -23,6 +23,7 @@ pub struct Surface {
     role: ColorRole,
     tonal_elevation: Elevation,
     shadow_elevation: Elevation,
+    shadow_scale: f32,
     theme: Option<MaterialTheme>,
 }
 
@@ -33,6 +34,7 @@ impl Surface {
             role,
             tonal_elevation: Elevation::Level0,
             shadow_elevation: Elevation::Level0,
+            shadow_scale: 1.,
             theme: None,
         }
     }
@@ -44,6 +46,12 @@ impl Surface {
 
     pub fn shadow_elevation(mut self, elevation: Elevation) -> Self {
         self.shadow_elevation = elevation;
+        self
+    }
+
+    /// Scales the offset and blur radius with an animated surface.
+    pub fn shadow_scale(mut self, scale: f32) -> Self {
+        self.shadow_scale = scale;
         self
     }
 
@@ -82,12 +90,12 @@ impl RenderOnce for Surface {
         if let Some(pair) = scheme.pair(self.role) {
             element = element.text_color(color(pair.foreground));
         }
-        let dp = self.shadow_elevation.dp();
+        let dp = self.shadow_elevation.dp() * self.shadow_scale;
         if dp > 0. {
             let shadow = color(scheme.color(ColorRole::Shadow));
             element = element.shadow(vec![
                 gpui_base::box_shadow(0., dp * 0.4, dp, 0., shadow.opacity(0.18)),
-                gpui_base::box_shadow(0., 1., dp * 0.5, 0., shadow.opacity(0.13)),
+                gpui_base::box_shadow(0., self.shadow_scale, dp * 0.5, 0., shadow.opacity(0.13)),
             ]);
         }
         element

@@ -1,12 +1,16 @@
-use std::{f32::consts::TAU, time::Instant};
+use std::{
+    f32::consts::TAU,
+    time::{Duration, Instant},
+};
 
 use gpui::{
     App, Bounds, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement, PathBuilder,
     Pixels, Point, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Window,
     canvas, div, point, px,
 };
+use gpui_base::motion::Easing;
 use gpui_material_foundation::{animate, color, window_material_theme};
-use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpeed};
+use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpeed, TokenValue, token};
 use polymorpher::{Morph, shapes};
 
 /// Straight or Expressive wavy progress track.
@@ -53,42 +57,66 @@ impl Progress {
             .filter(|value| value.is_finite())
             .map(|value| value.clamp(0., 1.));
         let animated = value.is_none() && !reduced;
-        let phase = if animated {
-            (now.saturating_duration_since(epoch).as_secs_f32() / 1.6).fract()
-        } else {
-            0.
-        };
-        let target = match value {
-            Some(value) => (0., value),
-            None if circular => (phase, phase + 0.25 + 0.12 * (phase * TAU).sin()),
-            None if reduced => (0.25, 0.65),
-            None => {
-                let t = phase * TAU;
-                let start = 0.35 - 0.35 * t.cos();
-                (start, (start + 0.24 + 0.08 * t.sin()).min(1.))
-            }
-        };
-        let transition = if animated {
-            gpui_material_theme::MotionSpec::Instant
-        } else {
-            policy
-        };
-        let start = animate(
-            ElementId::from((self.id.clone(), "start")),
-            target.0.rem_euclid(1.),
-            transition,
-            window,
-            cx,
-        );
-        let extent = animate(
-            ElementId::from((self.id.clone(), "value")),
-            target.1 - target.0,
-            transition,
+        let moving_wave = wavy && !reduced;
+        let mode_spec = theme
+            .motion
+            .spec(MotionKind::Effects, MotionSpeed::Default, reduced);
+        let indeterminate = animate(
+            (self.id.clone(), "indeterminate-mix"),
+            f32::from(value.is_none()),
+            mode_spec,
             window,
             cx,
         )
         .clamp(0., 1.);
+        let last_value = window.use_keyed_state((self.id.clone(), "last-progress"), cx, |_, _| {
+            value.unwrap_or(0.4)
+        });
+        let determinate = match value {
+            Some(value) => {
+                if value != *last_value.read(cx) {
+                    last_value.update(cx, |last, _| *last = value);
+                }
+                value
+            }
+            None => *last_value.read(cx),
+        };
+        let determinate = animate(
+            (self.id.clone(), "determinate-value"),
+            determinate,
+            policy,
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
+        let wave_phase = if moving_wave {
+            now.saturating_duration_since(epoch).as_secs_f32().fract()
+        } else {
+            0.
+        };
+        let amplitude = (determinate / 0.1).min(1.) * ((1. - determinate) / 0.05).min(1.);
+        let amplitude = amplitude + (1. - amplitude) * indeterminate;
+        let elapsed = now.saturating_duration_since(epoch).as_secs_f32() * 1000.;
+        let circular_segment = if !circular || reduced {
+            (0., 0.25)
+        } else {
+            circular_indeterminate(elapsed)
+        };
+        let loop_origin = window.use_keyed_state((self.id.clone(), "arc-rotation"), cx, |_, _| 0.);
+        if indeterminate == 1. || indeterminate == 0. {
+            let rotation = circular_segment.0.round();
+            if *loop_origin.read(cx) != rotation {
+                loop_origin.update(cx, |origin, _| *origin = rotation);
+            }
+        }
+        let start = (circular_segment.0 - *loop_origin.read(cx)) * indeterminate;
+        let extent = determinate + (circular_segment.1 - determinate) * indeterminate;
         let segment = (start, start + extent);
+        let lines = if circular || indeterminate == 0. || reduced {
+            [(0.25, 0.65), (0., 0.)]
+        } else {
+            linear_indeterminate(elapsed)
+        };
         let side = if circular {
             if wavy { 48. } else { 40. }
         } else if wavy {
@@ -108,7 +136,7 @@ impl Progress {
                         let angle = (fraction - 0.25) * TAU;
                         let radius = radius
                             + px(if wave {
-                                1.6 * ((fraction * 8. - phase) * TAU).sin()
+                                1.6 * amplitude * ((fraction * 8. - wave_phase) * TAU).sin()
                             } else {
                                 0.
                             });
@@ -136,21 +164,33 @@ impl Progress {
                         };
                         let x = (bounds.size.width - px(4.)).max(px(0.)) * from_start + px(2.);
                         let wave = if wave {
-                            px(3. * ((f32::from(x) / 40. - phase) * TAU).sin())
+                            px(3. * amplitude * ((f32::from(x) / 40. - wave_phase) * TAU).sin())
                         } else {
                             px(0.)
                         };
                         point(bounds.left() + x, bounds.center().y + wave)
                     };
                     let gap = (px(4.) / bounds.size.width.max(px(4.))).clamp(0., 0.12);
-                    let start = segment.0.clamp(0., 1.);
-                    let end = segment.1.clamp(0., 1.);
-                    if end <= start {
-                        stroke(0., 1., track, |f| sample(f, false), window);
-                    } else {
-                        stroke(0., start - gap, track, |f| sample(f, false), window);
-                        stroke(end + gap, 1., track, |f| sample(f, false), window);
-                        stroke(start, end, active, |f| sample(f, wavy), window);
+                    let [first, second] = lines;
+                    let start = first.0 * indeterminate;
+                    let finish = determinate + (first.1 - determinate) * indeterminate;
+                    let second_end = second.0 + (second.1 - second.0) * indeterminate;
+                    let mut segments = [(start, finish), (second.0, second_end)];
+                    segments.sort_by(|left, right| left.0.total_cmp(&right.0));
+                    let mut position = 0.;
+                    let mut end: f32 = 0.;
+                    for (start, finish) in segments {
+                        if finish <= start {
+                            continue;
+                        }
+                        stroke(position, start - gap, track, |f| sample(f, false), window);
+                        position = position.max(finish + gap);
+                        end = end.max(finish);
+                    }
+                    stroke(position, 1., track, |f| sample(f, false), window);
+                    stroke(start, finish, active, |f| sample(f, wavy), window);
+                    if indeterminate > 0. {
+                        stroke(second.0, second_end, active, |f| sample(f, wavy), window);
                     }
                     if end < 1. - gap {
                         let stop = sample(1., false);
@@ -167,7 +207,7 @@ impl Progress {
                         ));
                     }
                 }
-                if animated && window.is_window_active() {
+                if (animated || moving_wave && amplitude > 0.) && window.is_window_active() {
                     window.request_animation_frame();
                 }
             },
@@ -192,6 +232,51 @@ impl Progress {
         }
         element
     }
+}
+
+// The keyframe timings match ProgressIndicator.kt in Material 3 1.5.0-rc01.
+fn linear_indeterminate(elapsed_ms: f32) -> [(f32, f32); 2] {
+    let clock = elapsed_ms % 1750.;
+    let sample = |delay, duration| {
+        easing_sample(
+            "md.sys.motion.easing-emphasized-accelerate",
+            (clock - delay) / duration,
+        )
+    };
+    [
+        (sample(250., 1000.), sample(0., 1000.)),
+        (sample(900., 850.), sample(650., 850.)),
+    ]
+}
+
+fn circular_indeterminate(elapsed_ms: f32) -> (f32, f32) {
+    let clock = elapsed_ms % 6000.;
+    let step = (clock / 1500.).floor();
+    let turn = easing_sample(
+        "md.sys.motion.easing-emphasized-decelerate",
+        (clock % 1500.) / 300.,
+    );
+    let phase = clock / 3000.;
+    let length = if phase < 1. {
+        0.1 + (0.87 - 0.1) * phase
+    } else {
+        0.87 - (0.87 - 0.1) * easing_sample("md.sys.motion.easing-standard", phase - 1.)
+    };
+    // Keep the angle unwrapped during a mode change, then paint it periodically.
+    (
+        (elapsed_ms / 6000.) * 3. + (elapsed_ms / 6000.).floor() + (step + turn) / 4.,
+        length,
+    )
+}
+
+fn easing_sample(name: &str, progress: f32) -> f32 {
+    let progress = progress.clamp(0., 1.);
+    let TokenValue::Easing(curve) = token(name).expect("bundled progress easing") else {
+        unreachable!("progress easing token must contain a cubic Bézier");
+    };
+    let easing =
+        Easing::cubic_bezier(curve.x1, curve.y1, curve.x2, curve.y2).expect("valid Material curve");
+    easing.sample(progress)
 }
 
 fn stroke(
@@ -285,6 +370,7 @@ impl LoadingIndicator {
 
 struct LoadingMotion {
     epoch: Option<Instant>,
+    elapsed: Duration,
     shapes: [Morph; 7],
 }
 
@@ -301,6 +387,7 @@ impl Default for LoadingMotion {
         ];
         Self {
             epoch: None,
+            elapsed: Duration::ZERO,
             shapes: std::array::from_fn(|ix| {
                 Morph::new(shapes[ix].clone(), shapes[(ix + 1) % shapes.len()].clone())
             }),
@@ -317,7 +404,8 @@ impl RenderOnce for LoadingIndicator {
             ColorRole::Primary
         }));
         let background = color(theme.colors.color(ColorRole::PrimaryContainer));
-        let animate = self.active && !cx.reduce_motion() && window.is_window_active();
+        let reduced = cx.reduce_motion();
+        let animate = self.active && !reduced && window.is_window_active();
         let now = cx.background_executor().now();
         let motion = window.use_keyed_state(
             ElementId::from((self.id.clone(), "loading-motion")),
@@ -325,15 +413,20 @@ impl RenderOnce for LoadingIndicator {
             |_, _| LoadingMotion::default(),
         );
         let progress = motion.update(cx, |state, _| {
-            if animate {
-                (now.saturating_duration_since(*state.epoch.get_or_insert(now))
-                    .as_secs_f32()
-                    / 0.6)
-                    % state.shapes.len() as f32
-            } else {
+            if !self.active || reduced {
                 state.epoch = None;
-                0.
+                state.elapsed = Duration::ZERO;
+                return 0.;
             }
+            let elapsed = if animate {
+                state.elapsed + now.saturating_duration_since(*state.epoch.get_or_insert(now))
+            } else {
+                if let Some(epoch) = state.epoch.take() {
+                    state.elapsed += now.saturating_duration_since(epoch);
+                }
+                state.elapsed
+            };
+            elapsed.as_secs_f32() / 0.65
         });
         let icon = canvas(
             |_, _, _| (),
@@ -344,10 +437,25 @@ impl RenderOnce for LoadingIndicator {
                     bounds.bottom_right() - point(px(5.), px(5.)),
                 );
                 let phase = progress.fract();
-                let eased = phase * phase * (3. - 2. * phase);
-                let cubics = state.shapes[progress.floor() as usize].as_cubics(eased);
+                let spring_time = phase * 0.65;
+                let frequency = 200_f32.sqrt();
+                let decay = 0.6 * frequency;
+                let damped_frequency = frequency * 0.8;
+                let t = damped_frequency * spring_time;
+                let eased =
+                    (1. - (-decay * spring_time).exp() * (t.cos() + 0.75 * t.sin())).clamp(0., 1.);
+                let index = progress.floor() as usize % state.shapes.len();
+                let cubics = state.shapes[index].as_cubics(eased);
+                let angle = (progress * 0.65 / 4.666 + (1. + progress.floor() + eased) / 4.) * TAU;
+                let (sin, cos) = angle.sin_cos();
                 let project = |p: polymorpher::geometry::Point| {
-                    bounds.origin + point(bounds.size.width * p.x, bounds.size.height * p.y)
+                    let x = p.x - 0.5;
+                    let y = p.y - 0.5;
+                    bounds.center()
+                        + point(
+                            bounds.size.width * (cos * x - sin * y),
+                            bounds.size.height * (sin * x + cos * y),
+                        )
                 };
                 if let Some(first) = cubics.first() {
                     let mut path = PathBuilder::fill();
@@ -385,5 +493,23 @@ impl RenderOnce for LoadingIndicator {
             }
         }
         element
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn indeterminate_keyframes_use_both_linear_segments_and_periodic_rotation() {
+        assert_eq!(linear_indeterminate(0.), [(0., 0.); 2]);
+        let [(start, end), (second_start, second_end)] = linear_indeterminate(800.);
+        assert!(0. < start && start < end && end < 1.);
+        assert_eq!(second_start, 0.);
+        assert!(second_end > 0.);
+        assert_eq!(linear_indeterminate(2550.), linear_indeterminate(800.));
+        assert_eq!(circular_indeterminate(0.), (0., 0.1));
+        assert_eq!(circular_indeterminate(6000.), (4., 0.1));
+        assert_eq!(circular_indeterminate(3000.).1, 0.87);
     }
 }

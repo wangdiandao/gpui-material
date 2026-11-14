@@ -284,6 +284,52 @@ mod tests {
     use gpui_material::foundation::MaterialRoot;
 
     #[gpui::test]
+    fn extended_fab_interpolates_to_its_square_extent(cx: &mut TestAppContext) {
+        use std::time::Duration;
+
+        let (handle, view) = cx.update(|cx| {
+            crate::init_gallery(cx);
+            let mut view = None;
+            let handle = MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+                let actions = cx.new(|_| ActionExamples::for_story(Story::Fab));
+                view = Some(actions.clone());
+                actions
+            })
+            .unwrap();
+            (handle, view.unwrap())
+        });
+        let widths = |cx: &mut TestAppContext| {
+            cx.update_window(handle.into(), |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+                [0_usize, 1, 2].map(|idx| {
+                    find(window, &[], &("extended-fab-size", idx).into())
+                        .unwrap()
+                        .bounds()
+                        .size
+                        .width
+                })
+            })
+            .unwrap()
+        };
+        let start = widths(cx);
+        cx.update(|cx| {
+            view.update(cx, |actions, cx| {
+                actions.collapsed = true;
+                cx.notify();
+            })
+        });
+        assert_eq!(widths(cx), start);
+        cx.executor().advance_clock(Duration::from_millis(40));
+        let middle = widths(cx);
+        cx.executor().advance_clock(Duration::from_secs(1));
+        let end = widths(cx);
+        assert_eq!(end, [px(56.), px(80.), px(96.)]);
+        for idx in 0..3 {
+            assert!(end[idx] < middle[idx] && middle[idx] < start[idx]);
+        }
+    }
+    #[gpui::test]
     fn material_buttons_activate_once_and_toggles_update_the_owner(cx: &mut TestAppContext) {
         let (handle, view) = cx.update(|cx| {
             crate::init_gallery(cx);

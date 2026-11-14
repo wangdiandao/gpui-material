@@ -229,6 +229,13 @@ impl RenderOnce for ExposedDropdown {
             .clone();
         let measure = bounds.clone();
         let popup_width = bounds.get().size.width;
+        let scroll = window
+            .use_keyed_state((self.id.clone(), "options-scroll"), cx, |_, _| {
+                ScrollHandle::new()
+            })
+            .read(cx)
+            .clone();
+        let key_scroll = scroll.clone();
         let trigger = div()
             .id((self.id.clone(), "combobox"))
             .test_support()
@@ -288,6 +295,7 @@ impl RenderOnce for ExposedDropdown {
                             state.open = true;
                             cx.notify();
                         });
+                        key_scroll.scroll_to_item(next);
                     }
                     "escape" if model.open => keys.update(cx, |state, cx| state.cancel(window, cx)),
                     "enter" if model.open => {
@@ -353,12 +361,7 @@ impl RenderOnce for ExposedDropdown {
             .inset_0(),
         );
         let motion = OverlayMotion::sample(&self.id, open, window, cx);
-        let scroll = window
-            .use_keyed_state((self.id.clone(), "options-scroll"), cx, |_, _| {
-                ScrollHandle::new()
-            })
-            .read(cx)
-            .clone();
+
         let placement = window
             .use_keyed_state((self.id.clone(), "last-popup-bounds"), cx, |_, _| {
                 Rc::new(Cell::new((Bounds::default(), Bounds::default())))
@@ -395,8 +398,6 @@ impl RenderOnce for ExposedDropdown {
                 .line_height(dp(text_style.line_height))
                 .text_color(ink)
                 .max_h(height * motion.scale)
-                .overflow_y_scroll()
-                .track_scroll(&scroll)
                 .when(open, |list| {
                     list.role(Role::ListBox)
                         .on_mouse_down_out(move |event, window, cx| {
@@ -413,60 +414,71 @@ impl RenderOnce for ExposedDropdown {
                         .rounded(spacing * 0.25)
                         .w_full()
                         .py(spacing * 0.5)
-                        .when(options.is_empty(), |list| {
-                            list.child(
-                                div()
-                                    .px(spacing * 0.75)
-                                    .py(spacing * 0.5)
-                                    .child("No matching options"),
-                            )
-                        })
-                        .children(options.into_iter().map(|choice| {
-                            let current = active.as_ref() == Some(&choice.id);
-                            let state = self.state.clone();
-                            let callback = self.on_select.clone();
-                            let accessible = choice.clone();
-                            let accessible_state = state.clone();
-                            let accessible_callback = callback.clone();
+                        .child(
                             div()
-                                .id(choice.id.clone())
-                                .when(open, |row| {
-                                    row.role(Role::ListBoxOption)
-                                        .aria_label(choice.label.clone())
-                                        .aria_selected(current)
-                                })
-                                .when(current, |row| row.bg(selected).text_color(selected_ink))
-                                .when(open && current, |row| row.aria_active_descendant())
-                                .when(open, |row| {
-                                    row.hover(move |style| style.bg(ink.opacity(0.08)))
-                                })
-                                .min_h(dp(48.))
-                                .px(spacing * 0.75)
-                                .flex()
-                                .items_center()
-                                .child(choice.label.clone())
-                                .when(open, |row| {
-                                    row.on_a11y_action(
-                                        gpui::AccessibleAction::Click,
-                                        move |_, window, cx| {
-                                            choose(
-                                                &accessible_state,
-                                                &accessible,
-                                                &accessible_callback,
-                                                window,
-                                                cx,
-                                            );
-                                            cx.notify(parent);
-                                        },
-                                    )
-                                    .on_click(
-                                        move |_, window, cx| {
-                                            choose(&state, &choice, &callback, window, cx);
-                                            cx.notify(parent);
-                                        },
+                                .id("options-scroll-region")
+                                .test_support()
+                                .max_h((height - px(16.)).max(px(0.)) * motion.scale)
+                                .overflow_y_scroll()
+                                .track_scroll(&scroll)
+                                .when(options.is_empty(), |list| {
+                                    list.child(
+                                        div()
+                                            .px(spacing * 0.75)
+                                            .py(spacing * 0.5)
+                                            .child("No matching options"),
                                     )
                                 })
-                        })),
+                                .children(options.into_iter().map(|choice| {
+                                    let current = active.as_ref() == Some(&choice.id);
+                                    let state = self.state.clone();
+                                    let callback = self.on_select.clone();
+                                    let accessible = choice.clone();
+                                    let accessible_state = state.clone();
+                                    let accessible_callback = callback.clone();
+                                    div()
+                                        .id(choice.id.clone())
+                                        .test_support()
+                                        .when(open, |row| {
+                                            row.role(Role::ListBoxOption)
+                                                .aria_label(choice.label.clone())
+                                                .aria_selected(current)
+                                        })
+                                        .when(current, |row| {
+                                            row.bg(selected).text_color(selected_ink)
+                                        })
+                                        .when(open && current, |row| row.aria_active_descendant())
+                                        .when(open, |row| {
+                                            row.hover(move |style| style.bg(ink.opacity(0.08)))
+                                        })
+                                        .min_h(dp(48.))
+                                        .px(spacing * 0.75)
+                                        .flex()
+                                        .items_center()
+                                        .child(choice.label.clone())
+                                        .when(open, |row| {
+                                            row.on_a11y_action(
+                                                gpui::AccessibleAction::Click,
+                                                move |_, window, cx| {
+                                                    choose(
+                                                        &accessible_state,
+                                                        &accessible,
+                                                        &accessible_callback,
+                                                        window,
+                                                        cx,
+                                                    );
+                                                    cx.notify(parent);
+                                                },
+                                            )
+                                            .on_click(
+                                                move |_, window, cx| {
+                                                    choose(&state, &choice, &callback, window, cx);
+                                                    cx.notify(parent);
+                                                },
+                                            )
+                                        })
+                                })),
+                        ),
                 )
                 .when(!open, |list| {
                     list.child(div().absolute().inset_0().occlude())

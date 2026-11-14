@@ -283,6 +283,11 @@ fn outlined_floating_label_cuts_the_top_border(cx: &mut gpui::TestAppContext) {
         window.draw(cx).clear(cx);
         let field = find(window, &[], &"email".into()).unwrap();
         let label = find(window, field.path(), &"label".into()).unwrap();
+        assert_eq!(
+            label.bounds().left() - field.bounds().left(),
+            px(12.),
+            "4dp cutout padding must surround text aligned at the editor's 16dp inset"
+        );
         let factor = window.scale_factor();
         // The outlined example starts with a value, so its label overlaps the top stroke.
         let y = field.bounds().top() + px(0.25);
@@ -498,4 +503,64 @@ fn readonly_dropdown_opens_from_field_and_space(cx: &mut gpui::TestAppContext) {
     assert!(is_open(cx));
     cx.simulate_keystrokes(window.into(), "escape");
     assert!(!is_open(cx));
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn dropdown_keyboard_choice_scrolls_into_the_visible_list(cx: &mut gpui::TestAppContext) {
+    use gpui::WindowOptions;
+    use gpui_base::test_support::find;
+    use gpui_material::MaterialRoot;
+    struct Example(Entity<ExposedDropdownState>);
+    impl Render for Example {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            gpui::div().w(px(300.)).child(ExposedDropdown::new(
+                "long-menu",
+                "Choose",
+                &self.0,
+                (0..20)
+                    .map(|ix| DropdownOption::new(format!("option-{ix}"), format!("Option {ix}"))),
+            ))
+        }
+    }
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let state = cx.new(|cx| ExposedDropdownState::new("Option 0", false, window, cx));
+            cx.new(|_| Example(state))
+        })
+        .unwrap()
+    });
+    let draw = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+    };
+    draw(cx);
+    cx.update_window(handle.into(), |_, window, cx| window.focus_next(cx))
+        .unwrap();
+    for _ in 0..16 {
+        cx.simulate_keystrokes(handle.into(), "down");
+        draw(cx);
+    }
+    let assert_visible = |cx: &mut gpui::TestAppContext, id: &str| {
+        cx.update_window(handle.into(), |_, window, _| {
+            let list = find(window, &[], &"options-scroll-region".into()).unwrap();
+            let choice = find(window, list.path(), &gpui::ElementId::from(id.to_owned())).unwrap();
+            assert!(choice.visible());
+            assert!(choice.bounds().top() >= list.bounds().top());
+            assert!(choice.bounds().bottom() <= list.bounds().bottom());
+            assert_eq!(choice.bounds().size.height, px(48.));
+        })
+        .unwrap();
+    };
+    assert_visible(cx, "option-15");
+    for _ in 0..15 {
+        cx.simulate_keystrokes(handle.into(), "up");
+        draw(cx);
+    }
+    assert_visible(cx, "option-0");
 }

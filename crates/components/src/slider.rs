@@ -382,6 +382,9 @@ impl RenderOnce for Slider {
                             line.line_height() + px(8.),
                         );
                         let visible = window.content_mask().bounds;
+                        if !visible.contains(&thumb.center()) {
+                            return;
+                        }
                         let origin = value_label_origin(
                             thumb,
                             size,

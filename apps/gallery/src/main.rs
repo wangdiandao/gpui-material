@@ -293,6 +293,11 @@ mod tests {
         assert!(label(cx, first, "display-scale").starts_with("Display scale "));
         assert_eq!(label(cx, first, "window-theme"), "Window theme Light");
         assert_eq!(label(cx, second, "window-theme"), "Window theme Dark");
+        cx.simulate_window_scale_factor_change(second.into(), 1.5);
+        assert_eq!(label(cx, second, "display-scale"), "Display scale 150%");
+        assert_eq!(label(cx, second, "window-theme"), "Window theme Dark");
+        cx.simulate_window_scale_factor_change(second.into(), 1.);
+        assert_eq!(label(cx, second, "display-scale"), "Display scale 100%");
         for (handle, appearance) in [(first, Appearance::Light), (second, Appearance::Dark)] {
             cx.update_window(handle.into(), |_, window, cx| {
                 let theme = window_material_theme(window, cx);

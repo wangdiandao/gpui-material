@@ -23,6 +23,18 @@ gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features =
 [profile.dev]
 debug = 0
 
+# Optimize rendering and layout dependencies while keeping workspace code in the normal dev profile.
+[profile.dev.package]
+gpui-pre = { opt-level = 3 }
+gpui-pre-platform = { opt-level = 3 }
+gpui-pre-sum-tree = { opt-level = 3 }
+resvg = { opt-level = 3 }
+ropey = { opt-level = 3 }
+rustybuzz = { opt-level = 3 }
+smol = { opt-level = 3 }
+taffy = { opt-level = 3 }
+ttf-parser = { opt-level = 3 }
+
 # GPUI's Windows backend embeds its DirectX shaders with debug assertions off.
 [profile.gallery-artifact]
 inherits = "dev"

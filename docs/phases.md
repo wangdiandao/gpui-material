@@ -14,7 +14,7 @@ English | [中文](phases.zh.md)
 | [P5](phases/P05.md) | Basic controls, display feedback, first facade, and Gallery scenarios | Applicable variants and behaviors pass component checks. The 0.0.1 preview can ship. |
 | [P6](phases/P06.md) | Text fields and overlays | Chinese IME, nested overlays, focus restoration, and actual assistive technology pass. |
 | [P7](phases/P07.md) | Navigation and adaptive layout | State survives resizing and mode changes. Keyboard, scroll, and RTL checks pass. The 0.0.2 preview can ship. |
-| P8 | Composite and extended components | All required items pass verification. Experiments have a recorded decision. The 0.0.3 candidate can ship. |
+| [P8](phases/P08.md) | Composite and extended components | All required items pass verification. Experiments have a recorded decision. The 0.0.4 candidate can ship. |
 | P9 | Integration, support matrix, runtime and build regression, and release | Support claims, dependencies and MSRV, licensing, API stability, and migration guidance are complete. The release is reproducible and 0.1.0 can ship. |
 
 P1 probes live in `experiments/`. Production modules enter the repository in their first implementation phase. The owning phase delivers a component's behavior, variants, documentation, and acceptance. A Cargo package can contain frozen and current-phase functionality.

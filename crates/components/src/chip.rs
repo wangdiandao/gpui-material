@@ -13,6 +13,7 @@ use gpui_material_theme::{
 use crate::action::{
     Action, ActionControl, ActionStyle, Activate, Change, DisabledStyle, icon_slot,
 };
+use crate::{Icon, IconName};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ChipVariant {
@@ -230,7 +231,10 @@ impl RenderOnce for Chip {
                         .flex_none()
                         .overflow_hidden()
                         .opacity(filter_mark)
-                        .child(icon_slot("\u{2713}".into_any_element(), 18.))
+                        .child(icon_slot(
+                            Icon::new(IconName::Check).into_any_element(),
+                            18.,
+                        ))
                         .into_any_element()
                 })
             });
@@ -349,7 +353,8 @@ impl RenderOnce for Chip {
                         elevation: Elevation::Level0,
                         hover_elevation: Elevation::Level0,
                     },
-                    content: icon_slot("×".into_any_element(), 18.).into_any_element(),
+                    content: icon_slot(Icon::new(IconName::Close).into_any_element(), 18.)
+                        .into_any_element(),
                 }
                 .render(window, cx),
             )

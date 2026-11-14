@@ -296,10 +296,7 @@ impl RenderOnce for Dialog {
                             IconButton::new(
                                 "cancel",
                                 self.cancel,
-                                super::close_icon(
-                                    color(theme.colors.color(ColorRole::OnSurface)),
-                                    1.,
-                                ),
+                                crate::Icon::new(crate::IconName::Close),
                             )
                             .track_focus(&cancel_focus)
                             .on_activate(cancel),

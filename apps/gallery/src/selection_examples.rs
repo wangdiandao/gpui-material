@@ -262,7 +262,7 @@ mod tests {
             .unwrap();
             (handle, view.unwrap())
         });
-        cx.simulate_window_resize(handle.into(), size(px(850.), px(640.)));
+        cx.simulate_window_resize(handle.into(), size(px(850.), px(960.)));
         cx.update_window(handle.into(), |_, window, cx| {
             window.activate_window();
             let draw = |window: &mut Window, cx: &mut gpui::App| {
@@ -284,18 +284,17 @@ mod tests {
                 (vec![], "notifications".into()),
                 (vec![], ElementId::from((ElementId::from("tag"), "remove"))),
             ] {
-                let position = find(window, &scope, &id)
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "missing {id:?} in {scope:?}, observed {:?}",
-                            gpui_base::test_support::snapshots(window)
-                                .iter()
-                                .map(|snapshot| snapshot.label())
-                                .collect::<Vec<_>>()
-                        )
-                    })
-                    .bounds()
-                    .center();
+                let target = find(window, &scope, &id).unwrap_or_else(|| {
+                    panic!(
+                        "missing {id:?} in {scope:?}, observed {:?}",
+                        gpui_base::test_support::snapshots(window)
+                            .iter()
+                            .map(|snapshot| snapshot.label())
+                            .collect::<Vec<_>>()
+                    )
+                });
+                assert!(target.visible(), "{id}: {:?}", target.bounds());
+                let position = target.bounds().center();
                 window.dispatch_event(
                     MouseDownEvent {
                         button: MouseButton::Left,

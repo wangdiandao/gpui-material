@@ -79,7 +79,7 @@ impl Render for DisplayExamples {
             .flex()
             .flex_col()
             .gap_3()
-            .children(self.shows(Story::TextIcon).then(|| {
+            .children(self.shows(Story::Text).then(|| {
                 section("Typography and font scale")
                     .child(
                         Text::new("Material typography 中文混排")
@@ -90,22 +90,22 @@ impl Render for DisplayExamples {
                             .truncate(px(350.)),
                     )
                     .child(Text::new("Material typography 中文混排").id("baseline-text"))
-                    .child(
-                        section("Directional and decorative SVGs").child(
-                            div()
-                                .flex()
-                                .gap_3()
-                                .h_10()
-                                .items_center()
-                                .child(
-                                    Icon::svg(crate::FORWARD_ICON)
-                                        .mirror_in_rtl(true)
-                                        .label("forward", "Forward"),
-                                )
-                                .child(Divider::vertical().inset(px(4.), px(8.)))
-                                .child(Icon::svg(crate::FORWARD_ICON)),
-                        ),
-                    )
+            }))
+            .children(self.shows(Story::Icon).then(|| {
+                section("Directional and decorative SVGs").child(
+                    div()
+                        .flex()
+                        .gap_3()
+                        .h_10()
+                        .items_center()
+                        .child(
+                            Icon::svg(crate::FORWARD_ICON)
+                                .mirror_in_rtl(true)
+                                .label("forward", "Forward"),
+                        )
+                        .child(Divider::vertical().inset(px(4.), px(8.)))
+                        .child(Icon::svg(crate::FORWARD_ICON)),
+                )
             }))
             .children(self.shows(Story::Card).then(|| {
                 section("Elevated, filled and outlined")
@@ -145,7 +145,7 @@ impl Render for DisplayExamples {
                             .child(Text::new("Unavailable card")),
                     )
             }))
-            .children(self.shows(Story::DividerBadge).then(|| {
+            .children(self.shows(Story::Divider).then(|| {
                 section("Horizontal and vertical dividers")
                     .child(Divider::horizontal().inset(px(16.), px(0.)))
                     .child(
@@ -158,34 +158,34 @@ impl Render for DisplayExamples {
                             .child(Divider::vertical().inset(px(4.), px(8.)))
                             .child(Text::new("After").id("divider-after")),
                     )
-                    .child(
-                        section("Dot, label and count badges").child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .flex_wrap()
-                                .gap_5()
-                                .p_2()
-                                .child(Badge::dot(
-                                    Icon::custom("◆").label("new-activity", "New activity"),
-                                ))
-                                .child(Badge::count(
-                                    Icon::custom("▤").label("inbox", "Inbox"),
-                                    8,
-                                    99,
-                                ))
-                                .child(Badge::label(
-                                    Icon::custom("▤").label("new-file", "Files"),
-                                    "New",
-                                ))
-                                .child(Badge::count(
-                                    Icon::svg(crate::ARCHIVE_ICON)
-                                        .label("archive-overflow", "More than 99 archived items"),
-                                    125,
-                                    99,
-                                )),
-                        ),
-                    )
+            }))
+            .children(self.shows(Story::Badge).then(|| {
+                section("Dot, label and count badges").child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .flex_wrap()
+                        .gap_5()
+                        .p_2()
+                        .child(Badge::dot(
+                            Icon::custom("◆").label("new-activity", "New activity"),
+                        ))
+                        .child(Badge::count(
+                            Icon::custom("▤").label("inbox", "Inbox"),
+                            8,
+                            99,
+                        ))
+                        .child(Badge::label(
+                            Icon::custom("▤").label("new-file", "Files"),
+                            "New",
+                        ))
+                        .child(Badge::count(
+                            Icon::svg(crate::ARCHIVE_ICON)
+                                .label("archive-overflow", "More than 99 archived items"),
+                            125,
+                            99,
+                        )),
+                )
             }))
             .children(self.shows(Story::List).then(|| {
                 section("Segmented list").child(
@@ -218,7 +218,7 @@ impl Render for DisplayExamples {
                 )
             }))
             .children(self.shows(Story::Progress).then(|| {
-                section("Progress and loading states")
+                section("Linear and circular progress")
                     .child(linear(
                         "linear-progress",
                         "Transfer progress",
@@ -245,15 +245,6 @@ impl Render for DisplayExamples {
                                 "Wavy sync progress",
                                 ProgressShape::Wavy,
                             ))
-                            .child(
-                                LoadingIndicator::new("loading", "Loading documents")
-                                    .active(self.loading),
-                            )
-                            .child(
-                                LoadingIndicator::new("contained-loading", "Loading archives")
-                                    .contained(true)
-                                    .active(self.loading),
-                            )
                             .child(Button::new("advance-progress", "Advance").on_activate(
                                 move |_, cx| {
                                     progress.update(cx, |this, cx| {
@@ -261,24 +252,7 @@ impl Render for DisplayExamples {
                                         cx.notify();
                                     })
                                 },
-                            ))
-                            .child(
-                                Button::new(
-                                    "toggle-loading",
-                                    if self.loading {
-                                        "Stop loading"
-                                    } else {
-                                        "Start loading"
-                                    },
-                                )
-                                .variant(ButtonVariant::Outlined)
-                                .on_activate(move |_, cx| {
-                                    loading.update(cx, |this, cx| {
-                                        this.loading = !this.loading;
-                                        cx.notify();
-                                    })
-                                }),
-                            ),
+                            )),
                     )
                     .child(
                         Button::new(
@@ -296,6 +270,41 @@ impl Render for DisplayExamples {
                             })
                         }),
                     )
+            }))
+            .children(self.shows(Story::LoadingIndicator).then(|| {
+                section("Uncontained and contained").child(
+                    div()
+                        .flex()
+                        .flex_wrap()
+                        .items_center()
+                        .gap_3()
+                        .child(
+                            LoadingIndicator::new("loading", "Loading documents")
+                                .active(self.loading),
+                        )
+                        .child(
+                            LoadingIndicator::new("contained-loading", "Loading archives")
+                                .contained(true)
+                                .active(self.loading),
+                        )
+                        .child(
+                            Button::new(
+                                "toggle-loading",
+                                if self.loading {
+                                    "Stop loading"
+                                } else {
+                                    "Start loading"
+                                },
+                            )
+                            .variant(ButtonVariant::Outlined)
+                            .on_activate(move |_, cx| {
+                                loading.update(cx, |this, cx| {
+                                    this.loading = !this.loading;
+                                    cx.notify();
+                                })
+                            }),
+                        ),
+                )
             }))
             .children(self.shows(Story::List).then(|| {
                 section("Standard list").child(

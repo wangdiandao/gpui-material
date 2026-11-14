@@ -1,6 +1,7 @@
 mod action_examples;
 mod display_examples;
 mod drawing;
+mod gallery;
 mod input_examples;
 mod overlay_examples;
 mod selection_examples;
@@ -11,32 +12,17 @@ mod text_field_examples;
 use std::borrow::Cow;
 
 use gpui::{
-    AnyView, App, AppContext, AssetSource, Context, ElementId, Entity, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement, QuitMode, Render, Role, ScrollHandle,
-    SharedString, StatefulInteractiveElement, Styled, Subscription, TitlebarOptions, Window,
-    WindowBounds, WindowHandle, WindowOptions, div, point, prelude::FluentBuilder, px, size,
+    App, AppContext, AssetSource, QuitMode, SharedString, TitlebarOptions, WindowBounds,
+    WindowHandle, WindowOptions, px, size,
 };
-use gpui_base::{
-    Root, TestSupportExt,
-    input::{Input, InputAccessibility, InputState},
-};
-#[cfg(all(test, feature = "test-support"))]
-use gpui_material::foundation::shape_text;
+use gpui_base::Root;
 use gpui_material::foundation::{
-    MaterialRoot, Surface, color, material_theme, set_material_theme, set_window_material_theme,
-    window_material_theme,
+    MaterialRoot, material_theme, set_material_theme, set_window_material_theme,
 };
-#[cfg(all(test, feature = "test-support"))]
-use gpui_material::theme::TypographyEmphasis;
-use gpui_material::theme::{Appearance, ColorRole, Direction, Elevation, MaterialTheme, TypeRole};
-use gpui_material::{
-    Button, ButtonVariant, ControlSize, Divider, Fab, FloatingAction, List, ListItem, ListVariant,
-    Text, ToggleButton, ToggleButtonVariant,
-};
+use gpui_material::theme::{Appearance, MaterialTheme};
 
-use story::{Story, section, stack};
-
-gpui::actions!(gallery, [BrowseComponents]);
+use gallery::{CloseCatalog, Gallery};
+use story::Story;
 
 const TITLE: &str = "Material Gallery";
 const FORWARD_ICON: &str = "forward.svg";
@@ -69,6 +55,11 @@ fn main() {
     let rtl = arguments.iter().any(|arg| arg == "--rtl");
     let reduced_motion = arguments.iter().any(|arg| arg == "--reduce-motion");
     let dark = arguments.iter().any(|arg| arg == "--dark");
+    let initial_story = arguments
+        .iter()
+        .find(|arg| !arg.starts_with('-'))
+        .and_then(|name| Story::find(name))
+        .unwrap_or_default();
     gpui_platform::application()
         .with_assets(GalleryAssets)
         .with_quit_mode(QuitMode::LastWindowClosed)
@@ -88,9 +79,9 @@ fn main() {
             if reduced_motion {
                 cx.set_reduce_motion(true);
             }
-            let result = open_gallery(cx, false).and_then(|_| {
+            let result = open_gallery(cx, false, initial_story).and_then(|_| {
                 if two_windows {
-                    open_gallery(cx, true)?;
+                    open_gallery(cx, true, initial_story)?;
                 }
                 Ok(())
             });
@@ -110,11 +101,15 @@ fn init_gallery(cx: &mut App) {
             input_examples::CancelDrag,
             Some("FoundationInput"),
         ),
-        gpui::KeyBinding::new("escape", BrowseComponents, Some("GalleryCatalog")),
+        gpui::KeyBinding::new("escape", CloseCatalog, Some("GalleryCatalog")),
     ]);
 }
 
-fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Root>> {
+fn open_gallery(
+    cx: &mut App,
+    local_dark: bool,
+    initial_story: Story,
+) -> gpui::Result<WindowHandle<Root>> {
     let options = WindowOptions {
         titlebar: Some(TitlebarOptions {
             title: Some(
@@ -137,429 +132,32 @@ fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Roo
             theme.colors = gpui_material::theme::ColorScheme::baseline(Appearance::Dark);
             set_window_material_theme(Some(theme), window, cx);
         }
-        cx.new(|cx| Gallery::new(local_dark, window, cx))
+        cx.new(|cx| Gallery::new(local_dark, initial_story, window, cx))
     })
 }
 
-struct Gallery {
-    local_theme: bool,
-    catalog_open: bool,
-    current: Story,
-    search: Entity<InputState>,
-    catalog_scroll: ScrollHandle,
-    content_scroll: ScrollHandle,
-    content_focus: FocusHandle,
-    stories: Vec<(Story, AnyView)>,
-    drawing: Entity<drawing::Drawing>,
-    input: Entity<input_examples::InputExamples>,
-    _search: Subscription,
-}
-
-impl Gallery {
-    fn new(local_theme: bool, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let search = cx.new(|cx| {
-            let mut input = InputState::new(window, cx).placeholder("Search components");
-            input.set_accessibility(
-                InputAccessibility::new(Some(Role::TextInput))
-                    .with_label(Some("Search components".into()))
-                    .with_accessibility_id(Some("gallery-search".into())),
-            );
-            input
-        });
-        let catalog_scroll = ScrollHandle::new();
-        let scroll = catalog_scroll.clone();
-        let observe_search = cx.observe(&search, move |_, _, cx| {
-            scroll.set_offset(point(px(0.), px(0.)));
-            cx.notify();
-        });
-        let stories = Story::GROUPS
-            .iter()
-            .flat_map(|(_, stories)| stories.iter().copied())
-            .filter(|story| *story != Story::Foundation)
-            .map(|story| {
-                let view: AnyView = match story {
-                    Story::Button | Story::ToggleButton | Story::IconButton | Story::Fab => cx
-                        .new(|_| action_examples::ActionExamples::for_story(story))
-                        .into(),
-                    Story::Checkbox | Story::Radio | Story::Switch | Story::Chip => cx
-                        .new(|cx| selection_examples::SelectionExamples::for_story(story, cx))
-                        .into(),
-                    Story::Slider => cx.new(slider_examples::SliderExamples::new).into(),
-                    Story::Menu | Story::Tooltip => cx
-                        .new(|cx| overlay_examples::MenuTooltipExamples::new(story, cx))
-                        .into(),
-                    Story::Dialog | Story::Sheets => cx
-                        .new(|cx| overlay_examples::ModalExamples::new(story, window, cx))
-                        .into(),
-                    Story::TextField => cx
-                        .new(|cx| text_field_examples::TextFieldExamples::new(window, cx))
-                        .into(),
-                    Story::ExposedDropdown => cx
-                        .new(|cx| text_field_examples::DropdownExamples::new(window, cx))
-                        .into(),
-                    Story::Snackbar => cx.new(overlay_examples::SnackbarExamples::new).into(),
-                    _ => cx
-                        .new(|_| display_examples::DisplayExamples::for_story(story))
-                        .into(),
-                };
-                (story, view)
-            })
-            .collect();
-        Self {
-            local_theme,
-            catalog_open: false,
-            current: Story::default(),
-            search,
-            catalog_scroll,
-            content_scroll: ScrollHandle::new(),
-            content_focus: cx.focus_handle(),
-            stories,
-            drawing: cx.new(drawing::Drawing::new),
-            input: cx.new(|cx| input_examples::InputExamples::new(window, cx)),
-            _search: observe_search,
-        }
-    }
-
-    fn navigate(
-        &mut self,
-        story: Story,
-        compact: bool,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        if self.current != story {
-            self.current = story;
-            self.content_scroll.set_offset(point(px(0.), px(0.)));
-        }
-        if compact {
-            self.catalog_open = false;
-            self.content_focus.focus(window, cx);
-        }
-        cx.notify();
-    }
-
-    fn catalog(&self, compact: bool, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let query = self.search.read(cx).value().trim().to_ascii_lowercase();
-        let theme = window_material_theme(window, cx);
-        let outline = color(theme.colors.color(
-            if self.search.read(cx).focus_handle(cx).is_focused(window) {
-                ColorRole::Primary
-            } else {
-                ColorRole::OutlineVariant
-            },
-        ));
-        let results: Vec<_> = Story::GROUPS
-            .iter()
-            .filter_map(|&(group, stories)| {
-                let items: Vec<_> = stories
-                    .iter()
-                    .copied()
-                    .filter(|story| story.matches(&query))
-                    .collect();
-                (!items.is_empty()).then_some((group, items))
-            })
-            .collect();
-        let no_results = results.is_empty();
-        let owner = cx.entity();
-        div()
-            .id("gallery-catalog-pane")
-            .key_context("GalleryCatalog")
-            .on_action(cx.listener(move |this, _: &BrowseComponents, window, cx| {
-                if compact {
-                    this.catalog_open = false;
-                    this.content_focus.focus(window, cx);
-                    cx.notify();
-                }
-            }))
-            .when_else(
-                compact,
-                |panel| panel.flex_1().min_w_0(),
-                |panel| panel.w(px(232.)).flex_none(),
-            )
-            .min_h_0()
-            .flex()
-            .flex_col()
-            .child(
-                Surface::new(ColorRole::SurfaceContainerLow)
-                    .size_full()
-                    .min_h_0()
-                    .flex()
-                    .flex_col()
-                    .child(
-                        div().flex_none().px_4().pt_2().pb_3().child(
-                            div()
-                                .id("gallery-search-field")
-                                .rounded_md()
-                                .border_1()
-                                .border_color(outline)
-                                .px_3()
-                                .py_2()
-                                .text_sm()
-                                .child(Input::new(&self.search)),
-                        ),
-                    )
-                    .child(
-                        div()
-                            .id("gallery-catalog")
-                            .tab_group()
-                            .track_scroll(&self.catalog_scroll)
-                            .overflow_y_scroll()
-                            .min_h_0()
-                            .flex_1()
-                            .px_3()
-                            .pb_3()
-                            .children(results.into_iter().map(|(group, items)| {
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .pb_2()
-                                    .child(
-                                        div().px_2().pt_2().child(
-                                            Text::new(group)
-                                                .id(group)
-                                                .role(TypeRole::LabelMedium)
-                                                .color(ColorRole::OnSurfaceVariant),
-                                        ),
-                                    )
-                                    .child(
-                                        List::new((ElementId::from("catalog-group"), group))
-                                            .variant(ListVariant::Segmented)
-                                            .items(items.into_iter().map(|story| {
-                                                let owner = owner.clone();
-                                                ListItem::new(
-                                                    (ElementId::from("gallery-story"), story.id()),
-                                                    story.name(),
-                                                )
-                                                .selected(story == self.current)
-                                                .on_activate(move |window, cx| {
-                                                    owner.update(cx, |this, cx| {
-                                                        this.navigate(story, compact, window, cx)
-                                                    })
-                                                })
-                                            })),
-                                    )
-                            }))
-                            .when(no_results, |panel| {
-                                panel.child(
-                                    div().p_2().child(
-                                        Text::new("No matching components").id("no-components"),
-                                    ),
-                                )
-                            }),
-                    ),
-            )
-    }
-
-    fn foundation(&self, window: &Window, cx: &App) -> impl IntoElement {
-        let appearance = window_material_theme(window, cx).colors.appearance();
-        let status = format!("Display scale {:.0}%", window.scale_factor() * 100.);
-        let theme_status = format!("Window theme {appearance:?}");
-        stack()
-            .child(
-                section("Window and typography")
-                    .child(
-                        Text::new("Material 3 · 中文排版")
-                            .id("typography")
-                            .role(TypeRole::HeadlineSmall),
-                    )
-                    .child(
-                        Surface::new(ColorRole::Surface)
-                            .tonal_elevation(Elevation::Level3)
-                            .shadow_elevation(Elevation::Level2)
-                            .rounded_lg()
-                            .p_4()
-                            .child(
-                                div()
-                                    .id("window-theme")
-                                    .role(Role::Status)
-                                    .aria_label(theme_status.clone())
-                                    .test_support()
-                                    .child(theme_status),
-                            )
-                            .child(
-                                div()
-                                    .id("display-scale")
-                                    .role(Role::Status)
-                                    .aria_label(status.clone())
-                                    .test_support()
-                                    .child(status),
-                            ),
-                    ),
-            )
-            .child(section("Shape and interaction").child(self.drawing.clone()))
-            .child(section("Input and overlays").child(self.input.clone()))
-    }
-}
-
-impl Render for Gallery {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = window_material_theme(window, cx);
-        let rtl = theme.layout.direction == Direction::Rtl;
-        let compact = window.viewport_size().width < px(700.);
-        let show_catalog = !compact || self.catalog_open;
-        let show_story = !compact || !self.catalog_open;
-        let toolbar_motion = cx.reduce_motion();
-        let local_theme = self.local_theme;
-        let story_title = self.current.name();
-        let story_content = if self.current == Story::Foundation {
-            self.foundation(window, cx).into_any_element()
-        } else {
-            self.stories
-                .iter()
-                .find(|(story, _)| *story == self.current)
-                .map(|(_, view)| view.clone().into_any_element())
-                .expect("registered story")
-        };
-        let focus = self.content_focus.clone();
-        let search_focus = self.search.read(cx).focus_handle(cx);
-
-        Surface::new(ColorRole::Surface)
-            .size_full()
-            .flex()
-            .flex_col()
-            .child(
-                Surface::new(ColorRole::SurfaceContainerLow)
-                    .flex_none()
-                    .w_full()
-                    .px_3()
-                    .flex()
-                    .flex_wrap()
-                    .items_center()
-                    .gap_x_2()
-                    .when(rtl, Styled::flex_row_reverse)
-                    .when(compact, |toolbar| {
-                        toolbar.child(
-                            Button::new(
-                                "browse-components",
-                                if self.catalog_open {
-                                    "Back"
-                                } else {
-                                    "Components"
-                                },
-                            )
-                            .variant(ButtonVariant::Outlined)
-                            .size(ControlSize::ExtraSmall)
-                            .on_activate({
-                                let owner = cx.entity();
-                                move |window, cx| {
-                                    owner.update(cx, |this, cx| {
-                                        this.catalog_open = !this.catalog_open;
-                                        if this.catalog_open {
-                                            search_focus.focus(window, cx);
-                                        } else {
-                                            focus.focus(window, cx);
-                                        }
-                                        cx.notify();
-                                    })
-                                }
-                            }),
-                        )
-                    })
-                    .when(!compact, |toolbar| {
-                        toolbar.child(
-                            div().min_w_0().flex_1().child(
-                                Text::new(TITLE)
-                                    .id("gallery-title")
-                                    .role(TypeRole::TitleMedium),
-                            ),
-                        )
-                    })
-                    .child(
-                        Button::new(
-                            "toggle-theme",
-                            if theme.colors.appearance() == Appearance::Dark {
-                                "Light theme"
-                            } else {
-                                "Dark theme"
-                            },
-                        )
-                        .variant(ButtonVariant::Text)
-                        .size(ControlSize::ExtraSmall)
-                        .on_activate(move |window, cx| {
-                            let mut theme = window_material_theme(window, cx).clone();
-                            let appearance = match theme.colors.appearance() {
-                                Appearance::Light => Appearance::Dark,
-                                Appearance::Dark => Appearance::Light,
-                            };
-                            theme.colors = gpui_material::theme::ColorScheme::baseline(appearance);
-                            if local_theme {
-                                set_window_material_theme(Some(theme), window, cx);
-                            } else {
-                                set_material_theme(theme, cx);
-                            }
-                        }),
-                    )
-                    .child(
-                        ToggleButton::new("toggle-motion", "Reduced motion", toolbar_motion)
-                            .variant(ToggleButtonVariant::Outlined)
-                            .size(ControlSize::ExtraSmall)
-                            .on_change(|next, _, cx| cx.set_reduce_motion(next)),
-                    ),
-            )
-            .child(Divider::horizontal())
-            .child(
-                div()
-                    .flex_1()
-                    .min_h_0()
-                    .flex()
-                    .when(rtl, Styled::flex_row_reverse)
-                    .children(show_catalog.then(|| self.catalog(compact, window, cx)))
-                    .when(!compact, |body| body.child(Divider::vertical()))
-                    .children(show_story.then(|| {
-                        div()
-                            .id((ElementId::from("gallery-story-pane"), self.current.id()))
-                            .track_focus(&self.content_focus)
-                            .flex()
-                            .flex_col()
-                            .flex_1()
-                            .min_h_0()
-                            .min_w_0()
-                            .child(div().flex_none().px_6().py_4().child(
-                                Text::new(story_title).id("story-title").role(if compact {
-                                    TypeRole::TitleLarge
-                                } else {
-                                    TypeRole::HeadlineSmall
-                                }),
-                            ))
-                            .child(
-                                div()
-                                    .id("gallery-scroll")
-                                    .tab_group()
-                                    .track_scroll(&self.content_scroll)
-                                    .overflow_y_scroll()
-                                    .flex_1()
-                                    .min_h_0()
-                                    .p_6()
-                                    .child(story_content),
-                            )
-                            .when(self.current == Story::Fab, |pane| {
-                                pane.child(div().h(px(88.)).flex_none())
-                            })
-                    })),
-            )
-            .children((show_story && self.current == Story::Fab).then(|| {
-                FloatingAction::new(
-                    Fab::new("floating-motion", "Toggle reduced motion", "◐")
-                        .on_activate(|_, cx| cx.set_reduce_motion(!cx.reduce_motion())),
-                )
-            }))
-    }
-}
 #[cfg(all(test, feature = "test-support"))]
 mod tests {
     use super::*;
-    use gpui::{InputEvent, TestAppContext};
+    use gpui::{ElementId, InputEvent as _, Role, TestAppContext};
     use gpui_base::{Theme, ThemeAppearance, test_support::find};
+    use gpui_material::foundation::{color, shape_text, window_material_theme};
+    use gpui_material::theme::{ColorRole, TypeRole, TypographyEmphasis};
 
     #[gpui::test]
     fn catalog_filters_and_opens_a_story_on_a_compact_window(cx: &mut TestAppContext) {
         let handle = cx.update(|cx| {
             init_gallery(cx);
-            open_gallery(cx, false).unwrap()
+            open_gallery(cx, false, Story::default()).unwrap()
         });
         cx.simulate_window_resize(handle.into(), size(px(340.), px(560.)));
+        let select_all = if cfg!(target_os = "macos") {
+            "cmd-a"
+        } else {
+            "ctrl-a"
+        };
 
-        let focus_control = |cx: &mut TestAppContext, id: ElementId| {
+        let click = |cx: &mut TestAppContext, id: ElementId| {
             cx.update_window(handle.into(), |_, window, cx| {
                 window.refresh();
                 window.draw(cx).clear(cx);
@@ -590,7 +188,7 @@ mod tests {
             cx.run_until_parked();
         };
 
-        focus_control(cx, "browse-components".into());
+        click(cx, "browse-components".into());
         cx.update_window(handle.into(), |_, window, cx| {
             window.refresh();
             window.draw(cx).clear(cx);
@@ -606,7 +204,7 @@ mod tests {
             assert!(find(window, &[], &(excluded, "activate").into()).is_none());
         })
         .unwrap();
-        focus_control(cx, (story, "activate").into());
+        click(cx, (story, "activate").into());
         cx.update_window(handle.into(), |_, window, cx| {
             window.refresh();
             window.draw(cx).clear(cx);
@@ -616,6 +214,30 @@ mod tests {
             assert!(slider.visible());
         })
         .unwrap();
+
+        click(cx, "browse-components".into());
+        cx.simulate_keystrokes(handle.into(), select_all);
+        cx.simulate_input(handle.into(), "no matching page");
+        cx.run_until_parked();
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            assert!(find(window, &[], &"no-components".into()).is_some());
+        })
+        .unwrap();
+
+        cx.simulate_keystrokes(handle.into(), select_all);
+        cx.simulate_input(handle.into(), "button");
+        cx.run_until_parked();
+        cx.simulate_keystrokes(handle.into(), "enter");
+        cx.run_until_parked();
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            assert!(find(window, &[], &("action-variant", 0_usize).into()).is_some());
+            assert!(find(window, &[], &"gallery-search".into()).is_none());
+        })
+        .unwrap();
     }
 
     #[gpui::test]
@@ -623,8 +245,8 @@ mod tests {
         let (first, second) = cx.update(|cx| {
             init_gallery(cx);
             (
-                open_gallery(cx, false).unwrap(),
-                open_gallery(cx, true).unwrap(),
+                open_gallery(cx, false, Story::default()).unwrap(),
+                open_gallery(cx, true, Story::default()).unwrap(),
             )
         });
         let label = |cx: &mut TestAppContext, handle: WindowHandle<Root>, id: &str| {
@@ -684,7 +306,7 @@ mod tests {
     fn mixed_script_uses_one_layout_for_metrics_and_paint(cx: &mut TestAppContext) {
         let handle = cx.update(|cx| {
             MaterialRoot::init(MaterialTheme::default(), cx);
-            open_gallery(cx, false).unwrap()
+            open_gallery(cx, false, Story::default()).unwrap()
         });
         cx.update_window(handle.into(), |_, window, cx| {
             window.refresh();

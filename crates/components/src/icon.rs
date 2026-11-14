@@ -206,7 +206,9 @@ mod tests {
                         image
                             .as_bytes(0)
                             .unwrap()
-                            .chunks_exact(4)
+                            .as_chunks::<4>()
+                            .0
+                            .iter()
                             .any(|pixel| pixel[3] != 0),
                         "{name:?} fill={filled} must paint visible pixels"
                     );

@@ -1,4 +1,6 @@
-use gpui::{AnyView, App, AppContext, Global, Render, Window, WindowHandle, px};
+use std::collections::HashMap;
+
+use gpui::{AnyView, App, AppContext, Global, Render, Window, WindowHandle, WindowId, px};
 use gpui_base::{Root, Theme, ThemeAppearance};
 use gpui_material_theme::{
     Appearance, ColorRole, CornerRole, MaterialTheme, TypeRole, TypographyEmphasis,
@@ -9,6 +11,11 @@ use crate::{color, typography::font_for_style};
 struct ActiveMaterialTheme(MaterialTheme);
 
 impl Global for ActiveMaterialTheme {}
+
+#[derive(Default)]
+struct WindowMaterialThemes(HashMap<WindowId, MaterialTheme>);
+
+impl Global for WindowMaterialThemes {}
 
 /// Initializes Material and Base before the application opens its first window.
 pub struct MaterialRoot;
@@ -35,6 +42,32 @@ impl MaterialRoot {
 /// Returns the shared Material theme installed by [`MaterialRoot::init`].
 pub fn material_theme(cx: &App) -> &MaterialTheme {
     &cx.global::<ActiveMaterialTheme>().0
+}
+
+/// Resolves a window's override or falls back to the current application theme.
+pub fn window_material_theme<'a>(window: &Window, cx: &'a App) -> &'a MaterialTheme {
+    cx.try_global::<WindowMaterialThemes>()
+        .and_then(|themes| themes.0.get(&window.window_handle().window_id()))
+        .unwrap_or_else(|| material_theme(cx))
+}
+
+/// Sets or clears the override for Material elements in this window.
+pub fn set_window_material_theme(theme: Option<MaterialTheme>, window: &mut Window, cx: &mut App) {
+    if !cx.has_global::<WindowMaterialThemes>() {
+        cx.set_global(WindowMaterialThemes::default());
+        cx.on_window_closed(|cx, id| {
+            cx.global_mut::<WindowMaterialThemes>().0.remove(&id);
+        })
+        .detach();
+    }
+    let id = window.window_handle().window_id();
+    let themes = &mut cx.global_mut::<WindowMaterialThemes>().0;
+    if let Some(theme) = theme {
+        themes.insert(id, theme);
+    } else {
+        themes.remove(&id);
+    }
+    window.refresh();
 }
 
 /// Commits the application theme and projects semantic defaults into Base before

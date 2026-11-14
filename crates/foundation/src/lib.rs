@@ -4,7 +4,10 @@ mod root;
 mod surface;
 mod typography;
 
-pub use root::{MaterialRoot, material_theme, set_material_theme};
+pub use root::{
+    MaterialRoot, material_theme, set_material_theme, set_window_material_theme,
+    window_material_theme,
+};
 pub use surface::{Surface, color, scrim_color};
 pub use typography::{ShapedText, shape_text};
 

@@ -4,13 +4,13 @@ use gpui::{
     Subscription, Window, div, px, relative,
 };
 use gpui_base::{
-    Button, Dialog, DialogPopup, Popover, Radio, RadioGroup, TestSupportExt, Theme,
+    Button, Dialog, DialogPopup, Popover, Radio, RadioGroup, TestSupportExt,
     input::{Input, InputAccessibility, InputState},
     slider::{SliderIndicator, SliderState, SliderThumb, SliderTrack},
 };
 use gpui_material::foundation::{
-    DragCapture, RangeThumb, Surface, isolated_scroll, logical_anchor, material_theme,
-    move_roving_focus, range_semantics, scrim_color, value_label,
+    DragCapture, RangeThumb, Surface, color, isolated_scroll, logical_anchor, move_roving_focus,
+    range_semantics, scrim_color, value_label, window_material_theme,
 };
 use gpui_material::theme::{ColorRole, Direction, Elevation};
 
@@ -108,9 +108,12 @@ impl Render for DragPreview {
 }
 
 impl Render for InputExamples {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = material_theme(cx);
-        let colors = Theme::global(cx).tokens.colors;
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = window_material_theme(window, cx);
+        let tint = |role| color(theme.colors.color(role));
+        let border = tint(ColorRole::OutlineVariant);
+        let ring = tint(ColorRole::Secondary);
+        let surface = tint(ColorRole::Surface);
         let scrim = scrim_color(theme, 0.32);
         let anchor = logical_anchor(Anchor::TopLeft, self.direction);
         let trigger = move |id, label: &'static str, focus: &FocusHandle| {
@@ -120,8 +123,8 @@ impl Render for InputExamples {
                 .py_2()
                 .rounded_md()
                 .border_1()
-                .border_color(colors.border)
-                .focus_visible(move |style| style.border_color(colors.ring))
+                .border_color(border)
+                .focus_visible(move |style| style.border_color(ring))
                 .accessibility_label(label)
                 .child(label)
         };
@@ -156,14 +159,14 @@ impl Render for InputExamples {
         .px_2()
         .py_2()
         .border_1()
-        .border_color(colors.border)
+        .border_color(border)
         .rounded_md()
-        .focus_visible(move |style| style.border_color(colors.ring))
+        .focus_visible(move |style| style.border_color(ring))
         .child(
             SliderTrack::new(&self.range)
                 .relative()
                 .h_4()
-                .bg(colors.muted)
+                .bg(tint(ColorRole::SurfaceContainerHighest))
                 .rounded_full()
                 .child(SliderIndicator::new(&self.range).size_full())
                 .child(
@@ -174,7 +177,7 @@ impl Render for InputExamples {
                         .ml(px(-8.))
                         .size_4()
                         .rounded_full()
-                        .bg(colors.primary),
+                        .bg(tint(ColorRole::Primary)),
                 ),
         );
 
@@ -234,8 +237,8 @@ impl Render for InputExamples {
                                     .py_2()
                                     .rounded_md()
                                     .border_1()
-                                    .border_color(colors.border)
-                                    .focus_visible(move |style| style.border_color(colors.ring))
+                                    .border_color(border)
+                                    .focus_visible(move |style| style.border_color(ring))
                                     .accessibility_label(label)
                                     .child(label)
                                     .on_change(move |_, _, _, cx| {
@@ -383,7 +386,7 @@ impl Render for InputExamples {
                     .px_3()
                     .py_2()
                     .border_1()
-                    .border_color(colors.border)
+                    .border_color(border)
                     .on_drag((), move |_, _, window, cx| {
                         let _ = drag_owner.update(cx, |this, cx| {
                             let weak = cx.entity().downgrade();
@@ -430,7 +433,7 @@ impl Render for InputExamples {
                             .w_64()
                             .p_4()
                             .rounded_lg()
-                            .bg(colors.surface)
+                            .bg(surface)
                             .child(
                                 div()
                                     .flex()
@@ -444,10 +447,8 @@ impl Render for InputExamples {
                                             .py_2()
                                             .rounded_md()
                                             .border_1()
-                                            .border_color(colors.border)
-                                            .focus_visible(move |style| {
-                                                style.border_color(colors.ring)
-                                            })
+                                            .border_color(border)
+                                            .focus_visible(move |style| style.border_color(ring))
                                             .child("Close")
                                             .on_click(cx.listener(|this, _, window, cx| {
                                                 this.dialog_open = false;
@@ -459,7 +460,7 @@ impl Render for InputExamples {
                                     .child(
                                         div()
                                             .border_1()
-                                            .border_color(colors.border)
+                                            .border_color(border)
                                             .p_2()
                                             .child(Input::new(&self.text)),
                                     )

@@ -1,19 +1,20 @@
 use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
-    Along, AnyElement, App, AppContext, Axis, Bounds, DragMoveEvent, ElementId, Entity,
-    FocusHandle, HitboxBehavior, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    Pixels, Point, Render, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
-    TouchDragEvent, TouchPhase, Window, canvas, div, point, prelude::FluentBuilder, px, relative,
+    Along, AnyElement, App, AppContext, AvailableSpace, Axis, Bounds, DragMoveEvent, ElementId,
+    Entity, FocusHandle, HitboxBehavior, InteractiveElement, IntoElement, MouseButton,
+    ParentElement, Pixels, Point, Render, RenderOnce, Role, SharedString,
+    StatefulInteractiveElement, Styled, TouchDragEvent, TouchPhase, Window, canvas, div, point,
+    prelude::FluentBuilder, px, relative,
 };
 use gpui_base::{
     AxisExt, TestSupportExt,
     slider::{Slider as BaseSlider, SliderIndicator},
 };
 use gpui_material_foundation::{
-    DragCapture, RangeThumb, color, material_theme, range_semantics, value_label,
+    DragCapture, RangeThumb, color, range_semantics, shape_text, value_label, window_material_theme,
 };
-use gpui_material_theme::{ColorRole, Direction};
+use gpui_material_theme::{ColorRole, Direction, TypeRole, TypographyEmphasis};
 
 use crate::ControlSize;
 
@@ -141,6 +142,34 @@ impl Geometry {
         }
     }
 
+    fn point_at(self, bounds: Bounds<Pixels>, offset: Pixels) -> Point<Pixels> {
+        if self.axis.is_vertical() {
+            point(bounds.center().x, bounds.bottom() - offset)
+        } else if self.reversed() {
+            point(bounds.right() - offset, bounds.center().y)
+        } else {
+            point(bounds.left() + offset, bounds.center().y)
+        }
+    }
+
+    fn track_corners(self, start: Pixels, end: Pixels) -> gpui::Corners<Pixels> {
+        let (left, right) = if self.reversed() {
+            (end, start)
+        } else {
+            (start, end)
+        };
+        gpui::Corners {
+            top_left: if self.axis.is_vertical() { end } else { left },
+            top_right: if self.axis.is_vertical() { end } else { right },
+            bottom_left: if self.axis.is_vertical() { start } else { left },
+            bottom_right: if self.axis.is_vertical() {
+                start
+            } else {
+                right
+            },
+        }
+    }
+
     fn place(self, element: gpui::Div, position: f32) -> gpui::Div {
         if self.axis.is_vertical() {
             element.bottom(relative(position))
@@ -169,7 +198,7 @@ impl RenderOnce for Slider {
             .clone();
         let geometry = Geometry {
             axis: self.axis,
-            direction: material_theme(cx).layout.direction,
+            direction: window_material_theme(window, cx).layout.direction,
         };
         let horizontal = self.axis.is_horizontal();
         let value = self.state.read(cx).value();
@@ -177,11 +206,8 @@ impl RenderOnce for Slider {
         let start = percentage.start;
         let end = percentage.end;
         let range = value.is_range();
-        let center = if self.kind == SliderKind::Centered && !range {
-            0.5
-        } else {
-            start
-        };
+        let centered = self.kind == SliderKind::Centered && !range;
+        let center = if centered { 0.5 } else { start };
         // Material slider specs, expressive track and handle sizes.
         let (thickness, thumb_extent, track_radius, icon_size): (f32, f32, f32, Option<f32>) =
             match self.size {
@@ -192,7 +218,7 @@ impl RenderOnce for Slider {
                 ControlSize::ExtraLarge => (96., 108., 28., Some(32.)),
             };
         let target = thumb_extent.max(48.);
-        let resolve = |role| color(material_theme(cx).colors.color(role));
+        let resolve = |role| color(window_material_theme(window, cx).colors.color(role));
         let disabled = resolve(ColorRole::OnSurface);
         let active = if self.disabled {
             disabled.opacity(0.38)
@@ -206,6 +232,76 @@ impl RenderOnce for Slider {
         };
         let ring = resolve(ColorRole::Secondary);
 
+        let active_icon = resolve(ColorRole::OnPrimary);
+        let inactive_icon = resolve(ColorRole::OnSecondaryContainer);
+        let disabled_icon = resolve(ColorRole::OnSurface).opacity(0.38);
+        let disabled_control = self.disabled;
+        let dragging = gesture.borrow().thumb;
+        let handle_width = |which| {
+            if dragging == Some(which) {
+                px(2.)
+            } else {
+                px(4.)
+            }
+        };
+        // Expressive tracks leave 6 dp between a handle's edge and each adjacent segment.
+        let end_gap = px(6.) + handle_width(RangeThumb::End) / 2.;
+        let center_gap = if range {
+            px(6.) + handle_width(RangeThumb::Start) / 2.
+        } else if centered {
+            px(6.)
+        } else {
+            px(0.)
+        };
+        let (first, last) = if center <= end {
+            ((center, center_gap), (end, end_gap))
+        } else {
+            ((end, end_gap), (center, center_gap))
+        };
+        let segments = move |length| track_segments(length, first, last);
+        let track_icon = self.icon.zip(icon_size).map(|(icon, side)| {
+            canvas(
+                move |bounds, window, cx| {
+                    let side = px(side);
+                    let length = bounds.size.along(geometry.axis);
+                    let (offset, active) = segments(length)
+                        .into_iter()
+                        .find_map(|segment| segment.icon_position(side, px(track_radius)))?;
+                    let foreground = if disabled_control {
+                        disabled_icon
+                    } else if active {
+                        active_icon
+                    } else {
+                        inactive_icon
+                    };
+                    let origin = geometry.point_at(bounds, offset) - point(side / 2., side / 2.);
+                    let mut icon = div()
+                        .size(side)
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .text_size(side)
+                        .line_height(side)
+                        .text_color(foreground)
+                        .child(icon)
+                        .into_any_element();
+                    let space = gpui::size(
+                        AvailableSpace::Definite(side),
+                        AvailableSpace::Definite(side),
+                    );
+                    icon.prepaint_as_root(origin, space, window, cx);
+                    Some(icon)
+                },
+                |_, icon, window, cx| {
+                    if let Some(mut icon) = icon {
+                        icon.paint(window, cx);
+                    }
+                },
+            )
+            .absolute()
+            .inset_0()
+            .size_full()
+        });
         let track = SliderIndicator::new(&self.state)
             .relative()
             .size_full()
@@ -213,88 +309,125 @@ impl RenderOnce for Slider {
                 canvas(
                     |_, _, _| (),
                     move |bounds, _, window, _| {
-                        let p = |f: f32| {
-                            if horizontal {
-                                let f = if geometry.reversed() { 1. - f } else { f };
-                                point(bounds.left() + bounds.size.width * f, bounds.center().y)
-                            } else {
-                                point(bounds.center().x, bounds.bottom() - bounds.size.height * f)
+                        let length = bounds.size.along(geometry.axis);
+                        for segment in segments(length) {
+                            if segment.end <= segment.start {
+                                continue;
                             }
-                        };
-                        let segment = |a: f32, b: f32, tint: Hsla, window: &mut Window| {
-                            let pa = p(a);
-                            let pb = p(b);
+                            let a = geometry.point_at(bounds, segment.start);
+                            let b = geometry.point_at(bounds, segment.end);
                             let half = px(thickness / 2.);
                             let rect = if horizontal {
                                 Bounds::from_corners(
-                                    point(pa.x.min(pb.x), pa.y - half),
-                                    point(pa.x.max(pb.x), pb.y + half),
+                                    point(a.x.min(b.x), a.y - half),
+                                    point(a.x.max(b.x), b.y + half),
                                 )
                             } else {
                                 Bounds::from_corners(
-                                    point(pa.x - half, pa.y.min(pb.y)),
-                                    point(pb.x + half, pa.y.max(pb.y)),
+                                    point(a.x - half, a.y.min(b.y)),
+                                    point(a.x + half, a.y.max(b.y)),
                                 )
                             };
-                            if rect.size.width > px(0.) && rect.size.height > px(0.) {
-                                window.paint_quad(gpui::quad(
-                                    rect,
-                                    px(track_radius),
-                                    tint,
-                                    px(0.),
-                                    tint,
-                                    gpui::BorderStyle::Solid,
-                                ));
-                            }
-                        };
-                        let first = center.min(end);
-                        let last = center.max(end);
-                        segment(0., first, inactive, window);
-                        segment(first, last, active, window);
-                        segment(last, 1., inactive, window);
+                            let tint = if segment.active { active } else { inactive };
+                            let (start_corner, end_corner) = segment.corners(px(track_radius));
+                            window.paint_quad(gpui::quad(
+                                rect,
+                                geometry.track_corners(start_corner, end_corner),
+                                tint,
+                                px(0.),
+                                tint,
+                                gpui::BorderStyle::Solid,
+                            ));
+                        }
                     },
                 )
                 .absolute()
                 .inset_0()
                 .size_full(),
-            );
-        let dragging = gesture.borrow().thumb;
+            )
+            .children(track_icon);
         let thumb = |which, position, name, focus: &FocusHandle| {
             let keyboard_state = self.state.clone();
             let engaged = dragging == Some(which);
-            let handle_width = if engaged { 2. } else { 4. };
-            let half_handle = px(handle_width / 2.);
+            let handle_width = handle_width(which);
+            let half_handle = handle_width / 2.;
             let (width, height) = if horizontal {
-                (handle_width, thumb_extent)
+                (handle_width, px(thumb_extent))
             } else {
-                (thumb_extent, handle_width)
+                (px(thumb_extent), handle_width)
             };
-            let label = value_label(&self.state, which, cx, |value| format!("{value:.2}").into());
-            let label_style = div()
+            let show_value = engaged
+                || !self.disabled && focus.is_focused(window) && window.last_input_was_keyboard();
+            let label = show_value.then(|| {
+                let text =
+                    value_label(&self.state, which, cx, |value| format!("{value:.2}").into());
+                let theme = window_material_theme(window, cx);
+                let foreground = resolve(ColorRole::InverseOnSurface);
+                let background = resolve(ColorRole::InverseSurface);
+                let line = shape_text(
+                    text,
+                    TypeRole::LabelSmall.style(TypographyEmphasis::Baseline),
+                    &theme.typography,
+                    1.,
+                    foreground,
+                    window,
+                    cx,
+                )
+                .expect("numeric slider label");
+                canvas(
+                    |_, _, _| (),
+                    move |thumb, _, window, cx| {
+                        let size = gpui::size(
+                            line.line().width.ceil() + px(16.),
+                            line.line_height() + px(8.),
+                        );
+                        let visible = window.content_mask().bounds;
+                        if !visible.contains(&thumb.center()) {
+                            return;
+                        }
+                        let origin = value_label_origin(
+                            thumb,
+                            size,
+                            visible,
+                            horizontal,
+                            geometry.direction,
+                        );
+                        let bounds = Bounds::new(origin, size);
+                        window.paint_quad(gpui::quad(
+                            bounds,
+                            px(6.),
+                            background,
+                            px(0.),
+                            background,
+                            gpui::BorderStyle::Solid,
+                        ));
+                        let _ = line.paint(
+                            origin + point(px(8.), px(4.)),
+                            gpui::TextAlign::Left,
+                            None,
+                            window,
+                            cx,
+                        );
+                    },
+                )
                 .absolute()
-                .px_2()
-                .py_1()
-                .rounded_md()
-                .bg(resolve(ColorRole::InverseSurface))
-                .text_color(resolve(ColorRole::InverseOnSurface))
-                .text_xs()
-                .when(horizontal, |label| label.bottom(px(height + 8.)))
-                .when(!horizontal, |label| label.left(px(width + 8.)))
-                .child(label);
+                .inset_0()
+                .size_full()
+            });
             let element = geometry
                 .place(
                     div()
                         .absolute()
                         .when(horizontal, |thumb| {
                             thumb
-                                .top(px((target - height) / 2.))
+                                .top((px(target) - height) / 2.)
                                 .ml(-half_handle)
                                 .when(geometry.reversed(), |thumb| {
                                     thumb.ml(px(0.)).mr(-half_handle)
                                 })
                         })
                         .when(!horizontal, |thumb| {
-                            thumb.left(px((target - width) / 2.)).mb(-half_handle)
+                            thumb.left((px(target) - width) / 2.).mb(-half_handle)
                         }),
                     position,
                 )
@@ -308,18 +441,12 @@ impl RenderOnce for Slider {
                 )))
                 .when(!self.disabled, |thumb| thumb.role(Role::Slider))
                 .when(!self.disabled, |thumb| thumb.aria_label(name))
-                .w(px(width))
-                .h(px(height))
+                .w(width)
+                .h(height)
                 .rounded_full()
                 .bg(active)
                 .focus_visible(move |style| style.bg(ring))
-                .when(
-                    engaged
-                        || !self.disabled
-                            && focus.is_focused(window)
-                            && window.last_input_was_keyboard(),
-                    |thumb| thumb.child(label_style),
-                );
+                .children(label);
 
             let element = if self.disabled {
                 element
@@ -351,11 +478,11 @@ impl RenderOnce for Slider {
             || self.name.clone(),
             |end| format!("{} – {end}", self.name).into(),
         );
-        let mut root = div()
-            .id(self.id.clone())
+        // The indicator records these bounds for Base input. Absolute thumbs are children
+        // of the same unpadded coordinate space, so percentages use those bounds as well.
+        let track_and_handles = div()
             .relative()
-            .when(horizontal, |root| root.w_full().h(px(target)).px_2())
-            .when(!horizontal, |root| root.w(px(target)).h(px(200.)).py_2())
+            .size_full()
             .child(track)
             .when(range, |root| {
                 root.child(thumb(
@@ -371,24 +498,12 @@ impl RenderOnce for Slider {
                 self.range_end_name.unwrap_or(self.name),
                 &end_focus,
             ));
-        if let (Some(icon), Some(icon_size)) = (self.icon, icon_size) {
-            root = root.child(
-                div()
-                    .absolute()
-                    .when(geometry.reversed(), |icon| icon.right_3())
-                    .when(!geometry.reversed(), |icon| icon.left_3())
-                    .top_1()
-                    .text_size(px(icon_size))
-                    .text_color(resolve(if self.disabled {
-                        ColorRole::OnSurfaceVariant
-                    } else if end > 0.15 {
-                        ColorRole::OnPrimary
-                    } else {
-                        ColorRole::OnSecondaryContainer
-                    }))
-                    .child(icon),
-            );
-        }
+        let root = div()
+            .id(self.id.clone())
+            .relative()
+            .when(horizontal, |root| root.w_full().h(px(target)).px_2())
+            .when(!horizontal, |root| root.w(px(target)).h(px(200.)).py_2())
+            .child(track_and_handles);
         if self.disabled || !window.is_window_active() && gesture.borrow().thumb.is_some() {
             if gesture.borrow().thumb.is_some() {
                 let state = self.state.clone();
@@ -578,6 +693,99 @@ impl RenderOnce for Slider {
     }
 }
 
+fn value_label_origin(
+    thumb: Bounds<Pixels>,
+    label: gpui::Size<Pixels>,
+    visible: Bounds<Pixels>,
+    horizontal: bool,
+    direction: Direction,
+) -> Point<Pixels> {
+    let gap = px(8.);
+    let x = if horizontal {
+        thumb.center().x - label.width / 2.
+    } else if direction == Direction::Ltr && thumb.right() + gap + label.width <= visible.right()
+        || thumb.left() - gap - label.width < visible.left()
+    {
+        thumb.right() + gap
+    } else {
+        thumb.left() - gap - label.width
+    };
+    let y = if horizontal && thumb.top() - gap - label.height >= visible.top() {
+        thumb.top() - gap - label.height
+    } else if horizontal {
+        thumb.bottom() + gap
+    } else {
+        thumb.center().y - label.height / 2.
+    };
+    point(
+        x.clamp(
+            visible.left(),
+            (visible.right() - label.width).max(visible.left()),
+        ),
+        y.clamp(
+            visible.top(),
+            (visible.bottom() - label.height).max(visible.top()),
+        ),
+    )
+}
+
+#[derive(Clone, Copy)]
+struct TrackSegment {
+    start: Pixels,
+    end: Pixels,
+    outer_start: bool,
+    outer_end: bool,
+    active: bool,
+}
+
+impl TrackSegment {
+    fn corners(self, outer: Pixels) -> (Pixels, Pixels) {
+        let limit = (self.end - self.start).max(px(0.)) / 2.;
+        let radius = |outside| if outside { outer } else { px(2.) }.min(limit);
+        (radius(self.outer_start), radius(self.outer_end))
+    }
+
+    fn icon_position(self, side: Pixels, outer: Pixels) -> Option<(Pixels, bool)> {
+        let (start, end) = self.corners(outer);
+        let start = start.max(px(4.));
+        let end = end.max(px(4.));
+        (self.end - self.start >= start + side + end)
+            .then_some((self.start + start + side / 2., self.active))
+    }
+}
+
+fn track_segments(
+    length: Pixels,
+    (first, first_gap): (f32, Pixels),
+    (last, last_gap): (f32, Pixels),
+) -> [TrackSegment; 3] {
+    let first = length * first;
+    let last = length * last;
+    [
+        TrackSegment {
+            start: px(0.),
+            end: (first - first_gap).min(last - last_gap),
+            outer_start: true,
+            outer_end: false,
+            active: false,
+        },
+        TrackSegment {
+            start: first + first_gap,
+            end: last - last_gap,
+            outer_start: first_gap == px(0.),
+            outer_end: last_gap == px(0.),
+            active: true,
+        },
+        TrackSegment {
+            start: (last + last_gap).max(first + first_gap),
+            end: length,
+            outer_start: false,
+            outer_end: true,
+            active: false,
+        },
+    ]
+}
+
 fn choose_thumb(range: bool, start: f32, end: f32, fraction: f32) -> RangeThumb {
     if range && fraction < (start + end) / 2. {
         RangeThumb::Start
@@ -625,4 +833,27 @@ fn finish(
     gesture.origin = None;
     state.update(cx, |state, cx| state.handle_release(cx));
     window.refresh();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn track_segments_stop_the_same_distance_from_each_handle() {
+        for percentage in [0.1, 0.5, 0.9] {
+            let length = px(200.);
+            let center = length * percentage;
+            let [_, active, inactive] = track_segments(length, (0., px(0.)), (percentage, px(8.)));
+            assert_eq!(center - active.end, px(8.));
+            assert_eq!(inactive.start - center, px(8.));
+            assert_eq!(active.corners(px(12.)).1, px(2.));
+            assert_eq!(inactive.corners(px(12.)).0, px(2.));
+        }
+
+        let [before, active, after] = track_segments(px(200.), (0.5, px(7.)), (0.5, px(8.)));
+        assert_eq!(before.end, px(92.));
+        assert_eq!(after.start, px(108.));
+        assert!(active.end < active.start);
+    }
 }

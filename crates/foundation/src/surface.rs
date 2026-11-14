@@ -3,7 +3,7 @@ use gpui::{
 };
 use gpui_material_theme::{Argb, ColorRole, Elevation, MaterialTheme};
 
-use crate::material_theme;
+use crate::window_material_theme;
 
 /// Converts Material's packed sRGB color and preserves its alpha channel.
 pub fn color(argb: Argb) -> Hsla {
@@ -67,8 +67,11 @@ impl Styled for Surface {
 }
 
 impl RenderOnce for Surface {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = self.theme.as_ref().unwrap_or_else(|| material_theme(cx));
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let theme = self
+            .theme
+            .as_ref()
+            .unwrap_or_else(|| window_material_theme(window, cx));
         let scheme = &theme.colors;
         let background = if self.role == ColorRole::Surface {
             scheme.surface_at_elevation(self.tonal_elevation)

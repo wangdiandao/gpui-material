@@ -5,14 +5,17 @@ mod input_examples;
 mod selection_examples;
 mod slider_examples;
 
+use std::borrow::Cow;
+
 use gpui::{
-    App, AppContext, Context, InteractiveElement, IntoElement, ParentElement, QuitMode, Render,
-    Role, StatefulInteractiveElement, Styled, TextAlign, TitlebarOptions, Window, WindowBounds,
-    WindowHandle, WindowOptions, canvas, div, px, size,
+    App, AppContext, AssetSource, Context, InteractiveElement, IntoElement, ParentElement,
+    QuitMode, Render, Role, SharedString, StatefulInteractiveElement, Styled, TextAlign,
+    TitlebarOptions, Window, WindowBounds, WindowHandle, WindowOptions, canvas, div, px, size,
 };
 use gpui_base::{Button, Root, TestSupportExt};
 use gpui_material::foundation::{
-    MaterialRoot, Surface, color, material_theme, set_material_theme, shape_text,
+    MaterialRoot, Surface, color, material_theme, set_material_theme, set_window_material_theme,
+    shape_text, window_material_theme,
 };
 use gpui_material::theme::{
     Appearance, ColorRole, Elevation, MaterialTheme, TypeRole, TypographyEmphasis,
@@ -20,6 +23,29 @@ use gpui_material::theme::{
 use gpui_material::{Fab, FloatingAction};
 
 const TITLE: &str = "Material Gallery";
+const FORWARD_ICON: &str = "forward.svg";
+const ARCHIVE_ICON: &str = "archive.svg";
+
+struct GalleryAssets;
+
+impl AssetSource for GalleryAssets {
+    fn load(&self, path: &str) -> gpui::Result<Option<Cow<'static, [u8]>>> {
+        let svg: &[u8] = match path {
+            FORWARD_ICON => br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11h11l-4-5 1.5-1.4L20 12l-7.5 7.4L11 18l4-5H4z"/></svg>"#,
+            ARCHIVE_ICON => br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M3 5h18v5h-1v10H4V10H3V5zm2 2v1h14V7H5zm1 3v8h12v-8H6zm3 2h6v2H9v-2z"/></svg>"#,
+            _ => return Ok(None),
+        };
+        Ok(Some(Cow::Borrowed(svg)))
+    }
+
+    fn list(&self, path: &str) -> gpui::Result<Vec<SharedString>> {
+        Ok(if path.is_empty() {
+            vec![FORWARD_ICON.into(), ARCHIVE_ICON.into()]
+        } else {
+            vec![]
+        })
+    }
+}
 
 fn main() {
     let arguments: Vec<_> = std::env::args().skip(1).collect();
@@ -28,6 +54,7 @@ fn main() {
     let reduced_motion = arguments.iter().any(|arg| arg == "--reduce-motion");
     let dark = arguments.iter().any(|arg| arg == "--dark");
     gpui_platform::application()
+        .with_assets(GalleryAssets)
         .with_quit_mode(QuitMode::LastWindowClosed)
         .run(move |cx| {
             init_gallery(cx);
@@ -85,8 +112,12 @@ fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Roo
         ..Default::default()
     };
     MaterialRoot::open_window(options, cx, |window, cx| {
+        if local_dark {
+            let mut theme = material_theme(cx).clone();
+            theme.colors = gpui_material::theme::ColorScheme::baseline(Appearance::Dark);
+            set_window_material_theme(Some(theme), window, cx);
+        }
         cx.new(|cx| Gallery {
-            local_dark,
             display: cx.new(|_| display_examples::DisplayExamples::default()),
             sliders: cx.new(slider_examples::SliderExamples::new),
             selection: cx.new(selection_examples::SelectionExamples::new),
@@ -98,7 +129,6 @@ fn open_gallery(cx: &mut App, local_dark: bool) -> gpui::Result<WindowHandle<Roo
 }
 
 struct Gallery {
-    local_dark: bool,
     display: gpui::Entity<display_examples::DisplayExamples>,
     sliders: gpui::Entity<slider_examples::SliderExamples>,
     selection: gpui::Entity<selection_examples::SelectionExamples>,
@@ -109,12 +139,7 @@ struct Gallery {
 
 impl Render for Gallery {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let app_theme = material_theme(cx);
-        let theme = if self.local_dark {
-            MaterialTheme::baseline(Appearance::Dark)
-        } else {
-            app_theme.clone()
-        };
+        let theme = window_material_theme(window, cx);
         let appearance = theme.colors.appearance();
         let sample = "Material 3 · 中文排版";
         let title = shape_text(
@@ -136,7 +161,6 @@ impl Render for Gallery {
         let theme_status = format!("Window theme {appearance:?}");
 
         Surface::new(ColorRole::Surface)
-            .with_theme(theme.clone())
             .size_full()
             .flex()
             .flex_col()
@@ -145,12 +169,13 @@ impl Render for Gallery {
                     .id("gallery-scroll")
                     .tab_group()
                     .overflow_y_scroll()
-                    .size_full()
+                    .w_full()
+                    .flex_1()
+                    .min_h_0()
                     .flex()
                     .flex_col()
                     .p_6()
                     .gap_4()
-                    .pb(px(88.))
                     .child(
                         div()
                             .id("typography")
@@ -176,7 +201,6 @@ impl Render for Gallery {
                     )
                     .child(
                         Surface::new(ColorRole::Surface)
-                            .with_theme(theme)
                             .tonal_elevation(Elevation::Level3)
                             .shadow_elevation(Elevation::Level2)
                             .rounded_lg()
@@ -228,6 +252,7 @@ impl Render for Gallery {
                             }),
                     ),
             )
+            .child(div().h(px(88.)).flex_none())
             .child(FloatingAction::new(
                 Fab::new("floating-theme", "Toggle reduced motion", "◐")
                     .on_activate(|_, cx| cx.set_reduce_motion(!cx.reduce_motion())),
@@ -268,6 +293,24 @@ mod tests {
         assert!(label(cx, first, "display-scale").starts_with("Display scale "));
         assert_eq!(label(cx, first, "window-theme"), "Window theme Light");
         assert_eq!(label(cx, second, "window-theme"), "Window theme Dark");
+        cx.simulate_window_scale_factor_change(second.into(), 1.5);
+        assert_eq!(label(cx, second, "display-scale"), "Display scale 150%");
+        assert_eq!(label(cx, second, "window-theme"), "Window theme Dark");
+        cx.simulate_window_scale_factor_change(second.into(), 1.);
+        assert_eq!(label(cx, second, "display-scale"), "Display scale 100%");
+        for (handle, appearance) in [(first, Appearance::Light), (second, Appearance::Dark)] {
+            cx.update_window(handle.into(), |_, window, cx| {
+                let theme = window_material_theme(window, cx);
+                assert_eq!(theme.colors.appearance(), appearance);
+                assert_eq!(
+                    theme.colors.color(ColorRole::OnPrimary),
+                    MaterialTheme::baseline(appearance)
+                        .colors
+                        .color(ColorRole::OnPrimary)
+                );
+            })
+            .unwrap();
+        }
         cx.update(|cx| set_material_theme(MaterialTheme::baseline(Appearance::Dark), cx));
         assert_eq!(label(cx, first, "window-theme"), "Window theme Dark");
         assert_eq!(label(cx, second, "window-theme"), "Window theme Dark");
@@ -279,6 +322,9 @@ mod tests {
                 color(material_theme(cx).colors.color(ColorRole::Primary))
             );
         });
+        cx.update(|cx| set_material_theme(MaterialTheme::baseline(Appearance::Light), cx));
+        assert_eq!(label(cx, first, "window-theme"), "Window theme Light");
+        assert_eq!(label(cx, second, "window-theme"), "Window theme Dark");
     }
 
     #[gpui::test]

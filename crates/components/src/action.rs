@@ -7,7 +7,7 @@ use gpui::{
 };
 use gpui_base::{Button, Toggle, box_shadow};
 use gpui_material_foundation::{
-    InteractionFeedback, InteractionState, Ripple, Shape, animate, color, material_theme,
+    InteractionFeedback, InteractionState, Ripple, Shape, animate, color, window_material_theme,
 };
 use gpui_material_theme::{ColorRole, CornerRole, CornerShape, Elevation, MotionKind, MotionSpeed};
 
@@ -66,7 +66,7 @@ impl ActionControl {
             .clone();
         let focus = self.focus.unwrap_or(focus);
         let style = self.style;
-        let theme = material_theme(cx);
+        let theme = window_material_theme(window, cx);
         let density = theme.layout.density;
         let direction = theme.layout.direction;
         let reduced = cx.reduce_motion();
@@ -150,7 +150,9 @@ impl ActionControl {
                         ],
                     );
                 }
-                let outline = if enabled {
+                let outline = if style.outline == 0. {
+                    gpui::transparent_black()
+                } else if enabled {
                     outline
                 } else {
                     on_surface.opacity(0.12)
@@ -391,5 +393,7 @@ pub(crate) fn icon_slot(icon: AnyElement, side: f32) -> impl IntoElement {
         .flex()
         .items_center()
         .justify_center()
+        .text_size(px(side))
+        .line_height(px(side))
         .child(icon)
 }

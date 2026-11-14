@@ -1,22 +1,9 @@
 schema_version = 1
 current_phase = "P6"
-allowed_paths = [
-    "status.toml",
-    "docs/phases/P06.md",
-    "docs/phases/P06.zh.md",
-    "docs/phases/P06.i18n.yaml",
-    "crates/components/src/lib.rs",
-    "crates/components/src/input/",
-    "crates/components/src/overlay/",
-    "crates/material/src/lib.rs",
-    "apps/gallery/src/main.rs",
-    "apps/gallery/src/story.rs",
-    "apps/gallery/src/text_field_examples.rs",
-    "apps/gallery/src/overlay_examples.rs",
-]
+allowed_paths = []
 blockers = []
 repairs = [{ phase = "P0", issue = 34, status = "completed", scope = "Windows-only initial release acceptance", commit = "7b54105ac4044208fb9c524ad53b46285d40ce55" }, { phase = "P4", issue = 118, status = "completed", scope = "Foundation Gallery slider alignment", commit = "02b2d25dd252abf34a6719f8bc672bb0e663d98d" }, { phase = "P5", issue = 119, status = "completed", scope = "Visual defects and acceptance coverage in Material components, Gallery and the window theme adapter", commit = "9b85f97034ea3253fdc9bc48eb6b0667be684224" }, { phase = "P5", issue = 125, status = "completed", scope = "Material Gallery component navigation and sample organization", commit = "33375c769b06d981126c9028612bc8b3df0ebcbe" }]
-frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac", P4 = "02b2d25dd252abf34a6719f8bc672bb0e663d98d", P5 = "33375c769b06d981126c9028612bc8b3df0ebcbe" }
+frozen_commits = { P0 = "7b54105ac4044208fb9c524ad53b46285d40ce55", P1 = "b0250f5f120ab2fbadfe41b5529612e984358295", P2 = "74c526928fc31331b937441577887252aaf19d2f", P3 = "0cd78a309c45335664cdb3b26f5592a096e8b0ac", P4 = "02b2d25dd252abf34a6719f8bc672bb0e663d98d", P5 = "33375c769b06d981126c9028612bc8b3df0ebcbe", P6 = "41f1c503e7f3e96915a464c9f2ed74ee9548b9d1" }
 
 [phases.P0]
 status = "frozen"
@@ -98,8 +85,23 @@ merged_deliverables = [
 ]
 
 [phases.P6]
-status = "active"
+status = "frozen"
+frozen_on = 2026-11-14
 entry_conditions = ["P5 is frozen", "Pinned text and overlay probes and verified Foundation adapters are available"]
+merged_deliverables = [
+    { task = "P6-01", issue = 129, pull_request = 136, commit = "9cf17caf9bbd6cee443ac61bbfcce35e4aa11970" },
+    { task = "P6-02", issue = 130, pull_request = 137, commit = "9552de986111fd080f3358ebc61af4863bd8d1eb" },
+    { task = "P6-03", issue = 131, pull_request = 140, commit = "9f30f4188e262acc3be61dd5445f6359a4803200" },
+    { task = "P6-04", issue = 132, pull_request = 139, commit = "cff0595495edcdff061af387418843bd01f5ccc0" },
+    { task = "P6-05", issue = 133, pull_request = 138, commit = "4c3367565afdb2d9f1055976a78e68e57b86a22f" },
+    { task = "P6-06", issue = 134, pull_request = 141, commit = "38c3f07148d09dcd974528c1ce6fc7c74de83b0c" },
+    { task = "P6-07", issue = 135, pull_request = 142, commit = "24891277cafd6603e0b9c066bb720578dba81853" },
+    { task = "P6-02", issue = 130, pull_request = 143, commit = "fe54a58f25cc2d776405444e54e085ac95f4eba5" },
+    { task = "P6-04", issue = 132, pull_request = 144, commit = "e204ba5cc49fd2db8895b78a56ec2256257791be" },
+    { task = "P6-03", issue = 131, pull_request = 145, commit = "ea07e5c87ff892809707c548dd94c2f293439b53" },
+    { task = "P6-04", issue = 132, pull_request = 146, commit = "c3eadb5187c650ab851c6a5c1b754d460c177a3f" },
+    { task = "P6-02", issue = 130, pull_request = 147, commit = "41f1c503e7f3e96915a464c9f2ed74ee9548b9d1" },
+]
 
 [phases.P7]
 status = "planned"

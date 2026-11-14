@@ -11,6 +11,7 @@
 使用检出目录下的 `crates/material` 作为路径依赖。打开窗口前，用 `MaterialTheme` 初始化 `MaterialRoot`。`gpui_material::Button::new("save", "Save").on_activate(handler)` 创建带标签的操作按钮。选择控件通过调用方回调请求变更，滑块使用由 Base 支持的 `SliderState`。门面转发主题的可选功能 `dynamic-color` 和 `serde`。
 
 - [P5 基础组件](docs/phases/P05.zh.md)
+- [P8 复合与扩展组件](docs/phases/P08.zh.md)
 - [文档索引](docs/index.zh.md)
 - [贡献指南](CONTRIBUTION.zh.md)
 - [组件覆盖矩阵](docs/component-coverage.zh.md)

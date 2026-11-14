@@ -11,6 +11,7 @@ Run `cargo gallery` on Windows 11 x64/MSVC to open the Gallery. The component ex
 Use `crates/material` as a path dependency from a checkout. Initialize `MaterialRoot` with a `MaterialTheme` before opening a window. `gpui_material::Button::new("save", "Save").on_activate(handler)` creates a labeled action. Selection controls request a change through the caller's callback, and sliders use a Base-backed `SliderState`. The facade forwards the optional `dynamic-color` and `serde` theme features.
 
 - [P5 basic components](docs/phases/P05.md)
+- [P8 composite and extended components](docs/phases/P08.md)
 - [Documentation index](docs/index.md)
 - [Contribution guide](CONTRIBUTION.md)
 - [Component coverage matrix](docs/component-coverage.md)

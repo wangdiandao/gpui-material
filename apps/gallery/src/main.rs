@@ -187,6 +187,9 @@ impl Gallery {
                     Story::Menu | Story::Tooltip => cx
                         .new(|cx| overlay_examples::MenuTooltipExamples::new(story, cx))
                         .into(),
+                    Story::Dialog | Story::Sheets => cx
+                        .new(|cx| overlay_examples::ModalExamples::new(story, window, cx))
+                        .into(),
                     Story::TextField => cx
                         .new(|cx| text_field_examples::TextFieldExamples::new(window, cx))
                         .into(),

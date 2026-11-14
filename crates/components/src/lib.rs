@@ -30,4 +30,5 @@ pub use overlay::{Menu, MenuItem, Tooltip};
 mod input;
 pub use input::{TextAreaState, TextField, TextFieldEvent, TextFieldState, TextFieldVariant};
 mod overlay;
+pub use overlay::{Dialog, DialogState, DialogVariant, Sheet, SheetEdge, SheetMode};
 pub use overlay::{Snackbar, SnackbarHost};

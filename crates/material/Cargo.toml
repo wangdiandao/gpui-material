@@ -8,6 +8,7 @@ publish.workspace = true
 
 [features]
 default = []
+carousel = ["gpui-material-extras/carousel"]
 dynamic-color = ["gpui-material-theme/dynamic-color"]
 serde = ["gpui-material-theme/serde"]
 expressive-groups = ["gpui-material-extras/expressive-groups"]

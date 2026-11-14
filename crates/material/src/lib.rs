@@ -21,6 +21,8 @@ pub use gpui_material_extras::{
     SearchBar, SearchEvent, SearchOutcome, SearchRequest, SearchResult, SearchState, SearchView,
     SearchViewVariant,
 };
+#[cfg(feature = "carousel")]
+pub use gpui_material_extras::{Carousel, CarouselItem, CarouselVariant};
 pub use gpui_material_foundation as foundation;
 pub use gpui_material_foundation::{MaterialRoot, Surface, material_theme, set_material_theme};
 pub use gpui_material_theme as theme;

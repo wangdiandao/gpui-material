@@ -2,6 +2,11 @@
 
 #[cfg(feature = "date-time")]
 pub mod date_time;
+#[cfg(feature = "carousel")]
+mod carousel;
+#[cfg(feature = "carousel")]
+pub use carousel::{Carousel, CarouselItem, CarouselVariant};
+
 #[cfg(feature = "expressive-groups")]
 mod groups;
 #[cfg(feature = "expressive-groups")]

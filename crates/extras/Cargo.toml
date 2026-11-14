@@ -8,6 +8,7 @@ publish.workspace = true
 
 [features]
 default = []
+carousel = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
 expressive-groups = ["dep:gpui", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
 search = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
 toolbars = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme"]

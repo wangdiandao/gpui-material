@@ -6,9 +6,9 @@ use gpui::{
 };
 use gpui_base::TestSupportExt;
 use gpui_material::{
-    Button, ButtonVariant, ControlSize, Fab, FloatingAction, IconButton, List, ListItem,
-    ListVariant, Text, TextField, TextFieldEvent, TextFieldState, TextFieldVariant, ToggleButton,
-    ToggleButtonVariant,
+    Button, ButtonVariant, ControlSize, Fab, FloatingAction, Icon, IconButton, IconName, List,
+    ListItem, ListVariant, Text, TextField, TextFieldEvent, TextFieldState, TextFieldVariant,
+    ToggleButton, ToggleButtonVariant,
     foundation::{
         Surface, color, set_material_theme, set_window_material_theme, window_material_theme,
     },
@@ -167,7 +167,7 @@ impl Gallery {
         if !self.search.read(cx).value().is_empty() {
             let state = self.search.downgrade();
             search = search.trailing(
-                IconButton::new("clear-search", "Clear search", "×")
+                IconButton::new("clear-search", "Clear search", Icon::new(IconName::Close))
                     .size(ControlSize::ExtraSmall)
                     .on_activate(move |window, cx| {
                         let _ = state.update(cx, |search, cx| {
@@ -525,8 +525,12 @@ impl Render for Gallery {
             .child(self.render_status_bar(margin, window, cx))
             .children((show_story && self.current == Story::Fab).then(|| {
                 FloatingAction::new(
-                    Fab::new("floating-motion", "Toggle reduced motion", "◐")
-                        .on_activate(|_, cx| cx.set_reduce_motion(!cx.reduce_motion())),
+                    Fab::new(
+                        "floating-motion",
+                        "Toggle reduced motion",
+                        Icon::new(IconName::MotionPhotosOn),
+                    )
+                    .on_activate(|_, cx| cx.set_reduce_motion(!cx.reduce_motion())),
                 )
                 .margin(px(52.))
             }))

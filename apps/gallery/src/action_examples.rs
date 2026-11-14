@@ -4,8 +4,8 @@ use gpui::{
 };
 use gpui_base::TestSupportExt;
 use gpui_material::{
-    Button, ButtonShape, ButtonVariant, ControlSize, ExtendedFab, Fab, FabColor, FabSize,
-    IconButton, IconButtonVariant, IconButtonWidth, IconToggleButton, ToggleButton,
+    Button, ButtonShape, ButtonVariant, ControlSize, ExtendedFab, Fab, FabColor, FabSize, Icon,
+    IconButton, IconButtonVariant, IconButtonWidth, IconName, IconToggleButton, ToggleButton,
     ToggleButtonVariant,
 };
 
@@ -101,8 +101,8 @@ impl Render for ActionExamples {
                         Button::new(("action-size", ix), format!("{size:?}"))
                             .size(size)
                             .shape(ButtonShape::Square)
-                            .leading_icon("+")
-                            .trailing_icon("›")
+                            .leading_icon(Icon::new(IconName::Add))
+                            .trailing_icon(Icon::new(IconName::ChevronRight).mirror_in_rtl(true))
                     }),
                 ))
             }))
@@ -139,7 +139,7 @@ impl Render for ActionExamples {
                         IconButton::new(
                             ("icon-variant", ix),
                             format!("{variant:?} {size:?} action"),
-                            "+",
+                            Icon::new(IconName::Add),
                         )
                         .variant(variant)
                         .size(size)
@@ -168,10 +168,10 @@ impl Render for ActionExamples {
                         IconToggleButton::new(
                             ("icon-toggle-variant", ix),
                             format!("{variant:?} {size:?} favorite"),
-                            "♡",
+                            Icon::new(IconName::Favorite),
                             self.icon_toggles[ix],
                         )
-                        .selected_icon("♥")
+                        .selected_icon(Icon::new(IconName::Favorite).filled(true))
                         .variant(variant)
                         .size(size)
                         .shape(if ix % 2 == 0 {
@@ -202,7 +202,7 @@ impl Render for ActionExamples {
                         Fab::new(
                             ("fab-size", ix),
                             format!("Create {color:?} ({size:?})"),
-                            "+",
+                            Icon::new(IconName::Add),
                         )
                         .size(size)
                         .color(color)
@@ -216,7 +216,7 @@ impl Render for ActionExamples {
                         ExtendedFab::new(
                             ("extended-fab-size", ix),
                             "Create a new document 新建文档",
-                            "+",
+                            Icon::new(IconName::Add),
                         )
                         .size(size)
                         .expanded(!self.collapsed)
@@ -253,14 +253,18 @@ impl Render for ActionExamples {
                 section("Disabled").child(
                     row()
                         .child(
-                            IconButton::new("icon-disabled", "Unavailable action", "+")
-                                .disabled(true),
+                            IconButton::new(
+                                "icon-disabled",
+                                "Unavailable action",
+                                Icon::new(IconName::Add),
+                            )
+                            .disabled(true),
                         )
                         .child(
                             IconToggleButton::new(
                                 "icon-toggle-disabled",
                                 "Unavailable favorite",
-                                "♥",
+                                Icon::new(IconName::Favorite).filled(true),
                                 true,
                             )
                             .disabled(true),

@@ -4,7 +4,9 @@ use gpui::{
 };
 use gpui_material::foundation::window_material_theme;
 use gpui_material::theme::Direction;
-use gpui_material::{Checkbox, CheckboxState, Chip, ChipVariant, Radio, RadioGroup, Switch};
+use gpui_material::{
+    Checkbox, CheckboxState, Chip, ChipVariant, Icon, IconName, Radio, RadioGroup, Switch,
+};
 
 use crate::story::{Story, section};
 
@@ -131,8 +133,8 @@ impl Render for SelectionExamples {
                     .child({
                         let owner = cx.entity();
                         Switch::new("notifications", "Notifications", self.notifications)
-                            .checked_icon("✓")
-                            .unchecked_icon("−")
+                            .checked_icon(Icon::new(IconName::Check))
+                            .unchecked_icon(Icon::new(IconName::Remove))
                             .on_change(move |next, _, cx| {
                                 owner.update(cx, |this, cx| {
                                     this.notifications = next;
@@ -175,7 +177,7 @@ impl Render for SelectionExamples {
                             })
                             .child(
                                 Chip::new("assist", "Browse")
-                                    .leading_icon("+")
+                                    .leading_icon(Icon::new(IconName::Add))
                                     .elevated(true),
                             )
                             .child({

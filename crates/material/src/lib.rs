@@ -1,8 +1,8 @@
 //! Material 3 Expressive controls and theme for GPUI applications.
 //!
-//! Initialize [MaterialRoot] before opening windows, then compose controls
-//! with GPUI elements. Keep controlled selection and command outcomes in the
-//! application. Sliders use a retained [SliderState] entity.
+//! Initialize [MaterialRoot] and call [init_components] before opening windows.
+//! Compose controls with GPUI elements and keep controlled selection and
+//! command outcomes in the application. Sliders use a retained [SliderState] entity.
 
 pub use gpui_material_components::*;
 pub use gpui_material_foundation as foundation;

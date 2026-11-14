@@ -31,5 +31,10 @@ mod input;
 pub use input::{DropdownOption, ExposedDropdown, ExposedDropdownState};
 pub use input::{TextAreaState, TextField, TextFieldEvent, TextFieldState, TextFieldVariant};
 mod overlay;
+
+/// Installs component keybindings after initializing the Material root.
+pub fn init_components(cx: &mut gpui::App) {
+    overlay::init_tooltip(cx);
+}
 pub use overlay::{Dialog, DialogState, DialogVariant, Sheet, SheetEdge, SheetMode};
 pub use overlay::{Snackbar, SnackbarHost};

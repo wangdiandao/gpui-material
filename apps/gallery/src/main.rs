@@ -103,6 +103,7 @@ fn main() {
 
 fn init_gallery(cx: &mut App) {
     MaterialRoot::init(MaterialTheme::default(), cx);
+    gpui_material::init_components(cx);
     cx.bind_keys([
         gpui::KeyBinding::new(
             "escape",

@@ -580,7 +580,7 @@ fn menu_content(
                                     })
                                     .active(move |style| {
                                         style.bg(background.blend(foreground.opacity(
-                                            gpui_material_theme::StateLayer::Focus.opacity(),
+                                            gpui_material_theme::StateLayer::Pressed.opacity(),
                                         )))
                                     })
                                 })

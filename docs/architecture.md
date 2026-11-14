@@ -32,6 +32,8 @@ Inputs, overlays, and navigation may use controls/display. The TextField editing
 - P4 centralizes mapping real Base interaction states to Material presentation. Disabled suppresses hover and active styles. P1 verifies public access to disabled, cancelled, keyboard, and focus-visible state.
 - A managed data file is the sole numeric source for tokens. xtask generates the Rust tables and index, which are checked in for ordinary builds. Shape scope follows the rounded polygon topologies covered by the probes.
 
+Foundation shares typography, ripple feedback, and the desktop shadow projection across component families. Press ripples are separate from hover, focus, and drag state layers; reduced motion uses a static press indication. Single-line text shares tracked glyph measurement and drawing. Wrapping text delegates line breaking to GPUI with Material font families, weight, size, and line height; the pinned native wrapping API does not expose custom letter spacing. GPUI's two-layer shadow projection is a desktop adaptation, not a pixel-identical reproduction of Android's platform shadow renderer.
+
 <a id="候选依赖"></a>
 
 ## Candidate dependencies

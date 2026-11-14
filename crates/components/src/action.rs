@@ -5,9 +5,10 @@ use gpui::{
     FocusHandle, Hsla, IntoElement, MouseButton, ParentElement, Pixels, Point,
     StatefulInteractiveElement, Styled, Window, canvas, div, prelude::FluentBuilder, px, quad,
 };
-use gpui_base::{Button, Toggle, box_shadow};
+use gpui_base::{Button, Toggle};
 use gpui_material_foundation::{
-    InteractionFeedback, InteractionState, Ripple, Shape, animate, color, window_material_theme,
+    InteractionFeedback, InteractionState, Ripple, Shape, animate, color, elevation_shadows,
+    window_material_theme,
 };
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Elevation, MotionKind, MotionSpec, MotionSpeed,
@@ -195,8 +196,7 @@ impl ActionControl {
             window,
             cx,
         )
-        .max(0.)
-            * scale;
+        .max(0.);
         let (foreground, background) = if enabled {
             (
                 foreground,
@@ -248,10 +248,7 @@ impl ActionControl {
                     window.paint_drop_shadows(
                         bounds,
                         radii,
-                        &[
-                            box_shadow(0., elevation * 0.4, elevation, 0., shadow.opacity(0.18)),
-                            box_shadow(0., scale, elevation * 0.5, 0., shadow.opacity(0.13)),
-                        ],
+                        &elevation_shadows(elevation, scale, shadow),
                     );
                 }
                 let outline = if enabled { outline } else { disabled_outline };

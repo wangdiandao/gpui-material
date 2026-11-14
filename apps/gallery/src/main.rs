@@ -3,6 +3,7 @@ mod display_examples;
 mod drawing;
 mod gallery;
 mod input_examples;
+mod navigation_examples;
 mod overlay_examples;
 mod selection_examples;
 mod slider_examples;

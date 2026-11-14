@@ -2,6 +2,7 @@ mod action_examples;
 mod display_examples;
 mod drawing;
 mod input_examples;
+mod overlay_examples;
 mod selection_examples;
 mod slider_examples;
 mod story;
@@ -182,6 +183,7 @@ impl Gallery {
                         .new(|cx| selection_examples::SelectionExamples::for_story(story, cx))
                         .into(),
                     Story::Slider => cx.new(slider_examples::SliderExamples::new).into(),
+                    Story::Snackbar => cx.new(overlay_examples::SnackbarExamples::new).into(),
                     _ => cx
                         .new(|_| display_examples::DisplayExamples::for_story(story))
                         .into(),

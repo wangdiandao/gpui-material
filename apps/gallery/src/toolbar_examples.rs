@@ -157,7 +157,6 @@ impl ToolbarExamples {
                         .flex()
                         .items_center()
                         .gap_4()
-                        .h(px(200.))
                         .child(
                             Toolbar::new("vertical-floating", "Editing actions", self.actions(cx))
                                 .orientation(ToolbarOrientation::Vertical)
@@ -400,6 +399,26 @@ mod tests {
         cx.simulate_keystrokes(handle.into(), "enter");
         frame(cx, handle);
         cx.update(|cx| assert_eq!(&*view.read(cx).last_action, "Inbox"));
+    }
+
+    #[gpui::test]
+    fn vertical_toolbar_shows_the_entire_docked_search_button(cx: &mut TestAppContext) {
+        let (handle, _) = open(cx, Story::Toolbars);
+        frame(cx, handle);
+        let docked = ElementId::from("vertical-docked");
+        cx.update_window(handle.into(), |_, window, _| {
+            let search = find(window, &[], &(docked.clone(), "search").into())
+                .unwrap()
+                .bounds();
+            let strip = find(window, &[], &(docked, "actions").into())
+                .unwrap()
+                .bounds();
+            assert!(
+                search.top() >= strip.top() && search.bottom() <= strip.bottom(),
+                "search button bounds {search:?} exceed toolbar bounds {strip:?}"
+            );
+        })
+        .unwrap();
     }
 
     #[gpui::test]

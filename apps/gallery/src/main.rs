@@ -123,6 +123,37 @@ mod tests {
     use gpui_material::foundation::{color, shape_text, window_material_theme};
     use gpui_material::theme::{ColorRole, TypeRole, TypographyEmphasis};
 
+    fn click(cx: &mut TestAppContext, handle: WindowHandle<Root>, id: ElementId) {
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let target = find(window, &[], &id).unwrap();
+            assert!(target.visible());
+            let position = target.bounds().center();
+            for input in [
+                gpui::MouseDownEvent {
+                    button: gpui::MouseButton::Left,
+                    position,
+                    click_count: 1,
+                    first_mouse: false,
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                gpui::MouseUpEvent {
+                    button: gpui::MouseButton::Left,
+                    position,
+                    click_count: 1,
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+            ] {
+                window.dispatch_event(input, cx);
+            }
+        })
+        .unwrap();
+        cx.run_until_parked();
+    }
+
     #[gpui::test]
     fn catalog_filters_and_opens_a_story_on_a_compact_window(cx: &mut TestAppContext) {
         let handle = cx.update(|cx| {
@@ -136,41 +167,21 @@ mod tests {
             "ctrl-a"
         };
 
-        let click = |cx: &mut TestAppContext, id: ElementId| {
-            cx.update_window(handle.into(), |_, window, cx| {
-                window.refresh();
-                window.draw(cx).clear(cx);
-                let target = find(window, &[], &id).unwrap();
-                assert!(target.visible());
-                let position = target.bounds().center();
-                for input in [
-                    gpui::MouseDownEvent {
-                        button: gpui::MouseButton::Left,
-                        position,
-                        click_count: 1,
-                        first_mouse: false,
-                        modifiers: Default::default(),
-                    }
-                    .to_platform_input(),
-                    gpui::MouseUpEvent {
-                        button: gpui::MouseButton::Left,
-                        position,
-                        click_count: 1,
-                        modifiers: Default::default(),
-                    }
-                    .to_platform_input(),
-                ] {
-                    window.dispatch_event(input, cx);
-                }
-            })
-            .unwrap();
-            cx.run_until_parked();
-        };
-
-        click(cx, "browse-components".into());
+        let catalog_button = ElementId::from("browse-components");
         cx.update_window(handle.into(), |_, window, cx| {
             window.refresh();
             window.draw(cx).clear(cx);
+            let button = find(window, &[], &catalog_button).unwrap();
+            assert_eq!(button.role(), Some(Role::Button));
+            assert_eq!(button.label(), Some("Show components"));
+        })
+        .unwrap();
+        click(cx, handle, catalog_button.clone());
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let button = find(window, &[], &catalog_button).unwrap();
+            assert_eq!(button.label(), Some("Hide components"));
         })
         .unwrap();
         cx.simulate_input(handle.into(), "slider");
@@ -183,7 +194,7 @@ mod tests {
             assert!(find(window, &[], &(excluded, "activate").into()).is_none());
         })
         .unwrap();
-        click(cx, (story, "activate").into());
+        click(cx, handle, (story, "activate").into());
         cx.update_window(handle.into(), |_, window, cx| {
             window.refresh();
             window.draw(cx).clear(cx);
@@ -194,7 +205,7 @@ mod tests {
         })
         .unwrap();
 
-        click(cx, "browse-components".into());
+        click(cx, handle, catalog_button.clone());
         cx.simulate_keystrokes(handle.into(), select_all);
         cx.simulate_input(handle.into(), "no matching page");
         cx.run_until_parked();
@@ -267,6 +278,36 @@ mod tests {
             assert_eq!(detail.left(), px(24.));
             assert_eq!(catalog.left() - detail.right(), px(24.));
             assert_eq!(catalog.right(), px(816.));
+            let catalog_toggle = find(window, &[], &catalog_button).unwrap();
+            let theme_toggle = find(window, &[], &"toggle-theme".into()).unwrap();
+            assert!(catalog_toggle.bounds().left() > px(420.));
+            assert!(theme_toggle.bounds().right() < px(420.));
+        })
+        .unwrap();
+    }
+
+    #[gpui::test]
+    fn theme_control_stays_clear_of_adaptive_navigation(cx: &mut TestAppContext) {
+        let handle = cx.update(|cx| {
+            init_gallery(cx);
+            open_gallery(cx, false, Story::AdaptiveLayout).unwrap()
+        });
+        cx.simulate_window_resize(handle.into(), size(px(340.), px(560.)));
+        let feed = ElementId::from("adaptive-feed");
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let theme = find(window, &[], &"toggle-theme".into()).unwrap();
+            let destination = find(window, &[], &feed).unwrap();
+            assert!(theme.visible() && destination.visible());
+            assert!(theme.bounds().bottom() <= destination.bounds().top());
+        })
+        .unwrap();
+        click(cx, handle, feed.clone());
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            assert_eq!(find(window, &[], &feed).unwrap().selected(), Some(true));
         })
         .unwrap();
     }
@@ -296,6 +337,18 @@ mod tests {
             })
             .unwrap()
         };
+        let switch_theme = |cx: &mut TestAppContext, handle: WindowHandle<Root>, name| {
+            let id = ElementId::from("toggle-theme");
+            cx.update_window(handle.into(), |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+                let button = find(window, &[], &id).unwrap();
+                assert_eq!(button.role(), Some(Role::Button));
+                assert_eq!(button.label(), Some(name));
+            })
+            .unwrap();
+            click(cx, handle, id);
+        };
         assert!(label(cx, first, "display-scale").starts_with("Display scale "));
         assert_eq!(label(cx, first, "window-theme"), "Window theme Light");
         assert_eq!(label(cx, second, "window-theme"), "Window theme Dark");
@@ -317,7 +370,12 @@ mod tests {
             })
             .unwrap();
         }
-        cx.update(|cx| set_material_theme(MaterialTheme::baseline(Appearance::Dark), cx));
+        switch_theme(cx, second, "Switch to light theme");
+        assert_eq!(label(cx, first, "window-theme"), "Window theme Light");
+        assert_eq!(label(cx, second, "window-theme"), "Window theme Light");
+        switch_theme(cx, second, "Switch to dark theme");
+        assert_eq!(label(cx, second, "window-theme"), "Window theme Dark");
+        switch_theme(cx, first, "Switch to dark theme");
         assert_eq!(label(cx, first, "window-theme"), "Window theme Dark");
         assert_eq!(label(cx, second, "window-theme"), "Window theme Dark");
         cx.update(|cx| {
@@ -328,7 +386,7 @@ mod tests {
                 color(material_theme(cx).colors.color(ColorRole::Primary))
             );
         });
-        cx.update(|cx| set_material_theme(MaterialTheme::baseline(Appearance::Light), cx));
+        switch_theme(cx, first, "Switch to light theme");
         assert_eq!(label(cx, first, "window-theme"), "Window theme Light");
         assert_eq!(label(cx, second, "window-theme"), "Window theme Dark");
     }

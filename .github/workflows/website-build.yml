@@ -1,0 +1,80 @@
+name: Build documentation website
+
+on:
+  workflow_call:
+    inputs:
+      publish:
+        description: Configure the Pages URL and upload the deployment artifact
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pages: read
+
+jobs:
+  build:
+    name: Build documentation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      RUSTUP_TOOLCHAIN: nightly-2026-10-31
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Read GitHub Pages configuration
+        if: inputs.publish
+        id: pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+
+      - name: Install website dependencies
+        run: npm ci
+        working-directory: website
+
+      - name: Set up the WebAssembly target
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --target wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: website-wasm
+          save-if: ${{ inputs.publish }}
+
+      - name: Install wasm-bindgen
+        run: |
+          version=0.2.130
+          archive="wasm-bindgen-${version}-x86_64-unknown-linux-musl.tar.gz"
+          cd "$RUNNER_TEMP"
+          url="https://github.com/wasm-bindgen/wasm-bindgen/releases/download/${version}/${archive}"
+          curl --fail --silent --show-error --location --remote-name "$url" --remote-name "$url.sha256sum"
+          read -r checksum _ < "$archive.sha256sum"
+          printf '%s  %s\n' "$checksum" "$archive" | sha256sum --check --strict
+          tar -xf "$archive"
+          echo "$RUNNER_TEMP/${archive%.tar.gz}" >> "$GITHUB_PATH"
+
+      - name: Build the Rust Gallery
+        run: npm run build:wasm -- --release
+        working-directory: website
+
+      - name: Build and check links
+        run: |
+          if [ -z "$PAGES_ORIGIN" ]; then unset PAGES_BASE; fi
+          npm run build
+        working-directory: website
+        env:
+          ASTRO_TELEMETRY_DISABLED: "1"
+          PAGES_ORIGIN: ${{ steps.pages.outputs.origin }}
+          PAGES_BASE: ${{ steps.pages.outputs.base_path }}
+
+      - name: Upload GitHub Pages artifact
+        if: inputs.publish
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: website/dist

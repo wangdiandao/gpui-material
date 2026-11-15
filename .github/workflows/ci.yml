@@ -23,38 +23,77 @@ defaults:
     shell: bash
 
 jobs:
+  scope:
+    name: Change scope
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      docs: ${{ steps.scope.outputs.docs }}
+      website: ${{ steps.scope.outputs.website }}
+      native: ${{ steps.scope.outputs.native }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Select checks and check diff whitespace
+        id: scope
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: bash .github/scripts/ci-scope.sh "${PR_BASE:-$PUSH_BEFORE}"
+
+  docs:
+    name: Documentation checks
+    needs: scope
+    if: needs.scope.outputs.docs == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Check Markdown links and bilingual pairs
+        run: cargo xtask docs --check
+
+  website:
+    name: Website
+    needs: scope
+    # Pushes use the Pages workflow, which builds once for deployment.
+    if: needs.scope.outputs.website == 'true' && github.event_name != 'push'
+    uses: ./.github/workflows/website-build.yml
+    permissions:
+      contents: read
+      pages: read
+
   checks:
     name: Repository checks
+    needs: scope
+    if: needs.scope.outputs.native == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          # Whitespace checks compare the entire PR or push against its base.
-          fetch-depth: 0
           persist-credentials: false
 
       - name: Check formatting
         run: cargo fmt --all --check
 
-      - name: Check diff whitespace
-        env:
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-          PUSH_BEFORE: ${{ github.event.before }}
+      - name: Check generated tokens and dependency graphs
         run: |
-          base=${PR_BASE:-$PUSH_BEFORE}
-          if [[ -n "$base" && ! "$base" =~ ^0+$ ]]; then
-            git diff --check "$base" HEAD
-          fi
-
-      - name: Check documents, generated tokens and dependency graphs
-        run: cargo xtask check
+          cargo xtask tokens --check
+          cargo xtask graph
 
       - name: Check default workspace
         run: cargo check --locked
 
   native:
     name: ${{ matrix.name }}
+    needs: scope
+    if: needs.scope.outputs.native == 'true'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:
@@ -108,13 +147,26 @@ jobs:
     name: CI required
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    needs: [checks, native]
+    needs: [scope, docs, website, checks, native]
     if: ${{ always() }}
     env:
-      REPOSITORY_CHECKS: ${{ needs.checks.result }}
-      NATIVE_CHECKS: ${{ needs.native.result }}
+      SCOPE_RESULT: ${{ needs.scope.result }}
+      DOCS_RESULT: ${{ needs.docs.result }}
+      WEBSITE_RESULT: ${{ needs.website.result }}
+      REPOSITORY_RESULT: ${{ needs.checks.result }}
+      NATIVE_RESULT: ${{ needs.native.result }}
+      EXPECTED_DOCS: ${{ needs.scope.outputs.docs == 'true' && 'success' || 'skipped' }}
+      EXPECTED_WEBSITE: ${{ needs.scope.outputs.website == 'true' && github.event_name != 'push' && 'success' || 'skipped' }}
+      EXPECTED_NATIVE: ${{ needs.scope.outputs.native == 'true' && 'success' || 'skipped' }}
     steps:
-      - name: Require repository and native checks to pass
+      - name: Require selected checks to pass
         run: |
-          printf 'Repository checks: %s\nNative matrix: %s\n' "$REPOSITORY_CHECKS" "$NATIVE_CHECKS"
-          [[ "$REPOSITORY_CHECKS" == success && "$NATIVE_CHECKS" == success ]]
+          require_result() {
+            printf '%s: %s (expected %s)\n' "$1" "$2" "$3"
+            [[ "$2" == "$3" ]]
+          }
+          require_result 'Change scope' "$SCOPE_RESULT" success
+          require_result 'Documentation checks' "$DOCS_RESULT" "$EXPECTED_DOCS"
+          require_result 'Website' "$WEBSITE_RESULT" "$EXPECTED_WEBSITE"
+          require_result 'Repository checks' "$REPOSITORY_RESULT" "$EXPECTED_NATIVE"
+          require_result 'Native matrix' "$NATIVE_RESULT" "$EXPECTED_NATIVE"

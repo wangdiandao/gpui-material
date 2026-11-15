@@ -117,6 +117,8 @@ The development server uses `/`. The production build defaults to `/gpui-materia
 
 Edit shared guides under `docs/` and component examples under `website/component/`. Add English and Chinese text together. Each component page shares one Rust example across both languages.
 
+The website component catalog groups guides by basic, form, layout, and advanced controls. The sidebar lists components alphabetically by their Rust names. Write imports separately from usage snippets, and group browser previews and Gallery commands under Examples.
+
 Use MDUI for site controls and browser previews. Label previews as MDUI web examples and use the native Gallery to verify GPUI rendering and behavior.
 
 Set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. The website workflow builds on PRs and deploys updates to `main`. To redeploy, run **Documentation website** on `main` from the Actions tab.

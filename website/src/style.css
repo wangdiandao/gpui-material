@@ -168,10 +168,8 @@ a { color: var(--accent); text-underline-offset: .2em; }
   margin-bottom: .9rem;
 }
 .section-heading h2, .gallery-callout h2 { margin: 0; font-size: clamp(1.5rem, 3vw, 2.15rem); }
-.home-grid, .component-grid { display: grid; gap: .85rem; }
-.home-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.capability-card, .component-card { display: block; width: 100%; min-width: 0; height: 100%; }
-.capability-card { padding: 1.15rem; }
+.home-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem; }
+.capability-card { display: block; width: 100%; min-width: 0; height: 100%; padding: 1.15rem; }
 .capability-card h3 { margin: .2rem 0 .45rem; font-size: 1.17rem; }
 .capability-card p { margin: 0 0 .8rem; color: var(--muted); line-height: 1.55; }
 .capability-card code { color: var(--accent); overflow-wrap: anywhere; }
@@ -243,10 +241,13 @@ a { color: var(--accent); text-underline-offset: .2em; }
 .article th, .article td { padding: .55rem .75rem; border: 1px solid var(--line); text-align: start; }
 .article th { background: var(--surface); }
 .article img { max-width: 100%; }
-.component-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.component-card { padding: .8rem .95rem; }
-.component-card strong, .component-card span { display: block; }
-.component-card span { margin-top: .2rem; color: var(--muted); font-size: .875rem; line-height: 1.5; }
+.component-family > span[id] { display: block; }
+.catalog-list { padding: 0; --mdui-typescale-body-large-size: .95rem; }
+.catalog-list mdui-list-item { --shape-corner-rounded: .6rem; }
+.catalog-list mdui-list-item::part(container) { min-height: 2.4rem; padding: .35rem .65rem; }
+.catalog-list strong { color: var(--accent); }
+.catalog-description { color: var(--muted); }
+.catalog-feature { display: inline-block; margin-inline-start: .45rem; }
 .preview-card { width: 100%; padding: .85rem 1rem 1rem; }
 .preview-card p { margin: 0 0 .75rem; color: var(--muted); font-size: .88rem; }
 
@@ -298,7 +299,6 @@ pre {
   .home-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 36rem) {
-  .component-grid { grid-template-columns: 1fr; }
   .topbar { padding-inline: .38rem; }
   .brand { gap: .35rem; font-size: .92rem; }
   .brand-mark { width: 1.7rem; height: 1.7rem; }

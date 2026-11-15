@@ -61,6 +61,4 @@ Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID �
 | macOS 15 ARM64 | CI 构建与自动测试。原生支持仍在探索。 |
 | Ubuntu 24.04 x64 | CI 构建与自动测试。原生支持仍在探索。 |
 
-触摸优先手势和尚未验证的触控板或混合 DPI 硬件组合不在初版原生覆盖范围内。固定版本中的 Windows Base 滑块支持键盘和语义递增、递减操作。UI Automation RangeValue 编程写入由 [#49](https://github.com/wangdiandao/gpui-material/issues/49) 跟踪。GPUI 的原生指针捕获丢失由 [#48](https://github.com/wangdiandao/gpui-material/issues/48) 跟踪。
-
 [平台验收场景](verification.zh.md) · [固定来源](design-sources.zh.md) · [版本与发布](release.zh.md)

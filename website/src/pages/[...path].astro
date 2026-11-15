@@ -9,7 +9,7 @@ import { api, componentIndex, copy, groups, guides, packageVersion, pagePath, si
 import { repository } from '../markdown.mjs';
 
 export function getStaticPaths() {
-  const pages = ['', 'component', 'gallery', ...components.map((item) => `component/${item.slug}`)];
+  const pages = ['', 'component', ...components.map((item) => `component/${item.slug}`)];
   return [
     ...guides.map((guide) => ({
       params: { path: guide.route },
@@ -32,29 +32,28 @@ const headings = guide ? await guide.module.getHeadings() : [];
 const Content = guide?.module.Content;
 const isHome = route === '';
 const isCatalog = route === 'component';
-const isGallery = route === 'gallery';
 const hasPreview = Boolean(component?.story);
 const catalogAnchors = { basic: ['actions', 'content'], form: ['input'], layout: ['navigation'] };
 const componentSections = component ? [
   { slug: 'import', text: t.imports },
   ...(component.feature ? [{ slug: 'cargo-feature', text: t.feature, depth: 3 }] : []),
   { slug: 'usage', text: t.usage },
-  ...(hasPreview || component.story ? [{ slug: 'examples', text: t.examples }] : []),
-  ...(hasPreview ? [{ slug: 'browser-preview', text: t.preview, depth: 3 }] : []),
-  ...(component.story ? [{ slug: 'native-gallery', text: t.nativeGallery, depth: 3 }] : []),
+  ...(hasPreview ? [
+    { slug: 'examples', text: t.examples },
+    { slug: 'browser-preview', text: t.preview, depth: 3 },
+  ] : []),
   { slug: 'references', text: t.references },
 ] : [];
 const toc = isCatalog
   ? Object.entries(groups).map(([group, label]) => ({ slug: `${group}-components`, text: label[lang], depth: 2 }))
   : component ? componentSections : headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
-const title = component?.title ?? headings[0]?.text ?? (isCatalog ? t.overview : isGallery ? t.nativeGallery : '');
+const title = component?.title ?? headings[0]?.text ?? (isCatalog ? t.overview : '');
 const codeThemes = { light: 'github-light', dark: 'github-dark' };
 const featureCode = component?.feature ? `[dependencies]\ngpui-material = { version = "${packageVersion}", features = ["${component.feature}"] }` : '';
 const componentApi = component?.feature
   ? `https://docs.rs/crate/gpui-material/latest/features#${component.feature}`
   : api + (component?.api ?? '');
 const source = component ? `${repository}/blob/main/${component.source}` : '';
-const introCode = 'git clone https://github.com/wangdiandao/gpui-material.git\ncd gpui-material\ncargo gallery';
 ---
 <Layout {lang} {route} {title} description={component?.description[lang]}>
   {isHome ? (
@@ -102,35 +101,22 @@ const introCode = 'git clone https://github.com/wangdiandao/gpui-material.git\nc
           <h2 id="usage">{t.usage}</h2>
           <p>{component.usage[lang]}</p>
           <Code code={component.code} lang="rust" themes={codeThemes} />
-          {(hasPreview || component.story) && <h2 id="examples">{t.examples}</h2>}
           {hasPreview && <>
+            <h2 id="examples">{t.examples}</h2>
             <h3 id="browser-preview">{t.preview}</h3>
             <mdui-card class="preview-card" variant="filled">
               <p>{t.previewNote}</p>
               <Preview {lang} story={component.story} title={title} />
+              {component.relatedStory && <>
+                <h4>{component.relatedStory.title[lang]}</h4>
+                <Preview {lang} story={component.relatedStory.id} title={component.relatedStory.title[lang]} />
+              </>}
             </mdui-card>
-          </>}
-          {component.story && <>
-            <h3 id="native-gallery">{t.nativeGallery}</h3>
-            <p>{t.sourceOnly}</p>
-            <Code code={[component.story, component.relatedStory].filter(Boolean).map((id) => `cargo gallery ${id}`).join('\n')} lang="sh" themes={codeThemes} />
           </>}
           <h2 id="references">{t.references}</h2>
           <div class="article-links">
             <mdui-button variant="tonal" href={componentApi}>{component.feature ? t.feature : t.api} <span slot="end-icon" aria-hidden="true">↗</span></mdui-button>
             <mdui-button variant="outlined" href={source}>{t.source} <span slot="end-icon" aria-hidden="true">↗</span></mdui-button>
-          </div>
-        </>}
-        {isGallery && <>
-          <h1>{title}</h1>
-          <p class="lede">{t.galleryIntro}</p>
-          <Code code={introCode} lang="sh" themes={codeThemes} />
-          <p>{t.galleryOpen}</p>
-          <Code code="cargo gallery text-field" lang="sh" themes={codeThemes} />
-          <div class="article-links">
-            <mdui-button variant="filled" href={pagePath('demo', 'en') + `?lang=${lang}`}>{t.openPreview}</mdui-button>
-            <mdui-button variant="tonal" href={pagePath('component', lang)}>{t.overview}</mdui-button>
-            <mdui-button variant="outlined" href={`${repository}/tree/main/apps/gallery`}>{t.source}</mdui-button>
           </div>
         </>}
       </main>

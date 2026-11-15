@@ -7,9 +7,9 @@ See [versioning and releases](docs/release.md) for the release process.
 ### Documentation
 
 - Add a bilingual documentation site with component usage examples and searchable guides.
-- Use MDUI web components across the site and add sections for component capabilities, architecture, and the native Gallery.
+- Use MDUI web components across the site and add sections for component capabilities and architecture.
 - Group the component catalog by purpose and organize each guide into imports, usage, and examples.
-- Run the Rust Gallery in browser examples with WebAssembly and keep component navigation grouped across the catalog and guides.
+- Run Rust Gallery stories in the component browser previews with WebAssembly and support wheel scrolling inside the canvas.
 
 ### Distribution
 

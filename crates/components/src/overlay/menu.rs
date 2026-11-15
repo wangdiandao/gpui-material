@@ -8,13 +8,18 @@ use gpui::{
     IntoElement, MouseButton, ParentElement, RenderOnce, Role, ScrollHandle, SharedString,
     StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
-use gpui_base::{Popover, PopoverState, TestSupportExt};
+use gpui_base::{
+    Popover, PopoverState, TestSupportExt,
+    actions::{Cancel, Confirm},
+};
 use gpui_material_foundation::{
     Surface, color, logical_anchor, move_roving_focus, window_material_theme,
 };
 use gpui_material_theme::{ColorRole, Direction, Elevation};
 
 type Action = Rc<dyn Fn(&mut Window, &mut App)>;
+type Change = Rc<dyn Fn(bool, &mut Window, &mut App)>;
+type ItemContent = Rc<dyn Fn() -> AnyElement>;
 type ComposedTrigger = Box<dyn FnOnce(bool, Action) -> AnyElement>;
 
 /// An item in a Material menu. Callers retain command and selection state.
@@ -23,6 +28,8 @@ pub struct MenuItem {
     label: SharedString,
     disabled: bool,
     kind: Kind,
+    slots: ItemSlots,
+    on_checked_change: Option<Change>,
 }
 
 enum Kind {
@@ -33,12 +40,79 @@ enum Kind {
     Submenu(Vec<MenuItem>),
 }
 
+#[derive(Clone, Default)]
+struct ItemSlots {
+    content: Option<ItemContent>,
+    leading: Option<ItemContent>,
+    supporting: Option<ItemContent>,
+    trailing: Option<ItemContent>,
+    selection_icon: Option<ItemContent>,
+}
+
+impl ItemSlots {
+    fn label(&self, label: SharedString) -> AnyElement {
+        self.content
+            .as_ref()
+            .map_or_else(|| label.into_any_element(), |content| content())
+    }
+
+    fn children(
+        &self,
+        label: SharedString,
+        marked: bool,
+        submenu: bool,
+        motion: OverlayMotion,
+    ) -> Vec<AnyElement> {
+        let icon_size = motion.px(18.);
+        let leading = if marked {
+            Some(self.selection_icon.as_ref().map_or_else(
+                || {
+                    Icon::new(IconName::Check)
+                        .size(icon_size)
+                        .into_any_element()
+                },
+                |icon| icon(),
+            ))
+        } else {
+            self.leading.as_ref().map(|icon| icon())
+        };
+        let body = div()
+            .flex_1()
+            .min_w_0()
+            .overflow_hidden()
+            .child(div().truncate().child(self.label(label)))
+            .children(self.supporting.as_ref().map(|supporting| {
+                div()
+                    .text_size(motion.px(12.))
+                    .line_height(motion.px(16.))
+                    .child(supporting())
+            }));
+        let mut children = vec![
+            div()
+                .min_w(icon_size)
+                .flex_none()
+                .children(leading)
+                .into_any_element(),
+            body.into_any_element(),
+        ];
+        children.extend(self.trailing.as_ref().map(|trailing| trailing()));
+        children.extend(submenu.then(|| {
+            Icon::new(IconName::ChevronRight)
+                .size(icon_size)
+                .mirror_in_rtl(true)
+                .into_any_element()
+        }));
+        children
+    }
+}
+
 struct MenuExitRow {
     label: SharedString,
     disabled: bool,
     group: bool,
     selected: bool,
     submenu: bool,
+    slots: ItemSlots,
 }
 
 impl From<&MenuItem> for MenuExitRow {
@@ -49,6 +123,7 @@ impl From<&MenuItem> for MenuExitRow {
             group: matches!(item.kind, Kind::Group),
             selected: matches!(item.kind, Kind::Check(true, _) | Kind::Select(true, _)),
             submenu: matches!(item.kind, Kind::Submenu(_)),
+            slots: item.slots.clone(),
         }
     }
 }
@@ -60,6 +135,8 @@ impl MenuItem {
             label: label.into(),
             disabled: false,
             kind: Kind::Action(None),
+            slots: ItemSlots::default(),
+            on_checked_change: None,
         }
     }
 
@@ -90,6 +167,47 @@ impl MenuItem {
         self
     }
 
+    /// Replaces the visible label while retaining the name passed to `new`.
+    /// Supply a repeatable factory so the content also appears during exit.
+    pub fn content<E: IntoElement>(mut self, build: impl Fn() -> E + 'static) -> Self {
+        self.slots.content = Some(Rc::new(move || build().into_any_element()));
+        self
+    }
+
+    /// Supplies a decorative element at the logical start of an unmarked row.
+    pub fn leading<E: IntoElement>(mut self, build: impl Fn() -> E + 'static) -> Self {
+        self.slots.leading = Some(Rc::new(move || build().into_any_element()));
+        self
+    }
+
+    /// Supplies additional visual content below the label.
+    pub fn supporting<E: IntoElement>(mut self, build: impl Fn() -> E + 'static) -> Self {
+        self.slots.supporting = Some(Rc::new(move || build().into_any_element()));
+        self
+    }
+
+    /// Supplies decorative content at the logical end of the row.
+    pub fn trailing<E: IntoElement>(mut self, build: impl Fn() -> E + 'static) -> Self {
+        self.slots.trailing = Some(Rc::new(move || build().into_any_element()));
+        self
+    }
+
+    /// Replaces the leading check mark of a checked or selected row.
+    pub fn selection_icon<E: IntoElement>(mut self, build: impl Fn() -> E + 'static) -> Self {
+        self.slots.selection_icon = Some(Rc::new(move || build().into_any_element()));
+        self
+    }
+
+    /// Requests the inverse of the supplied checked value on activation.
+    /// The checked callback takes precedence over `on_activate` on checked rows.
+    pub fn on_checked_change(
+        mut self,
+        callback: impl Fn(bool, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.on_checked_change = Some(Rc::new(callback));
+        self
+    }
+
     fn action(&self) -> Option<Action> {
         match &self.kind {
             Kind::Action(action) | Kind::Check(_, action) | Kind::Select(_, action) => {
@@ -97,6 +215,16 @@ impl MenuItem {
             }
             _ => None,
         }
+    }
+
+    fn activation(&self) -> Option<Action> {
+        if let Kind::Check(checked, _) = self.kind
+            && let Some(callback) = &self.on_checked_change
+        {
+            let callback = callback.clone();
+            return Some(Rc::new(move |window, cx| callback(!checked, window, cx)));
+        }
+        self.action()
     }
 
     pub fn on_activate(mut self, action: impl Fn(&mut Window, &mut App) + 'static) -> Self {
@@ -123,6 +251,9 @@ pub struct Menu {
     enabled: bool,
     ancestor: Option<Rc<PopupBounds>>,
     composed_trigger: Option<ComposedTrigger>,
+    open: Option<bool>,
+    on_open_change: Option<Change>,
+    on_dismiss: Option<Action>,
 }
 
 #[derive(Default)]
@@ -164,6 +295,9 @@ impl Menu {
             enabled: true,
             ancestor: None,
             composed_trigger: None,
+            open: None,
+            on_open_change: None,
+            on_dismiss: None,
         }
     }
 
@@ -178,8 +312,10 @@ impl Menu {
         self
     }
 
-    /// Creates a trigger whose accessible activation can open or close this menu.
-    #[doc(hidden)]
+    /// Builds a trigger from the displayed open value and its activation callback.
+    ///
+    /// Keep the trigger focusable and use the supplied callback for a custom
+    /// accessibility action. The menu owns pointer and keyboard activation.
     pub fn composed(
         id: impl Into<ElementId>,
         items: impl IntoIterator<Item = MenuItem>,
@@ -188,6 +324,29 @@ impl Menu {
         let mut menu = Self::new(id, div(), items);
         menu.composed_trigger = Some(Box::new(trigger));
         menu
+    }
+
+    /// Sets the displayed open value from caller-owned state.
+    pub fn open(mut self, open: bool) -> Self {
+        self.open = Some(open);
+        self
+    }
+
+    /// Receives user requests to open or close the menu. In controlled mode,
+    /// apply the requested value and render with `open` to accept a request.
+    pub fn on_open_change(
+        mut self,
+        callback: impl Fn(bool, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.on_open_change = Some(Rc::new(callback));
+        self
+    }
+
+    /// Receives a user request to close. Setting `open(false)` externally
+    /// synchronizes the menu without running this callback.
+    pub fn on_dismiss(mut self, callback: impl Fn(&mut Window, &mut App) + 'static) -> Self {
+        self.on_dismiss = Some(Rc::new(callback));
+        self
     }
 }
 
@@ -206,13 +365,34 @@ impl RenderOnce for Menu {
             .read(cx)
             .clone();
         let open_state = bounds.open.clone();
-        let open = open_state.get();
+        let controlled = self.open.is_some();
+        let open = self.open.unwrap_or_else(|| open_state.get());
+        open_state.set(open);
         let key_state = open_state.clone();
-        let trigger_state = open_state.clone();
-        let trigger: Action = Rc::new(move |_, cx| {
-            trigger_state.set(!trigger_state.get());
-            cx.notify(view);
-        });
+        let request: Change = {
+            let on_open_change = self.on_open_change;
+            let on_dismiss = self.on_dismiss;
+            Rc::new(move |requested, window, cx| {
+                if !controlled {
+                    open_state.set(requested);
+                    cx.notify(view);
+                }
+                if let Some(callback) = &on_open_change {
+                    callback(requested, window, cx);
+                }
+                if !requested && let Some(callback) = &on_dismiss {
+                    callback(window, cx);
+                }
+            })
+        };
+        let trigger: Action = {
+            let request = request.clone();
+            Rc::new(move |window, cx| request(!open, window, cx))
+        };
+        let key_trigger = trigger.clone();
+        let mouse_trigger = trigger.clone();
+        let popover_request = request.clone();
+        let popup_request = request;
         let motion = OverlayMotion::sample(&self.id, open, window, cx);
         let position = bounds.clone();
         let ancestor = self.ancestor.clone();
@@ -264,10 +444,7 @@ impl RenderOnce for Menu {
         }
         let menu = Popover::new(self.id)
             .open(open)
-            .on_open_change(move |open, _, cx| {
-                open_state.set(*open);
-                cx.notify(view);
-            })
+            .on_open_change(move |open, window, cx| popover_request(*open, window, cx))
             .anchor(logical_anchor(self.anchor, direction))
             .offset(px(4.))
             .mouse_button(self.mouse_button)
@@ -287,6 +464,16 @@ impl RenderOnce for Menu {
                     .id("menu-trigger")
                     .role(Role::Group)
                     .aria_expanded(open)
+                    .when(controlled, |trigger| {
+                        // Accepting the request through Popover::open applies
+                        // the Base focus lifecycle only after the owner agrees.
+                        trigger
+                            .on_action(move |_: &Confirm, window, cx| key_trigger(window, cx))
+                            .on_mouse_down(self.mouse_button, move |_, window, cx| {
+                                cx.stop_propagation();
+                                mouse_trigger(window, cx);
+                            })
+                    })
                     .on_key_down(move |event, _, cx| {
                         if submenu && event.keystroke.key == forward && !key_state.get() {
                             key_state.set(true);
@@ -299,21 +486,27 @@ impl RenderOnce for Menu {
             })
             .content(move |state, window, cx| {
                 let motion = motion.expect("open menu has motion");
-                let own = cx.entity().downgrade();
-                let close_level = own.clone();
-                let close_level: Action = Rc::new(move |window, cx| {
-                    let _ = close_level.update(cx, |state: &mut PopoverState, cx| {
-                        state.dismiss(window, cx);
-                    });
-                });
-                let close: Action = Rc::new(move |window, cx| {
-                    let _ =
-                        own.update(cx, |state: &mut PopoverState, cx| state.dismiss(window, cx));
-                    if let Some(close_parent) = &self.close_parent {
-                        close_parent(window, cx);
-                    }
-                });
+                let close_level: Action = if controlled {
+                    Rc::new(move |window, cx| popup_request(false, window, cx))
+                } else {
+                    let own = cx.entity().downgrade();
+                    Rc::new(move |window, cx| {
+                        let _ = own.update(cx, |state: &mut PopoverState, cx| {
+                            state.dismiss(window, cx);
+                        });
+                    })
+                };
+                let close: Action = {
+                    let close_level = close_level.clone();
+                    Rc::new(move |window, cx| {
+                        close_level(window, cx);
+                        if let Some(close_parent) = &self.close_parent {
+                            close_parent(window, cx);
+                        }
+                    })
+                };
                 let dismissal = close_level.clone();
+                let escape = close_level.clone();
                 let item_bounds = bounds.clone();
                 let content = menu_content(
                     self.items,
@@ -327,6 +520,9 @@ impl RenderOnce for Menu {
                 let popup = div()
                     .id("dismiss-menu")
                     .opacity(motion.alpha)
+                    .when(controlled, |popup| {
+                        popup.on_action(move |_: &Cancel, window, cx| escape(window, cx))
+                    })
                     .on_mouse_down_out(move |event, window, cx| {
                         let point = &event.position;
                         if bounds.contains(point) {
@@ -384,7 +580,7 @@ fn menu_exit(
             };
             div().px(spacing * 0.75).text_color(tint).when_else(
                 item.group,
-                |row| row.py(spacing * 0.5).child(label.clone()),
+                |row| row.py(spacing * 0.5).child(item.slots.label(label.clone())),
                 |row| {
                     row.min_h(dp(48.))
                         .flex()
@@ -394,17 +590,12 @@ fn menu_exit(
                         .justify_start()
                         .when(direction == Direction::Rtl, Styled::flex_row_reverse)
                         .when(item.selected, |row| row.bg(exit_selected))
-                        .child(div().w(dp(18.)).flex_none().when(item.selected, |slot| {
-                            slot.child(Icon::new(IconName::Check).size(dp(18.)))
-                        }))
-                        .child(div().flex_1().min_w_0().truncate().child(label.clone()))
-                        .when(item.submenu, |row| {
-                            row.child(
-                                Icon::new(IconName::ChevronRight)
-                                    .size(dp(18.))
-                                    .mirror_in_rtl(true),
-                            )
-                        })
+                        .children(item.slots.children(
+                            label.clone(),
+                            item.selected,
+                            item.submenu,
+                            motion,
+                        ))
                 },
             )
         })
@@ -555,10 +746,10 @@ fn menu_content(
                                     .px(spacing * 0.75)
                                     .py(spacing * 0.5)
                                     .text_color(muted)
-                                    .child(item.label)
+                                    .child(item.slots.label(item.label))
                                     .into_any_element();
                             }
-                            let action = item.action();
+                            let action = item.activation();
                             let (role, marked) = match item.kind {
                                 Kind::Check(checked, _) => (Role::MenuItemCheckBox, checked),
                                 Kind::Select(selected, _) => (Role::MenuItem, selected),
@@ -641,17 +832,7 @@ fn menu_content(
                                     )
                                     .on_click(move |_, window, cx| activate(window, cx))
                                 })
-                                .child(div().w(dp(18.)).flex_none().when(marked, |slot| {
-                                    slot.child(Icon::new(IconName::Check).size(dp(18.)))
-                                }))
-                                .child(div().flex_1().min_w_0().truncate().child(item.label))
-                                .when(submenu, |row| {
-                                    row.child(
-                                        Icon::new(IconName::ChevronRight)
-                                            .size(dp(18.))
-                                            .mirror_in_rtl(true),
-                                    )
-                                });
+                                .children(item.slots.children(item.label, marked, submenu, motion));
                             if let Kind::Submenu(children) = item.kind {
                                 Menu {
                                     close_parent: Some(close.clone()),

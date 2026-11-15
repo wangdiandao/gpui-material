@@ -57,6 +57,12 @@ Use `.color(ColorRole::Primary)` to resolve a role against the window theme or `
 
 `TextField` decorates the caller's retained Base editor. Use `label_content`, `placeholder_content`, and `supporting_content` with plain text for the accessible name, hint, and description. Leading and trailing elements are separate from the prefix and suffix next to the value. Prefix and suffix appear while the label is minimized. Labels default to Inside for Filled and Cutout for Outlined. Select Above for a label outside the container, or configure the horizontal alignments and keep an inside or cutout label minimized. The character count shows Unicode scalar values without enforcing the limit. Secure fields suppress this count along with their accessible value. The Base entity still owns editing, selection, validation, scrolling, and IME composition.
 
+### Menu controls and item content
+
+`Menu::new` owns its visibility by default. Add `.open(open)` and `.on_open_change(|requested, window, cx| ...)` to let the caller own it. Apply the requested value when desired and render again. A caller update to `open` applies visibility and focus without sending change callbacks. `.on_dismiss(|window, cx| ...)` reports a close request from a user action. `Menu::composed` supplies the displayed open value and an activation callback to a custom trigger.
+
+Keep each `MenuItem` ID stable and provide a label for accessibility. Its `.content`, `.leading`, `.supporting`, `.trailing`, and `.selection_icon` builders accept repeatable element factories for visual content. A menu row owns the keyboard and pointer action. Pass the checked value with `.checked(value)` and handle requests with `.on_checked_change`. Selected items continue to use `.selected(value)` with `.on_activate`.
+
 <a id="导航与自适应布局"></a>
 
 ## Navigation and adaptive layout

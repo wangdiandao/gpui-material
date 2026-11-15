@@ -218,6 +218,7 @@ pub struct ListItem {
     activation: Option<Activate>,
     selected: bool,
     disabled: bool,
+    focus: Option<(FocusHandle, bool)>,
 }
 
 impl ListItem {
@@ -232,6 +233,7 @@ impl ListItem {
             activation: None,
             selected: false,
             disabled: false,
+            focus: None,
         }
     }
 
@@ -267,6 +269,13 @@ impl ListItem {
 
     pub fn on_activate(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
         self.activation = Some(Rc::new(handler));
+        self
+    }
+
+    /// Uses a retained focus handle and roving tab stop supplied by a virtual
+    /// collection. The collection owns navigation across unrendered rows.
+    pub fn track_focus(mut self, focus: &FocusHandle, tab_stop: bool) -> Self {
+        self.focus = Some((focus.clone(), tab_stop));
         self
     }
 
@@ -468,7 +477,13 @@ impl ListItem {
 
 impl RenderOnce for ListItem {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        self.row([0.; 4], None, window, cx)
+        let focus = self.focus.clone();
+        self.row(
+            [0.; 4],
+            focus.as_ref().map(|(handle, tab)| (handle, *tab)),
+            window,
+            cx,
+        )
     }
 }
 

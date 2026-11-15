@@ -52,6 +52,12 @@ pub fn window_material_theme<'a>(window: &Window, cx: &'a App) -> &'a MaterialTh
 }
 
 /// Sets or clears the override for Material elements in this window.
+///
+/// Material controls pass local presentation to their Base-backed parts. This
+/// does not replace Base's application-global theme: standalone Base controls,
+/// scrollbars, resize handles, and caret-blink policy retain application defaults.
+/// Use their explicit styling APIs for local presentation instead of swapping
+/// the Base global while rendering a window.
 pub fn set_window_material_theme(theme: Option<MaterialTheme>, window: &mut Window, cx: &mut App) {
     refresh_installed_fonts(cx);
     if !cx.has_global::<WindowMaterialThemes>() {

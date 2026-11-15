@@ -47,24 +47,38 @@ pub fn text_style<E: Styled>(
         })
 }
 
-struct InstalledFonts(HashSet<String>);
+struct InstalledFonts {
+    families: HashSet<String>,
+    revision: u64,
+}
 
 impl Global for InstalledFonts {}
 
 impl InstalledFonts {
     fn enumerate(cx: &App) -> Self {
-        Self(
-            cx.text_system()
+        Self {
+            families: cx
+                .text_system()
                 .all_font_names()
                 .into_iter()
                 .map(|name| name.to_ascii_lowercase())
                 .collect(),
-        )
+            revision: font_cache_revision(cx).wrapping_add(1),
+        }
     }
 }
 
 pub(crate) fn refresh_installed_fonts(cx: &mut App) {
     cx.set_global(InstalledFonts::enumerate(cx));
+}
+
+/// Cache invalidation key for Material's installed-font snapshot. Setting an
+/// application or window theme refreshes this key, even for identical values,
+/// so registering fonts and reapplying a theme invalidates retained metrics.
+#[doc(hidden)]
+pub fn font_cache_revision(cx: &App) -> u64 {
+    cx.try_global::<InstalledFonts>()
+        .map_or(0, |fonts| fonts.revision)
 }
 
 /// Resolves the first available Material font family for a text style.
@@ -84,7 +98,8 @@ pub fn font_for_style(typography: &Typography, style: TypeStyle, cx: &App) -> Fo
     let family = std::iter::once(&families.primary)
         .chain(&families.fallback)
         .find(|name| {
-            name.as_str() == ".SystemUIFont" || installed.0.contains(&name.to_ascii_lowercase())
+            name.as_str() == ".SystemUIFont"
+                || installed.families.contains(&name.to_ascii_lowercase())
         })
         .map_or(".SystemUIFont", String::as_str);
     let mut font = font(family.to_owned());

@@ -253,6 +253,11 @@ impl RenderOnce for TextField {
         };
         let style = InputEditorStyle {
             foreground,
+            // Base resolves unset palette fields against its application theme.
+            // Supply every palette field so editor decorations also stay local
+            // when another window uses a different Material appearance.
+            background: tone(SurfaceContainer),
+            border: tone(OutlineVariant),
             muted_foreground: if has_text {
                 secondary
             } else {

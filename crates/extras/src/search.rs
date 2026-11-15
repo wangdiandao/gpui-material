@@ -1,17 +1,17 @@
+use std::collections::HashMap;
+
 use gpui::{
     Anchor, App, AppContext, Context, ElementId, Entity, EntityInputHandler, EventEmitter,
-    FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement, RenderOnce, Role,
-    ScrollHandle, SharedString, StatefulInteractiveElement, Styled, Subscription, Window, div,
-    prelude::FluentBuilder, px,
+    FocusHandle, Focusable, InteractiveElement, IntoElement, ListAlignment, ListState,
+    ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
+    Subscription, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{Dialog, Popup, TestSupportExt};
 use gpui_material_components::{
-    Button, ButtonVariant, Icon, IconButton, IconName, List, ListItem, LoadingIndicator, Text,
-    TextField, TextFieldEvent, TextFieldState,
+    Button, ButtonVariant, Icon, IconButton, IconName, ListItem, LoadingIndicator, Text, TextField,
+    TextFieldEvent, TextFieldState,
 };
-use gpui_material_foundation::{
-    Surface, isolated_scroll, logical_anchor, scrim_color, window_material_theme,
-};
+use gpui_material_foundation::{Surface, logical_anchor, scrim_color, window_material_theme};
 use gpui_material_theme::{ColorRole, Direction, Elevation, TypeRole};
 
 /// Identifies one committed query. Complete requests through [SearchState::complete].
@@ -131,7 +131,9 @@ pub struct SearchState {
     trigger: FocusHandle,
     scope: FocusHandle,
     restore: Option<FocusHandle>,
-    scroll: ScrollHandle,
+    scroll: ListState,
+    result_focus: HashMap<ElementId, FocusHandle>,
+    result_layout: Option<(gpui_material_theme::Typography, gpui::Pixels, u64)>,
     query: SharedString,
     response: SearchResponse,
     open: bool,
@@ -172,7 +174,9 @@ impl SearchState {
             trigger: cx.focus_handle(),
             scope: cx.focus_handle(),
             restore: None,
-            scroll: ScrollHandle::new(),
+            scroll: ListState::new(0, ListAlignment::Top, px(100.)),
+            result_focus: HashMap::new(),
+            result_layout: None,
             query: "".into(),
             response: SearchResponse::default(),
             open: false,
@@ -243,6 +247,7 @@ impl SearchState {
     ) -> bool {
         let accepted = self.response.finish(request, outcome);
         if accepted {
+            self.sync_result_focus(cx);
             cx.notify();
         }
         accepted
@@ -253,11 +258,46 @@ impl SearchState {
             return;
         }
         self.query = query.clone();
-        self.scroll.set_offset(gpui::point(px(0.), px(0.)));
         if let Some(request) = self.response.begin(query) {
             cx.emit(SearchEvent::Request(request));
         }
+        self.scroll.reset(0);
         cx.notify();
+    }
+
+    fn rows(&self) -> &[SearchResult] {
+        match &self.response.results {
+            Results::Ready(SearchOutcome::Results(rows)) => rows,
+            _ => &[],
+        }
+    }
+
+    fn sync_result_focus(&mut self, cx: &App) {
+        let mut previous = std::mem::take(&mut self.result_focus);
+        self.result_focus = self
+            .rows()
+            .iter()
+            .map(|row| {
+                let focus = previous
+                    .remove(&row.id)
+                    .unwrap_or_else(|| cx.focus_handle());
+                (row.id.clone(), focus)
+            })
+            .collect();
+        self.invalidate_result_measurements();
+    }
+
+    fn invalidate_result_measurements(&self) {
+        let anchor = self.scroll.logical_scroll_top();
+        // Focus metadata keeps the focused row mounted when it scrolls out of
+        // view; keyboard navigation still addresses the complete result model.
+        self.scroll.splice_focusable(
+            0..self.scroll.item_count(),
+            self.rows()
+                .iter()
+                .map(|row| self.result_focus.get(&row.id).cloned()),
+        );
+        self.scroll.scroll_to(anchor);
     }
 }
 
@@ -447,6 +487,17 @@ impl SearchView {
 
 impl RenderOnce for SearchView {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let layout = (
+            window_material_theme(window, cx).typography.clone(),
+            window.rem_size(),
+            gpui_material_foundation::font_cache_revision(cx),
+        );
+        self.state.update(cx, |state, _| {
+            if state.result_layout.as_ref() != Some(&layout) {
+                state.result_layout = Some(layout);
+                state.invalidate_result_measurements();
+            }
+        });
         let model = self.state.read(cx);
         let input = model.input.clone();
         let status = match &model.response.results {
@@ -458,20 +509,19 @@ impl RenderOnce for SearchView {
             }
             Results::Ready(SearchOutcome::Results(_)) => None,
         };
-        let rows = match &model.response.results {
-            Results::Ready(SearchOutcome::Results(results)) => results.clone(),
-            _ => Vec::new(),
-        };
         let size = window.viewport_size();
         let direction = window_material_theme(window, cx).layout.direction;
         let fullscreen = self.variant == SearchViewVariant::FullScreen;
         let close = self.state.clone();
         let dismiss = self.state.clone();
-        let mut results = isolated_scroll((self.id.clone(), "results"), &model.scroll)
+        let mut results = div()
+            .id((self.id.clone(), "results"))
+            .occlude()
             .flex()
             .flex_col()
             .flex_1()
-            .min_h_0();
+            .min_h_0()
+            .overflow_hidden();
         if let Some((message, loading, error)) = status {
             results = results.child(
                 div()
@@ -498,19 +548,75 @@ impl RenderOnce for SearchView {
                     .child(Text::new(message).role(TypeRole::BodyMedium)),
             );
         }
-        let result_list = rows.into_iter().map(|result| {
-            let state = self.state.clone();
-            let id = result.id.clone();
-            ListItem::new(id, result.label.clone())
-                .when_some(result.supporting.clone(), ListItem::supporting_text)
-                .on_activate(move |window, cx| {
-                    state.update(cx, |state, cx| {
-                        state.close(window, cx);
-                        cx.emit(SearchEvent::Select(result.clone()));
-                    });
-                })
-        });
-        results = results.child(List::new((self.id.clone(), "result-list")).items(result_list));
+        let scroll = model.scroll.clone();
+        let entry = scroll.logical_scroll_top().item_ix;
+        let row_state = self.state.clone();
+        let keys = self.state.clone();
+        if !model.rows().is_empty() {
+            results = results.child(
+                div()
+                    .id((self.id.clone(), "result-list"))
+                    .role(Role::List)
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_hidden()
+                    .on_key_down(move |event, window, cx| {
+                        let model = keys.read(cx);
+                        let rows = model.rows();
+                        let Some(current) = rows
+                            .iter()
+                            .position(|row| model.result_focus[&row.id].is_focused(window))
+                        else {
+                            return;
+                        };
+                        let next = match event.keystroke.key.as_str() {
+                            "up" => (current + rows.len() - 1) % rows.len(),
+                            "down" => (current + 1) % rows.len(),
+                            _ => return,
+                        };
+                        let focus = model.result_focus[&rows[next].id].clone();
+                        if model.scroll.bounds_for_item(next).is_some() {
+                            model.scroll.scroll_to_reveal_item(next);
+                        } else {
+                            // Unmeasured rows have no physical offset yet. A
+                            // logical anchor reveals them without measuring the
+                            // entire prefix merely to navigate to the last row.
+                            model.scroll.scroll_to(gpui::ListOffset {
+                                item_ix: next,
+                                offset_in_item: px(0.),
+                            });
+                        }
+                        focus.focus(window, cx);
+                        window.refresh();
+                        cx.stop_propagation();
+                    })
+                    .child(
+                        gpui::list(scroll, move |ix, window, cx| {
+                            let model = row_state.read(cx);
+                            let result = model.rows()[ix].clone();
+                            let focus = model.result_focus[&result.id].clone();
+                            let tab_stop = focus.is_focused(window)
+                                || ix == entry
+                                    && !model
+                                        .result_focus
+                                        .values()
+                                        .any(|handle| handle.is_focused(window));
+                            let state = row_state.clone();
+                            ListItem::new(result.id.clone(), result.label.clone())
+                                .track_focus(&focus, tab_stop)
+                                .when_some(result.supporting.clone(), ListItem::supporting_text)
+                                .on_activate(move |window, cx| {
+                                    state.update(cx, |state, cx| {
+                                        state.close(window, cx);
+                                        cx.emit(SearchEvent::Select(result.clone()));
+                                    });
+                                })
+                                .into_any_element()
+                        })
+                        .size_full(),
+                    ),
+            );
+        }
         div()
             .id(self.id.clone())
             .test_support()

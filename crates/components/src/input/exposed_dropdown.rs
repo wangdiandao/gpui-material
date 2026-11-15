@@ -6,9 +6,9 @@ use std::{
 use crate::motion::{OverlayMotion, ScaledOverlay, menu_pivot};
 use gpui::{
     Anchor, App, AppContext, Bounds, Context, ElementId, Entity, EntityInputHandler, Focusable,
-    InteractiveElement, IntoElement, ParentElement, RenderOnce, Role, ScrollHandle, SharedString,
-    StatefulInteractiveElement, Styled, Subscription, Window, canvas, div, prelude::FluentBuilder,
-    px,
+    InteractiveElement, IntoElement, ListAlignment, ListOffset, ListSizingBehavior, ListState,
+    ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
+    Subscription, Window, canvas, div, list, prelude::FluentBuilder, px,
 };
 use gpui_base::{Popup, TestSupportExt};
 use gpui_material_foundation::{Surface, animate, color, logical_anchor, window_material_theme};
@@ -19,7 +19,7 @@ use gpui_material_theme::{
 use super::{TextField, TextFieldEvent, TextFieldState, TextFieldVariant};
 
 /// A selectable dropdown value. IDs remain stable when options are reordered.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DropdownOption {
     pub id: ElementId,
     pub label: SharedString,
@@ -34,6 +34,36 @@ impl DropdownOption {
     }
 }
 
+/// Retains the filtered model independently of the visible rows. Comparisons
+/// use stable IDs and labels; only a changed collection or query is filtered.
+#[derive(Default)]
+struct OptionSnapshot {
+    source: Rc<[DropdownOption]>,
+    query: Option<SharedString>,
+    visible: Rc<[DropdownOption]>,
+}
+
+impl OptionSnapshot {
+    fn reconcile(&mut self, source: Vec<DropdownOption>, query: Option<SharedString>) -> bool {
+        if self.source.as_ref() == source.as_slice() && self.query == query {
+            return false;
+        }
+        self.source = source.into();
+        self.visible = if let Some(query) = &query {
+            let query = query.to_lowercase();
+            self.source
+                .iter()
+                .filter(|option| option.label.to_lowercase().contains(&query))
+                .cloned()
+                .collect()
+        } else {
+            self.source.clone()
+        };
+        self.query = query;
+        true
+    }
+}
+
 /// Keeps the editable query and pending keyboard choice across renders.
 pub struct ExposedDropdownState {
     input: Entity<TextFieldState>,
@@ -41,6 +71,16 @@ pub struct ExposedDropdownState {
     editable: bool,
     open: bool,
     active: Option<ElementId>,
+    scroll: ListState,
+    presented: Rc<[DropdownOption]>,
+    metrics: Option<(
+        gpui::Pixels,
+        f32,
+        gpui::Pixels,
+        gpui_material_theme::Typography,
+        u64,
+    )>,
+    options: OptionSnapshot,
     _input: Subscription,
 }
 
@@ -78,6 +118,10 @@ impl ExposedDropdownState {
             editable,
             open: false,
             active: None,
+            scroll: ListState::new(0, ListAlignment::Top, px(280.)),
+            presented: Rc::default(),
+            metrics: None,
+            options: OptionSnapshot::default(),
             _input: subscription,
         }
     }
@@ -98,6 +142,63 @@ impl ExposedDropdownState {
             }
         });
         cx.notify();
+    }
+
+    fn toggle(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.input.read(cx).focus_handle(cx).focus(window, cx);
+        if self.open {
+            self.cancel(window, cx);
+        } else {
+            self.open = true;
+            cx.notify();
+        }
+    }
+
+    fn navigate(&mut self, backwards: bool, cx: &mut Context<Self>) {
+        let choices = &self.options.visible;
+        let index = self
+            .active
+            .as_ref()
+            .and_then(|id| choices.iter().position(|choice| &choice.id == id));
+        let next = index.map_or_else(
+            || {
+                if backwards {
+                    choices.len().saturating_sub(1)
+                } else {
+                    0
+                }
+            },
+            |index| {
+                if backwards {
+                    index
+                        .checked_sub(1)
+                        .unwrap_or(choices.len().saturating_sub(1))
+                } else {
+                    (index + 1) % choices.len()
+                }
+            },
+        );
+        self.active = choices.get(next).map(|choice| choice.id.clone());
+        self.open = true;
+        if self.scroll.bounds_for_item(next).is_some() {
+            self.scroll.scroll_to_reveal_item(next);
+        } else {
+            self.scroll.scroll_to(ListOffset {
+                item_ix: next,
+                offset_in_item: px(0.),
+            });
+        }
+        cx.notify();
+    }
+
+    fn pending(&self) -> Option<DropdownOption> {
+        let choices = &self.options.visible;
+        let index = self
+            .active
+            .as_ref()
+            .and_then(|id| choices.iter().position(|choice| &choice.id == id))
+            .unwrap_or(0);
+        choices.get(index).cloned()
     }
 
     fn cancel(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -162,26 +263,37 @@ impl RenderOnce for ExposedDropdown {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let model = self.state.read(cx);
         let input = model.input.clone();
-        let focus = input.read(cx).focus_handle(cx);
         let open = model.open;
         let editable = model.editable;
-        let active = model.active.clone();
+        let scroll = model.scroll.clone();
         let query = input.read(cx).value();
         let committed = model.committed.clone();
         let composing = input.update(cx, |input, cx| {
             input.marked_text_range(window, cx).is_some()
         });
         let filter = editable && !composing && query != committed;
-        let filter_text = query.to_lowercase();
-        let options: Vec<_> = self
-            .options
-            .into_iter()
-            .filter(|option| !filter || option.label.to_lowercase().contains(&filter_text))
-            .collect();
+        let (options, active) = self.state.update(cx, |state, _| {
+            if state
+                .options
+                .reconcile(self.options, filter.then_some(query))
+            {
+                let index = state.active.as_ref().and_then(|id| {
+                    state
+                        .options
+                        .visible
+                        .iter()
+                        .position(|option| &option.id == id)
+                });
+                if index.is_none() {
+                    state.active = None;
+                }
+            }
+            (state.options.visible.clone(), state.active.clone())
+        });
         let last_visible_options = window
             .use_keyed_state((self.id.clone(), "presented-options"), cx, |_, _| {
                 Rc::new(RefCell::new((
-                    Vec::<DropdownOption>::new(),
+                    Rc::<[DropdownOption]>::default(),
                     None::<ElementId>,
                 )))
             })
@@ -189,7 +301,7 @@ impl RenderOnce for ExposedDropdown {
             .clone();
         if open {
             let mut visible = last_visible_options.borrow_mut();
-            visible.0.clone_from(&options);
+            visible.0 = options.clone();
             visible.1.clone_from(&active);
         }
         let theme = window_material_theme(window, cx);
@@ -197,6 +309,7 @@ impl RenderOnce for ExposedDropdown {
         let ink = color(theme.colors.color(ColorRole::OnSurface));
         let selected = color(theme.colors.color(ColorRole::SecondaryContainer));
         let selected_ink = color(theme.colors.color(ColorRole::OnSecondaryContainer));
+        let typography = theme.typography.clone();
         let text_style = TypeRole::LabelLarge.style(TypographyEmphasis::Baseline);
         let arrow = animate(
             (self.id.clone(), "arrow"),
@@ -213,11 +326,8 @@ impl RenderOnce for ExposedDropdown {
         let keys = close.clone();
         let toggle = close.clone();
         let callback = self.on_select.clone();
-        let choices = options.clone();
         let key_input = input.clone();
-        let toggle_focus = focus.clone();
         let primary_toggle = self.state.clone();
-        let primary_focus = focus.clone();
         let bounds = window
             .use_keyed_state((self.id.clone(), "bounds"), cx, |_, _| {
                 Rc::new(Cell::new(Bounds::default()))
@@ -226,30 +336,19 @@ impl RenderOnce for ExposedDropdown {
             .clone();
         let measure = bounds.clone();
         let popup_width = bounds.get().size.width;
-        let scroll = window
-            .use_keyed_state((self.id.clone(), "options-scroll"), cx, |_, _| {
-                ScrollHandle::new()
-            })
-            .read(cx)
-            .clone();
-        let key_scroll = scroll.clone();
         let trigger = div()
             .id((self.id.clone(), "combobox"))
             .test_support()
             .when(!editable, |trigger| {
                 trigger.on_click(move |_, window, cx| {
-                    primary_focus.focus(window, cx);
-                    primary_toggle.update(cx, |state, cx| {
-                        if state.open {
-                            state.cancel(window, cx);
-                        } else {
-                            state.open = true;
-                            cx.notify();
-                        }
-                    });
+                    primary_toggle.update(cx, |state, cx| state.toggle(window, cx));
                     cx.notify(parent);
                 })
             })
+            // TextField owns the single ComboBox node and delegates IME focus
+            // to its Base editor. Base Select/Combobox adds a second owner
+            // and cannot veto dismissal during composition, so this adapter
+            // keeps only collection navigation and draft commit/cancel here.
             .capture_key_down(move |event, window, cx| {
                 let key = event.keystroke.key.as_str();
                 if !matches!(key, "up" | "down" | "enter" | "escape")
@@ -262,52 +361,18 @@ impl RenderOnce for ExposedDropdown {
                 }) {
                     return;
                 }
-                let model = keys.read(cx);
-                let index = model
-                    .active
-                    .as_ref()
-                    .and_then(|id| choices.iter().position(|item| &item.id == id));
+                let open = keys.read(cx).open;
                 match key {
-                    "up" | "down" => {
-                        let next = index.map_or_else(
-                            || {
-                                if key == "up" {
-                                    choices.len().saturating_sub(1)
-                                } else {
-                                    0
-                                }
-                            },
-                            |index| {
-                                if key == "up" {
-                                    index
-                                        .checked_sub(1)
-                                        .unwrap_or(choices.len().saturating_sub(1))
-                                } else {
-                                    (index + 1) % choices.len()
-                                }
-                            },
-                        );
-                        keys.update(cx, |state, cx| {
-                            state.active = choices.get(next).map(|choice| choice.id.clone());
-                            state.open = true;
-                            cx.notify();
-                        });
-                        key_scroll.scroll_to_item(next);
-                    }
-                    "escape" if model.open => keys.update(cx, |state, cx| state.cancel(window, cx)),
-                    "enter" if model.open => {
-                        if let Some(choice) = choices.get(index.unwrap_or(0)) {
-                            choose(&keys, choice, &callback, window, cx);
+                    "up" | "down" => keys.update(cx, |state, cx| state.navigate(key == "up", cx)),
+                    "escape" if open => keys.update(cx, |state, cx| state.cancel(window, cx)),
+                    "enter" if open => {
+                        if let Some(choice) = keys.read(cx).pending() {
+                            choose(&keys, &choice, &callback, window, cx);
                         }
                     }
-                    "enter" | "space" if !editable => keys.update(cx, |state, cx| {
-                        if state.open {
-                            state.cancel(window, cx);
-                        } else {
-                            state.open = true;
-                            cx.notify();
-                        }
-                    }),
+                    "enter" | "space" if !editable => {
+                        keys.update(cx, |state, cx| state.toggle(window, cx));
+                    }
                     _ => return,
                 }
                 cx.notify(parent);
@@ -330,15 +395,7 @@ impl RenderOnce for ExposedDropdown {
                             .focus_visible(move |style| style.border_1().border_color(ink))
                             .on_click(move |_, window, cx| {
                                 cx.stop_propagation();
-                                toggle_focus.focus(window, cx);
-                                toggle.update(cx, |state, cx| {
-                                    if state.open {
-                                        state.cancel(window, cx);
-                                    } else {
-                                        state.open = true;
-                                        cx.notify();
-                                    }
-                                });
+                                toggle.update(cx, |state, cx| state.toggle(window, cx));
                                 cx.notify(parent);
                             })
                             .child(dropdown_arrow(arrow, ink)),
@@ -372,7 +429,7 @@ impl RenderOnce for ExposedDropdown {
             .offset(px(4.))
             .on_position(move |resolved, trigger| trigger_bounds.set((resolved.bounds, trigger)));
         let content = motion.map(|motion| {
-            let dp = |value| motion.px(value);
+            let dp = move |value| motion.px(value);
             let spacing = dp(16.);
             let (options, active) = if open {
                 (options, active)
@@ -384,6 +441,34 @@ impl RenderOnce for ExposedDropdown {
             } else {
                 last_bounds.size.width
             };
+            let font_revision = gpui_material_foundation::font_cache_revision(cx);
+            self.state.update(cx, |state, _| {
+                let metrics = (
+                    width,
+                    motion.scale,
+                    window.rem_size(),
+                    typography,
+                    font_revision,
+                );
+                if !Rc::ptr_eq(&state.presented, &options) {
+                    state.scroll.reset(options.len());
+                    if let Some(index) = active
+                        .as_ref()
+                        .and_then(|id| options.iter().position(|option| &option.id == id))
+                    {
+                        state.scroll.scroll_to(ListOffset {
+                            item_ix: index,
+                            offset_in_item: px(0.),
+                        });
+                    }
+                    state.presented = options.clone();
+                } else if state.metrics.as_ref() != Some(&metrics) {
+                    let anchor = state.scroll.logical_scroll_top();
+                    state.scroll.remeasure();
+                    state.scroll.scroll_to(anchor);
+                }
+                state.metrics = Some(metrics);
+            });
             let content = div()
                 .id(if open { "options" } else { "options-exit" })
                 .test_support()
@@ -407,77 +492,93 @@ impl RenderOnce for ExposedDropdown {
                         .rounded(spacing * 0.25)
                         .w_full()
                         .py(spacing * 0.5)
-                        .child(
+                        .child(if options.is_empty() {
                             div()
                                 .id("options-scroll-region")
                                 .test_support()
                                 .max_h((height - px(16.)).max(px(0.)) * motion.scale)
-                                .overflow_y_scroll()
-                                .track_scroll(&scroll)
-                                .when(options.is_empty(), |list| {
-                                    list.child(
-                                        div()
-                                            .px(spacing * 0.75)
-                                            .py(spacing * 0.5)
-                                            .child("No matching options"),
-                                    )
-                                })
-                                .children(options.into_iter().map(|choice| {
-                                    let current = active.as_ref() == Some(&choice.id);
-                                    let state = self.state.clone();
-                                    let callback = self.on_select.clone();
-                                    let accessible = choice.clone();
-                                    let accessible_state = state.clone();
-                                    let accessible_callback = callback.clone();
+                                .overflow_hidden()
+                                .child(
                                     div()
-                                        .id(choice.id.clone())
-                                        .test_support()
-                                        .when(open, |row| {
-                                            row.role(Role::ListBoxOption)
-                                                .aria_label(choice.label.clone())
-                                                .aria_selected(current)
-                                        })
-                                        .when(current, |row| {
-                                            row.bg(selected).text_color(selected_ink)
-                                        })
-                                        .when(open && current, |row| row.aria_active_descendant())
-                                        .when(open, |row| {
-                                            row.hover(move |style| {
-                                                style.bg(if current {
-                                                    selected.blend(selected_ink.opacity(0.08))
-                                                } else {
-                                                    ink.opacity(0.08)
+                                        .px(spacing * 0.75)
+                                        .py(spacing * 0.5)
+                                        .child("No matching options"),
+                                )
+                                .into_any_element()
+                        } else {
+                            let row_state = self.state.clone();
+                            let row_callback = self.on_select.clone();
+                            div()
+                                .id("options-scroll-region")
+                                .test_support()
+                                .max_h((height - px(16.)).max(px(0.)) * motion.scale)
+                                .overflow_hidden()
+                                .child(
+                                    list(scroll.clone(), move |index, _, _| {
+                                        let choice = options[index].clone();
+                                        let current = active.as_ref() == Some(&choice.id);
+                                        let state = row_state.clone();
+                                        let callback = row_callback.clone();
+                                        let accessible = choice.clone();
+                                        let accessible_state = state.clone();
+                                        let accessible_callback = callback.clone();
+                                        div()
+                                            .id(choice.id.clone())
+                                            .test_support()
+                                            .when(open, |row| {
+                                                row.role(Role::ListBoxOption)
+                                                    .aria_label(choice.label.clone())
+                                                    .aria_selected(current)
+                                                    .aria_position_in_set(index + 1)
+                                                    .aria_size_of_set(options.len())
+                                            })
+                                            .when(current, |row| {
+                                                row.bg(selected).text_color(selected_ink)
+                                            })
+                                            .when(open && current, |row| {
+                                                row.aria_active_descendant()
+                                            })
+                                            .when(open, |row| {
+                                                row.hover(move |style| {
+                                                    style.bg(if current {
+                                                        selected.blend(selected_ink.opacity(0.08))
+                                                    } else {
+                                                        ink.opacity(0.08)
+                                                    })
                                                 })
                                             })
-                                        })
-                                        .min_h(dp(48.))
-                                        .px(spacing * 0.75)
-                                        .flex()
-                                        .items_center()
-                                        .child(choice.label.clone())
-                                        .when(open, |row| {
-                                            row.on_a11y_action(
-                                                gpui::AccessibleAction::Click,
-                                                move |_, window, cx| {
-                                                    choose(
-                                                        &accessible_state,
-                                                        &accessible,
-                                                        &accessible_callback,
-                                                        window,
-                                                        cx,
-                                                    );
-                                                    cx.notify(parent);
-                                                },
-                                            )
-                                            .on_click(
-                                                move |_, window, cx| {
+                                            .min_h(dp(48.))
+                                            .px(spacing * 0.75)
+                                            .flex()
+                                            .items_center()
+                                            .child(choice.label.clone())
+                                            .when(open, |row| {
+                                                row.on_a11y_action(
+                                                    gpui::AccessibleAction::Click,
+                                                    move |_, window, cx| {
+                                                        choose(
+                                                            &accessible_state,
+                                                            &accessible,
+                                                            &accessible_callback,
+                                                            window,
+                                                            cx,
+                                                        );
+                                                        cx.notify(parent);
+                                                    },
+                                                )
+                                                .on_click(move |_, window, cx| {
                                                     choose(&state, &choice, &callback, window, cx);
                                                     cx.notify(parent);
-                                                },
-                                            )
-                                        })
-                                })),
-                        ),
+                                                })
+                                            })
+                                            .into_any_element()
+                                    })
+                                    .with_sizing_behavior(ListSizingBehavior::Infer)
+                                    .w_full()
+                                    .max_h((height - px(16.)).max(px(0.)) * motion.scale),
+                                )
+                                .into_any_element()
+                        }),
                 )
                 .when(!open, |list| {
                     list.child(div().absolute().inset_0().occlude())
@@ -525,4 +626,36 @@ fn dropdown_arrow(progress: f32, ink: gpui::Hsla) -> impl IntoElement {
                 .size(px(24.))
                 .rotate(gpui::radians(std::f32::consts::PI * progress)),
         )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn option_snapshot_reuses_results_and_invalidates_labels_and_query() {
+        let mut snapshot = OptionSnapshot::default();
+        let options = || {
+            vec![
+                DropdownOption::new("a", "Alpha"),
+                DropdownOption::new("b", "Beta"),
+            ]
+        };
+        assert!(snapshot.reconcile(options(), None));
+        let unfiltered = snapshot.visible.clone();
+        assert!(Rc::ptr_eq(&unfiltered, &snapshot.source));
+        assert!(!snapshot.reconcile(options(), None));
+        assert!(Rc::ptr_eq(&unfiltered, &snapshot.visible));
+        assert!(snapshot.reconcile(options(), Some("ALP".into())));
+        assert_eq!(snapshot.visible.len(), 1);
+        assert_eq!(snapshot.visible[0].id, ElementId::from("a"));
+        assert!(snapshot.reconcile(
+            vec![
+                DropdownOption::new("a", "Renamed"),
+                DropdownOption::new("b", "Beta")
+            ],
+            Some("ALP".into())
+        ));
+        assert!(snapshot.visible.is_empty());
+    }
 }

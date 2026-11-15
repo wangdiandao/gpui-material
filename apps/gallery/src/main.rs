@@ -16,6 +16,8 @@ mod selection_examples;
 mod slider_examples;
 mod story;
 mod text_field_examples;
+#[cfg(all(test, feature = "test-support"))]
+mod theme_tests;
 mod toolbar_examples;
 
 use gpui::{

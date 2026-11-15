@@ -26,6 +26,10 @@ Inputs, overlays, and navigation may use controls/display. The TextField editing
 
 ## State and theme
 
+Search and exposed dropdowns retain complete result identities and scroll state while GPUI's variable-height list constructs visible rows and bounded overscan. Search preserves focus handles by result ID; dropdowns keep focus in the Base editor and retain the active option ID. Measurement is invalidated for changed content, width, typography, the installed-font snapshot, rem size, and dropdown animation scale. A logical row anchor reveals an unmeasured keyboard target without laying out its entire prefix. The lightweight `List` remains suitable for small collections; passing it a visible slice alone does not implement full-model keyboard navigation.
+
+The dropdown keeps a narrow IME-aware keyboard adapter over Base Input and Popup. The pinned Base Select/Combobox root adds its own semantic/focus owner and cannot veto action handling during composition, so wrapping the existing editable TextField would change its contract. Button and selection feedback share one presentation event adapter; Base still owns activation and controlled values, while Material retains ripple timing and shape transitions.
+
 - Callers own business values and stable identifiers. Base owns interaction state, input, selection, and focus. Material owns the theme, state presentation policy, and additional composition state. Controlled components request changes through a common path. Document callback order and synchronous reentrancy boundaries.
 - Expose semantic contracts such as variant, size, disabled, selected, and on_change, along with slots for component parts. Prefer concrete types for shared interfaces. Keep third-party color and shape types inside adapters.
 - `MaterialTheme` is the project theme source. The pinned Base `Theme` is an app `Global` with appearance, semantic tokens, and defaults for scrollbars, split resizing, plots, and caret blinking. The app commits a theme change explicitly and synchronizes projection and refresh. Callers pass local styles to a window or subtree explicitly, as demonstrated by the two-window probe.

@@ -45,6 +45,10 @@ fn main() {
 
 ## API 与迁移
 
+Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID 必须唯一，并在重排时保持稳定。`ListItem::track_focus(&FocusHandle, bool)` 允许调用方的虚拟集合提供保留的行焦点及 roving tab stop；该集合还须负责完整模型的导航，并滚动显示屏外目标。现有 `List` API 保持不变。
+
+`foundation::set_window_material_theme` 覆盖 Material 呈现，包括显式传入 Base 编辑器的颜色和 Material 浮层表面。独立 Base 控件、滚动条、resize handle 及光标闪烁策略仍使用应用级 Base 全局主题；这些集成需要显式局部样式。窗口渲染不会切换 Base 全局主题。
+
 应用通过[公开门面](../crates/material/src/lib.rs)集成，包括已记录的 `foundation` 和 `theme` 路径。按 [README 中的特性名](../README.zh.md)启用可选组件系列。`date-time` 的 API 位于 `gpui_material::date_time` 下。`dynamic-color` 和 `serde` 转发到纯主题 crate。公开签名中的 GPUI 和 Base 类型遵循固定的上游版本。Gallery 模块和工作区 crate 的内部组织可能调整。
 
 使用 0.0.4 门面的应用可将检出目录移至 P9 验收提交，沿用同样的导入、特性名和状态初始化方式。下一版本仍处于 1.0 之前。升级次版本时核对 API 契约变化及迁移步骤。

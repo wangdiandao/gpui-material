@@ -325,6 +325,133 @@ mod tests {
     use gpui_material::foundation::MaterialRoot;
 
     #[gpui::test]
+    fn action_and_selection_feedback_clear_after_pointer_cancellation(cx: &mut TestAppContext) {
+        #[derive(Default)]
+        struct Controls {
+            disabled: bool,
+            activations: usize,
+        }
+        impl Render for Controls {
+            fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+                let button = cx.entity();
+                let switch = cx.entity();
+                div()
+                    .flex()
+                    .gap_4()
+                    .child(
+                        Button::new("button", "Action")
+                            .disabled(self.disabled)
+                            .on_activate(move |_, cx| {
+                                button.update(cx, |model, _| model.activations += 1)
+                            }),
+                    )
+                    .child(
+                        gpui_material::Switch::new("switch", "Selection", false)
+                            .disabled(self.disabled)
+                            .on_change(move |_, _, cx| {
+                                switch.update(cx, |model, _| model.activations += 1)
+                            }),
+                    )
+            }
+        }
+        let (handle, model) = cx.update(|cx| {
+            crate::init_gallery(cx);
+            cx.set_reduce_motion(true);
+            let mut model = None;
+            let handle = MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+                let controls = cx.new(|_| Controls::default());
+                model = Some(controls.clone());
+                controls
+            })
+            .unwrap();
+            (handle, model.unwrap())
+        });
+        cx.update_window(handle.into(), |_, window, _| window.activate_window())
+            .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle.into(), |_, window, cx| {
+            let draw = |window: &mut Window, cx: &mut gpui::App| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+            };
+            let feedback = |id: &'static str, window: &Window, cx: &gpui::App| {
+                if id == "switch" {
+                    f32::from(
+                        find(
+                            window,
+                            &[],
+                            &(gpui::ElementId::from(id), "switch-thumb").into(),
+                        )
+                        .unwrap()
+                        .bounds()
+                        .size
+                        .width,
+                    )
+                } else {
+                    let tint = gpui_material::foundation::color(
+                        gpui_material::foundation::window_material_theme(window, cx)
+                            .colors
+                            .color(gpui_material::theme::ColorRole::Primary),
+                    );
+                    window
+                        .painted_quads()
+                        .into_iter()
+                        .find(|quad| quad.background == tint.into())
+                        .unwrap()
+                        .corner_radii
+                        .top_left
+                        .0
+                        / window.scale_factor()
+                }
+            };
+            draw(window, cx);
+            for (id, resting, pressed) in [("button", 20., 8.), ("switch", 16., 28.)] {
+                for disable in [false, true] {
+                    let position = find(window, &[], &id.into()).unwrap().bounds().center();
+                    window.dispatch_event(
+                        MouseDownEvent {
+                            button: MouseButton::Left,
+                            position,
+                            click_count: 1,
+                            first_mouse: false,
+                            modifiers: Default::default(),
+                        }
+                        .to_platform_input(),
+                        cx,
+                    );
+                    draw(window, cx);
+                    assert_eq!(feedback(id, window, cx), pressed);
+                    if disable {
+                        model.update(cx, |model, cx| {
+                            model.disabled = true;
+                            cx.notify();
+                        });
+                        draw(window, cx);
+                    }
+                    window.dispatch_event(
+                        MouseUpEvent {
+                            button: MouseButton::Left,
+                            position: gpui::point(px(700.), px(500.)),
+                            click_count: 1,
+                            modifiers: Default::default(),
+                        }
+                        .to_platform_input(),
+                        cx,
+                    );
+                    model.update(cx, |model, cx| {
+                        model.disabled = false;
+                        cx.notify();
+                    });
+                    draw(window, cx);
+                    assert_eq!(feedback(id, window, cx), resting);
+                    assert_eq!(model.read(cx).activations, 0);
+                }
+            }
+        })
+        .unwrap();
+    }
+
+    #[gpui::test]
     fn button_keyboard_press_does_not_resume_after_focus_returns(cx: &mut TestAppContext) {
         struct Buttons;
         impl Render for Buttons {

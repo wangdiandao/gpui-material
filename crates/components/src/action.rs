@@ -443,67 +443,15 @@ fn decorate(
     (width, fixed_width): (Pixels, bool),
     enabled: bool,
 ) -> AnyElement {
-    let hover = feedback.clone();
-    let press = feedback.clone();
-    let release = feedback.clone();
-    let cancel = feedback.clone();
-    let keys = feedback.clone();
-    let key_up = feedback.clone();
-    control
+    let control = control
         .min_h(height)
         .min_w(width)
         .when(fixed_width, |control| control.w(width))
         .max_w_full()
         .text_color(foreground)
-        .child(content)
-        .when(enabled, |control| {
-            control
-                .on_hover(move |hovered, window, cx| {
-                    let mut state = hover.borrow_mut();
-                    state.hovered = *hovered;
-                    if !hovered {
-                        release_ripple(&mut state, cx);
-                    }
-                    window.refresh();
-                })
-                .on_mouse_down(MouseButton::Left, move |event, window, cx| {
-                    let mut state = press.borrow_mut();
-                    state.pressed = true;
-                    state.keyboard_focus = None;
-                    state.hovered = true;
-                    start_ripple(&mut state, Some(event.position), cx);
-                    window.refresh();
-                })
-                .on_mouse_up(MouseButton::Left, move |_, window, cx| {
-                    release_ripple(&mut release.borrow_mut(), cx);
-                    window.refresh();
-                })
-                .on_mouse_up_out(MouseButton::Left, move |_, window, cx| {
-                    release_ripple(&mut cancel.borrow_mut(), cx);
-                    window.refresh();
-                })
-                .capture_key_down(move |event, window, cx| {
-                    let mut state = keys.borrow_mut();
-                    match event.keystroke.key.as_str() {
-                        "space" | "enter" if !event.is_held => {
-                            state.pressed = true;
-                            state.keyboard_focus = window.focused(cx);
-                            start_ripple(&mut state, None, cx);
-                        }
-                        "escape" => {
-                            state.cancel();
-                        }
-                        _ => return,
-                    }
-                    window.refresh();
-                })
-                .capture_key_up(move |event, window, cx| {
-                    if matches!(event.keystroke.key.as_str(), "space" | "enter") {
-                        release_ripple(&mut key_up.borrow_mut(), cx);
-                        window.refresh();
-                    }
-                })
-        })
+        .child(content);
+    control
+        .when(enabled, |control| feedback_target(control, feedback, true))
         .into_any_element()
 }
 
@@ -591,6 +539,16 @@ pub(crate) fn ripple_target<E>(control: E, state: Rc<RefCell<FeedbackState>>) ->
 where
     E: StatefulInteractiveElement,
 {
+    feedback_target(control, state, false)
+}
+
+/// Observe presentation events without consuming them: Base still owns activation,
+/// focus, disabled semantics and controlled value changes. Action controls also
+/// read hover from this state; selection and display controls style hover themselves.
+fn feedback_target<E>(control: E, state: Rc<RefCell<FeedbackState>>, track_hover: bool) -> E
+where
+    E: StatefulInteractiveElement,
+{
     let press = state.clone();
     let release = state.clone();
     let outside = state.clone();
@@ -601,6 +559,9 @@ where
             let mut state = press.borrow_mut();
             state.pressed = true;
             state.keyboard_focus = None;
+            if track_hover {
+                state.hovered = true;
+            }
             start_ripple(&mut state, Some(event.position), cx);
             window.refresh();
         })
@@ -613,8 +574,15 @@ where
             window.refresh();
         })
         .on_hover(move |hovering, window, cx| {
-            if !*hovering && hover.borrow().pressed {
-                release_ripple(&mut hover.borrow_mut(), cx);
+            let mut state = hover.borrow_mut();
+            let was_pressed = state.pressed;
+            if track_hover {
+                state.hovered = *hovering;
+            }
+            if !*hovering && (track_hover || was_pressed) {
+                release_ripple(&mut state, cx);
+            }
+            if track_hover || !*hovering && was_pressed {
                 window.refresh();
             }
         })

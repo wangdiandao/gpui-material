@@ -12,7 +12,7 @@ The [pinned Material 3 specification](design-sources.md#material-specification) 
 
 | Component | Supported variants and behavior | Material 3 |
 | --- | --- | --- |
-| `Button`, `ToggleButton` | Elevated, Filled, Filled Tonal, and Outlined. `Button` also has a Text variant. Both support XS–XL sizes and round or square shapes. | [Buttons](https://m3.material.io/components/buttons/overview) |
+| `Button`, `ToggleButton` | Elevated, Filled, Filled Tonal, and Outlined. `Button` also has a Text variant. Both support XS–XL sizes, round or square shapes, and optional interaction observation. | [Buttons](https://m3.material.io/components/buttons/overview) |
 | `IconButton`, `IconToggleButton` | Standard, Filled, Filled Tonal, and Outlined, with selectable sizes, widths, and shapes. | [Icon buttons](https://m3.material.io/components/icon-buttons/overview) |
 | `Fab`, `ExtendedFab` | Small, Medium, and Large sizes with multiple color roles. `ExtendedFab` supports a text label and an icon. | [FAB](https://m3.material.io/components/floating-action-button/overview) · [Extended FAB](https://m3.material.io/components/extended-fab/overview) |
 | `Checkbox` | Unchecked, checked, and mixed states. | [Checkbox](https://m3.material.io/components/checkbox/overview) |
@@ -20,6 +20,8 @@ The [pinned Material 3 specification](design-sources.md#material-specification) 
 | `Switch` | On and off states with optional thumb icons. | [Switch](https://m3.material.io/components/switch/overview) |
 | `Chip` | Assist, Filter, Input, and Suggestion, with selection and removal where applicable. | [Chips](https://m3.material.io/components/chips/overview) |
 | `Slider` | Single-value, centered, and range sliders, with horizontal or vertical layouts and continuous or stepped values. | [Sliders](https://m3.material.io/components/sliders/overview) |
+
+Keep an `Entity<InteractionSource>` in the caller and attach it with `.interaction_source(&source)` to observe a button. Give each control sharing a source a distinct element ID within its window. Read the current state with `InteractionSource::state`, or subscribe to `InteractionUpdate` for each deferred change, including press and release between draws. A removed control clears its snapshot. Base still owns input handling and the application owns toggle values.
 
 <a id="内容与反馈"></a>
 

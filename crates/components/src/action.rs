@@ -1,14 +1,14 @@
 use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
-    AccessibleAction, AnyElement, App, BorderStyle, Bounds, ClickEvent, Corners, ElementId,
+    AccessibleAction, AnyElement, App, BorderStyle, Bounds, ClickEvent, Corners, ElementId, Entity,
     FocusHandle, Hsla, IntoElement, MouseButton, ParentElement, Pixels, Point,
     StatefulInteractiveElement, Styled, Window, canvas, div, prelude::FluentBuilder, px, quad,
 };
 use gpui_base::{Button, Toggle};
 use gpui_material_foundation::{
-    InteractionFeedback, InteractionState, Ripple, Shape, animate, color, elevation_shadows,
-    window_material_theme,
+    InteractionFeedback, InteractionSource, InteractionState, InteractionTracker, Ripple, Shape,
+    animate, color, elevation_shadows, window_material_theme,
 };
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Elevation, MotionKind, MotionSpec, MotionSpeed,
@@ -95,9 +95,26 @@ pub(crate) struct FeedbackState {
     keyboard_focus: Option<FocusHandle>,
     shape: Option<Shape>,
     ripple: Option<Ripple>,
+    tracker: Option<(InteractionTracker, FocusHandle)>,
 }
 
 impl FeedbackState {
+    fn interaction(&self, enabled: bool, focus: &FocusHandle, window: &Window) -> InteractionState {
+        let mut interaction = InteractionState::default();
+        interaction.disabled = !enabled;
+        interaction.hovered = self.hovered;
+        interaction.focus_visible = focus.is_focused(window) && window.last_input_was_keyboard();
+        interaction.pressed =
+            enabled && self.pressed && (self.hovered || interaction.focus_visible);
+        interaction
+    }
+
+    fn record(&self, window: &Window, cx: &mut App) {
+        if let Some((tracker, focus)) = &self.tracker {
+            tracker.record(self.interaction(true, focus, window), cx);
+        }
+    }
+
     fn cancel_unavailable(&mut self, enabled: bool, window: &Window) {
         if !enabled || !window.is_window_active() {
             self.hovered = false;
@@ -126,16 +143,23 @@ impl FeedbackState {
 
 impl ActionControl {
     pub(crate) fn render(self, window: &mut Window, cx: &mut App) -> AnyElement {
-        self.render_scaled(1., window, cx)
+        self.render_scaled(1., None, window, cx)
     }
 
-    pub(crate) fn render_scaled(self, scale: f32, window: &mut Window, cx: &mut App) -> AnyElement {
+    pub(crate) fn render_scaled(
+        self,
+        scale: f32,
+        interaction_source: Option<&Entity<InteractionSource>>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> AnyElement {
         self.render_layout(
             scale,
             ActionLayout {
                 tab_stop: true,
                 ..Default::default()
             },
+            interaction_source,
             window,
             cx,
         )
@@ -145,6 +169,7 @@ impl ActionControl {
         self,
         scale: f32,
         layout: ActionLayout,
+        interaction_source: Option<&Entity<InteractionSource>>,
         window: &mut Window,
         cx: &mut App,
     ) -> AnyElement {
@@ -159,6 +184,8 @@ impl ActionControl {
             .read(cx)
             .clone();
         let focus = self.focus.unwrap_or(focus);
+        let tracker =
+            interaction_source.map(|source| InteractionSource::track(source, &self.id, window, cx));
         let style = self.style;
         let theme = window_material_theme(window, cx);
         let density = theme.layout.density;
@@ -195,17 +222,18 @@ impl ActionControl {
             .unwrap_or_else(|| px(density.interactive_size(style.min_width.max(1.)) * scale));
 
         let enabled = !self.disabled;
-        let (hovered, pressed) = {
+        let interaction = {
             let mut state = feedback.borrow_mut();
             state.cancel_unavailable(enabled, window);
-            (
-                state.hovered,
-                enabled
-                    && state.pressed
-                    && (state.hovered
-                        || focus.is_focused(window) && window.last_input_was_keyboard()),
-            )
+            let interaction = state.interaction(enabled, &focus, window);
+            if let Some(tracker) = &tracker {
+                tracker.record(interaction, cx);
+            }
+            state.tracker = tracker.map(|tracker| (tracker, focus.clone()));
+            interaction
         };
+        let hovered = interaction.hovered;
+        let pressed = interaction.pressed;
         let progress = animate(
             (self.id.clone(), "press-shape"),
             f32::from(pressed),
@@ -226,12 +254,6 @@ impl ActionControl {
         } else {
             0.
         };
-        let focus_visible = focus.is_focused(window) && window.last_input_was_keyboard();
-        let mut interaction = InteractionState::default();
-        interaction.disabled = !enabled;
-        interaction.hovered = hovered;
-        interaction.pressed = pressed;
-        interaction.focus_visible = focus_visible;
         let layer = animate(
             (self.id.clone(), "state-layer"),
             interaction
@@ -459,18 +481,24 @@ fn activate_feedback(
     event: &ClickEvent,
     state: &RefCell<FeedbackState>,
     window: &mut Window,
-    cx: &App,
+    cx: &mut App,
 ) {
-    let pointer = match event {
-        ClickEvent::Mouse(_) => return,
-        ClickEvent::Keyboard(_) => None,
-        ClickEvent::Touch(event) => Some(event.position),
-    };
     let mut state = state.borrow_mut();
-    if !state.pressed {
-        start_ripple(&mut state, pointer, cx);
-        release_ripple(&mut state, cx);
+    match event {
+        // Activation stops the bubbling click. Complete the pointer feedback
+        // here even if the separate mouse-up listener does not run.
+        ClickEvent::Mouse(_) => release_ripple(&mut state, cx),
+        event if !state.pressed => {
+            let pointer = match event {
+                ClickEvent::Touch(event) => Some(event.position),
+                _ => None,
+            };
+            start_ripple(&mut state, pointer, cx);
+            release_ripple(&mut state, cx);
+        }
+        _ => {}
     }
+    state.record(window, cx);
     window.refresh();
 }
 
@@ -563,14 +591,19 @@ where
                 state.hovered = true;
             }
             start_ripple(&mut state, Some(event.position), cx);
+            state.record(window, cx);
             window.refresh();
         })
         .on_mouse_up(MouseButton::Left, move |_, window, cx| {
-            release_ripple(&mut release.borrow_mut(), cx);
+            let mut state = release.borrow_mut();
+            release_ripple(&mut state, cx);
+            state.record(window, cx);
             window.refresh();
         })
         .on_mouse_up_out(MouseButton::Left, move |_, window, cx| {
-            release_ripple(&mut outside.borrow_mut(), cx);
+            let mut state = outside.borrow_mut();
+            release_ripple(&mut state, cx);
+            state.record(window, cx);
             window.refresh();
         })
         .on_hover(move |hovering, window, cx| {
@@ -583,6 +616,7 @@ where
                 release_ripple(&mut state, cx);
             }
             if track_hover || !*hovering && was_pressed {
+                state.record(window, cx);
                 window.refresh();
             }
         })
@@ -590,18 +624,22 @@ where
             if event.keystroke.key == "escape" {
                 let mut state = keyboard.borrow_mut();
                 state.cancel();
+                state.record(window, cx);
                 window.refresh();
             } else if matches!(event.keystroke.key.as_str(), "space" | "enter") && !event.is_held {
                 let mut state = keyboard.borrow_mut();
                 state.pressed = true;
                 state.keyboard_focus = window.focused(cx);
                 start_ripple(&mut state, None, cx);
+                state.record(window, cx);
                 window.refresh();
             }
         })
         .capture_key_up(move |event, window, cx| {
             if matches!(event.keystroke.key.as_str(), "space" | "enter") {
-                release_ripple(&mut state.borrow_mut(), cx);
+                let mut state = state.borrow_mut();
+                release_ripple(&mut state, cx);
+                state.record(window, cx);
                 window.refresh();
             }
         })

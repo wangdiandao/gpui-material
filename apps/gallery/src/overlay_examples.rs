@@ -669,6 +669,7 @@ pub(crate) struct MenuTooltipExamples {
     trigger: FocusHandle,
     rich_trigger: FocusHandle,
     rich_action: FocusHandle,
+    menu_open: bool,
     labels: bool,
     output: SharedString,
 }
@@ -680,6 +681,7 @@ impl MenuTooltipExamples {
             trigger: cx.focus_handle(),
             rich_trigger: cx.focus_handle(),
             rich_action: cx.focus_handle(),
+            menu_open: false,
             labels: false,
             output: "Sort by name".into(),
         }
@@ -699,6 +701,7 @@ impl Render for MenuTooltipExamples {
                 });
             }
         };
+        let menu_owner = cx.entity().downgrade();
         let label_owner = cx.entity().downgrade();
         if self.story == Story::Menu {
             stack()
@@ -706,39 +709,52 @@ impl Render for MenuTooltipExamples {
                     section("Command menu")
                         .description("Open Sort by to choose how the results are ordered.")
                         .child(
-                            div().child(Menu::new(
-                                "options",
-                                gpui_base::Button::new("open-options")
-                                    .track_focus(&self.trigger)
-                                    .accessibility_label("View options")
-                                    .px_3()
-                                    .py_2()
-                                    .rounded_sm()
-                                    .border_1()
-                                    .child("View options"),
-                                [
-                                    MenuItem::group("display", "Display"),
-                                    MenuItem::new("labels", "Show labels")
-                                        .checked(self.labels)
-                                        .on_activate(move |_, cx| {
-                                            let _ = label_owner.update(cx, |state, cx| {
-                                                state.labels = !state.labels;
-                                                cx.notify();
-                                            });
-                                        }),
-                                    MenuItem::new("columns", "Configure columns").disabled(true),
-                                    MenuItem::new("sort", "Sort by").submenu([
-                                        MenuItem::new("name", "Name")
-                                            .selected(self.output.as_ref() == "Sort by name")
-                                            .on_activate(update("Sort by name")),
-                                        MenuItem::new("date", "Date modified")
-                                            .selected(
-                                                self.output.as_ref() == "Sort by date modified",
-                                            )
-                                            .on_activate(update("Sort by date modified")),
-                                    ]),
-                                ],
-                            )),
+                            div().child(
+                                Menu::new(
+                                    "options",
+                                    gpui_base::Button::new("open-options")
+                                        .track_focus(&self.trigger)
+                                        .accessibility_label("View options")
+                                        .px_3()
+                                        .py_2()
+                                        .rounded_sm()
+                                        .border_1()
+                                        .child("View options"),
+                                    [
+                                        MenuItem::group("display", "Display"),
+                                        MenuItem::new("labels", "Show labels")
+                                            .checked(self.labels)
+                                            .supporting(|| "Show names next to each icon")
+                                            .on_checked_change(move |checked, _, cx| {
+                                                let _ = label_owner.update(cx, |state, cx| {
+                                                    state.labels = checked;
+                                                    cx.notify();
+                                                });
+                                            }),
+                                        MenuItem::new("columns", "Configure columns")
+                                            .disabled(true),
+                                        MenuItem::new("sort", "Sort by").submenu([
+                                            MenuItem::new("name", "Name")
+                                                .selected(self.output.as_ref() == "Sort by name")
+                                                .on_activate(update("Sort by name")),
+                                            MenuItem::new("date", "Date modified")
+                                                .selected(
+                                                    self.output.as_ref() == "Sort by date modified",
+                                                )
+                                                .on_activate(update("Sort by date modified")),
+                                        ]),
+                                    ],
+                                )
+                                .open(self.menu_open)
+                                .on_open_change(
+                                    move |open, _, cx| {
+                                        let _ = menu_owner.update(cx, |state, cx| {
+                                            state.menu_open = open;
+                                            cx.notify();
+                                        });
+                                    },
+                                ),
+                            ),
                         ),
                 )
                 .child(
@@ -983,6 +999,268 @@ fn submenu_accepts_pointer_selection_before_dismissing_its_parent(cx: &mut gpui:
         assert!(find(window, &[], &submenu_exit).is_none());
     })
     .unwrap();
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn composed_menu_toggles_live_visibility_before_redraw(cx: &mut gpui::TestAppContext) {
+    use gpui::{App, WindowOptions};
+    use gpui_material::MaterialRoot;
+    use std::{cell::RefCell, rc::Rc};
+
+    type Activate = Rc<dyn Fn(&mut Window, &mut App)>;
+    struct Example {
+        activate: Rc<RefCell<Option<Activate>>>,
+        requests: Rc<RefCell<Vec<bool>>>,
+    }
+
+    impl Render for Example {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let activate = self.activate.clone();
+            let requests = self.requests.clone();
+            Menu::composed(
+                "menu",
+                [MenuItem::new("entry", "Entry")],
+                move |_, toggle| {
+                    *activate.borrow_mut() = Some(toggle);
+                    gpui_base::Button::new("trigger")
+                        .child("Open menu")
+                        .into_any_element()
+                },
+            )
+            .on_open_change(move |open, _, _| requests.borrow_mut().push(open))
+        }
+    }
+
+    let activate = Rc::new(RefCell::new(None::<Activate>));
+    let requests = Rc::new(RefCell::new(Vec::new()));
+    let window = cx.update(|cx| {
+        crate::init_gallery(cx);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            cx.new(|_| Example {
+                activate: activate.clone(),
+                requests: requests.clone(),
+            })
+        })
+        .unwrap()
+    });
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let toggle = activate.borrow().as_ref().unwrap().clone();
+        toggle(window, cx);
+        toggle(window, cx);
+    })
+    .unwrap();
+    assert_eq!(*requests.borrow(), [true, false]);
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn controlled_menu_applies_only_accepted_requests_and_keeps_nested_escape_local(
+    cx: &mut gpui::TestAppContext,
+) {
+    use gpui::{
+        InputEvent as _, MouseButton, MouseDownEvent, Role, StatefulInteractiveElement,
+        WindowOptions, point,
+    };
+    use gpui_base::test_support::find;
+    use gpui_material::MaterialRoot;
+
+    #[derive(Default)]
+    struct Example {
+        open: bool,
+        accept: bool,
+        checked: bool,
+        requests: Vec<bool>,
+        checked_requests: Vec<bool>,
+        dismissals: usize,
+    }
+
+    impl Render for Example {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let owner = cx.entity().downgrade();
+            let dismiss = owner.clone();
+            let checked = owner.clone();
+            let toggles = MenuItem::new("controlled-check", "Show labels")
+                .checked(self.checked)
+                .content(|| "Visible check label")
+                .supporting(|| div().id("item-support").test_support().child("More detail"))
+                .on_checked_change(move |value, _, cx| {
+                    let _ = checked.update(cx, |state, cx| {
+                        state.checked_requests.push(value);
+                        state.checked = value;
+                        cx.notify();
+                    });
+                });
+            Menu::composed(
+                "controlled-menu",
+                [
+                    toggles,
+                    MenuItem::new("controlled-submenu", "Sort by")
+                        .submenu([MenuItem::new("controlled-descending", "Descending")]),
+                ],
+                |_, toggle| {
+                    gpui_base::Button::new("controlled-trigger")
+                        .child("Open menu")
+                        .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
+                            toggle(window, cx);
+                        })
+                        .into_any_element()
+                },
+            )
+            .open(self.open)
+            .on_open_change(move |value, _, cx| {
+                let _ = owner.update(cx, |state, cx| {
+                    state.requests.push(value);
+                    if state.accept {
+                        state.open = value;
+                    }
+                    cx.notify();
+                });
+            })
+            .on_dismiss(move |_, cx| {
+                let _ = dismiss.update(cx, |state, _| state.dismissals += 1);
+            })
+        }
+    }
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let view = cx.new(|_| Example::default());
+        let window =
+            MaterialRoot::open_window(WindowOptions::default(), cx, |_, _| view.clone()).unwrap();
+        (window, view)
+    });
+    let window = window.into();
+    let frame = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(window, |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+    };
+    let read_open = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(window, |_, window, _| {
+            find(window, &[], &"menu".into()).is_some()
+        })
+        .unwrap()
+    };
+    frame(cx);
+    cx.update_window(window, |_, window, cx| window.focus_next(cx))
+        .unwrap();
+    let focus = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(window, |_, window, cx| window.focused(cx))
+            .unwrap()
+    };
+    let trigger = focus(cx).expect("the trigger is focusable");
+    cx.update_window(window, |_, window, cx| {
+        let target = find(window, &[], &"controlled-trigger".into()).unwrap();
+        window.dispatch_event(
+            MouseDownEvent {
+                button: MouseButton::Left,
+                position: target.bounds().center(),
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+    })
+    .unwrap();
+    frame(cx);
+    assert!(!read_open(cx));
+    assert_eq!(focus(cx).as_ref(), Some(&trigger));
+
+    cx.update(|cx| view.update(cx, |state, _| state.accept = true));
+    cx.simulate_keystrokes(window, "enter");
+    frame(cx);
+    frame(cx);
+    assert!(read_open(cx));
+    cx.update_window(window, |_, window, _| {
+        let row = find(window, &[], &"controlled-check".into()).unwrap();
+        assert_eq!(row.role(), Some(Role::MenuItemCheckBox));
+        assert_eq!(row.label(), Some("Show labels"));
+        assert!(find(window, &[], &"item-support".into()).is_some());
+    })
+    .unwrap();
+
+    cx.simulate_keystrokes(window, "down right");
+    frame(cx);
+    frame(cx);
+    let nested_open = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(window, |_, window, _| {
+            find(window, &[], &"submenu-content".into()).is_some()
+        })
+        .unwrap()
+    };
+    assert!(nested_open(cx));
+    cx.simulate_keystrokes(window, "escape");
+    frame(cx);
+    assert!(!nested_open(cx));
+    assert!(read_open(cx));
+    cx.update(|cx| {
+        assert_eq!(view.read(cx).requests, [true, true]);
+        assert_eq!(view.read(cx).dismissals, 0);
+        view.update(cx, |state, _| state.accept = false);
+    });
+    let active_item = focus(cx).expect("closing the submenu returns focus to its row");
+    cx.simulate_keystrokes(window, "escape");
+    frame(cx);
+    assert!(read_open(cx));
+    assert_eq!(focus(cx), Some(active_item));
+
+    cx.simulate_keystrokes(window, "up enter");
+    frame(cx);
+    cx.update(|cx| {
+        let state = view.read(cx);
+        assert_eq!(state.requests, [true, true, false, false]);
+        assert_eq!(state.dismissals, 2);
+        assert_eq!(state.checked_requests, [true]);
+        view.update(cx, |state, cx| {
+            state.open = false;
+            cx.notify();
+        });
+    });
+    frame(cx);
+    assert!(!read_open(cx));
+    assert_eq!(focus(cx).as_ref(), Some(&trigger));
+    cx.update(|cx| {
+        let state = view.read(cx);
+        assert_eq!(state.requests, [true, true, false, false]);
+        assert_eq!(state.dismissals, 2);
+        view.update(cx, |state, cx| {
+            state.accept = true;
+            state.open = true;
+            cx.notify();
+        });
+    });
+    frame(cx);
+    assert!(read_open(cx));
+    cx.update_window(window, |_, window, cx| {
+        let viewport = window.viewport_size();
+        window.dispatch_event(
+            MouseDownEvent {
+                button: MouseButton::Left,
+                position: point(viewport.width - px(10.), viewport.height - px(10.)),
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+    })
+    .unwrap();
+    frame(cx);
+    assert!(!read_open(cx));
+    assert_eq!(focus(cx).as_ref(), Some(&trigger));
+    cx.update(|cx| {
+        let state = view.read(cx);
+        assert_eq!(state.requests, [true, true, false, false, false]);
+        assert_eq!(state.dismissals, 3);
+    });
 }
 
 #[cfg(all(test, feature = "test-support"))]

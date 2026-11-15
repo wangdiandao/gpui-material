@@ -1,14 +1,10 @@
 ---
-import { copy, pagePath } from './site.mjs';
+import { pagePath } from './site.mjs';
 
 const { lang, story, title } = Astro.props;
-const t = copy[lang];
 const query = new URLSearchParams({ story, lang });
-const href = `${pagePath('demo', 'en')}?${query}`;
+const src = `${pagePath('demo', 'en')}?${query}`;
 ---
 <div class="gallery-preview" data-pagefind-ignore>
-  <iframe title={title + ' · Rust / WebAssembly'} src={href} loading="lazy"></iframe>
-  <div class="gallery-preview-actions">
-    <mdui-button variant="text" href={href} target="_blank" rel="noopener">{t.openPreview} <span slot="end-icon" aria-hidden="true">↗</span></mdui-button>
-  </div>
+  <iframe title={title + ' · Rust / WebAssembly'} {src} loading="lazy"></iframe>
 </div>

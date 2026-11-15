@@ -14,7 +14,7 @@
 
 ## Workspace 与组件开发
 
-- 生产库按[架构与依赖](architecture.zh.md)放在 `crates/`，组件按族组织。Gallery 位于 `apps/gallery/`，调用生产公开 API，随组件交付可运行的演示。参照 GPUI Component 的组件库与 Story 分工。[组件库](https://github.com/longbridge/gpui-kit/tree/39ab849a93b5f15507b969164d49891db8d5b470/crates/component) · [Story](https://github.com/longbridge/gpui-kit/tree/39ab849a93b5f15507b969164d49891db8d5b470/crates/story)
+- 生产库放在 `crates/`，组件按族组织。Gallery 位于 `apps/gallery/`，其中的示例调用生产库的公开 API。[架构与依赖](architecture.zh.md) · [组件](component.zh.md)
 - 组件改动在所属 crate 验证公共行为，并从 Gallery 复测相关变体和交互。可独立复现的场景使用最小入口。`experiments/` 存放隔离探针，`xtask/` 存放工程检查和离线生成。
 
 <a id="coding-conventions"></a>
@@ -22,6 +22,7 @@
 ## 编码规范
 
 - 从[文档索引](index.zh.md)定位当前规格。修改 Material 呈现时遵循[锁定规范与评审规则](../CONTRIBUTING.zh.md#设计规范)。
+- 变更需要修改文档时，先完成文档修改，再开始实现。相关文档与代码可以放在同一次提交和同一个 PR 中。
 - 英文 `foo.md`、中文 `foo.zh.md` 与逐节指纹 `foo.i18n.yaml` 放在同一目录。标题下链接另一语言，正文链接优先指向同语言页面。在同一 PR 同步两页，确认内容对应后运行 `cargo xtask docs --write path/to/foo.md` 更新记录。`cargo xtask check` 核验配对、语言入口、标题层级、代码示例和指纹。GitHub Issue 和 PR 模板使用英文。[DeepSeek Harness 文档约定](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/i18n/README.md)
 - theme 保持纯 Rust，foundation 负责 GPUI/Base 适配。应用或 Base 持有业务与输入状态，Material 持有呈现和新增组合状态。优先复用现有公共接口。[架构与依赖](architecture.zh.md)
 - 采用 Rust 惯用命名和稳定的语义标识。注释说明不变量、生命周期与平台差异。公开文档交代状态所有权、默认值、焦点、回调和平台支持。
@@ -47,26 +48,28 @@
 
 ## 开发环境
 
-在 Windows 11 x64 安装 [Rustup](https://rustup.rs/) 和 Visual Studio Build Tools 的 C++ 桌面开发工作负载，包含 MSVC x64 和 Windows SDK。根目录的工具链文件固定 Rust、rustfmt 与 Clippy。初次构建需下载锁文件所列包。
+安装 [Rustup](https://rustup.rs/)，从仓库根目录运行 Cargo。[rust-toolchain.toml](../rust-toolchain.toml) 固定 Rust 编译器、rustfmt 与 Clippy。
+
+| 平台 | 构建依赖 |
+| --- | --- |
+| Windows 11 x64 | Visual Studio Build Tools 的「使用 C++ 的桌面开发」工作负载，包含 MSVC x64 和 Windows SDK。 |
+| Apple Silicon macOS | Xcode 命令行工具。 |
+| Ubuntu 24.04 x64 | 见 [Engineering CI](../.github/workflows/ci.yml) 的 `Install Linux platform dependencies` 步骤。 |
+
+用 `rustc -vV` 核对工具链和宿主平台。启动 Gallery 时，可以传入示例名称或 ID 直接打开该示例。
 
 ```powershell
-rustc -vV
-cargo check --locked
 cargo gallery
-cargo test --locked -p gpui-material-gallery --features test-support
+cargo gallery text-field
 ```
 
-默认 Workspace 构建包含纯主题和工程工具。Gallery 用 `-p gpui-material-gallery` 或 `cargo gallery` 显式选择。正常 Gallery 构建采用平台默认行为，UI 集成测试启用 `test-support`。
-
-macOS 使用 Apple Silicon 和 Xcode 命令行工具。Linux CI 使用 Ubuntu 24.04 x64，系统依赖见[工作流](../.github/workflows/ci.yml)中的 `Install Linux platform dependencies` 步骤。两平台使用同一 Rust 工具链与 Cargo 命令。
-
-在「Material Gallery」打开组件示例，缩窄窗口进入紧凑布局，确认还能重新打开目录并选择示例。检查「Display scale」是否与当前显示器一致。Windows 的 UI Automation 树可检查名为「Display scale …%」的 StatusBar。使用标题栏关闭按钮或 Alt+F4，确认进程正常退出。在 PR 中记录环境与结果。见[平台与质量要求](verification.zh.md)。
+工作区默认成员为主题 crate 和 `xtask`。用 `-p gpui-material-gallery` 显式选择 Gallery。在 worktree 中将 `CARGO_TARGET_DIR` 指向主检出的 `target` 以复用开发构建。
 
 <a id="standalone-probes"></a>
 
 ## 独立探针
 
-宿主探针直接检查锁定版本的 GPUI 和 Base，包括实窗启动、原生捕获丢失、文本输入、语义、动效、绘制与浮层。使用 `--bin` 选择入口。探针使用自己的清单和锁文件运行。将 `CARGO_TARGET_DIR` 指向主检出的 `target`，以便复用增量构建。
+用 [GPUI 宿主探针](../experiments/gpui-host/) 单独复现疑似 GPUI 或 Base 回归，例如原生指针捕获丢失、文本输入或无障碍语义。探针有独立的清单和锁文件。`cargo run` 打开窗口探针，`cargo test` 运行探针的自动化测试。
 
 ```powershell
 $env:CARGO_TARGET_DIR = Join-Path (Get-Location) 'target'
@@ -74,19 +77,28 @@ cargo run --locked --manifest-path experiments/gpui-host/Cargo.toml --bin window
 cargo test --locked --manifest-path experiments/gpui-host/Cargo.toml --features test-support
 ```
 
+从主检出运行以上命令。在 worktree 中使用主检出 `target` 的绝对路径。Material 组件行为在所属 crate 和 Gallery 中验证。
+
 <a id="local-checks"></a>
 
 ## 本地检查
+
+检查文档和仓库时，先暂存新增、重命名和删除的 Markdown，使 `xtask` 能从 Git 索引发现这些变更。检查器校验本地链接、标题锚点、双语配对、Token 生成物，以及 Windows、macOS、Linux 的 GPUI/Base 依赖图。
+
+```powershell
+git diff --check origin/main
+cargo xtask check
+```
+
+修改 Rust 代码时，检查格式并运行受影响的测试。下面的命令对应 CI 的全工作区 lint 和测试范围。
 
 ```powershell
 cargo fmt --all --check
 cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 cargo test --locked --workspace --all-features
-cargo xtask check
-git diff --check origin/main
 ```
 
-`check` 验证已跟踪 Markdown 的链接、标题和双语配对，校验 Token 生成物，并核对 Windows、macOS 和 Linux 依赖图上的 GPUI/Base 包身份与 feature。先暂存 Markdown 文件的新增、重命名和删除，使检查读取到对应的 Git 索引。文档检查无需访问外部链接。可用 `cargo xtask tokens --check` 单独检查 Token，或者在数据变更后用 `cargo xtask tokens` 更新 Rust 表与索引。见[纯主题](theme/theme.zh.md#token-data)。
+单独运行 Gallery UI 测试可用 `cargo test --locked -p gpui-material-gallery --features test-support`。修改 Token 数据时按[生成步骤](theme/theme.zh.md#token-data)操作。
 
 <a id="cold-and-warm-build-baseline"></a>
 
@@ -103,7 +115,7 @@ cargo xtask timings target/timings/gallery-baseline
 
 ## 持续集成与合并
 
-[Engineering CI](../.github/workflows/ci.yml) 在面向 `main` 的 PR、`main` 更新和手动触发时运行。作业划分参照 [GPUI Kit CI](https://github.com/longbridge/gpui-kit/blob/main/.github/workflows/ci.yml)。
+[Engineering CI](../.github/workflows/ci.yml) 在面向 `main` 的 PR、`main` 更新和手动触发时运行。
 
 | 作业 | 检查 |
 | --- | --- |
@@ -113,9 +125,7 @@ cargo xtask timings target/timings/gallery-baseline
 
 Rust 构建缓存按平台隔离，由 `main` 的成功 push 更新，PR 可复用。
 
-三平台托管验证覆盖构建与自动化测试，首版原生实机支持按[平台与质量要求](verification.zh.md)验收。
-
-Windows 作业上传 `gallery-windows-x64-msvc`，包含可执行文件、Cargo 时间线及许可记录，供实机复验。制品使用 `cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings`。此 profile 关闭 debug assertions，GPUI 通过 Windows SDK 的 x64 `fxc.exe` 在构建时嵌入 DirectX 着色器。CI 通过 `GPUI_FXC_PATH` 指定 SDK 中的编译器。常规 `cargo gallery` 在开发机上从 Cargo 缓存读取着色器。见[发布流程](release.zh.md#prepare-and-publish)。
+Windows 作业演练 ZIP 打包，并上传 `gallery-windows-x64-msvc` 工程制品，包含可执行文件、构建计时和许可材料。发布验收使用 [Windows 实窗检查](verification.zh.md#windows-gallery-acceptance)。
 
 GitHub 规则集要求通过 PR 更新 `main`。PR 必须基于最新主线、解决评审对话，并通过 GitHub Actions 的 `CI required` 检查。
 
@@ -123,18 +133,27 @@ GitHub 规则集要求通过 PR 更新 `main`。PR 必须基于最新主线、�
 
 ## Windows 分发
 
-在已验收的检出目录中用 PowerShell 7 执行以下命令。将 `GPUI_FXC_PATH` 指向已安装的 Windows SDK x64 着色器编译器。也可用 CI 中同一提交的 Windows 工程构建作为可执行文件输入。运行离线打包脚本前，先下载锁定的 Windows 依赖。Rust 的 `rust-docs` 组件提供标准库许可材料。
+在发版提交的干净检出中使用 PowerShell 7 打包。优先使用该提交的 CI 制品 `gallery-windows-x64-msvc` 中的可执行文件。本地构建时，将 `GPUI_FXC_PATH` 指向 Windows SDK 的 x64 `fxc.exe`，并使用嵌入 DirectX 着色器的构建配置。
+
+```powershell
+cargo build --locked -p gpui-material-gallery --profile gallery-artifact
+```
+
+使用 CI 可执行文件或自定义 `CARGO_TARGET_DIR` 时，替换下面的示例 `$exe` 路径。离线打包需要锁定的 Windows 依赖，以及由 `rust-docs` 提供的 Rust 标准库许可证。
 
 ```powershell
 rustup component add rust-docs
 cargo fetch --locked --target x86_64-pc-windows-msvc
-$env:GPUI_FXC_PATH = 'C:\path\to\the\Windows SDK\x64\fxc.exe'
-cargo build --locked -p gpui-material-gallery --profile gallery-artifact
-./scripts/package-windows-gallery.ps1 -Executable target/gallery-artifact/gpui-material-gallery.exe -OutputDirectory target/gallery-distribution
-Get-FileHash target/gallery-distribution/gpui-material-gallery-windows-x64.zip -Algorithm SHA256
-Get-Content target/gallery-distribution/SHA256SUMS.txt
+$exe = 'target/gallery-artifact/gpui-material-gallery.exe'
+$output = Join-Path ([IO.Path]::GetTempPath()) ('gpui-material-gallery-' + [guid]::NewGuid())
+./scripts/package-windows-gallery.ps1 -Executable $exe -OutputDirectory $output
+
+$name = 'gpui-material-gallery-windows-x64.zip'
+$zip = Join-Path $output $name
+$sha = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+$expected = (Get-Content -LiteralPath (Join-Path $output 'SHA256SUMS.txt') -Raw).Trim()
+if ($expected -cne "$sha  $name") { throw 'Gallery ZIP checksum mismatch' }
+Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $output 'extracted')
 ```
 
-核对哈希值，将 ZIP 解压到新目录，运行 `gpui-material-gallery.exe`，按验收 Issue 验证真实窗口场景。若 `CARGO_TARGET_DIR` 指向检出目录以外的位置，请向打包脚本传入对应的制品路径。
-
-脚本记录检出提交、Rust 工具链、运行时依赖清单和许可材料。请使用同一提交的干净构建。校验值用于核对生成的 ZIP。不同机器重新构建时，可执行文件字节及 ZIP 元数据可能不同。CI 在本地演练打包，并保留常规工程制品。
+核对 `BUILD.txt` 中的提交、`DEPENDENCIES.txt` 中的依赖清单及随附许可证。启动解包后的程序并完成 [Windows Gallery 验收](verification.zh.md#windows-gallery-acceptance)。同时上传通过验收的 ZIP 和 `SHA256SUMS.txt`，用完后清理临时构建与解包产物。[发布流程](release.zh.md#prepare-and-publish)

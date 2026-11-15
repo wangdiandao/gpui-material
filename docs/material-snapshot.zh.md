@@ -3,7 +3,7 @@
 [English](material-snapshot.md) | 中文
 
 核验日期为 2026-11-13。站点发布数据版本为 `2026-10-13_06-10-19`。校验值按公开 JSON 的原始字节计算。
-站点按页提供各标签页内容，适用性和桌面裁决见[覆盖矩阵](component-coverage.zh.md)。
+站点按页提供各标签页内容。gpui-material 当前支持的控件见[组件文档](component.zh.md)。
 
 | 官方页 | 固定数据 | SHA-256 |
 | --- | --- | --- |

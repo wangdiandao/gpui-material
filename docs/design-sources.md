@@ -9,7 +9,7 @@ Verified on 2026-11-13. The pinned baseline includes Material site snapshots, pu
 ## Source precedence
 
 1. [Material 3](https://m3.material.io/) Expressive and applicable M3 guidance define component names, structure, variants, and visual and interaction semantics.
-2. Pinned Compose Material 3 verifies tokens, states, defaults, and layout. The Kotlin files in the component matrix come from that source package.
+2. Use pinned Compose Material 3 as an implementation reference for tokens, states, defaults, and layout.
 3. Official Material Color Utilities and AndroidX graphics-shapes are the algorithm and test vector references.
 4. Pinned GPUI and gpui-base define desktop event, drawing, and platform boundaries. Document input paths and the reasons for desktop adaptations.
 5. Pinned Material Components Android supplements implementation references such as Side Sheet and Docked Toolbar, including deprecation and replacement guidance. Material Web provides historical context.

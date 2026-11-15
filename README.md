@@ -48,7 +48,7 @@ Enable optional features on `gpui-material` for additional components and theme 
 | `dynamic-color` | Color schemes generated from a seed color |
 | `serde` | Serialization for theme data |
 
-See the [component coverage matrix](docs/component-coverage.md) for variants, states, and platform coverage.
+See the [component guide](docs/component.md) for supported controls, variants, and optional component features.
 
 ## Project documentation
 

@@ -6,7 +6,7 @@
 
 ## 版本规则
 
-首个正式版本为 `0.1.0`。Material 各库与 Gallery 统一使用根清单 `[workspace.package]` 的版本。[公开门面及受支持的集成契约](integration.zh.md#api-与迁移)界定兼容范围，包括文档列出的 feature、公开签名中的上游类型，以及受支持的平台行为。
+最新版本为 0.1.0。Material 各库与 Gallery 统一使用根清单 `[workspace.package]` 的版本。[公开门面及受支持的集成契约](integration.zh.md#api-与迁移)界定兼容范围，包括文档列出的 feature、公开签名中的上游类型，以及受支持的平台行为。
 
 - 在 `1.0.0` 之前，向后兼容的修复递增 patch，向后兼容的新功能或破坏性变更递增 minor。递增 minor 时将 patch 归零。同一版本包含不同类型的变更时，采用最高的适用级别。
 - 由仓库所有者决定何时以 `1.0.0` 承诺 API 稳定。从 `1.0.0` 起遵循 [SemVer](https://semver.org/lang/zh-CN/)。公开 API 的不兼容变更递增 major，兼容的新功能和公开 API 弃用递增 minor，兼容修复递增 patch。
@@ -24,7 +24,7 @@
 
 ## 准备与发布
 
-1. 仓库所有者敲定版本、范围和发布时间。准备发布 PR，更新共享版本、内部依赖的精确版本、`Cargo.lock` 和变更日志。核对破坏性变更，需要调用者调整时同步更新下游集成指南。
+1. 仓库所有者敲定版本、范围和发布时间。准备发布 PR，更新共享版本、内部依赖的精确版本、`Cargo.lock` 和变更日志。同步更新文档中的最新版本和依赖示例。有破坏性变更时补充迁移说明。
 2. 使用最低支持的 Rust 工具链从下游 crate 验证门面，覆盖受影响的 feature 组合及公开的上游类型。发版提交合入 `main` 后须通过 `CI required`。按[实机验收标准](verification.zh.md)验证，在发布 Issue 或 PR 记录环境、场景及未覆盖范围。
 3. 从同一提交构建并演练 [Windows Gallery 分发](development.zh.md#windows-distribution)。核验 ZIP 校验和、随附许可，以及从干净目录解包后启动。记录打包所用的提交和 CI 运行。
 4. 对于获准发布至 crates.io 的版本，一起打包五个库，并在下游 crate 中验证打包后的门面默认配置与全 feature 配置。实机验收后，从已验证的检出按依赖顺序发布，依次为 `gpui-material-theme`、`gpui-material-foundation`、`gpui-material-components`、`gpui-material-extras` 和 `gpui-material`。每个库的版本出现在 registry 后，再发布依赖它的库。

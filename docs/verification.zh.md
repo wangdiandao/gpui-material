@@ -29,5 +29,13 @@ Windows 视觉检查使用真实窗口，macOS 和 Linux 可用无头渲染器�
 
 在 Issue 或 PR 中简述适用场景、复现步骤和验证结果。平台声明要明确 OS、架构、后端、输入法、辅助技术与例外范围。必需项须通过适用的组件验收、原生验证和集成回归。
 
+<a id="windows-gallery-acceptance"></a>
+
+## Windows Gallery 验收
+
+- 在 Windows 11 x64 启动解包后的 `gpui-material-gallery.exe`。打开一个示例，缩窄窗口进入紧凑布局，再重新打开组件目录。确认 `Display scale` 与当前显示器一致，并在 UI Automation 中以状态栏呈现。
+- 按上文适用的 Windows 检查项复测受影响的示例。输入与浮层还需检查微软拼音候选位置和上屏、键盘焦点及回焦，以及讲述人播报。
+- 关闭最后一个 Gallery 窗口并确认进程正常退出。在发布 Issue 或 PR 中记录提交、CI 运行、ZIP 的 SHA-256、验收场景及硬件覆盖范围。
+
 [kit-test]: https://github.com/longbridge/gpui-kit/blob/39ab849a93b5f15507b969164d49891db8d5b470/website/docs/test.md
 [kit-a11y]: https://github.com/longbridge/gpui-kit/blob/39ab849a93b5f15507b969164d49891db8d5b470/website/docs/accessibility.md

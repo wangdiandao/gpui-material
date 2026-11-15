@@ -15,7 +15,7 @@
 ## Workspace 与组件开发
 
 - 生产库放在 `crates/`，组件按族组织。Gallery 位于 `apps/gallery/`，其中的示例调用生产库的公开 API。[架构与依赖](architecture.zh.md) · [组件](component.zh.md)
-- 组件改动在所属 crate 验证公共行为，并从 Gallery 复测相关变体和交互。可独立复现的场景使用最小入口。`experiments/` 存放隔离探针，`xtask/` 存放工程检查和离线生成。
+- 组件改动在所属 crate 验证公共行为，并从 Gallery 复测相关变体和交互。可独立复现的场景使用最小入口。`xtask/` 存放工程检查和离线生成。
 
 <a id="coding-conventions"></a>
 
@@ -64,20 +64,6 @@ cargo gallery text-field
 ```
 
 工作区默认成员为主题 crate 和 `xtask`。用 `-p gpui-material-gallery` 显式选择 Gallery。在 worktree 中将 `CARGO_TARGET_DIR` 指向主检出的 `target` 以复用开发构建。
-
-<a id="standalone-probes"></a>
-
-## 独立探针
-
-用 [GPUI 宿主探针](../experiments/gpui-host/) 单独复现疑似 GPUI 或 Base 回归，例如原生指针捕获丢失、文本输入或无障碍语义。探针有独立的清单和锁文件。`cargo run` 打开窗口探针，`cargo test` 运行探针的自动化测试。
-
-```powershell
-$env:CARGO_TARGET_DIR = Join-Path (Get-Location) 'target'
-cargo run --locked --manifest-path experiments/gpui-host/Cargo.toml --bin window
-cargo test --locked --manifest-path experiments/gpui-host/Cargo.toml --features test-support
-```
-
-从主检出运行以上命令。在 worktree 中使用主检出 `target` 的绝对路径。Material 组件行为在所属 crate 和 Gallery 中验证。
 
 <a id="local-checks"></a>
 

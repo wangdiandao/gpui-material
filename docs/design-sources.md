@@ -60,7 +60,7 @@ Pinned MCU vectors include tone 40 of blue `0xff0000ff` yielding `0xff343dff`, r
 
 ## GPUI and Base
 
-[GPUI Kit v0.9.1][kit-release] and the crates.io `gpui-base` metadata both point to [`39ab849a93b5f15507b969164d49891db8d5b470`][kit]. The [pinned workspace manifest][kit-manifest] and release package metadata establish the table. The workspace and standalone host probe record the versions in their manifests and lockfiles.
+[GPUI Kit v0.9.1][kit-release] and the crates.io `gpui-base` metadata both point to [`39ab849a93b5f15507b969164d49891db8d5b470`][kit]. The [pinned workspace manifest][kit-manifest] and release package metadata establish the table. The workspace records the versions in its manifest and lockfile.
 
 | Cargo package | Exact version | crates.io SHA-256 |
 | --- | --- | --- |

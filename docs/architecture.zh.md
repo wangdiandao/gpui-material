@@ -63,7 +63,7 @@ CI 和日常开发用包级命令隔离主题、组件及 Gallery。依据构建
 
 ## 桌面适配边界
 
-验证适配边界时使用锁定的 Base 和 GPUI 版本。[原生宿主探针](development.zh.md#standalone-probes)独立验证上游行为。[foundation 形状测试](../crates/foundation/src/shape.rs)随 Workspace 测试运行，验证 Material 几何。
+验证适配边界时使用锁定的 Base 和 GPUI 版本。[foundation 形状测试](../crates/foundation/src/shape.rs)随 Workspace 测试运行，验证 Material 几何。
 
 | 机制 | 适配与边界 |
 | --- | --- |

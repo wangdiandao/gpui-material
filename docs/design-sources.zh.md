@@ -60,7 +60,7 @@ MCU 的固定向量包括蓝色 `0xff0000ff` 的色板 tone 40 得 `0xff343dff`�
 
 ## GPUI 与 Base
 
-上游正式版为 [GPUI Kit v0.9.1][kit-release]，其 tag 和 crates.io 中 `gpui-base` 的包元数据均指向 [`39ab849a93b5f15507b969164d49891db8d5b470`][kit]. [固定工作区清单][kit-manifest]与两个发布包的元数据核实了下表。Workspace 和独立宿主探针在各自的清单和锁文件中记录版本。
+上游正式版为 [GPUI Kit v0.9.1][kit-release]，其 tag 和 crates.io 中 `gpui-base` 的包元数据均指向 [`39ab849a93b5f15507b969164d49891db8d5b470`][kit]。[固定工作区清单][kit-manifest]与两个发布包的元数据核实了下表。Workspace 在清单和锁文件中记录版本。
 
 | Cargo 包 | 精确版本 | crates.io SHA-256 |
 | --- | --- | --- |

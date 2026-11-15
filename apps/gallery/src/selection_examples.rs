@@ -59,7 +59,10 @@ impl Render for SelectionExamples {
             .flex_col()
             .gap_2()
             .children(self.shows(Story::Checkbox).then(|| {
-                section("Checked, mixed, error and disabled")
+                section("Group selection and validation")
+                    .description(
+                        "Select Warm or Cool to see how All colors reflects a partial selection.",
+                    )
                     .child(
                         Checkbox::new(
                             "palette-all",
@@ -110,23 +113,25 @@ impl Render for SelectionExamples {
                     )
             }))
             .children(self.shows(Story::Radio).then(|| {
-                section("Horizontal group").child({
-                    let owner = cx.entity();
-                    RadioGroup::new("alignment", "Alignment")
-                        .axis(Axis::Horizontal)
-                        .selected(self.alignment.clone())
-                        .options([
-                            Radio::new("start", "Start"),
-                            Radio::new("center", "Center").disabled(true),
-                            Radio::new("end", "End"),
-                        ])
-                        .on_select(move |id, _, cx| {
-                            owner.update(cx, |this, cx| {
-                                this.alignment = id.clone();
-                                cx.notify();
-                            });
-                        })
-                })
+                section("Horizontal group")
+                    .description("Use the arrow keys to move between Start and End.")
+                    .child({
+                        let owner = cx.entity();
+                        RadioGroup::new("alignment", "Alignment")
+                            .axis(Axis::Horizontal)
+                            .selected(self.alignment.clone())
+                            .options([
+                                Radio::new("start", "Start"),
+                                Radio::new("center", "Center").disabled(true),
+                                Radio::new("end", "End"),
+                            ])
+                            .on_select(move |id, _, cx| {
+                                owner.update(cx, |this, cx| {
+                                    this.alignment = id.clone();
+                                    cx.notify();
+                                });
+                            })
+                    })
             }))
             .children(self.shows(Story::Switch).then(|| {
                 section("With icons, without icons and disabled")
@@ -156,6 +161,9 @@ impl Render for SelectionExamples {
             }))
             .children(self.shows(Story::Chip).then(|| {
                 section("Assist, filter, input and suggestion")
+                    .description(
+                        "Toggle Recent, or remove the tag and use Restore tag to bring it back.",
+                    )
                     .child(
                         div()
                             .flex()

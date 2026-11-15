@@ -37,6 +37,7 @@ impl Render for SliderExamples {
         stack()
             .child(
                 section("Discrete")
+                    .description("Adjust the level in single-step increments.")
                     .child(div().child(format!("Level {level}")))
                     .child(
                         Slider::new("level", "Level", &self.level)
@@ -91,15 +92,19 @@ impl Render for SliderExamples {
                 ),
             )
             .child(
-                section("Overlapping range").child(
-                    Slider::range(
-                        "overlapping-range",
-                        "Overlap start",
-                        "Overlap end",
-                        &self.overlap,
+                section("Overlapping range")
+                    .description(
+                        "The handles start at the same value. Move either one to separate them.",
                     )
-                    .size(ControlSize::Large),
-                ),
+                    .child(
+                        Slider::range(
+                            "overlapping-range",
+                            "Overlap start",
+                            "Overlap end",
+                            &self.overlap,
+                        )
+                        .size(ControlSize::Large),
+                    ),
             )
     }
 }

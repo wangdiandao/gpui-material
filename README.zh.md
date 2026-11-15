@@ -22,6 +22,7 @@
 
 - [P5 基础组件](docs/phases/P05.zh.md)
 - [P8 复合与扩展组件](docs/phases/P08.zh.md)
+- [下游集成与迁移](docs/integration.zh.md)
 - [文档索引](docs/index.zh.md)
 - [贡献指南](CONTRIBUTION.zh.md)
 - [组件覆盖矩阵](docs/component-coverage.zh.md)

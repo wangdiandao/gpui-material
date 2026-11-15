@@ -22,6 +22,7 @@ Enable optional component families on the facade as needed.
 
 - [P5 basic components](docs/phases/P05.md)
 - [P8 composite and extended components](docs/phases/P08.md)
+- [Downstream integration and migration](docs/integration.md)
 - [Documentation index](docs/index.md)
 - [Contribution guide](CONTRIBUTION.md)
 - [Component coverage matrix](docs/component-coverage.md)

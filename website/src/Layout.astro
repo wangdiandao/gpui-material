@@ -1,22 +1,39 @@
 ---
+import NavigationList from './NavigationList.astro';
 import { repository } from './markdown.mjs';
-import { api, copy, pagePath } from './site.mjs';
+import { api, copy, packageVersion, pagePath, sidebar } from './site.mjs';
+import searchIcon from '../../crates/components/assets/material-symbols/search_24px.svg?raw';
+import themeIcon from '../../crates/components/assets/material-symbols/contrast_24px.svg?raw';
+import 'mdui/mdui.css';
 import './style.css';
 
 const { lang, route, title, description } = Astro.props;
 const t = copy[lang];
 const other = lang === 'en' ? 'zh' : 'en';
 const nav = [
-  { label: t.docs, route: 'docs', href: pagePath('docs', lang) },
-  { label: t.components, route: 'component', href: pagePath('component', lang) },
-  { label: t.gallery, route: 'gallery', href: pagePath('gallery', lang) },
-  { label: t.api, href: api },
+  { label: t.docs, route: 'docs' },
+  { label: t.components, route: 'component' },
+  { label: t.themeNav, route: 'docs/theme/theme' },
+  { label: t.gallery, route: 'gallery' },
 ];
-const searchScript = pagePath('pagefind', 'en') + 'pagefind-ui.js';
-const searchStyle = pagePath('pagefind', 'en') + 'pagefind-ui.css';
+const resources = [
+  { label: t.api, href: api },
+  { label: t.releases, href: repository + '/releases' },
+  { label: t.contribute, href: repository + '/blob/main/' + (lang === 'zh' ? 'CONTRIBUTING.zh.md' : 'CONTRIBUTING.md') },
+  { label: 'GitHub', href: repository },
+];
+const sections = [
+  { title: 'gpui-material', items: nav },
+  ...(route ? sidebar(lang, route.split('/')[0]) : []),
+  { title: t.resources, items: resources },
+];
+const isCurrent = (section) => section === 'docs/theme/theme'
+  ? route.startsWith('docs/theme/')
+  : (route === section || route.startsWith(section + '/')) && !route.startsWith('docs/theme/');
+const root = pagePath('', 'en');
 ---
 <!doctype html>
-<html lang={lang === 'zh' ? 'zh-CN' : 'en'}>
+<html lang={lang === 'zh' ? 'zh-CN' : 'en'} class="mdui-theme-auto">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -26,73 +43,139 @@ const searchStyle = pagePath('pagefind', 'en') + 'pagefind-ui.css';
     <link rel="canonical" href={new URL(pagePath(route, lang), Astro.site)} />
     <link rel="alternate" hreflang={other === 'zh' ? 'zh-CN' : 'en'} href={new URL(pagePath(route, other), Astro.site)} />
     <script is:inline>
-      const theme = localStorage.getItem('material-theme');
-      if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+      try {
+        const theme = localStorage.getItem('material-theme');
+        if (theme === 'light' || theme === 'dark') {
+          document.documentElement.classList.replace('mdui-theme-auto', 'mdui-theme-' + theme);
+        }
+      } catch {}
     </script>
   </head>
   <body>
     <a class="skip-link" href="#main">{t.skip}</a>
     <header class="site-header" data-pagefind-ignore>
-      <div class="topbar">
-        <a class="brand" href={pagePath('', lang)}><span class="brand-mark" aria-hidden="true">M</span>gpui-material</a>
-        <nav aria-label={t.menu}>
-          {nav.map((item) => (
-            <a href={item.href} aria-current={item.route === route || route.startsWith(item.route + '/') ? 'page' : undefined}>
-              {item.label}
+      <mdui-top-app-bar variant="small">
+        <div class="topbar">
+          <mdui-button variant="text" id="open-nav" aria-controls="mobile-nav" aria-expanded="false">{t.menu}</mdui-button>
+          <mdui-top-app-bar-title>
+            <a class="brand" href={pagePath('', lang)}>
+              <span class="brand-mark" aria-hidden="true">M</span><span>gpui-material</span>
             </a>
-          ))}
-        </nav>
-        <div class="tools">
-          {import.meta.env.PROD && <button type="button" id="open-search" title={t.search} aria-haspopup="dialog">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>
-            </svg>
-            {t.search}<kbd>/</kbd>
-          </button>}
-          <label class="theme-control">
-            <span class="sr-only">{t.theme}</span>
-            <select id="theme" title={t.theme}>
-              <option value="system">{t.system}</option>
-              <option value="light">{t.light}</option>
-              <option value="dark">{t.dark}</option>
-            </select>
-          </label>
-          <a class="locale" href={pagePath(route, other)} hreflang={other === 'zh' ? 'zh-CN' : 'en'} lang={other === 'zh' ? 'zh-CN' : 'en'}>{t.language}</a>
-          <a class="repo" href={repository}>GitHub</a>
+          </mdui-top-app-bar-title>
+          <nav class="primary-nav" aria-label={t.menu}>
+            {nav.map((item) => (
+              <mdui-button
+                href={pagePath(item.route, lang)}
+                variant={isCurrent(item.route) ? 'tonal' : 'text'}
+                aria-current={isCurrent(item.route) ? 'page' : undefined}
+              >{item.label}</mdui-button>
+            ))}
+            <mdui-dropdown placement="bottom-start">
+              <mdui-button slot="trigger" variant="text">{t.resources} <span aria-hidden="true">▾</span></mdui-button>
+              <mdui-menu>
+                {resources.map(({ label, href }) => <mdui-menu-item href={href}>{label}</mdui-menu-item>)}
+              </mdui-menu>
+            </mdui-dropdown>
+          </nav>
+          <div class="tools">
+            {import.meta.env.PROD && (
+              <mdui-button variant="outlined" id="open-search" title={t.search} aria-label={t.search} aria-haspopup="dialog">
+                <span slot="icon" aria-hidden="true" set:html={searchIcon} />
+                <span class="search-label">{t.search}</span><kbd aria-hidden="true">/</kbd>
+              </mdui-button>
+            )}
+            <mdui-dropdown id="theme-dropdown" placement="bottom-end">
+              <mdui-button class="icon-action" variant="text" slot="trigger" title={t.theme}>
+                <span slot="icon" aria-hidden="true" set:html={themeIcon} />
+                <span class="visually-hidden">{t.theme}</span>
+              </mdui-button>
+              <mdui-menu id="theme" selects="single" value="auto">
+                <mdui-menu-item value="auto">{t.system}</mdui-menu-item>
+                <mdui-menu-item value="light">{t.light}</mdui-menu-item>
+                <mdui-menu-item value="dark">{t.dark}</mdui-menu-item>
+              </mdui-menu>
+            </mdui-dropdown>
+            <mdui-button class="locale" variant="text" href={pagePath(route, other)} hreflang={other === 'zh' ? 'zh-CN' : 'en'} lang={other === 'zh' ? 'zh-CN' : 'en'}>{t.language}</mdui-button>
+          </div>
         </div>
-      </div>
+      </mdui-top-app-bar>
     </header>
+    <mdui-navigation-drawer id="mobile-nav" role="dialog" aria-modal="true" aria-label={t.menu}
+      modal close-on-esc close-on-overlay-click data-pagefind-ignore>
+      <div class="drawer-heading"><strong>gpui-material</strong><mdui-button id="close-nav" variant="text">{t.close}</mdui-button></div>
+      <NavigationList label={t.menu} {sections} {route} {lang} />
+    </mdui-navigation-drawer>
     <slot />
+    <mdui-divider data-pagefind-ignore></mdui-divider>
     <footer class="footer" data-pagefind-ignore>
-      <a href={pagePath('', lang)}>gpui-material</a>
+      <a href={pagePath('', lang)}>gpui-material <span>v{packageVersion}</span></a>
       <a href={repository + '/blob/main/LICENSE'}>Apache-2.0</a>
+      <a href={root + (import.meta.env.PROD ? 'licenses/frontend.md' : 'licenses/mdui.txt')}>{t.frontendLicenses}</a>
       <a href={pagePath('docs', lang)}>{t.allGuides}</a>
     </footer>
-    {import.meta.env.PROD && <dialog id="search-dialog" aria-label={t.search} data-pagefind-ignore
-      data-script={searchScript} data-style={searchStyle} data-base={pagePath('', 'en')}>
-      <div class="search-heading">
-        <strong>{t.search}</strong>
-        <form method="dialog"><button aria-label={lang === 'zh' ? '关闭' : 'Close'}>×</button></form>
-      </div>
-      <p id="search-error" hidden>{lang === 'zh' ? '搜索暂时不可用。' : 'Search is temporarily unavailable.'}</p>
-      <div id="pagefind"></div>
-    </dialog>}
+    {import.meta.env.PROD && (
+      <mdui-dialog id="search-dialog" headline={t.search} role="dialog" aria-modal="true" aria-label={t.search}
+        close-on-overlay-click close-on-esc data-pagefind-ignore
+        data-script={root + 'pagefind/pagefind-ui.js'} data-style={root + 'pagefind/pagefind-ui.css'} data-base={root}>
+        <p id="search-error" hidden>{lang === 'zh' ? '搜索暂时不可用。' : 'Search is temporarily unavailable.'}</p>
+        <div id="pagefind"></div>
+        <mdui-button slot="action" id="close-search" variant="text">{t.close}</mdui-button>
+      </mdui-dialog>
+    )}
     <script>
-      const selector = document.querySelector<HTMLSelectElement>('#theme')!;
-      selector.value = document.documentElement.dataset.theme ?? 'system';
-      selector.addEventListener('change', () => {
-        if (selector.value === 'system') delete document.documentElement.dataset.theme;
-        else document.documentElement.dataset.theme = selector.value;
-        localStorage.setItem('material-theme', selector.value);
+      import 'mdui/components/button.js';
+      import 'mdui/components/card.js';
+      import 'mdui/components/chip.js';
+      import 'mdui/components/dialog.js';
+      import 'mdui/components/divider.js';
+      import 'mdui/components/dropdown.js';
+      import 'mdui/components/list.js';
+      import 'mdui/components/list-item.js';
+      import 'mdui/components/menu.js';
+      import 'mdui/components/menu-item.js';
+      import 'mdui/components/navigation-drawer.js';
+      import 'mdui/components/top-app-bar.js';
+      import 'mdui/components/top-app-bar-title.js';
+      import { getTheme } from 'mdui/functions/getTheme.js';
+      import { setTheme } from 'mdui/functions/setTheme.js';
+
+      const themes = document.querySelector('mdui-menu#theme')!;
+      const themeDropdown = document.querySelector('mdui-dropdown#theme-dropdown')!;
+      themes.value = getTheme();
+      themes.addEventListener('change', () => {
+        const theme = themes.value;
+        if (theme !== 'auto' && theme !== 'dark' && theme !== 'light') return;
+        setTheme(theme);
+        themeDropdown.open = false;
+        try { localStorage.setItem('material-theme', theme); } catch {}
       });
 
-      const search = document.querySelector<HTMLDialogElement>('#search-dialog');
-      const opener = document.querySelector<HTMLButtonElement>('#open-search');
+      const nav = document.querySelector('mdui-navigation-drawer#mobile-nav')!;
+      const showNav = document.querySelector('mdui-button#open-nav')!;
+      const closeNav = document.querySelector('mdui-button#close-nav')!;
+      showNav.addEventListener('click', () => { nav.open = true; });
+      closeNav.addEventListener('click', () => { nav.open = false; });
+      nav.addEventListener('opened', () => {
+        showNav.setAttribute('aria-expanded', 'true');
+        closeNav.focus();
+      });
+      nav.addEventListener('closed', () => {
+        showNav.setAttribute('aria-expanded', 'false');
+        showNav.focus();
+      });
+
+      const search = document.querySelector('mdui-dialog#search-dialog');
+      const opener = document.querySelector('mdui-button#open-search');
       if (search && opener) {
         let assets: Promise<void> | undefined;
+        const error = document.querySelector<HTMLElement>('#search-error')!;
+        const focusSearch = () => {
+          if (search.open) search.querySelector('input')?.focus();
+        };
         const open = async () => {
           if (search.open) return;
-          search.showModal();
+          search.open = true;
+          error.hidden = true;
           assets ??= new Promise<void>((resolve, reject) => {
             const style = document.createElement('link');
             style.rel = 'stylesheet';
@@ -100,6 +183,11 @@ const searchStyle = pagePath('pagefind', 'en') + 'pagefind-ui.css';
             document.head.append(style);
             const script = document.createElement('script');
             script.src = search.dataset.script!;
+            const failed = (reason: unknown) => {
+              script.remove();
+              style.remove();
+              reject(reason);
+            };
             script.onload = () => {
               try {
                 const { PagefindUI } = window as unknown as {
@@ -107,24 +195,29 @@ const searchStyle = pagePath('pagefind', 'en') + 'pagefind-ui.css';
                 };
                 new PagefindUI({ element: '#pagefind', baseUrl: search.dataset.base, showImages: false });
                 resolve();
-              } catch (error) {
-                reject(error);
+              } catch (reason) {
+                failed(reason);
               }
             };
-            script.onerror = reject;
+            script.onerror = failed;
             document.head.append(script);
           });
           try {
             await assets;
-            if (search.open) search.querySelector('input')?.focus();
+            focusSearch();
           } catch {
-            document.querySelector<HTMLElement>('#search-error')!.hidden = false;
+            assets = undefined;
+            error.hidden = false;
           }
         };
         opener.addEventListener('click', open);
+        document.querySelector('#close-search')!.addEventListener('click', () => { search.open = false; });
+        search.addEventListener('opened', focusSearch);
+        search.addEventListener('closed', () => opener.focus());
         document.addEventListener('keydown', (event) => {
-          if (event.key === '/' && !search.open && !event.altKey && !event.ctrlKey && !event.metaKey &&
-              !(event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]'))) {
+          if (event.key === '/' && !nav.open && !search.open && !event.altKey && !event.ctrlKey && !event.metaKey &&
+              !event.composedPath().some((target) => target instanceof HTMLElement &&
+                target.matches('input, textarea, select, mdui-text-field, [contenteditable]'))) {
             event.preventDefault();
             void open();
           }

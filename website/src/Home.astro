@@ -1,0 +1,82 @@
+---
+import { Code } from 'astro:components';
+import { components } from '../component/catalog.mjs';
+import { capabilities, copy, layers, packageVersion, pagePath } from './site.mjs';
+import Preview from './Preview.astro';
+
+const { lang, codeThemes } = Astro.props;
+const t = copy[lang];
+const button = components.find((item) => item.slug === 'button');
+---
+<main id="main" class="home" data-pagefind-body>
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="platform">{t.platform}</p>
+      <h1>{t.headline}</h1>
+      <p class="hero-intro">{t.introduction}</p>
+      <div class="hero-actions">
+        <mdui-button href={pagePath('docs/integration', lang)}>{t.setup} <span slot="end-icon" aria-hidden="true">→</span></mdui-button>
+        <mdui-button variant="tonal" href={pagePath('component', lang)}>{t.overview}</mdui-button>
+      </div>
+      <p class="project-meta">
+        <a href="https://crates.io/crates/gpui-material">v{packageVersion}</a>
+        <span aria-hidden="true">·</span>
+        <a href={pagePath('docs/integration', lang) + (lang === 'zh' ? '#平台支持' : '#platform-support')}>Windows · macOS · Linux</a>
+      </p>
+    </div>
+    <mdui-card class="hero-card" variant="outlined">
+      <div class="hero-card-code">
+        <p>Cargo.toml</p>
+        <Code code={`gpui-material = "${packageVersion}"`} lang="toml" themes={codeThemes} />
+        <p>Rust</p>
+        <Code code={button.code} lang="rust" themes={codeThemes} />
+      </div>
+      <div class="hero-card-preview">
+        <h2>{t.preview}</h2>
+        <p>{t.previewNote}</p>
+        <Preview {lang} kind="home" />
+      </div>
+    </mdui-card>
+  </section>
+  <mdui-divider></mdui-divider>
+  <section class="home-section" aria-labelledby="home-capabilities">
+    <div class="section-heading">
+      <h2 id="home-capabilities">{t.capabilities}</h2>
+      <mdui-button variant="text" href={pagePath('component', lang)}>{t.overview}<span slot="end-icon" aria-hidden="true">→</span></mdui-button>
+    </div>
+    <div class="home-grid">
+      {capabilities.map((item) => (
+        <mdui-card class="capability-card" variant="outlined">
+          <h3>{item.title[lang]}</h3>
+          <p>{item.text[lang]}</p>
+          <div class="capability-links">
+            {item.components.map((slug) => (
+              <mdui-chip href={pagePath(`component/${slug}`, lang)}>{components.find((entry) => entry.slug === slug).title}</mdui-chip>
+            ))}
+          </div>
+        </mdui-card>
+      ))}
+    </div>
+  </section>
+  <section class="home-section layers" aria-labelledby="home-layers">
+    <div class="section-heading">
+      <h2 id="home-layers">{t.architecture}</h2>
+    </div>
+    <div class="home-grid">
+      {layers.map((item) => (
+        <mdui-card class="capability-card" variant="filled" href={pagePath(item.route, lang)}>
+          <code>{item.name}</code>
+          <h3>{item.title[lang]}</h3>
+          <p>{item.text[lang]}</p>
+        </mdui-card>
+      ))}
+    </div>
+  </section>
+  <mdui-card class="gallery-callout" variant="filled">
+    <section>
+      <h2>{t.nativeGallery}</h2>
+      <p>{t.galleryIntro}</p>
+    </section>
+    <mdui-button href={pagePath('gallery', lang)}>{t.seeExamples}<span slot="end-icon" aria-hidden="true">→</span></mdui-button>
+  </mdui-card>
+</main>

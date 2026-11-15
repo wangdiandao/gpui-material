@@ -20,6 +20,8 @@ The Foundation crate uses [polymorpher 0.1.4](https://crates.io/crates/polymorph
 
 The extras crate's `date-time` feature uses [chrono 0.4.45](https://crates.io/crates/chrono/0.4.45) for Gregorian calendar arithmetic and local date and time values. Chrono is available under MIT or Apache-2.0.
 
+The documentation website uses [MDUI 2.1.5](https://www.npmjs.com/package/mdui/v/2.1.5) for Material Design 3 web components. The site redistributes the [license from the MDUI package](website/public/licenses/mdui.txt) and publishes the frontend bundle's dependency licenses.
+
 When including third-party source, icons, fonts, or documentation excerpts, update these notices or the applicable asset manifest with the exact source, version, modifications, and redistribution terms. [Design sources](docs/design-sources.md) · [Architecture and dependencies](docs/architecture.md)
 
 The [v0.1.0 Windows Gallery ZIP](https://github.com/wangdiandao/gpui-material/releases/tag/v0.1.0) includes license material for its locked Windows runtime dependencies, the Rust standard library, and the bundled icons. See `DEPENDENCIES.txt` inside the ZIP for versions and license locations and the [v0.1.0 supplemental license sources](https://github.com/wangdiandao/gpui-material/blob/v0.1.0/scripts/gallery-license-sources.txt) for upstream texts and attributions.

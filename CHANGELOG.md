@@ -7,6 +7,7 @@ See [versioning and releases](docs/release.md) for the release process.
 ### Documentation
 
 - Add a bilingual documentation site with component usage examples and searchable guides.
+- Use MDUI web components across the site and add sections for component capabilities, architecture, and the native Gallery.
 
 ### Distribution
 

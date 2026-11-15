@@ -20,6 +20,8 @@ Foundation crate 使用 [polymorpher 0.1.4](https://crates.io/crates/polymorpher
 
 extras crate 的 `date-time` 特性使用 [chrono 0.4.45](https://crates.io/crates/chrono/0.4.45) 进行公历运算并表示本地日期和时间。Chrono 可按 MIT 或 Apache-2.0 许可使用。
 
+文档网站使用 [MDUI 2.1.5](https://www.npmjs.com/package/mdui/v/2.1.5) 提供 Material Design 3 网页控件。网站随附 [MDUI 包中的许可证](website/public/licenses/mdui.txt)，并发布前端打包依赖的许可证。
+
 引入第三方源码、图标、字体或文档节选时，在本声明或对应的资源清单登记精确来源、版本、修改与再分发条款。源版本和 Cargo 候选见[设计依据](docs/design-sources.zh.md)及[架构与依赖](docs/architecture.zh.md)。
 
 [v0.1.0 Windows Gallery ZIP](https://github.com/wangdiandao/gpui-material/releases/tag/v0.1.0) 包含锁定的 Windows 运行时依赖、Rust 标准库和随包图标的许可材料。版本与许可位置见 ZIP 内的 `DEPENDENCIES.txt`，上游许可证文本及署名见 [v0.1.0 的补充许可来源](https://github.com/wangdiandao/gpui-material/blob/v0.1.0/scripts/gallery-license-sources.txt)。

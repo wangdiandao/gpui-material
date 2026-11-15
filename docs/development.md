@@ -104,7 +104,7 @@ For Gallery UI tests alone, run `cargo test --locked -p gpui-material-gallery --
 
 ## Documentation website
 
-The [website source](../website/) uses Astro and indexes the static pages with Pagefind. With Node.js 24 and npm installed, run these commands from the repository root.
+The [website source](../website/) uses Astro and [MDUI](https://www.mdui.org/en/) web components. Pagefind indexes the static pages. With Node.js 24 and npm installed, run these commands from the repository root.
 
 ```sh
 npm --prefix website ci
@@ -116,6 +116,8 @@ npm --prefix website run preview
 The development server uses `/`. The production build defaults to `/gpui-material/` and writes `website/dist/`. The production preview includes the search index.
 
 Edit shared guides under `docs/` and component examples under `website/component/`. Add English and Chinese text together. Each component page shares one Rust example across both languages.
+
+Use MDUI for site controls and browser previews. Label previews as MDUI web examples and use the native Gallery to verify GPUI rendering and behavior.
 
 Set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. The website workflow builds on PRs and deploys updates to `main`. To redeploy, run **Documentation website** on `main` from the Actions tab.
 

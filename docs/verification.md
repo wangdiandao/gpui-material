@@ -33,9 +33,9 @@ Summarize the applicable scenarios, reproduction steps, and results in the issue
 
 ## Windows Gallery acceptance
 
-- Open the extracted `gpui-material-gallery.exe` on Windows 11 x64. Open a story, narrow the window to the compact layout, and reopen the component catalog. Confirm its `Display scale` status matches the current monitor and is exposed as a status bar through UI Automation.
+- Run `cargo gallery` from a checkout of the release commit on Windows 11 x64. Open a story, narrow the window to the compact layout, and reopen the component catalog. Confirm its `Display scale` status matches the current monitor and is exposed as a status bar through UI Automation.
 - Exercise the affected stories with the applicable Windows checks above. For input and overlays, include Microsoft Pinyin candidate positioning and commit, keyboard focus and restoration, and Narrator announcements.
-- Close the last Gallery window and confirm the process exits normally. Record the commit, CI run, ZIP SHA-256, scenarios, and the limits of the hardware coverage in the release issue or PR.
+- Close the last Gallery window and confirm the process exits normally. Record the commit, CI run, scenarios, and the limits of the hardware coverage in the release issue or PR.
 
 [kit-test]: https://github.com/longbridge/gpui-kit/blob/39ab849a93b5f15507b969164d49891db8d5b470/website/docs/test.md
 [kit-a11y]: https://github.com/longbridge/gpui-kit/blob/39ab849a93b5f15507b969164d49891db8d5b470/website/docs/accessibility.md

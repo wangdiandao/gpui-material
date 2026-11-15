@@ -6,7 +6,7 @@ Build native Rust desktop applications with Material 3 Expressive components for
 
 ## Try the Gallery
 
-Download and extract the Windows x64 ZIP from [GitHub Releases](https://github.com/wangdiandao/gpui-material/releases). Search for a component in the sidebar, try its interactive examples, and switch between light and dark themes. Resize the window on the Adaptive layout page to see navigation and content panes respond to the available space. To run the Gallery from source, clone the repository.
+Run the Gallery from a source checkout. Search for a component in the sidebar, try its interactive examples, and switch between light and dark themes. Resize the window on the Adaptive layout page to see navigation and content panes respond to the available space.
 
 ```sh
 git clone https://github.com/wangdiandao/gpui-material.git

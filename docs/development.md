@@ -125,35 +125,6 @@ Use a new report directory for each measurement. Prefetch the Cargo registry and
 
 Rust build caches are isolated by platform. Successful pushes to `main` save the caches and PRs can restore them.
 
-The Windows job rehearses ZIP packaging and uploads the `gallery-windows-x64-msvc` engineering artifact with the executable, build timings, and licensing information. For release acceptance, use the [Windows real-window checks](verification.md#windows-gallery-acceptance).
+For release acceptance, follow the [Windows real-window checks](verification.md#windows-gallery-acceptance).
 
 The GitHub ruleset requires a PR for changes to `main`. Bring the PR up to date with its base and follow the [review and merge rules](../CONTRIBUTING.md#pr-review-and-merge).
-
-<a id="windows-分发"></a>
-
-## Windows distribution
-
-Package from a clean checkout of the release commit in PowerShell 7. Prefer the executable in the `gallery-windows-x64-msvc` artifact from the CI run for that commit. For a local build, set `GPUI_FXC_PATH` to the Windows SDK's x64 `fxc.exe` and use the profile that embeds DirectX shaders.
-
-```powershell
-cargo build --locked -p gpui-material-gallery --profile gallery-artifact
-```
-
-Replace the example `$exe` path below when using the CI executable or a custom `CARGO_TARGET_DIR`. The offline packager uses the locked Windows packages and the Rust standard library licenses supplied by `rust-docs`.
-
-```powershell
-rustup component add rust-docs
-cargo fetch --locked --target x86_64-pc-windows-msvc
-$exe = 'target/gallery-artifact/gpui-material-gallery.exe'
-$output = Join-Path ([IO.Path]::GetTempPath()) ('gpui-material-gallery-' + [guid]::NewGuid())
-./scripts/package-windows-gallery.ps1 -Executable $exe -OutputDirectory $output
-
-$name = 'gpui-material-gallery-windows-x64.zip'
-$zip = Join-Path $output $name
-$sha = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-$expected = (Get-Content -LiteralPath (Join-Path $output 'SHA256SUMS.txt') -Raw).Trim()
-if ($expected -cne "$sha  $name") { throw 'Gallery ZIP checksum mismatch' }
-Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $output 'extracted')
-```
-
-Check the commit in `BUILD.txt`, the dependency inventory in `DEPENDENCIES.txt`, and the bundled licenses. Run the extracted executable and follow the [Windows Gallery acceptance checks](verification.md#windows-gallery-acceptance). Upload the tested ZIP and `SHA256SUMS.txt` together. Remove temporary build and extraction outputs after use. [Release procedure](release.md#prepare-and-publish)

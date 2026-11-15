@@ -22,4 +22,4 @@ extras crate 的 `date-time` 特性使用 [chrono 0.4.45](https://crates.io/crat
 
 引入第三方源码、图标、字体或文档节选时，在本声明或对应的资源清单登记精确来源、版本、修改与再分发条款。源版本和 Cargo 候选见[设计依据](docs/design-sources.zh.md)及[架构与依赖](docs/architecture.zh.md)。
 
-Windows Gallery ZIP 包含锁定的 Windows 运行时依赖、Rust 标准库和随包图标的许可材料。版本与许可位置见 ZIP 内的 `DEPENDENCIES.txt`。打包所用的补充许可证文本及署名见[补充许可来源](scripts/gallery-license-sources.txt)。
+[v0.1.0 Windows Gallery ZIP](https://github.com/wangdiandao/gpui-material/releases/tag/v0.1.0) 包含锁定的 Windows 运行时依赖、Rust 标准库和随包图标的许可材料。版本与许可位置见 ZIP 内的 `DEPENDENCIES.txt`，上游许可证文本及署名见 [v0.1.0 的补充许可来源](https://github.com/wangdiandao/gpui-material/blob/v0.1.0/scripts/gallery-license-sources.txt)。

@@ -4,6 +4,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Distribution
+
+- The Gallery now ships as source. Run `cargo gallery` from a checkout.
+
 ## 0.1.0 - 2026-11-15
 
 Changes since [`v0.0.4`](https://github.com/wangdiandao/gpui-material/releases/tag/v0.0.4).

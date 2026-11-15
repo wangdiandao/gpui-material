@@ -4,6 +4,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Components
+
+- Set divider thickness and color for each horizontal or vertical rule. A zero thickness selects a one-device-pixel hairline.
+
 ### Gallery
 
 - The GPUI Material Gallery uses the project logo as its Windows application icon.

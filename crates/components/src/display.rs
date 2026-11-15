@@ -606,14 +606,22 @@ impl RenderOnce for List {
 #[derive(IntoElement)]
 pub struct Divider {
     axis: Axis,
+    thickness: gpui::Pixels,
+    color_role: ColorRole,
+    color_override: Option<gpui::Hsla>,
     start: gpui::Pixels,
     end: gpui::Pixels,
 }
 
 impl Divider {
+    const DEFAULT_THICKNESS: gpui::Pixels = px(1.);
+
     pub fn horizontal() -> Self {
         Self {
             axis: Axis::Horizontal,
+            thickness: Self::DEFAULT_THICKNESS,
+            color_role: ColorRole::OutlineVariant,
+            color_override: None,
             start: px(0.),
             end: px(0.),
         }
@@ -626,6 +634,30 @@ impl Divider {
         }
     }
 
+    /// Sets the stroke thickness in logical pixels. Zero requests a one-device-pixel hairline.
+    /// Negative or non-finite values use the default thickness of one logical pixel.
+    pub fn thickness(mut self, thickness: gpui::Pixels) -> Self {
+        self.thickness = if f32::from(thickness).is_finite() && thickness >= px(0.) {
+            thickness
+        } else {
+            Self::DEFAULT_THICKNESS
+        };
+        self
+    }
+
+    /// Resolves the stroke color from the current window theme.
+    pub fn color(mut self, role: ColorRole) -> Self {
+        self.color_role = role;
+        self.color_override = None;
+        self
+    }
+
+    /// Sets a literal stroke color. A later call to `color` restores theme-role lookup.
+    pub fn color_override(mut self, color: impl Into<gpui::Hsla>) -> Self {
+        self.color_override = Some(color.into());
+        self
+    }
+
     pub fn inset(mut self, start: gpui::Pixels, end: gpui::Pixels) -> Self {
         self.start = start.max(px(0.));
         self.end = end.max(px(0.));
@@ -635,13 +667,20 @@ impl Divider {
 
 impl RenderOnce for Divider {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let fill = tone(ColorRole::OutlineVariant, window, cx);
+        let fill = self
+            .color_override
+            .unwrap_or_else(|| tone(self.color_role, window, cx));
+        let thickness = if self.thickness == px(0.) {
+            px(window.scale_factor().recip())
+        } else {
+            self.thickness
+        };
         let (left, right) = window_material_theme(window, cx)
             .layout
             .horizontal(self.start, self.end);
         if self.axis == Axis::Vertical {
             div()
-                .w(px(1.))
+                .w(thickness)
                 .h_full()
                 .pt(self.start)
                 .pb(self.end)
@@ -649,7 +688,7 @@ impl RenderOnce for Divider {
         } else {
             div()
                 .w_full()
-                .h(px(1.))
+                .h(thickness)
                 .pl(left)
                 .pr(right)
                 .child(div().size_full().bg(fill))

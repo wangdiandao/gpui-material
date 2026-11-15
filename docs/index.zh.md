@@ -3,7 +3,7 @@
 [English](index.md) | 中文
 
 - [设计依据与版本基线](design-sources.zh.md)记录锁定的 Material 规范、实现参考和采用顺序。
-- [组件覆盖矩阵](component-coverage.zh.md)记录组件变体、状态、平台检查和兼容指引。
+- [组件](component.zh.md)列出受支持的控件、变体、桌面布局及可选特性。
 - [架构与依赖](architecture.zh.md)说明 crate 边界、状态所有权和上游依赖。
 - [纯主题](theme/theme.zh.md)记录主题数值、默认值和 Token 数据。
 - [下游集成](integration.zh.md)说明公开门面、支持的平台和迁移方式。

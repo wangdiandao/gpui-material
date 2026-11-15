@@ -14,7 +14,7 @@ English | [中文](development.zh.md)
 
 ## Workspace and component development
 
-- Organize production libraries under `crates/` and group components by family. Gallery lives in `apps/gallery/` and provides runnable scenarios that call the production public API. This follows the separation between GPUI Component and Story. [Architecture and dependencies](architecture.md) · [Component library](https://github.com/longbridge/gpui-kit/tree/39ab849a93b5f15507b969164d49891db8d5b470/crates/component) · [Story](https://github.com/longbridge/gpui-kit/tree/39ab849a93b5f15507b969164d49891db8d5b470/crates/story)
+- Organize production libraries under `crates/` and group components by family. Gallery lives in `apps/gallery/` and its stories exercise the production public API. [Architecture and dependencies](architecture.md) · [Components](component.md)
 - Verify public behavior in the owning crate and exercise the affected variants and interactions in Gallery. Use a minimal entry point for independently reproducible scenarios. Keep isolated probes in `experiments/` and engineering checks and offline generation in `xtask/`.
 
 <a id="编码规范"></a>
@@ -22,6 +22,7 @@ English | [中文](development.zh.md)
 ## Coding conventions
 
 - Use the [documentation index](index.md) to find the current specification. Follow the [pinned design and review rules](../CONTRIBUTING.md#design-specification) when changing Material presentation.
+- When a change needs documentation updates, complete them before starting implementation. Submit the documentation and code in the same commit or PR when they belong together.
 - Keep the English `foo.md`, Chinese `foo.zh.md`, and section fingerprints in `foo.i18n.yaml` together. Link the counterpart immediately below the title and use the current page's language for links to other paired pages. Update both pages in the same PR and run `cargo xtask docs --write path/to/foo.md` to record the reviewed pair. `cargo xtask check` verifies pairing, language links, heading depth, code samples, and fingerprints. GitHub issue and PR templates use English. [DeepSeek Harness documentation conventions](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/i18n/README.md)
 - Keep theme in pure Rust and use foundation for GPUI/Base adapters. The application or Base owns business and input state. Material owns presentation and additional composition state. Reuse existing public APIs where possible. [Architecture and dependencies](architecture.md)
 - Use idiomatic Rust naming and stable semantic identifiers. Explain invariants, lifetimes, and platform differences in comments. Document state ownership, defaults, focus, callbacks, and platform support for public APIs.
@@ -47,26 +48,28 @@ English | [中文](development.zh.md)
 
 ## Development environment
 
-On Windows 11 x64, install [Rustup](https://rustup.rs/) and the Desktop development with C++ workload in Visual Studio Build Tools, including MSVC x64 and the Windows SDK. The root toolchain file pins Rust, rustfmt, and Clippy. The first build downloads the packages in the lockfile.
+Install [Rustup](https://rustup.rs/) and run Cargo from the repository root. [rust-toolchain.toml](../rust-toolchain.toml) pins the compiler, rustfmt, and Clippy.
+
+| Platform | Build prerequisites |
+| --- | --- |
+| Windows 11 x64 | Visual Studio Build Tools with Desktop development with C++, MSVC x64, and the Windows SDK. |
+| macOS on Apple Silicon | Xcode command-line tools. |
+| Ubuntu 24.04 x64 | System packages listed in the `Install Linux platform dependencies` step of [Engineering CI](../.github/workflows/ci.yml). |
+
+Check the compiler host with `rustc -vV`. Run Gallery and optionally pass a story name or ID to open it directly.
 
 ```powershell
-rustc -vV
-cargo check --locked
 cargo gallery
-cargo test --locked -p gpui-material-gallery --features test-support
+cargo gallery text-field
 ```
 
-The default workspace build covers the pure theme and engineering tools. Select Gallery with `-p gpui-material-gallery` or `cargo gallery`. The normal Gallery build uses platform defaults. UI integration tests enable `test-support`.
-
-On macOS, use Apple Silicon and the Xcode command-line tools. Linux CI uses Ubuntu 24.04 x64. See `Install Linux platform dependencies` in the [workflow](../.github/workflows/ci.yml) for the system packages. Both platforms use the same Rust toolchain and Cargo commands.
-
-Open a component story in “Material Gallery”, resize into the compact layout, and verify you can reopen the catalog and select a story. Check that “Display scale” matches the current display. On Windows, inspect the StatusBar named “Display scale …%” in the UI Automation tree. Close the window from the title bar or with Alt+F4 and confirm the process exits normally. Record the environment and results in the PR. [Platforms and quality requirements](verification.md)
+The default workspace members are the theme crate and `xtask`. Use `-p gpui-material-gallery` to select Gallery explicitly. From a worktree, point `CARGO_TARGET_DIR` to the main checkout's `target` to reuse developer builds.
 
 <a id="独立探针"></a>
 
 ## Standalone probes
 
-The host probe checks pinned GPUI and Base behavior directly, including real-window startup, native capture loss, text input, semantics, motion, drawing, and overlays. Select an entry point with `--bin`. Run the probe with its own manifest and lockfile. Point `CARGO_TARGET_DIR` to the main checkout's `target` directory for incremental builds.
+Use the [GPUI host probe](../experiments/gpui-host/) to isolate a suspected GPUI or Base regression, such as native capture loss, text input, or accessibility semantics. Its binaries share a manifest and lockfile. `cargo run` opens the window probe. `cargo test` runs the automated probe tests.
 
 ```powershell
 $env:CARGO_TARGET_DIR = Join-Path (Get-Location) 'target'
@@ -74,19 +77,28 @@ cargo run --locked --manifest-path experiments/gpui-host/Cargo.toml --bin window
 cargo test --locked --manifest-path experiments/gpui-host/Cargo.toml --features test-support
 ```
 
+Run these commands from the main checkout. In a worktree, set `CARGO_TARGET_DIR` to that main checkout's absolute `target` path. Use the owning crate and Gallery for Material behavior.
+
 <a id="本地检查"></a>
 
 ## Local checks
+
+For documentation and repository checks, stage Markdown additions, renames, and removals so `xtask` sees them in the Git index. The checker validates local links, heading anchors, bilingual pairs, generated tokens, and GPUI/Base dependency graphs for Windows, macOS, and Linux.
+
+```powershell
+git diff --check origin/main
+cargo xtask check
+```
+
+For Rust changes, run formatting and the affected tests. The commands below match the workspace-wide lint and test scope in CI.
 
 ```powershell
 cargo fmt --all --check
 cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 cargo test --locked --workspace --all-features
-cargo xtask check
-git diff --check origin/main
 ```
 
-The `check` command validates tracked Markdown links, headings, and bilingual pairs, checks generated tokens, and verifies GPUI/Base package identities and features on the Windows, macOS, and Linux dependency graphs. Stage Markdown additions, renames, and removals so the checker sees the intended Git index. The documentation check runs offline. Use `cargo xtask tokens --check` to check generated tokens or `cargo xtask tokens` to update the Rust tables and index after editing the data. [Token data](theme/theme.md#token-data)
+For Gallery UI tests alone, run `cargo test --locked -p gpui-material-gallery --features test-support`. For token data changes, follow the [generation steps](theme/theme.md#token-data).
 
 <a id="冷热构建基线"></a>
 
@@ -103,7 +115,7 @@ Use a new report directory for each measurement. Prefetch the Cargo registry and
 
 ## CI and merging
 
-[Engineering CI](../.github/workflows/ci.yml) runs for PRs targeting `main`, pushes to `main`, and manual dispatches. The job layout follows [GPUI Kit CI](https://github.com/longbridge/gpui-kit/blob/main/.github/workflows/ci.yml).
+[Engineering CI](../.github/workflows/ci.yml) runs for PRs targeting `main`, pushes to `main`, and manual dispatches.
 
 | Job | Checks |
 | --- | --- |
@@ -113,9 +125,7 @@ Use a new report directory for each measurement. Prefetch the Cargo registry and
 
 Rust build caches are isolated by platform. Successful pushes to `main` save the caches and PRs can restore them.
 
-Hosted CI covers builds and automated tests on three platforms. The initial release follows the native acceptance criteria in [platforms and quality requirements](verification.md).
-
-The Windows job uploads `gallery-windows-x64-msvc` with the executable, Cargo timeline, and licensing information for native retesting. It runs `cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings`. This profile disables debug assertions so GPUI can embed DirectX shaders at build time using the Windows SDK's x64 `fxc.exe`. CI sets `GPUI_FXC_PATH` to the SDK compiler. Normal `cargo gallery` builds read the shader sources from the local Cargo cache. [Release procedure](release.md#prepare-and-publish)
+The Windows job rehearses ZIP packaging and uploads the `gallery-windows-x64-msvc` engineering artifact with the executable, build timings, and licensing information. For release acceptance, use the [Windows real-window checks](verification.md#windows-gallery-acceptance).
 
 The GitHub ruleset requires a PR for changes to `main`. Bring the PR up to date with its base and follow the [review and merge rules](../CONTRIBUTING.md#pr-review-and-merge).
 
@@ -123,18 +133,27 @@ The GitHub ruleset requires a PR for changes to `main`. Bring the PR up to date 
 
 ## Windows distribution
 
-Run the following commands in PowerShell 7 from the accepted checkout. Set `GPUI_FXC_PATH` to the installed x64 Windows SDK shader compiler. A matching Windows engineering build from CI can also be used as the executable input. Fetch the locked Windows dependencies before running the offline packager. Rust's `rust-docs` component supplies the standard library licensing materials.
+Package from a clean checkout of the release commit in PowerShell 7. Prefer the executable in the `gallery-windows-x64-msvc` artifact from the CI run for that commit. For a local build, set `GPUI_FXC_PATH` to the Windows SDK's x64 `fxc.exe` and use the profile that embeds DirectX shaders.
+
+```powershell
+cargo build --locked -p gpui-material-gallery --profile gallery-artifact
+```
+
+Replace the example `$exe` path below when using the CI executable or a custom `CARGO_TARGET_DIR`. The offline packager uses the locked Windows packages and the Rust standard library licenses supplied by `rust-docs`.
 
 ```powershell
 rustup component add rust-docs
 cargo fetch --locked --target x86_64-pc-windows-msvc
-$env:GPUI_FXC_PATH = 'C:\path\to\the\Windows SDK\x64\fxc.exe'
-cargo build --locked -p gpui-material-gallery --profile gallery-artifact
-./scripts/package-windows-gallery.ps1 -Executable target/gallery-artifact/gpui-material-gallery.exe -OutputDirectory target/gallery-distribution
-Get-FileHash target/gallery-distribution/gpui-material-gallery-windows-x64.zip -Algorithm SHA256
-Get-Content target/gallery-distribution/SHA256SUMS.txt
+$exe = 'target/gallery-artifact/gpui-material-gallery.exe'
+$output = Join-Path ([IO.Path]::GetTempPath()) ('gpui-material-gallery-' + [guid]::NewGuid())
+./scripts/package-windows-gallery.ps1 -Executable $exe -OutputDirectory $output
+
+$name = 'gpui-material-gallery-windows-x64.zip'
+$zip = Join-Path $output $name
+$sha = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+$expected = (Get-Content -LiteralPath (Join-Path $output 'SHA256SUMS.txt') -Raw).Trim()
+if ($expected -cne "$sha  $name") { throw 'Gallery ZIP checksum mismatch' }
+Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $output 'extracted')
 ```
 
-Compare the hashes, extract the ZIP into a new directory, run `gpui-material-gallery.exe`, and verify the real-window scenarios in the acceptance issue. If `CARGO_TARGET_DIR` points outside the checkout, pass the corresponding artifact path to the packaging script.
-
-The script records the checkout commit, Rust toolchain, runtime dependency inventory and license material. Package a clean build from the same commit. The checksum identifies each ZIP as produced. Rebuilding on another machine can produce different binary bytes and ZIP metadata. CI rehearses the ZIP locally and retains its standard engineering artifact.
+Check the commit in `BUILD.txt`, the dependency inventory in `DEPENDENCIES.txt`, and the bundled licenses. Run the extracted executable and follow the [Windows Gallery acceptance checks](verification.md#windows-gallery-acceptance). Upload the tested ZIP and `SHA256SUMS.txt` together. Remove temporary build and extraction outputs after use. [Release procedure](release.md#prepare-and-publish)

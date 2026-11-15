@@ -1,0 +1,19 @@
+# Section fingerprints for the English and Chinese pages.
+/components:
+  en: "04d1812e593709d7"
+  zh: "f4acb7f93a6372a7"
+/components/actions-and-selection:
+  en: "ddb7cd0a2b6201cc"
+  zh: "2013be88a61735f0"
+/components/content-and-feedback:
+  en: "f9fb32a201431d02"
+  zh: "b6474a58a4bfc179"
+/components/input-and-overlays:
+  en: "0c0982fe7c8b809f"
+  zh: "b91954817e41ed8d"
+/components/navigation-and-adaptive-layout:
+  en: "3a58972da8ae8b54"
+  zh: "3a53869c0dec4d43"
+/components/optional-components:
+  en: "9f701632b525757b"
+  zh: "755ed9bd0646504b"

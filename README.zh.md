@@ -48,7 +48,7 @@ let save = Button::new("save", "Save")
 | `dynamic-color` | 从种子色生成配色方案 |
 | `serde` | 主题数据序列化 |
 
-各组件的变体、状态和平台覆盖见[组件覆盖矩阵](docs/component-coverage.zh.md)。
+当前支持的控件、变体及可选组件特性见[组件文档](docs/component.zh.md)。
 
 ## 项目文档
 

@@ -2,7 +2,7 @@
 
 English | [中文](material-snapshot.zh.md)
 
-Verified on 2026-11-13 against site data version `2026-10-13_06-10-19`. Checksums use the raw bytes of the public JSON. Each page's data includes its tabs. See the [component coverage matrix](component-coverage.md) for applicability and desktop decisions.
+Verified on 2026-11-13 against site data version `2026-10-13_06-10-19`. Checksums use the raw bytes of the public JSON. Each page's data includes its tabs. See [Components](component.md) for what gpui-material supports.
 
 | Official page | Pinned data | SHA-256 |
 | --- | --- | --- |

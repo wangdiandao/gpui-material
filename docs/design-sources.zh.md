@@ -9,7 +9,7 @@
 ## 采用顺序
 
 1. [Material 3](https://m3.material.io/) 的 Expressive 和适用的 M3 指南定义组件名称、结构、变体、视觉与交互语义。
-2. Compose Material 3 的锁定版本用于核对 Token、状态、默认值及布局。组件矩阵给出的 Kotlin 文件位于该版本源码包。
+2. 将锁定版本的 Compose Material 3 作为 Token、状态、默认值及布局的实现参考。
 3. 官方 Material Color Utilities 和 AndroidX graphics-shapes 用作算法与测试向量依据。
 4. 固定的 GPUI 与 gpui-base 定义桌面事件、绘制和平台边界。桌面适配说明输入路径及偏离原因。
 5. Material Components Android 的固定源码补充 Side Sheet、Docked Toolbar 等实现参照，以及弃用与替代说明。Material Web 用于历史背景。

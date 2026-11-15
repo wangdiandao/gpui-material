@@ -6,11 +6,11 @@
   en: "ec9cb06f32fe4f93"
   zh: "27d025e8137e3843"
 /development-and-verification/workspace-and-component-development:
-  en: "e198e5bbc9c46082"
-  zh: "02d49b4b650f0a28"
+  en: "99cfcb9f9a391954"
+  zh: "7ce53f673760245b"
 /development-and-verification/coding-conventions:
-  en: "5488fb4cc7107127"
-  zh: "1e8d9e72c81ff65e"
+  en: "c933d1f3056e1230"
+  zh: "61726341de9a6b70"
 /development-and-verification/testing-conventions:
   en: "03e1102176091410"
   zh: "bcf11ac2845e3309"
@@ -18,20 +18,20 @@
   en: "bc9d06b568603e1e"
   zh: "09acaf110232cf52"
 /development-and-verification/development-environment:
-  en: "5d84a86d767b860b"
-  zh: "f7eda0b529a9afda"
+  en: "faafaf50c37ba18a"
+  zh: "1df16f5df03153a6"
 /development-and-verification/standalone-probes:
-  en: "af354a09a03def8e"
-  zh: "f83a0558b5d6978f"
+  en: "6576118601a39706"
+  zh: "4add88aa8f5900a8"
 /development-and-verification/local-checks:
-  en: "221b14872b20e582"
-  zh: "d9e59133e8f75fc5"
+  en: "6bc0e94d20f3f9ed"
+  zh: "b5e0214d9ab986b4"
 /development-and-verification/cold-and-warm-build-baseline:
   en: "1a227e066babc8aa"
   zh: "647c513a2c5be1a6"
 /development-and-verification/ci-and-merging:
-  en: "ac4cc189f1521f0e"
-  zh: "ec0726ef8918b34d"
+  en: "0ed61882efe70aca"
+  zh: "ba5709cc9ba84b0b"
 /development-and-verification/windows-distribution:
-  en: "940494bc4934a0d9"
-  zh: "1e8f06350071e6eb"
+  en: "7c7a68905b853281"
+  zh: "60dade14aa1c01ee"

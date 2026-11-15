@@ -3,7 +3,7 @@
 English | [中文](index.zh.md)
 
 - [Design sources and version baseline](design-sources.md) records the pinned Material specification, implementation references, and source precedence.
-- [Component coverage matrix](component-coverage.md) records component variants, states, platform checks, and compatibility guidance.
+- [Components](component.md) lists supported controls, variants, desktop layouts, and optional features.
 - [Architecture and dependencies](architecture.md) describes crate boundaries, state ownership, and upstream dependencies.
 - [Pure theme](theme/theme.md) documents theme values, defaults, and token data.
 - [Downstream integration](integration.md) describes the facade, supported platforms, and migration.

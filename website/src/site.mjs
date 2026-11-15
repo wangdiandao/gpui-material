@@ -12,28 +12,38 @@ export const guides = Object.entries(markdown).map(([file, module]) => ({
 
 export const copy = {
   en: {
-    docs: 'Guides', components: 'Components', gallery: 'Gallery', api: 'API reference',
+    docs: 'Docs', components: 'Components', gallery: 'Gallery', api: 'API reference',
     search: 'Search documentation', skip: 'Skip to content', theme: 'Color theme',
     light: 'Light', dark: 'Dark', system: 'System', language: '简体中文', menu: 'Navigation',
-    onThisPage: 'On this page', source: 'Source', usage: 'Usage', tryIt: 'Try in Gallery',
+    themeNav: 'Theme', resources: 'Resources', releases: 'Releases', contribute: 'Contribute', close: 'Close',
+    capabilities: 'What you can build', architecture: 'How it fits together', preview: 'Browser preview',
+    previewNote: 'This example uses MDUI. Run the native Gallery to try the GPUI implementation.',
+    nativeGallery: 'Native Gallery', seeExamples: 'Explore examples',
+    frontendLicenses: 'Frontend licenses',
+    onThisPage: 'On this page', source: 'Source', usage: 'Usage',
     overview: 'Component catalog', setup: 'Get started', themeGuide: 'Theme and tokens',
     allGuides: 'All guides', feature: 'Cargo feature', platform: 'Native Rust UI for GPUI',
     headline: 'Material 3 Expressive for GPUI',
-    introduction: 'Build native desktop applications with Material components for Rust. Browse controls, learn how to wire state and events, and try the interactive examples in the Gallery.',
+    introduction: 'Material components, semantic themes, and adaptive layouts for native Rust desktop applications built with GPUI.',
     catalogIntro: 'Find a control by family. Each guide has a Rust example, notes on state or configuration, and links to the API and Gallery.',
     galleryIntro: 'Run the native Gallery from a source checkout to try variants, keyboard interactions, and light and dark themes.',
     galleryOpen: 'Pass a story ID to open its example directly.',
     sourceOnly: 'Run from the repository root.',
   },
   zh: {
-    docs: '指南', components: '组件', gallery: '演示', api: 'API 参考',
+    docs: '文档', components: '组件', gallery: 'Gallery', api: 'API 参考',
     search: '搜索文档', skip: '跳到内容', theme: '配色主题',
     light: '浅色', dark: '深色', system: '跟随系统', language: 'English', menu: '导航',
-    onThisPage: '本页目录', source: '源码', usage: '用法', tryIt: '在 Gallery 中体验',
+    themeNav: '主题', resources: '资源', releases: '版本发布', contribute: '参与贡献', close: '关闭',
+    capabilities: '组件与布局', architecture: '项目分层', preview: '浏览器预览',
+    previewNote: '此示例使用 MDUI。运行原生 Gallery 可以体验 GPUI 实现。',
+    nativeGallery: '原生 Gallery', seeExamples: '查看演示',
+    frontendLicenses: '前端许可证',
+    onThisPage: '本页目录', source: '源码', usage: '用法',
     overview: '组件目录', setup: '快速开始', themeGuide: '主题与 Token',
     allGuides: '全部指南', feature: 'Cargo feature', platform: '面向 GPUI 的 Rust 原生界面',
-    headline: '在 GPUI 中使用 Material 3 Expressive',
-    introduction: '用 Rust 和 Material 组件构建原生桌面应用。查看控件如何管理状态和处理事件，并在 Gallery 里尝试交互示例。',
+    headline: 'GPUI 的 Material 3 Expressive 控件',
+    introduction: '为 GPUI 原生 Rust 桌面应用提供 Material 控件、语义主题和自适应布局。',
     catalogIntro: '按类别浏览控件。每篇指南提供 Rust 示例、状态或配置说明，以及通往 API 与 Gallery 的入口。',
     galleryIntro: '从源码检出运行原生 Gallery，体验组件变体、键盘操作和浅色及深色主题。',
     galleryOpen: '传入演示 ID 即可直接打开对应示例。',
@@ -48,6 +58,45 @@ export const groups = {
   navigation: { en: 'Navigation and layout', zh: '导航与布局' },
   optional: { en: 'Optional components', zh: '可选组件' },
 };
+
+export const capabilities = [
+  {
+    title: { en: 'Actions and forms', zh: '操作与表单' },
+    text: { en: 'Compose buttons, selection controls, and text fields with application-owned values.', zh: '使用按钮、选择控件和文本字段组合表单，由应用持有业务值。' },
+    components: ['button', 'text-field', 'exposed-dropdown'],
+  },
+  {
+    title: { en: 'Feedback and overlays', zh: '反馈与浮层' },
+    text: { en: 'Ask for confirmation, open supporting content, and show outcomes in a snackbar.', zh: '用对话框确认操作，用面板补充内容，用消息条反馈结果。' },
+    components: ['dialog', 'sheet', 'snackbar'],
+  },
+  {
+    title: { en: 'Adaptive navigation', zh: '自适应导航' },
+    text: { en: 'Switch navigation with the available width and present list and detail views side by side when space allows.', zh: '根据可用宽度改用不同导航形式，在空间充足时并排显示列表和详情。' },
+    components: ['adaptive-layout', 'list-detail', 'supporting-pane'],
+  },
+];
+
+export const layers = [
+  {
+    name: 'gpui_material',
+    title: { en: 'Components', zh: '控件' },
+    text: { en: 'Import Material controls and optional component families from the public facade.', zh: '从公开门面导入 Material 控件，通过 Cargo feature 启用可选组件。' },
+    route: 'component',
+  },
+  {
+    name: 'gpui_material::theme',
+    title: { en: 'Theme', zh: '主题' },
+    text: { en: 'Use semantic color, typography, shape, and motion tokens from a GPUI-independent crate.', zh: '通过独立于 GPUI 的主题 crate 使用语义颜色、排版、形状和动效 Token。' },
+    route: 'docs/theme/theme',
+  },
+  {
+    name: 'gpui_material::foundation',
+    title: { en: 'Foundation', zh: '基础设施' },
+    text: { en: 'Initialize Material windows and connect the theme to GPUI and Base services.', zh: '初始化 Material 窗口，把主题接入 GPUI 和 Base 的交互服务。' },
+    route: 'docs/architecture',
+  },
+];
 
 export const api = 'https://docs.rs/gpui-material/latest/gpui_material/';
 const workspacePackage = workspaceManifest.split('[workspace.package]')[1]?.split(/^\[/m)[0];
@@ -71,16 +120,32 @@ export function sidebar(lang, kind) {
     ];
   }
 
-  return [{
-    title: t.docs,
-    items: [
-      { label: t.allGuides, route: 'docs' },
-      { label: t.setup, route: 'docs/integration' },
-      { label: t.themeGuide, route: 'docs/theme/theme' },
-      { label: lang === 'zh' ? '控件支持范围' : 'Component coverage', route: 'docs/component' },
-      { label: lang === 'zh' ? '架构与依赖' : 'Architecture', route: 'docs/architecture' },
-      { label: lang === 'zh' ? '开发与验证' : 'Development', route: 'docs/development' },
-      { label: t.gallery, route: 'gallery' },
-    ],
-  }];
+  return [
+    {
+      title: t.docs,
+      items: [
+        { label: t.allGuides, route: 'docs' },
+        { label: t.setup, route: 'docs/integration' },
+        { label: lang === 'zh' ? '控件支持范围' : 'Component coverage', route: 'docs/component' },
+        { label: t.nativeGallery, route: 'gallery' },
+      ],
+    },
+    {
+      title: t.themeGuide,
+      items: [
+        { label: lang === 'zh' ? '主题系统' : 'Theme system', route: 'docs/theme/theme' },
+        { label: lang === 'zh' ? 'Token 索引' : 'Token index', route: 'docs/theme/token-index' },
+      ],
+    },
+    {
+      title: t.architecture,
+      items: [
+        { label: lang === 'zh' ? '架构与依赖' : 'Architecture and dependencies', route: 'docs/architecture' },
+        { label: lang === 'zh' ? '设计依据' : 'Design sources', route: 'docs/design-sources' },
+        { label: lang === 'zh' ? '平台与质量要求' : 'Platforms and quality', route: 'docs/verification' },
+        { label: lang === 'zh' ? '开发与验证' : 'Development', route: 'docs/development' },
+        { label: t.releases, route: 'docs/release' },
+      ],
+    },
+  ];
 }

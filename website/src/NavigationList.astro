@@ -1,0 +1,22 @@
+---
+import { pagePath } from './site.mjs';
+
+const { label, sections, route, lang } = Astro.props;
+---
+<nav class="navigation-list" aria-label={label}>
+  {sections.map(({ title, items }) => (
+    <section>
+      <p>{title}</p>
+      <mdui-list>
+        {items.map((item) => (
+          <mdui-list-item
+            href={item.href ?? pagePath(item.route, lang)}
+            active={route === item.route}
+            aria-current={route === item.route ? 'page' : undefined}
+            rounded
+          >{item.label}</mdui-list-item>
+        ))}
+      </mdui-list>
+    </section>
+  ))}
+</nav>

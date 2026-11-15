@@ -1,6 +1,9 @@
 ---
 import { Code } from 'astro:components';
 import Layout from '../Layout.astro';
+import Home from '../Home.astro';
+import NavigationList from '../NavigationList.astro';
+import Preview from '../Preview.astro';
 import { components } from '../../component/catalog.mjs';
 import { api, copy, groups, guides, packageVersion, pagePath, sidebar } from '../site.mjs';
 import { repository } from '../markdown.mjs';
@@ -30,79 +33,32 @@ const Content = guide?.module.Content;
 const isHome = route === '';
 const isCatalog = route === 'component';
 const isGallery = route === 'gallery';
+const hasPreview = ['button', 'checkbox', 'dialog', 'progress', 'radio', 'slider', 'switch', 'text-field'].includes(component?.slug);
+const componentSections = component ? [
+  ...(component.feature ? [{ slug: 'cargo-feature', text: t.feature }] : []),
+  ...(hasPreview ? [{ slug: 'browser-preview', text: t.preview }] : []),
+  { slug: 'usage', text: t.usage },
+  ...(component.story ? [{ slug: 'native-gallery', text: t.nativeGallery }] : []),
+] : [];
 const toc = isCatalog
   ? Object.entries(groups).map(([slug, label]) => ({ slug, text: label[lang], depth: 2 }))
-  : headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
-const title = component?.title ?? headings[0]?.text ?? (isCatalog ? t.overview : isGallery ? t.gallery : '');
+  : component ? componentSections : headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+const title = component?.title ?? headings[0]?.text ?? (isCatalog ? t.overview : isGallery ? t.nativeGallery : '');
 const codeThemes = { light: 'github-light', dark: 'github-dark' };
 const featureCode = component?.feature ? `[dependencies]\ngpui-material = { version = "${packageVersion}", features = ["${component.feature}"] }` : '';
 const componentApi = component?.feature
   ? `https://docs.rs/crate/gpui-material/latest/features#${component.feature}`
   : api + (component?.api ?? '');
 const source = component ? `${repository}/blob/main/${component.source}` : '';
-const button = components.find((item) => item.slug === 'button');
 const introCode = 'git clone https://github.com/wangdiandao/gpui-material.git\ncd gpui-material\ncargo gallery';
 ---
 <Layout {lang} {route} {title} description={component?.description[lang]}>
   {isHome ? (
-    <main id="main" class="home" data-pagefind-body>
-      <section class="hero">
-        <div>
-          <p class="platform">{t.platform}</p>
-          <h1>{t.headline}</h1>
-          <p class="hero-intro">{t.introduction}</p>
-          <div class="hero-actions">
-            <a class="button primary" href={pagePath('docs/integration', lang)}>{t.setup}<span aria-hidden="true">→</span></a>
-            <a class="button secondary" href={pagePath('component', lang)}>{t.overview}</a>
-          </div>
-        </div>
-        <div class="hero-sample">
-          <div class="sample-ui" aria-hidden="true">
-            <span class="sample-button">Save</span>
-            <span class="sample-field"><small>Email</small>name@example.com</span>
-            <span class="sample-switch"></span>
-          </div>
-          <div class="sample-code">
-            <p>Cargo.toml</p>
-            <Code code={`gpui-material = "${packageVersion}"`} lang="toml" themes={codeThemes} />
-            <p>main.rs</p>
-            <Code code={button.code} lang="rust" themes={codeThemes} />
-          </div>
-        </div>
-      </section>
-      <section class="home-catalog" aria-labelledby="home-components">
-        <div class="section-heading">
-          <h2 id="home-components">{t.components}</h2>
-          <a href={pagePath('component', lang)}>{t.overview} <span aria-hidden="true">→</span></a>
-        </div>
-        <div class="feature-grid">
-          {['button', 'text-field', 'dialog', 'adaptive-layout'].map((slug) => {
-            const item = components.find((entry) => entry.slug === slug);
-            return (
-              <a class="feature-card" href={pagePath(`component/${slug}`, lang)}>
-                <strong>{item.title}</strong><span>{item.description[lang]}</span>
-              </a>
-            );
-          })}
-        </div>
-      </section>
-    </main>
+    <Home {lang} {codeThemes} />
   ) : (
     <div class="docs-shell">
       <aside class="sidebar" data-pagefind-ignore>
-        <details open>
-          <summary>{t.menu}</summary>
-          <nav aria-label={t.menu}>
-            {sidebar(lang, route.split('/')[0]).map((group) => (
-              <section>
-                <p>{group.title}</p>
-                {group.items.map((item) => (
-                  <a href={pagePath(item.route, lang)} aria-current={route === item.route ? 'page' : undefined}>{item.label}</a>
-                ))}
-              </section>
-            ))}
-          </nav>
-        </details>
+        <NavigationList label={t.menu} sections={sidebar(lang, route.split('/')[0])} {route} {lang} />
       </aside>
       <main id="main" class="article" data-pagefind-body>
         {Content && <Content />}
@@ -114,10 +70,10 @@ const introCode = 'git clone https://github.com/wangdiandao/gpui-material.git\nc
               <h2 id={group}>{label[lang]}</h2>
               <div class="component-grid">
                 {components.filter((item) => item.group === group).map((item) => (
-                  <a class="component-card" href={pagePath(`component/${item.slug}`, lang)}>
+                  <mdui-card class="component-card" variant="outlined" href={pagePath(`component/${item.slug}`, lang)}>
                     <strong>{item.title}</strong>
                     <span>{item.description[lang]}</span>
-                  </a>
+                  </mdui-card>
                 ))}
               </div>
             </section>
@@ -128,19 +84,26 @@ const introCode = 'git clone https://github.com/wangdiandao/gpui-material.git\nc
           <h1>{title}</h1>
           <p class="lede">{component.description[lang]}</p>
           <div class="article-links">
-            <a href={componentApi}>{component.feature ? t.feature : t.api} <span aria-hidden="true">↗</span></a>
-            <a href={source}>{t.source} <span aria-hidden="true">↗</span></a>
-            {component.story && <a href={`${repository}/tree/main/apps/gallery/src`}>Gallery <span aria-hidden="true">↗</span></a>}
+            <mdui-button variant="tonal" href={componentApi}>{component.feature ? t.feature : t.api} <span slot="end-icon" aria-hidden="true">↗</span></mdui-button>
+            <mdui-button variant="outlined" href={source}>{t.source} <span slot="end-icon" aria-hidden="true">↗</span></mdui-button>
+            {component.story && <mdui-button variant="text" href="#native-gallery">{t.nativeGallery}</mdui-button>}
           </div>
           {component.feature && <>
-            <h2>{t.feature}</h2>
+            <h2 id="cargo-feature">{t.feature}</h2>
             <Code code={featureCode} lang="toml" themes={codeThemes} />
           </>}
-          <h2>{t.usage}</h2>
+          {hasPreview && <>
+            <h2 id="browser-preview">{t.preview}</h2>
+            <mdui-card class="preview-card" variant="filled">
+              <p>{t.previewNote}</p>
+              <Preview {lang} kind={component.slug} />
+            </mdui-card>
+          </>}
+          <h2 id="usage">{t.usage}</h2>
           <p>{component.usage[lang]}</p>
           <Code code={component.code} lang="rust" themes={codeThemes} />
           {component.story && <>
-            <h2>{t.tryIt}</h2>
+            <h2 id="native-gallery">{t.nativeGallery}</h2>
             <p>{t.sourceOnly}</p>
             <Code code={[component.story, component.relatedStory].filter(Boolean).map((id) => `cargo gallery ${id}`).join('\n')} lang="sh" themes={codeThemes} />
           </>}
@@ -151,7 +114,10 @@ const introCode = 'git clone https://github.com/wangdiandao/gpui-material.git\nc
           <Code code={introCode} lang="sh" themes={codeThemes} />
           <p>{t.galleryOpen}</p>
           <Code code="cargo gallery text-field" lang="sh" themes={codeThemes} />
-          <p><a href={pagePath('component', lang)}>{t.overview}</a> · <a href={`${repository}/tree/main/apps/gallery`}>{t.source}</a></p>
+          <div class="article-links">
+            <mdui-button variant="tonal" href={pagePath('component', lang)}>{t.overview}</mdui-button>
+            <mdui-button variant="outlined" href={`${repository}/tree/main/apps/gallery`}>{t.source}</mdui-button>
+          </div>
         </>}
       </main>
       {toc.length > 0 && (

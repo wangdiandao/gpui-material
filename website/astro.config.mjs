@@ -10,6 +10,9 @@ export default defineConfig({
   base: base || '/',
   output: 'static',
   trailingSlash: 'always',
+  vite: {
+    build: { license: { fileName: 'licenses/frontend.md' } },
+  },
   integrations: [{
     name: 'repository-markdown',
     hooks: {

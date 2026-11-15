@@ -104,7 +104,7 @@ cargo test --locked --workspace --all-features
 
 ## 文档网站
 
-[网站源码](../website/)使用 Astro，并通过 Pagefind 为静态页面建立搜索索引。安装 Node.js 24 和 npm 后，从仓库根目录执行以下命令。
+[网站源码](../website/)使用 Astro 和 [MDUI](https://www.mdui.org/zh-cn/) Web Components，通过 Pagefind 为静态页面建立搜索索引。安装 Node.js 24 和 npm 后，从仓库根目录执行以下命令。
 
 ```sh
 npm --prefix website ci
@@ -116,6 +116,8 @@ npm --prefix website run preview
 开发服务器使用 `/`。生产构建默认使用 `/gpui-material/` 并输出到 `website/dist/`。搜索索引可在生产预览中使用。
 
 共用指南在 `docs/` 编辑，控件示例在 `website/component/` 编辑。同时补充英文和中文说明，同一个控件页面的中英文共用一份 Rust 示例。
+
+网站控件和浏览器预览使用 MDUI。预览需标明使用 MDUI 网页示例，GPUI 的渲染与交互通过原生 Gallery 验证。
 
 在 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**。网站工作流会在 PR 上构建，并在 `main` 更新后部署。需要重新部署时，在 Actions 页面选择 `main` 运行 **Documentation website**。
 

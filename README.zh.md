@@ -2,6 +2,10 @@
 
 [English](README.md) | 中文
 
+<p align="center">
+  <img src="./website/public/logo.svg" width="112" height="112" alt="gpui-material 标志" />
+</p>
+
 为基于 GPUI 的 Rust 原生桌面应用提供 Material 3 Expressive 组件。组件库负责 Material 配色、排版、形状和动效，GPUI Base 提供输入、焦点和窗口服务。
 
 ## 体验 Gallery

@@ -39,6 +39,7 @@ const root = pagePath('', 'en');
     <meta name="description" content={description ?? t.introduction} />
     <meta name="color-scheme" content="light dark" />
     <title>{title ? `${title} · gpui-material` : 'gpui-material'}</title>
+    <link rel="icon" type="image/svg+xml" href={root + 'favicon.svg'} />
     <link rel="canonical" href={new URL(pagePath(route, lang), Astro.site)} />
     <link rel="alternate" hreflang={other === 'zh' ? 'zh-CN' : 'en'} href={new URL(pagePath(route, other), Astro.site)} />
     <script is:inline>
@@ -57,8 +58,9 @@ const root = pagePath('', 'en');
         <div class="topbar">
           <mdui-button variant="text" id="open-nav" aria-controls="mobile-nav" aria-expanded="false">{t.menu}</mdui-button>
           <mdui-top-app-bar-title>
-            <a class="brand" href={pagePath('', lang)}>
-              <span class="brand-mark" aria-hidden="true">M</span><span>gpui-material</span>
+            <a class="brand" href={pagePath('', lang)} aria-label="gpui-material">
+              <img class="brand-mark" src={root + 'logo.svg'} width="34" height="34" alt="" />
+              <span>gpui-material</span>
             </a>
           </mdui-top-app-bar-title>
           <nav class="primary-nav" aria-label={t.menu}>

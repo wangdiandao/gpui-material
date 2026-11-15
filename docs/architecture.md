@@ -2,7 +2,7 @@
 
 English | [中文](architecture.zh.md)
 
-gpui-material provides Material tokens, themes, visual states, layout, and composition. gpui-base provides reusable behavior, focus, input, scrolling, state, and infrastructure. [Design sources](design-sources.md#gpui-and-base)
+GPUI Material provides Material tokens, themes, visual states, layout, and composition. GPUI Base provides reusable behavior, focus, input, scrolling, state, and infrastructure. [Design sources](design-sources.md#gpui-and-base)
 
 <a id="crate-依赖方向"></a>
 

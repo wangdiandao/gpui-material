@@ -24,7 +24,7 @@ use crate::{
     toolbar_examples::ToolbarExamples,
 };
 
-/// An entry in the Material Gallery catalog.
+/// An entry in the GPUI Material Gallery catalog.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum Story {

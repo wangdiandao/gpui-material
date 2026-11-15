@@ -5,6 +5,12 @@ import workspaceManifest from '../../Cargo.toml?raw';
 const base = import.meta.env.BASE_URL;
 const markdown = import.meta.glob('../../docs/**/*.md', { eager: true });
 
+export const projectName = 'GPUI Material';
+
+export function pageTitle(title = '') {
+  return title && !title.includes(projectName) ? `${title} · ${projectName}` : title || projectName;
+}
+
 export const guides = Object.entries(markdown).map(([file, module]) => ({
   route: docsRoute(file.replace(/^\.\.\/\.\.\//, '')),
   module,
@@ -16,7 +22,7 @@ export const copy = {
     search: 'Search documentation', skip: 'Skip to content', theme: 'Color theme',
     light: 'Light', dark: 'Dark', system: 'System', language: '简体中文', menu: 'Navigation',
     themeNav: 'Theme', resources: 'Resources', releases: 'Releases', contribute: 'Contribute', close: 'Close',
-    capabilities: 'What you can build', architecture: 'How it fits together', preview: 'Browser preview',
+    capabilities: 'What you can build', architecture: 'How it fits together', preview: 'Browser preview', componentPreview: 'Component preview',
     previewNote: 'This example runs the Rust Gallery with WebAssembly.',
     frontendLicenses: 'Frontend licenses',
     onThisPage: 'On this page', source: 'Source', imports: 'Import', usage: 'Usage',
@@ -24,7 +30,7 @@ export const copy = {
     overview: 'Component catalog', setup: 'Get started', themeGuide: 'Theme and tokens',
     allGuides: 'All guides', feature: 'Cargo feature', platform: 'Native Rust UI for GPUI',
     headline: 'Material 3 Expressive for GPUI',
-    introduction: 'Material components, semantic themes, and adaptive layouts for native Rust desktop applications built with GPUI.',
+    introduction: `${projectName} provides Material components, semantic themes, and adaptive layouts for native Rust desktop applications built with GPUI.`,
     catalogIntro: 'Browse components by purpose or look up a Rust name within each group.',
     catalogFeatures: 'Enable the listed Cargo feature on gpui-material to use an optional component.',
   },
@@ -33,7 +39,7 @@ export const copy = {
     search: '搜索文档', skip: '跳到内容', theme: '配色主题',
     light: '浅色', dark: '深色', system: '跟随系统', language: 'English', menu: '导航',
     themeNav: '主题', resources: '资源', releases: '版本发布', contribute: '参与贡献', close: '关闭',
-    capabilities: '组件与布局', architecture: '项目分层', preview: '浏览器预览',
+    capabilities: '组件与布局', architecture: '项目分层', preview: '浏览器预览', componentPreview: '组件预览',
     previewNote: '此示例通过 WebAssembly 运行 Rust Gallery。',
     frontendLicenses: '前端许可证',
     onThisPage: '本页目录', source: '源码', imports: '导入', usage: '用法',
@@ -41,7 +47,7 @@ export const copy = {
     overview: '组件目录', setup: '快速开始', themeGuide: '主题与 Token',
     allGuides: '全部指南', feature: 'Cargo feature', platform: '面向 GPUI 的 Rust 原生界面',
     headline: 'GPUI 的 Material 3 Expressive 控件',
-    introduction: '为 GPUI 原生 Rust 桌面应用提供 Material 控件、语义主题和自适应布局。',
+    introduction: `${projectName} 为基于 GPUI 的 Rust 原生桌面应用提供 Material 控件、语义主题和自适应布局。`,
     catalogIntro: '按用途浏览控件，或在各组内按 Rust 名称查找。',
     catalogFeatures: '使用可选控件时，在 gpui-material 依赖中启用该控件所列的 Cargo feature。',
   },

@@ -33,7 +33,7 @@ Summarize the applicable scenarios, reproduction steps, and results in the issue
 
 ## Windows Gallery acceptance
 
-- Run `cargo gallery` from a checkout of the release commit on Windows 11 x64. Open a story, narrow the window to the compact layout, and reopen the component catalog. Confirm its `Display scale` status matches the current monitor and is exposed as a status bar through UI Automation.
+- Run `cargo gallery` from a checkout of the release commit on Windows 11 x64. Confirm that the window is titled GPUI Material Gallery and shows the project logo in the title bar and taskbar. Open a story, narrow the window to the compact layout, and reopen the component catalog. Confirm its `Display scale` status matches the current monitor and is exposed as a status bar through UI Automation.
 - Exercise the affected stories with the applicable Windows checks above. For input and overlays, include Microsoft Pinyin candidate positioning and commit, keyboard focus and restoration, and Narrator announcements.
 - Close the last Gallery window and confirm the process exits normally. Record the commit, CI run, scenarios, and the limits of the hardware coverage in the release issue or PR.
 

@@ -2236,6 +2236,7 @@ dependencies = [
 name = "gpui-material-gallery"
 version = "0.1.0"
 dependencies = [
+ "embed-resource",
  "gpui-base",
  "gpui-material",
  "gpui-pre",

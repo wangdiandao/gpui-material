@@ -4,6 +4,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Gallery
+
+- The GPUI Material Gallery uses the project logo as its Windows application icon.
+
 ### Distribution
 
 - The Gallery now ships as source. Run `cargo gallery` from a checkout.

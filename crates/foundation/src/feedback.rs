@@ -12,7 +12,7 @@ const RIPPLE_FADE_OUT: Duration = Duration::from_millis(150);
 const FOCUS_RING_WIDTH: Pixels = px(3.);
 
 /// A snapshot of interaction state from the caller's GPUI/Base behavior.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct InteractionState {
     pub disabled: bool,

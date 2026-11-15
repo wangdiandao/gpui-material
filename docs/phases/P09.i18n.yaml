@@ -1,0 +1,7 @@
+# Section fingerprints for the English and Chinese pages.
+/p9-integration-and-release-readiness:
+  en: "f089d538087512e4"
+  zh: "3bd37fdf215c98bf"
+/p9-integration-and-release-readiness/acceptance-criteria:
+  en: "9e6761509c2ba437"
+  zh: "d12e27e45f745ff0"

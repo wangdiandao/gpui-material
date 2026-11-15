@@ -5,7 +5,7 @@ import Home from '../Home.astro';
 import NavigationList from '../NavigationList.astro';
 import Preview from '../Preview.astro';
 import { components } from '../../component/catalog.mjs';
-import { api, copy, groups, guides, packageVersion, pagePath, sidebar } from '../site.mjs';
+import { api, componentIndex, copy, groups, guides, packageVersion, pagePath, sidebar } from '../site.mjs';
 import { repository } from '../markdown.mjs';
 
 export function getStaticPaths() {
@@ -34,14 +34,18 @@ const isHome = route === '';
 const isCatalog = route === 'component';
 const isGallery = route === 'gallery';
 const hasPreview = ['button', 'checkbox', 'dialog', 'progress', 'radio', 'slider', 'switch', 'text-field'].includes(component?.slug);
+const catalogAnchors = { basic: ['actions', 'content'], form: ['input'], layout: ['navigation'] };
 const componentSections = component ? [
-  ...(component.feature ? [{ slug: 'cargo-feature', text: t.feature }] : []),
-  ...(hasPreview ? [{ slug: 'browser-preview', text: t.preview }] : []),
+  { slug: 'import', text: t.imports },
+  ...(component.feature ? [{ slug: 'cargo-feature', text: t.feature, depth: 3 }] : []),
   { slug: 'usage', text: t.usage },
-  ...(component.story ? [{ slug: 'native-gallery', text: t.nativeGallery }] : []),
+  ...(hasPreview || component.story ? [{ slug: 'examples', text: t.examples }] : []),
+  ...(hasPreview ? [{ slug: 'browser-preview', text: t.preview, depth: 3 }] : []),
+  ...(component.story ? [{ slug: 'native-gallery', text: t.nativeGallery, depth: 3 }] : []),
+  { slug: 'references', text: t.references },
 ] : [];
 const toc = isCatalog
-  ? Object.entries(groups).map(([slug, label]) => ({ slug, text: label[lang], depth: 2 }))
+  ? Object.entries(groups).map(([group, label]) => ({ slug: `${group}-components`, text: label[lang], depth: 2 }))
   : component ? componentSections : headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
 const title = component?.title ?? headings[0]?.text ?? (isCatalog ? t.overview : isGallery ? t.nativeGallery : '');
 const codeThemes = { light: 'github-light', dark: 'github-dark' };
@@ -65,48 +69,57 @@ const introCode = 'git clone https://github.com/wangdiandao/gpui-material.git\nc
         {isCatalog && <>
           <h1>{title}</h1>
           <p class="lede">{t.catalogIntro}</p>
+          <p id="optional">{t.catalogFeatures}</p>
           {Object.entries(groups).map(([group, label]) => (
-            <section class="component-family" aria-labelledby={group}>
-              <h2 id={group}>{label[lang]}</h2>
-              <div class="component-grid">
-                {components.filter((item) => item.group === group).map((item) => (
-                  <mdui-card class="component-card" variant="outlined" href={pagePath(`component/${item.slug}`, lang)}>
+            <section class="component-family" aria-labelledby={`${group}-components`}>
+              {catalogAnchors[group]?.map((anchor) => <span id={anchor} aria-hidden="true"></span>)}
+              <h2 id={`${group}-components`}>{label[lang]}</h2>
+              <mdui-list class="catalog-list">
+                {componentIndex.filter((item) => item.group === group).map((item) => (
+                  <mdui-list-item href={pagePath(`component/${item.slug}`, lang)} rounded>
                     <strong>{item.title}</strong>
-                    <span>{item.description[lang]}</span>
-                  </mdui-card>
+                    <span class="catalog-description"> — {item.description[lang]}</span>
+                    {item.feature && <code class="catalog-feature">{item.feature}</code>}
+                  </mdui-list-item>
                 ))}
-              </div>
+              </mdui-list>
             </section>
           ))}
         </>}
         {component && <>
-          <p class="breadcrumb"><a href={pagePath('component', lang)}>{t.overview}</a> <span aria-hidden="true">/</span> {groups[component.group][lang]}</p>
+          <p class="breadcrumb">
+            <a href={pagePath('component', lang)}>{t.overview}</a> <span aria-hidden="true">/</span>
+            <a href={pagePath('component', lang) + `#${component.group}-components`}>{groups[component.group][lang]}</a>
+          </p>
           <h1>{title}</h1>
           <p class="lede">{component.description[lang]}</p>
-          <div class="article-links">
-            <mdui-button variant="tonal" href={componentApi}>{component.feature ? t.feature : t.api} <span slot="end-icon" aria-hidden="true">↗</span></mdui-button>
-            <mdui-button variant="outlined" href={source}>{t.source} <span slot="end-icon" aria-hidden="true">↗</span></mdui-button>
-            {component.story && <mdui-button variant="text" href="#native-gallery">{t.nativeGallery}</mdui-button>}
-          </div>
+          <h2 id="import">{t.imports}</h2>
+          <Code code={component.imports} lang="rust" themes={codeThemes} />
           {component.feature && <>
-            <h2 id="cargo-feature">{t.feature}</h2>
+            <h3 id="cargo-feature">{t.feature}</h3>
             <Code code={featureCode} lang="toml" themes={codeThemes} />
           </>}
+          <h2 id="usage">{t.usage}</h2>
+          <p>{component.usage[lang]}</p>
+          <Code code={component.code} lang="rust" themes={codeThemes} />
+          {(hasPreview || component.story) && <h2 id="examples">{t.examples}</h2>}
           {hasPreview && <>
-            <h2 id="browser-preview">{t.preview}</h2>
+            <h3 id="browser-preview">{t.preview}</h3>
             <mdui-card class="preview-card" variant="filled">
               <p>{t.previewNote}</p>
               <Preview {lang} kind={component.slug} />
             </mdui-card>
           </>}
-          <h2 id="usage">{t.usage}</h2>
-          <p>{component.usage[lang]}</p>
-          <Code code={component.code} lang="rust" themes={codeThemes} />
           {component.story && <>
-            <h2 id="native-gallery">{t.nativeGallery}</h2>
+            <h3 id="native-gallery">{t.nativeGallery}</h3>
             <p>{t.sourceOnly}</p>
             <Code code={[component.story, component.relatedStory].filter(Boolean).map((id) => `cargo gallery ${id}`).join('\n')} lang="sh" themes={codeThemes} />
           </>}
+          <h2 id="references">{t.references}</h2>
+          <div class="article-links">
+            <mdui-button variant="tonal" href={componentApi}>{component.feature ? t.feature : t.api} <span slot="end-icon" aria-hidden="true">↗</span></mdui-button>
+            <mdui-button variant="outlined" href={source}>{t.source} <span slot="end-icon" aria-hidden="true">↗</span></mdui-button>
+          </div>
         </>}
         {isGallery && <>
           <h1>{title}</h1>

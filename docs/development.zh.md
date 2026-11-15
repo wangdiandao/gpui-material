@@ -117,6 +117,8 @@ npm --prefix website run preview
 
 共用指南在 `docs/` 编辑，控件示例在 `website/component/` 编辑。同时补充英文和中文说明，同一个控件页面的中英文共用一份 Rust 示例。
 
+网站组件目录按基础、表单、布局和高级组件分组。侧栏按控件的 Rust 名称排序。导入语句和用法代码分开编写，浏览器预览和 Gallery 命令放在「示例」下。
+
 网站控件和浏览器预览使用 MDUI。预览需标明使用 MDUI 网页示例，GPUI 的渲染与交互通过原生 Gallery 验证。
 
 在 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**。网站工作流会在 PR 上构建，并在 `main` 更新后部署。需要重新部署时，在 Actions 页面选择 `main` 运行 **Documentation website**。

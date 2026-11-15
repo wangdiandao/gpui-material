@@ -20,12 +20,14 @@ export const copy = {
     previewNote: 'This example uses MDUI. Run the native Gallery to try the GPUI implementation.',
     nativeGallery: 'Native Gallery', seeExamples: 'Explore examples',
     frontendLicenses: 'Frontend licenses',
-    onThisPage: 'On this page', source: 'Source', usage: 'Usage',
+    onThisPage: 'On this page', source: 'Source', imports: 'Import', usage: 'Usage',
+    examples: 'Examples', references: 'References',
     overview: 'Component catalog', setup: 'Get started', themeGuide: 'Theme and tokens',
     allGuides: 'All guides', feature: 'Cargo feature', platform: 'Native Rust UI for GPUI',
     headline: 'Material 3 Expressive for GPUI',
     introduction: 'Material components, semantic themes, and adaptive layouts for native Rust desktop applications built with GPUI.',
-    catalogIntro: 'Find a control by family. Each guide has a Rust example, notes on state or configuration, and links to the API and Gallery.',
+    catalogIntro: 'Browse by purpose or find a component by its Rust name in the sidebar.',
+    catalogFeatures: 'Enable the listed Cargo feature on gpui-material to use an optional component.',
     galleryIntro: 'Run the native Gallery from a source checkout to try variants, keyboard interactions, and light and dark themes.',
     galleryOpen: 'Pass a story ID to open its example directly.',
     sourceOnly: 'Run from the repository root.',
@@ -39,12 +41,14 @@ export const copy = {
     previewNote: '此示例使用 MDUI。运行原生 Gallery 可以体验 GPUI 实现。',
     nativeGallery: '原生 Gallery', seeExamples: '查看演示',
     frontendLicenses: '前端许可证',
-    onThisPage: '本页目录', source: '源码', usage: '用法',
+    onThisPage: '本页目录', source: '源码', imports: '导入', usage: '用法',
+    examples: '示例', references: '参考',
     overview: '组件目录', setup: '快速开始', themeGuide: '主题与 Token',
     allGuides: '全部指南', feature: 'Cargo feature', platform: '面向 GPUI 的 Rust 原生界面',
     headline: 'GPUI 的 Material 3 Expressive 控件',
     introduction: '为 GPUI 原生 Rust 桌面应用提供 Material 控件、语义主题和自适应布局。',
-    catalogIntro: '按类别浏览控件。每篇指南提供 Rust 示例、状态或配置说明，以及通往 API 与 Gallery 的入口。',
+    catalogIntro: '按用途浏览控件，也可以在侧栏按 Rust 名称查找。',
+    catalogFeatures: '使用可选控件时，在 gpui-material 依赖中启用该控件所列的 Cargo feature。',
     galleryIntro: '从源码检出运行原生 Gallery，体验组件变体、键盘操作和浅色及深色主题。',
     galleryOpen: '传入演示 ID 即可直接打开对应示例。',
     sourceOnly: '在仓库根目录运行。',
@@ -52,12 +56,13 @@ export const copy = {
 };
 
 export const groups = {
-  actions: { en: 'Actions and selection', zh: '操作与选择' },
-  content: { en: 'Content and feedback', zh: '内容与反馈' },
-  input: { en: 'Input and overlays', zh: '输入与浮层' },
-  navigation: { en: 'Navigation and layout', zh: '导航与布局' },
-  optional: { en: 'Optional components', zh: '可选组件' },
+  basic: { en: 'Basic components', zh: '基础组件' },
+  form: { en: 'Form components', zh: '表单组件' },
+  layout: { en: 'Layout components', zh: '布局组件' },
+  advanced: { en: 'Advanced components', zh: '高级组件' },
 };
+
+export const componentIndex = components.toSorted((left, right) => left.title.localeCompare(right.title, 'en'));
 
 export const capabilities = [
   {
@@ -110,14 +115,13 @@ export function pagePath(route, lang) {
 export function sidebar(lang, kind) {
   const t = copy[lang];
   if (kind === 'component') {
-    return [
-      { title: t.components, items: [{ label: t.overview, route: 'component' }] },
-      ...Object.entries(groups).map(([group, title]) => ({
-        title: title[lang],
-        items: components.filter((item) => item.group === group)
-          .map((item) => ({ label: item.title, route: `component/${item.slug}` })),
-      })),
-    ];
+    return [{
+      title: t.components,
+      items: [
+        { label: t.overview, route: 'component' },
+        ...componentIndex.map((item) => ({ label: item.title, route: `component/${item.slug}` })),
+      ],
+    }];
   }
 
   return [

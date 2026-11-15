@@ -29,7 +29,7 @@ const button = components.find((item) => item.slug === 'button');
         <p>Cargo.toml</p>
         <Code code={`gpui-material = "${packageVersion}"`} lang="toml" themes={codeThemes} />
         <p>Rust</p>
-        <Code code={button.code} lang="rust" themes={codeThemes} />
+        <Code code={`${button.imports}\n\n${button.code}`} lang="rust" themes={codeThemes} />
       </div>
       <div class="hero-card-preview">
         <h2>{t.preview}</h2>

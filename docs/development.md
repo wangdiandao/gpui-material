@@ -107,3 +107,20 @@ Hosted CI covers builds and automated tests on three platforms. The initial rele
 The Windows job uploads `gallery-windows-x64-msvc` with the executable, Cargo timeline, and licensing information for native retesting. It runs `cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings`. This profile disables debug assertions so GPUI can embed DirectX shaders at build time using the Windows SDK's x64 `fxc.exe`. CI sets `GPUI_FXC_PATH` to the SDK compiler. Normal `cargo gallery` builds read the shader sources from the local Cargo cache. Releases follow the applicable delivery phase.
 
 The GitHub ruleset requires changes to `main` to go through a PR. The PR must be current with the base branch, resolve review conversations, and pass the GitHub Actions check `CI required`.
+
+## Windows distribution
+
+Run the following commands in PowerShell 7 from the accepted checkout. Set `GPUI_FXC_PATH` to the installed x64 Windows SDK shader compiler. A matching Windows engineering build from CI can also be used as the executable input. Rust's `rust-docs` component supplies the standard library licensing materials.
+
+```powershell
+rustup component add rust-docs
+$env:GPUI_FXC_PATH = 'C:\path\to\the\Windows SDK\x64\fxc.exe'
+cargo build --locked -p gpui-material-gallery --profile gallery-artifact
+./scripts/package-windows-gallery.ps1 -Executable target/gallery-artifact/gpui-material-gallery.exe -OutputDirectory target/gallery-distribution
+Get-FileHash target/gallery-distribution/gpui-material-gallery-windows-x64.zip -Algorithm SHA256
+Get-Content target/gallery-distribution/SHA256SUMS.txt
+```
+
+Compare the hashes, extract the ZIP into a new directory, run `gpui-material-gallery.exe`, and verify the real-window scenarios in the acceptance issue. If `CARGO_TARGET_DIR` points outside the checkout, pass the corresponding artifact path to the packaging script.
+
+The script records the checkout commit, Rust toolchain, runtime dependency inventory and license material. Package a clean build from the same commit. The checksum identifies each ZIP as produced. Rebuilding on another machine can produce different binary bytes and ZIP metadata. CI rehearses the ZIP locally and retains its standard engineering artifact.

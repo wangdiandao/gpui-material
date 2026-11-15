@@ -120,6 +120,16 @@ jobs:
           $env:GPUI_FXC_PATH = $fxc
           cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings
 
+      - name: Rehearse the Windows Gallery ZIP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          rustup component add rust-docs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          ./scripts/package-windows-gallery.ps1 `
+            -Executable target/gallery-artifact/gpui-material-gallery.exe `
+            -OutputDirectory target/gallery-distribution
+
       - name: Upload Windows engineering build
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

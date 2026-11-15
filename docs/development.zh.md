@@ -107,3 +107,20 @@ Rust 构建缓存按平台隔离，由 `main` 的成功 push 更新，PR 可复�
 Windows 作业上传 `gallery-windows-x64-msvc`，包含可执行文件、Cargo 时间线及许可记录，供实机复验。制品使用 `cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings`。此 profile 关闭 debug assertions，GPUI 通过 Windows SDK 的 x64 `fxc.exe` 在构建时嵌入 DirectX 着色器。CI 通过 `GPUI_FXC_PATH` 指定 SDK 中的编译器。常规 `cargo gallery` 在开发机上从 Cargo 缓存读取着色器。正式发布由对应交付阶段启动。
 
 GitHub 规则集要求通过 PR 更新 `main`。PR 必须基于最新主线、解决评审对话，并通过 GitHub Actions 的 `CI required` 检查。
+
+## Windows 分发
+
+在已验收的检出目录中用 PowerShell 7 执行以下命令。将 `GPUI_FXC_PATH` 指向已安装的 Windows SDK x64 着色器编译器。也可用 CI 中同一提交的 Windows 工程构建作为可执行文件输入。Rust 的 `rust-docs` 组件提供标准库许可材料。
+
+```powershell
+rustup component add rust-docs
+$env:GPUI_FXC_PATH = 'C:\path\to\the\Windows SDK\x64\fxc.exe'
+cargo build --locked -p gpui-material-gallery --profile gallery-artifact
+./scripts/package-windows-gallery.ps1 -Executable target/gallery-artifact/gpui-material-gallery.exe -OutputDirectory target/gallery-distribution
+Get-FileHash target/gallery-distribution/gpui-material-gallery-windows-x64.zip -Algorithm SHA256
+Get-Content target/gallery-distribution/SHA256SUMS.txt
+```
+
+核对哈希值，将 ZIP 解压到新目录，运行 `gpui-material-gallery.exe`，按验收 Issue 验证真实窗口场景。若 `CARGO_TARGET_DIR` 指向检出目录以外的位置，请向打包脚本传入对应的制品路径。
+
+脚本记录检出提交、Rust 工具链、运行时依赖清单和许可材料。请使用同一提交的干净构建。校验值用于核对生成的 ZIP。不同机器重新构建时，可执行文件字节及 ZIP 元数据可能不同。CI 在本地演练打包，并保留常规工程制品。

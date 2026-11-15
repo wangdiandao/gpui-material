@@ -1,4 +1,4 @@
-# gpui-material 贡献指南
+# GPUI Material 贡献指南
 
 [English](CONTRIBUTING.md) | 中文
 
@@ -22,8 +22,8 @@
 
 ## 向上游提交 Issue 与贡献
 
-超出 gpui-material 范围的问题，应向负责该行为的上游项目提交 Issue 或修复。本项目负责 Material 主题、绘制与呈现。可复用的控件行为和无障碍语义归 GPUI Kit 的 `gpui-base`。窗口、渲染和平台输入归 Zed 的 GPUI。 [项目架构](docs/architecture.zh.md)
+超出 GPUI Material 范围的问题，应向负责该行为的上游项目提交 Issue 或修复。本项目负责 Material 主题、绘制与呈现。可复用的控件行为和无障碍语义归 GPUI Kit 的 `gpui-base`。窗口、渲染和平台输入归 Zed 的 GPUI。 [项目架构](docs/architecture.zh.md)
 
 1. 在受影响的上游版本上制作最小复现，核对上游当前分支，并搜索现有 Issue 或 PR。
 2. 遵循对应仓库的贡献、测试、许可和评审规范。将补丁的范围和规模控制在修复问题及验证受影响行为所需的最小程度。 [GPUI Kit 贡献指南](https://github.com/longbridge/gpui-kit/blob/main/CONTRIBUTING.md) · [Zed 贡献指南](https://github.com/zed-industries/zed/blob/main/CONTRIBUTING.md)
-3. 问题影响 gpui-material 时，在本地跟踪 Issue 中关联上游 Issue 或 PR，记录修复版本、依赖更新、回归检查和临时适配的移除条件。 [上游贡献](docs/development.zh.md#上游贡献)
+3. 问题影响 GPUI Material 时，在本地跟踪 Issue 中关联上游 Issue 或 PR，记录修复版本、依赖更新、回归检查和临时适配的移除条件。 [上游贡献](docs/development.zh.md#上游贡献)

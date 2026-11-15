@@ -1,16 +1,16 @@
 ---
-import { pagePath } from '../site.mjs';
+import { copy, pagePath, pageTitle } from '../site.mjs';
 
 const root = pagePath('', 'en');
 const bindings = root + 'wasm/material-gallery.js';
 ---
 <!doctype html>
-<html lang="en">
+<html lang="en" data-title-zh={pageTitle(copy.zh.componentPreview)}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <title>Component preview · gpui-material</title>
+    <title>{pageTitle(copy.en.componentPreview)}</title>
     <link rel="icon" type="image/svg+xml" href={root + 'favicon.svg'} />
   </head>
   <body data-bindings={bindings} data-state="loading">
@@ -30,6 +30,7 @@ const bindings = root + 'wasm/material-gallery.js';
         || (!hostTheme.classList.contains('mdui-theme-light') && preference.matches);
 
       document.documentElement.lang = zh ? 'zh-CN' : 'en';
+      if (zh) document.title = document.documentElement.dataset.titleZh!;
       status.textContent = zh ? '正在加载组件预览…' : 'Loading the component preview…';
       document.documentElement.classList.toggle('dark', isDark());
 

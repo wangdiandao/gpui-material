@@ -2,7 +2,7 @@
 
 [English](architecture.md) | 中文
 
-gpui-material 提供 Material 的 Token、主题、视觉状态、布局和组合。gpui-base 提供可复用的行为、焦点、输入、滚动、状态和基础设施。准确版本见[设计依据](design-sources.zh.md#gpui-and-base)。
+GPUI Material 提供 Material 的 Token、主题、视觉状态、布局和组合。GPUI Base 提供可复用的行为、焦点、输入、滚动、状态和基础设施。准确版本见[设计依据](design-sources.zh.md#gpui-and-base)。
 
 <a id="crate-dependency-direction"></a>
 

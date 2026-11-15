@@ -1,13 +1,14 @@
 ---
 import NavigationList from './NavigationList.astro';
 import { repository } from './markdown.mjs';
-import { api, copy, packageVersion, pagePath, sidebar } from './site.mjs';
+import { api, copy, packageVersion, pagePath, pageTitle, projectName, sidebar } from './site.mjs';
 import searchIcon from '../../crates/components/assets/material-symbols/search_24px.svg?raw';
 import themeIcon from '../../crates/components/assets/material-symbols/contrast_24px.svg?raw';
 import 'mdui/mdui.css';
 import './style.css';
 
 const { lang, route, title, description } = Astro.props;
+const documentTitle = pageTitle(title);
 const t = copy[lang];
 const other = lang === 'en' ? 'zh' : 'en';
 const nav = [
@@ -22,7 +23,7 @@ const resources = [
   { label: 'GitHub', href: repository },
 ];
 const sections = [
-  { title: 'gpui-material', items: nav },
+  { title: projectName, items: nav },
   ...(route ? sidebar(lang, route.split('/')[0]) : []),
   { title: t.resources, items: resources },
 ];
@@ -38,7 +39,9 @@ const root = pagePath('', 'en');
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description ?? t.introduction} />
     <meta name="color-scheme" content="light dark" />
-    <title>{title ? `${title} · gpui-material` : 'gpui-material'}</title>
+    <title>{documentTitle}</title>
+    <meta property="og:site_name" content={projectName} />
+    <meta property="og:title" content={documentTitle} />
     <link rel="icon" type="image/svg+xml" href={root + 'favicon.svg'} />
     <link rel="canonical" href={new URL(pagePath(route, lang), Astro.site)} />
     <link rel="alternate" hreflang={other === 'zh' ? 'zh-CN' : 'en'} href={new URL(pagePath(route, other), Astro.site)} />
@@ -58,9 +61,9 @@ const root = pagePath('', 'en');
         <div class="topbar">
           <mdui-button variant="text" id="open-nav" aria-controls="mobile-nav" aria-expanded="false">{t.menu}</mdui-button>
           <mdui-top-app-bar-title>
-            <a class="brand" href={pagePath('', lang)} aria-label="gpui-material">
+            <a class="brand" href={pagePath('', lang)} aria-label={projectName}>
               <img class="brand-mark" src={root + 'logo.svg'} width="34" height="34" alt="" />
-              <span>gpui-material</span>
+              <span>{projectName}</span>
             </a>
           </mdui-top-app-bar-title>
           <nav class="primary-nav" aria-label={t.menu}>
@@ -103,13 +106,13 @@ const root = pagePath('', 'en');
     </header>
     <mdui-navigation-drawer id="mobile-nav" role="dialog" aria-modal="true" aria-label={t.menu}
       modal close-on-esc close-on-overlay-click data-pagefind-ignore>
-      <div class="drawer-heading"><strong>gpui-material</strong><mdui-button id="close-nav" variant="text">{t.close}</mdui-button></div>
+      <div class="drawer-heading"><strong>{projectName}</strong><mdui-button id="close-nav" variant="text">{t.close}</mdui-button></div>
       <NavigationList label={t.menu} {sections} {route} {lang} />
     </mdui-navigation-drawer>
     <slot />
     <mdui-divider data-pagefind-ignore></mdui-divider>
     <footer class="footer" data-pagefind-ignore>
-      <a href={pagePath('', lang)}>gpui-material <span>v{packageVersion}</span></a>
+      <a href={pagePath('', lang)}>{projectName} <span>v{packageVersion}</span></a>
       <a href={repository + '/blob/main/LICENSE'}>Apache-2.0</a>
       <a href={root + (import.meta.env.PROD ? 'licenses/frontend.md' : 'licenses/mdui.txt')}>{t.frontendLicenses}</a>
       <a href={pagePath('docs', lang)}>{t.allGuides}</a>

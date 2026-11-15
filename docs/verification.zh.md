@@ -33,7 +33,7 @@ Windows 视觉检查使用真实窗口，macOS 和 Linux 可用无头渲染器�
 
 ## Windows Gallery 验收
 
-- 在 Windows 11 x64 检出发版提交并运行 `cargo gallery`。打开一个示例，缩窄窗口进入紧凑布局，再重新打开组件目录。确认 `Display scale` 与当前显示器一致，并在 UI Automation 中以状态栏呈现。
+- 在 Windows 11 x64 检出发版提交并运行 `cargo gallery`。确认窗口标题为 GPUI Material Gallery，标题栏和任务栏都显示项目 Logo。打开一个示例，缩窄窗口进入紧凑布局，再重新打开组件目录。确认 `Display scale` 与当前显示器一致，并在 UI Automation 中以状态栏呈现。
 - 按上文适用的 Windows 检查项复测受影响的示例。输入与浮层还需检查微软拼音候选位置和上屏、键盘焦点及回焦，以及讲述人播报。
 - 关闭最后一个 Gallery 窗口并确认进程正常退出。在发布 Issue 或 PR 中记录提交、CI 运行、验收场景及硬件覆盖范围。
 

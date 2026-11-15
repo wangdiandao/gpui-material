@@ -10,7 +10,7 @@ title: ""
 
 ## Environment
 
-<!-- Include the gpui-material version or commit, OS version, and architecture. Where relevant, include Rust and GPUI/Base versions, the window backend, and display scaling. -->
+<!-- Include the GPUI Material version or commit, OS version, and architecture. Where relevant, include Rust and GPUI/Base versions, the window backend, and display scaling. -->
 
 ## Steps to reproduce
 

@@ -24,3 +24,6 @@ gpui.workspace = true
 gpui-base.workspace = true
 gpui_platform = { workspace = true, optional = true }
 gpui-material = { path = "../../crates/material", features = ["carousel", "date-time", "expressive-groups", "search", "toolbars"] }
+
+[target.'cfg(windows)'.build-dependencies]
+embed-resource = "3.0.12"

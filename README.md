@@ -1,9 +1,9 @@
-# gpui-material
+# GPUI Material
 
 English | [中文](README.zh.md)
 
 <p align="center">
-  <img src="./website/public/logo.svg" width="112" height="112" alt="gpui-material logo" />
+  <img src="./website/public/logo.svg" width="112" height="112" alt="GPUI Material logo" />
 </p>
 
 Build native Rust desktop applications with Material 3 Expressive components for GPUI. The library provides Material color, typography, shape, and motion, with GPUI Base handling input, focus, and window services.

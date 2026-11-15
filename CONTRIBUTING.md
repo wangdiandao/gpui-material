@@ -1,4 +1,4 @@
-# Contributing to gpui-material
+# Contributing to GPUI Material
 
 English | [中文](CONTRIBUTING.zh.md)
 
@@ -22,8 +22,8 @@ English | [中文](CONTRIBUTING.zh.md)
 
 ## Issues and contributions upstream
 
-File issues and contribute fixes to the upstream project that owns behavior outside gpui-material's scope. Material themes, drawing, and presentation belong here. Reusable control behavior and accessibility semantics belong in GPUI Kit's `gpui-base`. GPUI windowing, rendering, and platform input belong in Zed's GPUI. [Project architecture](docs/architecture.md)
+File issues and contribute fixes to the upstream project that owns behavior outside GPUI Material's scope. Material themes, drawing, and presentation belong here. Reusable control behavior and accessibility semantics belong in GPUI Kit's `gpui-base`. GPUI windowing, rendering, and platform input belong in Zed's GPUI. [Project architecture](docs/architecture.md)
 
 1. Reduce the problem to a minimal reproduction on the affected upstream version. Check the current upstream branch and search for an existing issue or PR.
 2. Follow that repository's contribution, testing, licensing, and review rules. Keep the patch to the smallest scope and size that fixes the problem and verifies the affected behavior. [GPUI Kit contribution guide](https://github.com/longbridge/gpui-kit/blob/main/CONTRIBUTING.md) · [Zed contribution guide](https://github.com/zed-industries/zed/blob/main/CONTRIBUTING.md)
-3. If the problem affects gpui-material, link the upstream issue or PR from a local tracking issue. Record the fixed release, dependency update, regression checks, and conditions for removing any temporary adapter. [Upstream contributions](docs/development.md#upstream-contributions)
+3. If the problem affects GPUI Material, link the upstream issue or PR from a local tracking issue. Record the fixed release, dependency update, regression checks, and conditions for removing any temporary adapter. [Upstream contributions](docs/development.md#upstream-contributions)

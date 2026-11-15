@@ -9,7 +9,8 @@ use gpui_material::theme::{Appearance, MaterialTheme};
 
 use gpui_material_story::{Gallery, Story, init_gallery};
 
-const TITLE: &str = "Material Gallery";
+const TITLE: &str = "GPUI Material Gallery";
+
 fn main() {
     let arguments: Vec<_> = std::env::args().skip(1).collect();
     let two_windows = arguments.iter().any(|arg| arg == "--two-windows");
@@ -46,7 +47,7 @@ fn main() {
                 Ok(())
             });
             if let Err(error) = result {
-                eprintln!("Could not open Material Gallery: {error:#}");
+                eprintln!("Could not open {TITLE}: {error:#}");
                 std::process::exit(1);
             }
         });
@@ -59,14 +60,11 @@ fn open_gallery(
 ) -> gpui::Result<WindowHandle<Root>> {
     let options = WindowOptions {
         titlebar: Some(TitlebarOptions {
-            title: Some(
-                if local_dark {
-                    "Material Gallery · Dark preview"
-                } else {
-                    TITLE
-                }
-                .into(),
-            ),
+            title: Some(if local_dark {
+                format!("{TITLE} · Dark preview").into()
+            } else {
+                TITLE.into()
+            }),
             ..Default::default()
         }),
         window_bounds: Some(WindowBounds::centered(size(px(1040.), px(744.)), cx)),

@@ -1,7 +1,7 @@
 # Section fingerprints for the English and Chinese pages.
 /architecture-and-dependencies:
-  en: "6200061a28d653b5"
-  zh: "1a37d77ff5be57b0"
+  en: "162ebc56f12ae285"
+  zh: "1dda3aa16b339ad4"
 /architecture-and-dependencies/crate-dependency-direction:
   en: "e86df3962d5272ba"
   zh: "dd8c3123bd1cc98d"

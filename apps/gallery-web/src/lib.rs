@@ -1,4 +1,4 @@
-//! Browser entry point for the Material Gallery and its embedded stories.
+//! Browser entry point for the GPUI Material Gallery and its embedded stories.
 #![cfg(target_arch = "wasm32")]
 
 use std::{borrow::Cow, cell::RefCell, rc::Rc};

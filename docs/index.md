@@ -18,5 +18,6 @@ English | [中文](index.zh.md)
 14. [P6 Text fields and overlays](phases/P06.md) records the input and overlay families, dependency order, and native acceptance criteria.
 15. [P7 Navigation and adaptive layout](phases/P07.md) records the navigation components, layout patterns, and preview acceptance criteria.
 16. [P8 Composite and extended components](phases/P08.md) records the component families, optional features, and candidate acceptance criteria.
+17. [P9 Integration and release readiness](phases/P09.md) records support, migration, regression, and distribution acceptance.
 
 Add design, component, and phase documents to this index when the corresponding work starts. Git preserves the history.

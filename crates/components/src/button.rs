@@ -1,10 +1,10 @@
 use std::rc::Rc;
 
 use gpui::{
-    AnyElement, App, ElementId, FocusHandle, IntoElement, ParentElement, Pixels, RenderOnce,
-    SharedString, Styled, Window, div, px,
+    AnyElement, App, ElementId, Entity, FocusHandle, IntoElement, ParentElement, Pixels,
+    RenderOnce, SharedString, Styled, Window, div, px,
 };
-use gpui_material_foundation::window_material_theme;
+use gpui_material_foundation::{InteractionSource, window_material_theme};
 use gpui_material_theme::{
     ColorRole, CornerRole, Direction, Elevation, MotionKind, MotionSpeed, TypeRole,
     TypographyEmphasis,
@@ -140,6 +140,7 @@ struct Common {
     label: SharedString,
     disabled: bool,
     focus: Option<FocusHandle>,
+    interaction_source: Option<Entity<InteractionSource>>,
     size: ControlSize,
     shape: ButtonShape,
 }
@@ -151,6 +152,7 @@ impl Common {
             label: label.into(),
             disabled: false,
             focus: None,
+            interaction_source: None,
             size: ControlSize::default(),
             shape: ButtonShape::default(),
         }
@@ -185,7 +187,7 @@ impl Common {
             style,
             content,
         }
-        .render_scaled(scale, window, cx)
+        .render_scaled(scale, self.interaction_source.as_ref(), window, cx)
     }
 }
 
@@ -276,6 +278,13 @@ impl Slots {
 
 macro_rules! slot_builders {
     () => {
+        /// Observes this button's interaction presentation through a caller-owned source.
+        /// The source does not handle input or change selection.
+        pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
+            self.common.interaction_source = Some(source.clone());
+            self
+        }
+
         /// Supplies a decorative leading icon in the Material icon slot.
         pub fn leading_icon(mut self, icon: impl IntoElement) -> Self {
             self.slots.leading = Some(icon.into_any_element());
@@ -756,6 +765,7 @@ pub mod composition {
                     tab_stop: self.tab_stop,
                     semantic_only: self.semantic_only,
                 },
+                None,
                 window,
                 cx,
             )

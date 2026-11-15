@@ -117,7 +117,7 @@ npm --prefix website run build:wasm
 
 本地构建使用 Cargo dev profile。Pages 工作流会构建并随网站发布优化后的 WASM。
 
-在 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**。修改网站源码或 WASM 构建输入的 PR 会构建网站。网站、构建输入或文档在 `main` 更新后，会触发 Pages 构建和部署。需要重新部署时，在 Actions 页面选择 `main` 运行 **Documentation website**。
+在 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**。修改网站源码或 WASM 构建输入的 PR 会构建网站。网站、构建输入或文档在 `main` 更新后，会触发 Pages 构建和部署。需要重新部署时，在 Actions 页面选择 `main` 运行 **Deploy website**。
 
 <a id="cold-and-warm-build-baseline"></a>
 

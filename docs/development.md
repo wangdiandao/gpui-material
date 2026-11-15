@@ -117,7 +117,7 @@ npm --prefix website run build:wasm
 
 The local build uses Cargo's dev profile. The Pages workflow builds and publishes optimized WASM with the site.
 
-Set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. PRs that change website sources or WASM build inputs run the website build. Changes to the website, its build inputs, or documentation trigger the Pages build and deployment on `main`. To redeploy, run **Documentation website** on `main` from the Actions tab.
+Set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. PRs that change website sources or WASM build inputs run the website build. Changes to the website, its build inputs, or documentation trigger the Pages build and deployment on `main`. To redeploy, run **Deploy website** on `main` from the Actions tab.
 
 <a id="冷热构建基线"></a>
 

@@ -1,4 +1,4 @@
-name: Documentation website
+name: Deploy website
 
 on:
   push:

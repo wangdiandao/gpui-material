@@ -1,7 +1,8 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use gpui::{Hsla, Pixels, Point, Window, px};
 use gpui_material_theme::StateLayer;
+use web_time::Instant;
 
 use crate::Shape;
 

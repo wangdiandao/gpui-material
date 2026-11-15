@@ -2205,6 +2205,7 @@ dependencies = [
  "gpui-material-theme",
  "gpui-pre",
  "polymorpher",
+ "web-time",
 ]
 
 [[package]]
@@ -2227,6 +2228,7 @@ dependencies = [
  "gpui-material-theme",
  "gpui-pre",
  "polymorpher",
+ "web-time",
  "windows 0.62.2",
 ]
 

@@ -1182,7 +1182,7 @@ fn controlled_menu_applies_only_accepted_requests_and_keeps_nested_escape_local(
     cx.update_window(window, |_, window, _| {
         let row = find(window, &[], &"controlled-check".into()).unwrap();
         assert_eq!(row.role(), Some(Role::MenuItemCheckBox));
-        assert_eq!(row.label().as_deref(), Some("Show labels"));
+        assert_eq!(row.label(), Some("Show labels"));
         assert!(find(window, &[], &"item-support".into()).is_some());
     })
     .unwrap();

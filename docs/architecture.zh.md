@@ -26,6 +26,10 @@ controls/display 可被 inputs、overlays、navigation 使用。TextField 的编
 
 ## 状态与主题
 
+Search 和 exposed dropdown 保留完整结果标识及滚动状态，由 GPUI 可变高度列表构建可见行和有限的预渲染行。Search 按结果 ID 保留焦点句柄；dropdown 将焦点留在 Base 编辑器，并保留活动选项 ID。内容、宽度、字体、rem 大小及下拉动画缩放变化时，相应测量缓存失效。键盘跳向尚未测量的行时使用逻辑行锚点，无需先布局全部前置行。轻量 `List` 继续适用于小集合；仅向它传入可见切片不能实现完整数据模型的键盘导航。
+
+Dropdown 在 Base Input 和 Popup 之上保留处理 IME 的窄键盘适配层。固定版本的 Base Select/Combobox 根节点会增加自己的语义和焦点所有者，且无法在输入法组合期间否决动作处理，直接包装现有可编辑 TextField 会改变契约。按钮和选择控件共享一个呈现事件适配器；Base 仍负责激活与受控值，Material 保留涟漪时间和形状过渡。
+
 - 调用者拥有业务值和稳定标识。Base 持有交互所需的状态、输入、选择和焦点。Material 持有主题、状态呈现策略及新增组合状态。受控组件通过同一路径请求变更，文档注明回调的执行次序及同步重入边界。
 - 组件按语义公开 variant、size、disabled、selected、on_change 等必要契约，开放与组成部分对应的 slot。共享接口以具体类型为主，第三方颜色/形状类型留在适配层。
 - `MaterialTheme` 是项目的主题源。固定版本的 Base `Theme` 通过 App `Global` 读取，包含 appearance、语义 Token、滚动条、分割调整、plot 与光标闪烁默认值。项目主题切换由 App 显式提交并同步投影和刷新。窗口或子树的局部主题由调用者显式传入样式，详见双窗口探针。

@@ -183,3 +183,193 @@ fn search_preview_updates_results_and_restores_focus(cx: &mut gpui::TestAppConte
     frame(cx);
     cx.update(|cx| assert!(!view.read(cx).fullscreen.read(cx).is_open()));
 }
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn large_search_virtualizes_variable_rows_and_navigates_by_stable_id(
+    cx: &mut gpui::TestAppContext,
+) {
+    use gpui::{IntoElement, Role};
+    use gpui_base::test_support::{find, snapshots};
+    use gpui_material::{MaterialRoot, SearchRequest};
+
+    struct Harness {
+        state: Entity<SearchState>,
+        request: Option<SearchRequest>,
+        selected: Option<gpui::ElementId>,
+        _subscription: Subscription,
+    }
+    impl Render for Harness {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            SearchBar::new("large-search", "Search", &self.state)
+        }
+    }
+    let (handle, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut view = None;
+        let handle = MaterialRoot::open_window(Default::default(), cx, |window, cx| {
+            let entity = cx.new(|cx: &mut Context<Harness>| {
+                let state = cx.new(|cx| SearchState::new(window, cx));
+                let subscription = cx.subscribe(&state, |this, _, event, _| match event {
+                    SearchEvent::Request(request) => this.request = Some(request.clone()),
+                    SearchEvent::Select(result) => this.selected = Some(result.id().clone()),
+                    _ => {}
+                });
+                Harness {
+                    state,
+                    request: None,
+                    selected: None,
+                    _subscription: subscription,
+                }
+            });
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (handle, view.unwrap())
+    });
+    let frame = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+    };
+    frame(cx);
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.activate_window();
+        view.read(cx).state.clone().update(cx, |state, cx| {
+            state.open(window, cx);
+            state.set_query("many", window, cx);
+        });
+    })
+    .unwrap();
+    let values = || {
+        (0..2000)
+            .map(|ix| {
+                let result = SearchResult::new(format!("result-{ix}"), format!("Result {ix}"));
+                if ix % 2 == 0 {
+                    result.supporting(
+                        "Supporting text that wraps over multiple lines in a narrow result surface",
+                    )
+                } else {
+                    result
+                }
+            })
+            .collect()
+    };
+    cx.update(|cx| {
+        let request = view.read(cx).request.clone().unwrap();
+        view.read(cx).state.clone().update(cx, |state, cx| {
+            assert!(state.complete(&request, SearchOutcome::Results(values()), cx));
+        });
+    });
+    frame(cx);
+    frame(cx);
+    cx.update_window(handle.into(), |_, window, _| {
+        let count = snapshots(window)
+            .iter()
+            .filter(|item| item.role() == Some(Role::ListItem))
+            .count();
+        assert!(count > 0 && count < 30, "rendered {count} rows");
+        assert!(find(window, &[], &"result-1000".into()).is_none());
+    })
+    .unwrap();
+    // Scrolling with the editor focused must leave a visible Tab entry into
+    // the collection even though result zero is no longer mounted.
+    cx.update_window(handle.into(), |_, window, cx| {
+        use gpui::InputEvent as _;
+        let position = find(window, &[], &"result-1".into())
+            .unwrap()
+            .bounds()
+            .center();
+        window.dispatch_event(
+            gpui::ScrollEvent {
+                position,
+                delta: gpui::ScrollDelta::Pixels(gpui::point(gpui::px(0.), gpui::px(-400.))),
+                modifiers: Default::default(),
+                touch_phase: gpui::TouchPhase::Moved,
+                source: Default::default(),
+            }
+            .to_platform_input(),
+            cx,
+        );
+    })
+    .unwrap();
+    frame(cx);
+    frame(cx);
+    cx.simulate_keystrokes(handle.into(), "tab");
+    frame(cx);
+    cx.update_window(handle.into(), |_, window, _| {
+        assert!(snapshots(window).iter().any(|node| {
+            node.focused() == Some(true)
+                && node
+                    .label()
+                    .is_some_and(|label| label.starts_with("Result "))
+                && node.visible()
+        }));
+    })
+    .unwrap();
+    for _ in 0..15 {
+        cx.simulate_keystrokes(handle.into(), "up");
+        frame(cx);
+        if cx
+            .update_window(handle.into(), |_, window, _| {
+                find(
+                    window,
+                    &[],
+                    &(gpui::ElementId::from("result-1999"), "activate").into(),
+                )
+                .is_some_and(|node| node.focused() == Some(true))
+            })
+            .unwrap()
+        {
+            break;
+        }
+    }
+    cx.update_window(handle.into(), |_, window, _| {
+        let last = find(
+            window,
+            &[],
+            &(gpui::ElementId::from("result-1999"), "activate").into(),
+        )
+        .unwrap();
+        assert_eq!(last.focused(), Some(true));
+        assert!(last.visible());
+    })
+    .unwrap();
+    // Replace/reorder the model before the next frame. Focus remains attached
+    // to the result's ID, not its old numeric position.
+    cx.update_window(handle.into(), |_, window, cx| {
+        view.read(cx)
+            .state
+            .clone()
+            .update(cx, |state, cx| state.set_query("reorder", window, cx));
+    })
+    .unwrap();
+    cx.update(|cx| {
+        let request = view.read(cx).request.clone().unwrap();
+        let mut rows: Vec<_> = values();
+        rows.reverse();
+        view.read(cx).state.clone().update(cx, |state, cx| {
+            assert!(state.complete(&request, SearchOutcome::Results(rows), cx));
+        });
+    });
+    frame(cx);
+    cx.simulate_keystrokes(handle.into(), "down");
+    frame(cx);
+    cx.simulate_keystrokes(handle.into(), "enter");
+    cx.update_window(handle.into(), |_, window, cx| {
+        use gpui::InputEvent as _;
+        let keystroke = gpui::Keystroke::parse_with_os("enter", cx.platform_info().os).unwrap();
+        window.dispatch_event(gpui::KeyUpEvent { keystroke }.to_platform_input(), cx);
+    })
+    .unwrap();
+    frame(cx);
+    cx.update(|cx| {
+        assert_eq!(view.read(cx).selected, Some("result-1998".into()));
+        assert!(!view.read(cx).state.read(cx).is_open());
+    });
+}

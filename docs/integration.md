@@ -45,6 +45,10 @@ fn main() {
 
 ## API and migration
 
+Search and dropdown virtualization require no caller migration. Result and option IDs must remain unique and stable across reordering. `ListItem::track_focus(&FocusHandle, bool)` lets a caller-owned virtual collection supply retained row focus and its roving tab stop; that collection must also own full-model navigation and reveal offscreen targets. The existing `List` API is unchanged.
+
+`foundation::set_window_material_theme` overrides Material presentation, including explicit Base editor colors and Material overlay surfaces. It does not replace the application-global Base theme used by standalone Base controls, scrollbars, resize handles, or caret-blink policy. Use explicit local styles for those integrations. Rendering a window never swaps the Base global theme.
+
 The supported application entry point is the [public facade](../crates/material/src/lib.rs), including its documented `foundation` and `theme` paths. Enable optional families at the facade with the [feature names in the README](../README.md). `date-time` exposes its API under `gpui_material::date_time`. `dynamic-color` and `serde` forward to the pure theme crate. GPUI and Base types in public signatures follow the pinned upstream versions. Gallery modules and the internal organization of the workspace crates may change.
 
 Applications using the 0.0.4 facade can move their checkout to the accepted P9 commit with the same imports, feature names, and state initialization. The next version line remains pre-1.0. Review changes to this contract and the migration steps when updating to a new minor release.

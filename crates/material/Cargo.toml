@@ -3,8 +3,11 @@ name = "gpui-material"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-license.workspace = true
-publish.workspace = true
+license-file.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "Material 3 Expressive components and themes for GPUI desktop applications"
+publish = ["crates-io"]
 
 [features]
 default = []
@@ -17,7 +20,7 @@ toolbars = ["gpui-material-extras/toolbars"]
 date-time = ["gpui-material-extras/date-time"]
 
 [dependencies]
-gpui-material-components = { path = "../components" }
-gpui-material-extras = { path = "../extras", optional = true }
-gpui-material-foundation = { path = "../foundation" }
-gpui-material-theme = { path = "../theme" }
+gpui-material-components.workspace = true
+gpui-material-extras = { workspace = true, optional = true }
+gpui-material-foundation.workspace = true
+gpui-material-theme.workspace = true

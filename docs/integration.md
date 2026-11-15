@@ -2,20 +2,20 @@
 
 English | [中文](integration.zh.md)
 
-Use Rust 1.99.1 or later with the 2024 edition. The verified minimum toolchain is Rust 1.99.1. Consume the facade from a checkout and pin the checkout commit in your application. Keep the application's Cargo lockfile under version control.
+Use Rust 1.99.1 or later with the 2024 edition. Keep the application's Cargo lockfile under version control.
 
 ## Add the facade
 
-The following example assumes the Material checkout is next to the application. Match GPUI package identities exactly so the facade and application share the same `App`, `Window` and `Entity` types.
+Add the facade from crates.io. Match GPUI package identities exactly so the facade and application share the same `App`, `Window` and `Entity` types.
 
 ```toml
 [dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.12" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui-material = { path = "../gpui-material/crates/material" }
+gpui-material = "0.1.0"
 ```
 
-An application that uses Base directly should also pin `gpui-base = "=0.9.1"`. When moving the checkout to a new commit, run `cargo tree -d` to check for multiple versions and verify the platform and input behavior that the application relies on.
+An application that uses Base directly should also pin `gpui-base = "=0.9.1"`. For a source integration, use `{ path = "../gpui-material/crates/material" }` and pin the checkout commit. After an upgrade, run `cargo tree -d` to check for multiple versions and verify the platform and input behavior that the application relies on.
 
 ```rust
 use gpui::{AppContext, Context, IntoElement, QuitMode, Render, Window, WindowOptions};

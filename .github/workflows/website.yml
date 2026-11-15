@@ -61,7 +61,8 @@ jobs:
           cd "$RUNNER_TEMP"
           url="https://github.com/wasm-bindgen/wasm-bindgen/releases/download/${version}/${archive}"
           curl --fail --silent --show-error --location --remote-name "$url" --remote-name "$url.sha256sum"
-          sha256sum --check "$archive.sha256sum"
+          read -r checksum _ < "$archive.sha256sum"
+          printf '%s  %s\n' "$checksum" "$archive" | sha256sum --check --strict
           tar -xf "$archive"
           echo "$RUNNER_TEMP/${archive%.tar.gz}" >> "$GITHUB_PATH"
 

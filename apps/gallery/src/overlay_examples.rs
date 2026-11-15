@@ -8,7 +8,7 @@ use gpui_material::{
     Button, Dialog, DialogState, DialogVariant, Sheet, SheetEdge, SheetMode, Snackbar,
     SnackbarHost, TextField, TextFieldState, TextFieldVariant,
 };
-use gpui_material::{Menu, MenuItem, Text, Tooltip};
+use gpui_material::{Menu, MenuColor, MenuItem, Text, Tooltip};
 
 use crate::story::{Story, section, stack};
 
@@ -758,6 +758,36 @@ impl Render for MenuTooltipExamples {
                         ),
                 )
                 .child(
+                    section("Vibrant menu").child(
+                        div().child(
+                            Menu::new(
+                                "vibrant-options",
+                                gpui_base::Button::new("open-vibrant")
+                                    .px_3()
+                                    .py_2()
+                                    .rounded_sm()
+                                    .border_1()
+                                    .child("Share settings"),
+                                [MenuItem::section(
+                                    "visibility",
+                                    "Visibility",
+                                    [
+                                        MenuItem::new("view", "View")
+                                            .selected(true)
+                                            .leading(|| Text::new("V"))
+                                            .trailing(|| Text::new("Default")),
+                                        MenuItem::new("edit", "Edit")
+                                            .supporting(|| Text::new("Allow changes")),
+                                    ],
+                                )
+                                .inactive_shape(gpui_material::theme::CornerRole::Small.shape())],
+                            )
+                            .color(MenuColor::Vibrant)
+                            .offset(px(8.)),
+                        ),
+                    ),
+                )
+                .child(
                     section("Context menu")
                         .description("Right-click Roadmap to see the actions for that item.")
                         .child(
@@ -1261,6 +1291,211 @@ fn controlled_menu_applies_only_accepted_requests_and_keeps_nested_escape_local(
         assert_eq!(state.requests, [true, true, false, false, false]);
         assert_eq!(state.dismissals, 3);
     });
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn expressive_menu_paints_group_row_and_position_overrides(cx: &mut gpui::TestAppContext) {
+    use gpui::{
+        InputEvent as _, MouseButton, MouseDownEvent, MouseUpEvent, Pixels, Point, Role,
+        ScrollHandle, WindowOptions, point,
+    };
+    use gpui_base::test_support::find;
+    use gpui_material::{
+        MaterialRoot, MenuItemStyle, MenuSurfaceStyle,
+        foundation::{color, window_material_theme},
+        theme::{ColorRole, CornerRole, Elevation},
+    };
+
+    struct Example {
+        scroll: ScrollHandle,
+        position: Point<Pixels>,
+        activations: usize,
+    }
+
+    impl Render for Example {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let owner = cx.entity().downgrade();
+            div().child(
+                Menu::new(
+                    "styled-menu",
+                    gpui_base::Button::new("styled-trigger").child("Menu"),
+                    [
+                        MenuItem::section(
+                            "project-group",
+                            "Project",
+                            [
+                                MenuItem::new("group-first", "First").on_activate(move |_, cx| {
+                                    let _ = owner.update(cx, |state, cx| {
+                                        state.activations += 1;
+                                        cx.notify();
+                                    });
+                                }),
+                                MenuItem::new("group-selected", "Selected")
+                                    .selected(true)
+                                    .appearance(MenuItemStyle {
+                                        selected_shape: Some(CornerRole::Medium.shape()),
+                                        selected_container: Some(ColorRole::PrimaryContainer),
+                                        selected_content: Some(ColorRole::OnPrimaryContainer),
+                                        ..Default::default()
+                                    }),
+                            ],
+                        )
+                        .group_appearance(MenuSurfaceStyle {
+                            shape: Some(CornerRole::ExtraLarge.shape()),
+                            container: Some(ColorRole::SecondaryContainer),
+                            border: Some((px(2.), ColorRole::Outline)),
+                            ..Default::default()
+                        }),
+                        MenuItem::section(
+                            "following-group",
+                            "More actions",
+                            (0..20usize).map(|index| {
+                                MenuItem::new(("following-item", index), format!("Action {index}"))
+                            }),
+                        ),
+                    ],
+                )
+                .color(MenuColor::Vibrant)
+                .appearance(MenuSurfaceStyle {
+                    shadow_elevation: Some(Elevation::Level4),
+                    spacing: Some(px(4.)),
+                    ..Default::default()
+                })
+                .content(|| {
+                    div()
+                        .id("menu-header")
+                        .test_support()
+                        .child("Style controls")
+                })
+                .position(self.position)
+                .track_scroll(&self.scroll)
+                .open(true),
+            )
+        }
+    }
+
+    let scroll = ScrollHandle::new();
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let view = cx.new(|_| Example {
+            scroll: scroll.clone(),
+            position: point(px(180.), px(100.)),
+            activations: 0,
+        });
+        let window =
+            MaterialRoot::open_window(WindowOptions::default(), cx, |_, _| view.clone()).unwrap();
+        (window, view)
+    });
+    let window = window.into();
+    for _ in 0..2 {
+        cx.update_window(window, |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+    }
+    let menu_position = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(window, |_, window, _| {
+            find(window, &[], &"menu".into()).unwrap().bounds().origin
+        })
+        .unwrap()
+    };
+    assert_eq!(menu_position(cx), point(px(180.), px(100.)));
+    cx.update_window(window, |_, window, cx| {
+        let group = find(window, &[], &"project-group".into()).unwrap();
+        assert_eq!(group.role(), Some(Role::Group));
+        assert_eq!(group.label(), Some("Project"));
+        assert!(find(window, &[], &"menu-header".into()).is_some());
+        let theme = window_material_theme(window, cx);
+        let tint = |role| color(theme.colors.color(role));
+        let quads = window.painted_quads();
+        assert!(
+            quads
+                .iter()
+                .any(|quad| quad.background == tint(ColorRole::TertiaryContainer).into())
+        );
+        let group_fill = quads
+            .iter()
+            .find(|quad| {
+                quad.background == tint(ColorRole::SecondaryContainer).into()
+                    && quad.corner_radii.top_left.0 == 28. * window.scale_factor()
+            })
+            .expect("styled group fill");
+        assert!(quads.iter().any(|quad| {
+            quad.bounds == group_fill.bounds
+                && quad.border_color == tint(ColorRole::Outline)
+                && quad.border_widths.top.0 == 2. * window.scale_factor()
+        }));
+        assert!(quads.iter().any(|quad| {
+            quad.background == tint(ColorRole::PrimaryContainer).into()
+                && quad.corner_radii.top_left.0 == 12. * window.scale_factor()
+        }));
+    })
+    .unwrap();
+
+    let focus = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(window, |_, window, cx| window.focused(cx))
+            .unwrap()
+    };
+    let first = focus(cx).unwrap();
+    cx.simulate_keystrokes(window, "down");
+    let selected = focus(cx).unwrap();
+    assert_ne!(selected, first);
+    cx.simulate_keystrokes(window, "down up");
+    assert_eq!(focus(cx), Some(selected));
+
+    cx.update_window(window, |_, window, cx| {
+        let row = find(window, &[], &"group-first".into()).unwrap();
+        let position = row.bounds().center();
+        window.dispatch_event(
+            MouseDownEvent {
+                button: MouseButton::Left,
+                position,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(
+            MouseUpEvent {
+                button: MouseButton::Left,
+                position,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+        assert_eq!(view.read(cx).activations, 1);
+    })
+    .unwrap();
+
+    assert!(scroll.max_offset().y > px(60.));
+    scroll.set_offset(point(px(0.), -px(60.)));
+    cx.update_window(window, |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+    })
+    .unwrap();
+    assert_eq!(scroll.offset().y, -px(60.));
+    assert_eq!(menu_position(cx), point(px(180.), px(100.)));
+
+    cx.update_window(window, |_, window, cx| {
+        let viewport = window.viewport_size();
+        view.update(cx, |state, cx| {
+            state.position = point(viewport.width + px(40.), viewport.height + px(40.));
+            cx.notify();
+        });
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let menu = find(window, &[], &"menu".into()).unwrap().bounds();
+        assert!(menu.right() <= viewport.width && menu.bottom() <= viewport.height);
+    })
+    .unwrap();
 }
 
 #[cfg(all(test, feature = "test-support"))]

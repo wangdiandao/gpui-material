@@ -67,6 +67,10 @@ Use `.color(ColorRole::Primary)` to resolve a role against the window theme or `
 
 Keep each `MenuItem` ID stable and provide a label for accessibility. Its `.content`, `.leading`, `.supporting`, `.trailing`, and `.selection_icon` builders accept repeatable element factories for visual content. A menu row owns the keyboard and pointer action. Pass the checked value with `.checked(value)` and handle requests with `.on_checked_change`. Selected items continue to use `.selected(value)` with `.on_activate`.
 
+Use `.color(MenuColor::Vibrant)` for the tertiary menu palette. A `MenuItem::section(id, name, rows)` draws a grouped surface and keeps its rows in the menu's arrow-key order. `Menu::content` adds caller-authored content before the rows. A section's `.content` replaces its visible heading.
+
+Use `MenuSurfaceStyle` with `Menu::appearance` or `MenuItem::group_appearance` to configure the surface shape, padding, spacing, border and elevations. `MenuItemStyle` overrides menu-row shapes, spacing, padding, and color roles. Use `.anchor` and `.offset` for logical trigger placement or `.position` with a window-local point. `.track_scroll` accepts a caller-owned scroll handle.
+
 <a id="导航与自适应布局"></a>
 
 ## Navigation and adaptive layout

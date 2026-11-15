@@ -18,6 +18,7 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ### Menus
 
+- Add the Vibrant menu palette, styled groups and rows, custom popup content, positioning and an external scroll handle.
 - Control menu visibility from application state, handle dismissal requests, and customize menu-item content while retaining keyboard navigation and accessible item names.
 
 ### Distribution

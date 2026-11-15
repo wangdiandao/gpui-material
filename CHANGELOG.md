@@ -4,13 +4,6 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
-### Documentation
-
-- Add a bilingual documentation site with component usage examples and searchable guides.
-- Use MDUI web components across the site and add sections for component capabilities and architecture.
-- Group the component catalog by purpose and organize each guide into imports, usage, and examples.
-- Run Rust Gallery stories in the component browser previews with WebAssembly and support wheel scrolling inside the canvas.
-
 ### Distribution
 
 - The Gallery now ships as source. Run `cargo gallery` from a checkout.

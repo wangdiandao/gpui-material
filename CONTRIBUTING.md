@@ -17,7 +17,7 @@ English | [中文](CONTRIBUTING.zh.md)
 - Follow the [coding conventions](docs/development.md#coding-conventions) and [testing conventions](docs/development.md#testing-conventions). The contributor is responsible for reviewing and testing the submitted code, including AI-assisted work.
 - List added, changed, or removed public APIs by crate with their signatures and purpose. For breaking changes, show old and new usage and record the migration in [the changelog](CHANGELOG.md).
 - Record reproducible verification commands, environment, and results. For UI changes, name the Gallery scenario and record the variants and states exercised. Add screenshots or a recording when they help review a visual change.
-- Record user-relevant changes under `Unreleased` in [the changelog](CHANGELOG.md). The [release guide](docs/release.md) defines which changes to include.
+- Record user-visible changes to the crates and Gallery under `Unreleased` in [the changelog](CHANGELOG.md). The [release guide](docs/release.md#changelog) defines which changes to include.
 - A maintainer reviews the scope, design compliance, API compatibility, and verification. Update the PR to address review feedback. Merge after maintainer approval, resolution of review conversations, and a successful `CI required` check on the latest PR revision.
 
 ## Issues and contributions upstream

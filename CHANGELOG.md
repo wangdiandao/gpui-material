@@ -6,6 +6,7 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ### Components
 
+- Set divider thickness and color for each horizontal or vertical rule. A zero thickness selects a one-device-pixel hairline.
 - Compose text fields with configurable label placement, leading and trailing elements, value affixes, custom hints and supporting content, and required, invalid, and character count presentation.
 
 ### Gallery

@@ -14,6 +14,10 @@ use crate::action::{
     Action, ActionControl, ActionLayout, ActionStyle, Activate, Change, DisabledStyle,
     SegmentShape, icon_slot,
 };
+use crate::button_style::{
+    ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShapes, ButtonStyle,
+    finite_length,
+};
 
 /// Material Expressive sizes, from extra small to extra large.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -141,6 +145,7 @@ struct Common {
     disabled: bool,
     focus: Option<FocusHandle>,
     interaction_source: Option<Entity<InteractionSource>>,
+    appearance: ButtonStyle,
     size: ControlSize,
     shape: ButtonShape,
 }
@@ -153,6 +158,7 @@ impl Common {
             disabled: false,
             focus: None,
             interaction_source: None,
+            appearance: ButtonStyle::default(),
             size: ControlSize::default(),
             shape: ButtonShape::default(),
         }
@@ -187,7 +193,13 @@ impl Common {
             style,
             content,
         }
-        .render_scaled(scale, self.interaction_source.as_ref(), window, cx)
+        .render_scaled(
+            scale,
+            self.interaction_source.as_ref(),
+            self.appearance,
+            window,
+            cx,
+        )
     }
 }
 
@@ -224,6 +236,8 @@ macro_rules! common_builders {
 struct Slots {
     leading: Option<AnyElement>,
     trailing: Option<AnyElement>,
+    content: Option<AnyElement>,
+    padding: Option<ButtonPadding>,
 }
 
 impl Slots {
@@ -238,6 +252,25 @@ impl Slots {
     ) -> AnyElement {
         let direction = window_material_theme(window, cx).layout.direction;
         let typography = metrics.label.style(TypographyEmphasis::Baseline);
+        let horizontal = px(metrics
+            .padding
+            .min(f32::from(window.viewport_size().width) * 0.125));
+        let ButtonPadding {
+            top,
+            end,
+            bottom,
+            start,
+        } = self.padding.unwrap_or(ButtonPadding {
+            top: px(4.),
+            end: horizontal,
+            bottom: px(4.),
+            start: horizontal,
+        });
+        let (left, right) = if direction == Direction::Rtl {
+            (end, start)
+        } else {
+            (start, end)
+        };
         let mut row = div()
             .flex()
             .items_center()
@@ -245,11 +278,10 @@ impl Slots {
             .min_w_0()
             .max_w_full()
             .gap(px(metrics.gap * scale))
-            .px(px(metrics
-                .padding
-                .min(f32::from(window.viewport_size().width) * 0.125)
-                * scale))
-            .py(px(4. * scale))
+            .pl(finite_length(left) * scale)
+            .pr(finite_length(right) * scale)
+            .pt(finite_length(top) * scale)
+            .pb(finite_length(bottom) * scale)
             .text_size(px(typography.size * scale))
             .line_height(px(typography.line_height * scale));
         if direction == Direction::Rtl {
@@ -259,15 +291,10 @@ impl Slots {
             self.leading
                 .map(|icon| icon_slot(icon, metrics.icon * scale)),
         )
-        .child(crate::text::single_line(
-            label,
-            typography,
-            scale,
-            tint,
-            (None, 1., 1.),
-            window,
-            cx,
-        ))
+        .child(self.content.unwrap_or_else(|| {
+            crate::text::single_line(label, typography, scale, tint, (None, 1., 1.), window, cx)
+                .into_any_element()
+        }))
         .children(
             self.trailing
                 .map(|icon| icon_slot(icon, metrics.icon * scale)),
@@ -282,6 +309,43 @@ macro_rules! slot_builders {
         /// The source does not handle input or change selection.
         pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
             self.common.interaction_source = Some(source.clone());
+            self
+        }
+
+        /// Replaces the visible label with an element. The constructor's label
+        /// remains the accessible name. Keep interactive children outside the button.
+        pub fn content(mut self, content: impl IntoElement) -> Self {
+            self.slots.content = Some(content.into_any_element());
+            self
+        }
+
+        /// Overrides state-specific corners. Unspecified states use the variant defaults.
+        pub fn shapes(mut self, shapes: ButtonShapes) -> Self {
+            self.common.appearance.shapes = shapes;
+            self
+        }
+
+        /// Overrides container and label colors for individual states.
+        pub fn colors(mut self, colors: ButtonColors) -> Self {
+            self.common.appearance.colors = colors;
+            self
+        }
+
+        /// Supplies a border in place of the variant's outline.
+        pub fn border(mut self, border: ButtonBorder) -> Self {
+            self.common.appearance.border = Some(border);
+            self
+        }
+
+        /// Sets logical insets around the label, content and icon slots.
+        pub fn content_padding(mut self, padding: ButtonPadding) -> Self {
+            self.slots.padding = Some(padding);
+            self
+        }
+
+        /// Overrides elevation levels for individual interaction states.
+        pub fn elevations(mut self, elevations: ButtonElevations) -> Self {
+            self.common.appearance.elevations = elevations;
             self
         }
 
@@ -354,7 +418,11 @@ impl RenderOnce for Button {
             metrics,
             self.scale,
             window,
-            style.foreground(self.common.disabled, window, cx),
+            self.common
+                .appearance
+                .colors
+                .content(self.common.disabled, false)
+                .unwrap_or_else(|| style.foreground(self.common.disabled, window, cx)),
             cx,
         );
         self.common.render_scaled(
@@ -424,7 +492,11 @@ impl RenderOnce for ToggleButton {
             metrics,
             1.,
             window,
-            style.foreground(self.common.disabled, window, cx),
+            self.common
+                .appearance
+                .colors
+                .content(self.common.disabled, self.selected)
+                .unwrap_or_else(|| style.foreground(self.common.disabled, window, cx)),
             cx,
         );
         self.common.render(
@@ -764,6 +836,7 @@ pub mod composition {
                     width: Some(self.width),
                     tab_stop: self.tab_stop,
                     semantic_only: self.semantic_only,
+                    ..Default::default()
                 },
                 None,
                 window,

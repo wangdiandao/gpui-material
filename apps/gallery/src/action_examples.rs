@@ -4,10 +4,11 @@ use gpui::{
 };
 use gpui_base::TestSupportExt;
 use gpui_material::{
-    Button, ButtonShape, ButtonVariant, ControlSize, ExtendedFab, Fab, FabColor, FabSize, Icon,
-    IconButton, IconButtonVariant, IconButtonWidth, IconName, IconToggleButton, InteractionSource,
-    Text, ToggleButton, ToggleButtonVariant,
-    theme::{ColorRole, TypeRole},
+    Button, ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShape, ButtonShapes,
+    ButtonVariant, ControlSize, ExtendedFab, Fab, FabColor, FabSize, Icon, IconButton,
+    IconButtonVariant, IconButtonWidth, IconName, IconToggleButton, InteractionSource, Text,
+    ToggleButton, ToggleButtonVariant,
+    theme::{ColorRole, CornerShape, Elevation, TypeRole},
 };
 
 use crate::story::{Story, section, stack};
@@ -20,6 +21,7 @@ pub(crate) struct ActionExamples {
     icon_toggles: [bool; 5],
     collapsed: bool,
     interactions: Option<Entity<InteractionSource>>,
+    observed_toggle: bool,
 }
 
 impl ActionExamples {
@@ -62,22 +64,28 @@ impl ActionExamples {
             .description("Hover, press, or focus each control to inspect its interaction state.")
             .child(
                 row()
-                    .child(labeled_sample(
+                    .child(labeled_sample_at(
+                        "observed-action-status",
                         state("observed-action-example"),
                         Button::new("observed-action-example", "Action")
                             .interaction_source(source)
                             .on_activate(|_, _| {}),
                     ))
-                    .child(labeled_sample(
+                    .child(labeled_sample_at(
+                        "observed-toggle-status",
                         state("observed-toggle-example"),
-                        ToggleButton::new("observed-toggle-example", "Toggle", self.toggles[4])
-                            .interaction_source(source)
-                            .on_change(move |selected, _, cx| {
-                                toggle.update(cx, |this, cx| {
-                                    this.toggles[4] = selected;
-                                    cx.notify();
-                                });
-                            }),
+                        ToggleButton::new(
+                            "observed-toggle-example",
+                            "Toggle",
+                            self.observed_toggle,
+                        )
+                        .interaction_source(source)
+                        .on_change(move |selected, _, cx| {
+                            toggle.update(cx, |this, cx| {
+                                this.observed_toggle = selected;
+                                cx.notify();
+                            });
+                        }),
                     )),
             )
     }
@@ -344,7 +352,94 @@ impl Render for ActionExamples {
                 )
             }))
             .children(interaction_sample)
+            .children(self.shows(Story::Button).then(|| {
+                let view = cx.entity();
+                section("Custom content and appearance").child(
+                    row()
+                        .child(custom_action().on_activate(move |_, cx| {
+                            view.update(cx, |this, cx| {
+                                this.count += 1;
+                                cx.notify();
+                            });
+                        }))
+                        .child(Button::new("default-action-neighbor", "Default")),
+                )
+            }))
+            .children(self.shows(Story::ToggleButton).then(|| {
+                let view = cx.entity();
+                section("Custom checked appearance").child(
+                    custom_toggle(self.toggles[4]).on_change(move |selected, _, cx| {
+                        view.update(cx, |model, cx| {
+                            model.toggles[4] = selected;
+                            cx.notify();
+                        });
+                    }),
+                )
+            }))
     }
+}
+
+fn custom_action_color() -> gpui::Hsla {
+    gpui::hsla(0.59, 0.55, 0.31, 1.)
+}
+
+fn custom_border_color() -> gpui::Hsla {
+    gpui::hsla(0.58, 0.5, 0.59, 1.)
+}
+
+fn custom_toggle_color() -> gpui::Hsla {
+    gpui::hsla(0.37, 0.48, 0.24, 1.)
+}
+
+fn custom_action() -> Button {
+    Button::new("custom-action", "Run the sample action")
+        .content(
+            div()
+                .id("custom-action-content")
+                .test_support()
+                .min_w(gpui::px(84.))
+                .h(gpui::px(24.))
+                .child("Run sample"),
+        )
+        .shapes(ButtonShapes {
+            resting: Some(CornerShape::Radii([3., 7., 11., 13.])),
+            pressed: Some(CornerShape::Radii([2.; 4])),
+            ..ButtonShapes::default()
+        })
+        .colors(ButtonColors {
+            container: Some(custom_action_color()),
+            content: Some(gpui::white()),
+            ..ButtonColors::default()
+        })
+        .border(ButtonBorder {
+            width: gpui::px(2.),
+            color: custom_border_color(),
+        })
+        .content_padding(ButtonPadding {
+            start: gpui::px(22.),
+            end: gpui::px(10.),
+            top: gpui::px(6.),
+            bottom: gpui::px(6.),
+        })
+        .elevations(ButtonElevations {
+            resting: Some(Elevation::Level2),
+            pressed: Some(Elevation::Level1),
+            ..ButtonElevations::default()
+        })
+}
+
+fn custom_toggle(selected: bool) -> ToggleButton {
+    ToggleButton::new("custom-toggle", "Pin sample", selected)
+        .content(div().child(if selected { "Pinned" } else { "Pin" }))
+        .shapes(ButtonShapes {
+            checked: Some(CornerShape::Radii([6.; 4])),
+            ..ButtonShapes::default()
+        })
+        .colors(ButtonColors {
+            checked_container: Some(custom_toggle_color()),
+            checked_content: Some(gpui::white()),
+            ..ButtonColors::default()
+        })
 }
 
 fn row() -> gpui::Div {
@@ -353,13 +448,25 @@ fn row() -> gpui::Div {
 
 fn labeled_sample(label: impl Into<gpui::SharedString>, example: impl IntoElement) -> gpui::Div {
     let label = label.into();
+    labeled_sample_at(
+        (gpui::ElementId::from("sample-label"), label.clone()),
+        label,
+        example,
+    )
+}
+
+fn labeled_sample_at(
+    id: impl Into<gpui::ElementId>,
+    label: impl Into<gpui::SharedString>,
+    example: impl IntoElement,
+) -> gpui::Div {
     stack()
         .items_start()
         .gap_1()
         .max_w_full()
         .child(
-            Text::new(label.clone())
-                .id((gpui::ElementId::from("sample-label"), label))
+            Text::new(label)
+                .id(id)
                 .role(TypeRole::LabelMedium)
                 .color(ColorRole::OnSurfaceVariant)
                 .wrap(),
@@ -761,6 +868,212 @@ mod tests {
         draw(cx);
         assert!(read(1, &second, cx).is_none());
         assert!(read(0, &first, cx).is_some());
+    }
+
+    #[gpui::test]
+    fn custom_button_states_and_slots_keep_token_defaults_and_controlled_values(
+        cx: &mut TestAppContext,
+    ) {
+        use gpui_material::{
+            foundation::{color, set_window_material_theme, window_material_theme},
+            theme::Direction,
+        };
+
+        #[derive(Default)]
+        struct Controls {
+            checks: Vec<bool>,
+            checked: bool,
+            disabled: bool,
+            clicks: usize,
+        }
+
+        impl Render for Controls {
+            fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+                let toggle = cx.entity();
+                let action = cx.entity();
+                row()
+                    .child(
+                        custom_action()
+                            .disabled(self.disabled)
+                            .on_activate(move |_, cx| {
+                                action.update(cx, |model, _| model.clicks += 1)
+                            }),
+                    )
+                    .child(Button::new("plain-action", "Plain"))
+                    .child(
+                        custom_toggle(self.checked).on_change(move |selected, _, cx| {
+                            toggle.update(cx, |model, _| model.checks.push(selected));
+                        }),
+                    )
+            }
+        }
+
+        let (handle, model) = cx.update(|cx| {
+            crate::init_gallery(cx);
+            cx.set_reduce_motion(true);
+            let model = cx.new(|_| Controls::default());
+            let window =
+                MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, _| model.clone())
+                    .unwrap();
+            (window, model)
+        });
+
+        cx.update_window(handle.into(), |_, window, _| window.activate_window())
+            .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle.into(), |_, window, cx| {
+            let draw = |window: &mut Window, cx: &mut gpui::App| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+            };
+            let quad = |tint: gpui::Hsla, window: &Window| {
+                window
+                    .painted_quads()
+                    .into_iter()
+                    .find(|quad| quad.background == tint.into())
+                    .expect("button paints its instance or default container")
+            };
+            let check_padding = |start_on_left: bool, window: &Window| {
+                let button = quad(custom_action_color(), window);
+                let scale = window.scale_factor();
+                let content = find(window, &[], &"custom-action-content".into())
+                    .expect("custom button content is rendered")
+                    .bounds();
+                let left = f32::from(content.left()) - button.bounds.left().0 / scale;
+                let right = button.bounds.right().0 / scale - f32::from(content.right());
+                let (expected_left, expected_right) = if start_on_left {
+                    (22., 10.)
+                } else {
+                    (10., 22.)
+                };
+                assert!((left - expected_left).abs() <= 1., "left={left}");
+                assert!((right - expected_right).abs() <= 1., "right={right}");
+            };
+            let pointer = |id: &'static str, window: &Window| {
+                find(window, &[], &id.into()).unwrap().bounds().center()
+            };
+            let down = |position, window: &mut Window, cx: &mut gpui::App| {
+                window.dispatch_event(
+                    MouseDownEvent {
+                        button: MouseButton::Left,
+                        position,
+                        click_count: 1,
+                        first_mouse: false,
+                        modifiers: Default::default(),
+                    }
+                    .to_platform_input(),
+                    cx,
+                );
+            };
+            let up = |position, window: &mut Window, cx: &mut gpui::App| {
+                window.dispatch_event(
+                    MouseUpEvent {
+                        button: MouseButton::Left,
+                        position,
+                        click_count: 1,
+                        modifiers: Default::default(),
+                    }
+                    .to_platform_input(),
+                    cx,
+                );
+            };
+
+            draw(window, cx);
+            let node = find(window, &[], &"custom-action".into()).unwrap();
+            assert_eq!(node.role(), Some(Role::Button));
+            assert_eq!(node.label(), Some("Run the sample action"));
+            let button = quad(custom_action_color(), window);
+            let scale = window.scale_factor();
+            assert_eq!(button.corner_radii.top_left.0 / scale, 3.);
+            assert_eq!(button.border_widths.top.0 / scale, 2.);
+            assert_eq!(button.border_color, custom_border_color());
+            let primary = color(
+                window_material_theme(window, cx)
+                    .colors
+                    .color(ColorRole::Primary),
+            );
+            assert_eq!(quad(primary, window).corner_radii.top_left.0 / scale, 20.);
+            check_padding(true, window);
+
+            let position = pointer("custom-action", window);
+            down(position, window, cx);
+            draw(window, cx);
+            assert_eq!(
+                quad(custom_action_color(), window).corner_radii.top_left.0 / scale,
+                2.
+            );
+            up(position, window, cx);
+            assert_eq!(model.read(cx).clicks, 1);
+
+            let unchecked = color(
+                window_material_theme(window, cx)
+                    .colors
+                    .color(ColorRole::SurfaceContainer),
+            );
+            let trigger = |window: &mut Window, cx: &mut gpui::App| {
+                let position = pointer("custom-toggle", window);
+                down(position, window, cx);
+                up(position, window, cx);
+            };
+            trigger(window, cx);
+            draw(window, cx);
+            assert_eq!(model.read(cx).checks, [true]);
+            assert_eq!(quad(unchecked, window).corner_radii.top_left.0 / scale, 20.);
+            model.update(cx, |model, cx| {
+                model.checked = true;
+                cx.notify();
+            });
+            draw(window, cx);
+            assert_eq!(
+                quad(custom_toggle_color(), window).corner_radii.top_left.0 / scale,
+                6.
+            );
+
+            // The toggle still owns keyboard focus after its pointer activation.
+            let key = gpui::Keystroke::parse_with_os("space", cx.platform_info().os).unwrap();
+            window.dispatch_event(
+                gpui::KeyDownEvent {
+                    keystroke: key.clone(),
+                    is_held: false,
+                    prefer_character_input: false,
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.dispatch_event(gpui::KeyUpEvent { keystroke: key }.to_platform_input(), cx);
+            assert_eq!(model.read(cx).checks, [true, false]);
+
+            let mut theme = window_material_theme(window, cx).clone();
+            theme.layout.direction = Direction::Rtl;
+            set_window_material_theme(Some(theme), window, cx);
+            draw(window, cx);
+            check_padding(false, window);
+            assert_eq!(
+                quad(custom_action_color(), window).corner_radii.top_left.0 / scale,
+                7.
+            );
+
+            model.update(cx, |model, cx| {
+                model.disabled = true;
+                cx.notify();
+            });
+            draw(window, cx);
+            let disabled_container = color(
+                window_material_theme(window, cx)
+                    .colors
+                    .color(ColorRole::OnSurface),
+            )
+            .opacity(0.10);
+            assert_eq!(
+                quad(disabled_container, window).border_color,
+                custom_border_color()
+            );
+            let position = pointer("custom-action", window);
+            down(position, window, cx);
+            up(position, window, cx);
+            assert_eq!(model.read(cx).clicks, 1);
+        })
+        .unwrap();
     }
 
     #[gpui::test]

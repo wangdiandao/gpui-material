@@ -14,6 +14,8 @@ use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Elevation, MotionKind, MotionSpec, MotionSpeed,
 };
 
+use crate::button_style::{ButtonShapes, ButtonStyle, finite_length};
+
 pub(crate) type Activate = Rc<dyn Fn(&mut Window, &mut App)>;
 pub(crate) type Change = Rc<dyn Fn(bool, &mut Window, &mut App)>;
 
@@ -68,6 +70,7 @@ pub(crate) struct ActionLayout {
     pub(crate) width: Option<Pixels>,
     pub(crate) tab_stop: bool,
     pub(crate) semantic_only: bool,
+    pub(crate) appearance: ButtonStyle,
 }
 
 #[derive(Clone, Copy)]
@@ -143,13 +146,14 @@ impl FeedbackState {
 
 impl ActionControl {
     pub(crate) fn render(self, window: &mut Window, cx: &mut App) -> AnyElement {
-        self.render_scaled(1., None, window, cx)
+        self.render_scaled(1., None, ButtonStyle::default(), window, cx)
     }
 
     pub(crate) fn render_scaled(
         self,
         scale: f32,
         interaction_source: Option<&Entity<InteractionSource>>,
+        appearance: ButtonStyle,
         window: &mut Window,
         cx: &mut App,
     ) -> AnyElement {
@@ -157,6 +161,7 @@ impl ActionControl {
             scale,
             ActionLayout {
                 tab_stop: true,
+                appearance,
                 ..Default::default()
             },
             interaction_source,
@@ -197,21 +202,43 @@ impl ActionControl {
             .motion
             .spec(MotionKind::Effects, MotionSpeed::Fast, reduced);
         let selected = matches!(&self.action, Action::Toggle { selected: true, .. });
-        let foreground = color(theme.colors.color(style.foreground));
-        let background = style.background.map(|role| color(theme.colors.color(role)));
-        let outline = color(theme.colors.color(ColorRole::OutlineVariant));
         let ring = color(theme.colors.color(ColorRole::Secondary));
         let shadow = color(theme.colors.color(ColorRole::Shadow));
-        let disabled_foreground =
-            color(theme.colors.color(style.disabled.foreground)).opacity(0.38);
-        let disabled_background = style
-            .disabled
-            .background
-            .map_or_else(Hsla::default, |(role, opacity)| {
-                color(theme.colors.color(role)).opacity(opacity)
+        let foreground = layout
+            .appearance
+            .colors
+            .content(self.disabled, selected)
+            .unwrap_or_else(|| style.foreground(self.disabled, window, cx));
+        let background = layout
+            .appearance
+            .colors
+            .container(self.disabled, selected)
+            .unwrap_or_else(|| {
+                if self.disabled {
+                    style
+                        .disabled
+                        .background
+                        .map_or_else(Hsla::default, |(role, opacity)| {
+                            color(theme.colors.color(role)).opacity(opacity)
+                        })
+                } else {
+                    style
+                        .background_color
+                        .or_else(|| style.background.map(|role| color(theme.colors.color(role))))
+                        .unwrap_or_default()
+                }
             });
-        let disabled_outline =
-            color(theme.colors.color(style.disabled.outline.0)).opacity(style.disabled.outline.1);
+        let outline = layout.appearance.border.map_or_else(
+            || {
+                if self.disabled {
+                    color(theme.colors.color(style.disabled.outline.0))
+                        .opacity(style.disabled.outline.1)
+                } else {
+                    color(theme.colors.color(ColorRole::OutlineVariant))
+                }
+            },
+            |border| border.color,
+        );
         let visual_height = px(density.visual_size(style.height) * scale);
         let visual_width = layout
             .width
@@ -270,21 +297,15 @@ impl ActionControl {
         .clamp(0., 1.);
         let outline_width = animate(
             (self.id.clone(), "outline-width"),
-            style.outline,
+            layout.appearance.border.map_or(style.outline, |border| {
+                f32::from(finite_length(border.width))
+            }),
             effects,
             window,
             cx,
         )
         .max(0.);
-        let (foreground, background) = if enabled {
-            (
-                foreground,
-                style.background_color.or(background).unwrap_or_default(),
-            )
-        } else {
-            (disabled_foreground, disabled_background)
-        };
-        let elevation = if !enabled {
+        let default_elevation = if !enabled {
             0.
         } else if hovered && !pressed {
             style.hover_elevation.dp()
@@ -293,7 +314,11 @@ impl ActionControl {
         };
         let elevation = animate(
             (self.id.clone(), "elevation"),
-            elevation,
+            layout
+                .appearance
+                .elevations
+                .for_state(interaction)
+                .map_or(default_elevation, Elevation::dp),
             effects,
             window,
             cx,
@@ -305,7 +330,7 @@ impl ActionControl {
         let visual = canvas(
             move |bounds, _, _| {
                 let corners =
-                    interpolated_corners(bounds, style, selection, progress, scale, layout.segment);
+                    interpolated_corners(bounds, style, selection, progress, scale, layout);
                 let shape = Shape::rounded(bounds, corners, direction);
                 mesh.borrow_mut().shape = shape;
                 corners
@@ -331,7 +356,6 @@ impl ActionControl {
                         &elevation_shadows(elevation, scale, shadow),
                     );
                 }
-                let outline = if enabled { outline } else { disabled_outline };
                 // A zero-width outline is still visible through antialiasing on some
                 // backends if its pigment is opaque.
                 if background.a > 0. || outline_width > 0. {
@@ -525,21 +549,24 @@ fn interpolated_corners(
     selection: f32,
     press: f32,
     scale: f32,
-    segment: Option<SegmentShape>,
+    layout: ActionLayout,
 ) -> CornerShape {
     let width = f32::from(bounds.size.width) / scale;
     let height = f32::from(bounds.size.height) / scale;
-    let direction = gpui_material_theme::Direction::Ltr;
-    let mut rest = style.corner.shape().radii(width, height, direction);
-    let mut selected = style
-        .selected_corner
-        .unwrap_or(style.corner)
-        .shape()
-        .radii(width, height, direction);
-    let mut pressed = style.pressed_corner.shape().radii(width, height, direction);
-    if let Some(segment) = segment {
-        let inner = segment.inner.shape().radii(width, height, direction)[0];
-        let inner_pressed = segment.pressed.shape().radii(width, height, direction)[0];
+    let radii =
+        |shape: CornerShape| shape.radii(width, height, gpui_material_theme::Direction::Ltr);
+    let ButtonShapes {
+        resting,
+        pressed,
+        checked,
+    } = layout.appearance.shapes;
+    let mut rest = radii(resting.unwrap_or_else(|| style.corner.shape()));
+    let mut selected =
+        radii(checked.unwrap_or_else(|| style.selected_corner.unwrap_or(style.corner).shape()));
+    let mut pressed = radii(pressed.unwrap_or_else(|| style.pressed_corner.shape()));
+    if let Some(segment) = layout.segment {
+        let inner = radii(segment.inner.shape())[0];
+        let inner_pressed = radii(segment.pressed.shape())[0];
         let outer = width.min(height) * 0.5;
         rest = [
             segment.leading,

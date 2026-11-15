@@ -110,10 +110,11 @@ GitHub 规则集要求通过 PR 更新 `main`。PR 必须基于最新主线、�
 
 ## Windows 分发
 
-在已验收的检出目录中用 PowerShell 7 执行以下命令。将 `GPUI_FXC_PATH` 指向已安装的 Windows SDK x64 着色器编译器。也可用 CI 中同一提交的 Windows 工程构建作为可执行文件输入。Rust 的 `rust-docs` 组件提供标准库许可材料。
+在已验收的检出目录中用 PowerShell 7 执行以下命令。将 `GPUI_FXC_PATH` 指向已安装的 Windows SDK x64 着色器编译器。也可用 CI 中同一提交的 Windows 工程构建作为可执行文件输入。运行离线打包脚本前，先下载锁定的 Windows 依赖。Rust 的 `rust-docs` 组件提供标准库许可材料。
 
 ```powershell
 rustup component add rust-docs
+cargo fetch --locked --target x86_64-pc-windows-msvc
 $env:GPUI_FXC_PATH = 'C:\path\to\the\Windows SDK\x64\fxc.exe'
 cargo build --locked -p gpui-material-gallery --profile gallery-artifact
 ./scripts/package-windows-gallery.ps1 -Executable target/gallery-artifact/gpui-material-gallery.exe -OutputDirectory target/gallery-distribution

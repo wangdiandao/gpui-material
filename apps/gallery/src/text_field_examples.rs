@@ -758,3 +758,198 @@ fn dropdown_keyboard_choice_scrolls_into_the_visible_list(cx: &mut gpui::TestApp
     }
     assert_visible(cx, "option-0");
 }
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn dropdown_virtualizes_full_model_navigation_and_preserves_identity(
+    cx: &mut gpui::TestAppContext,
+) {
+    use gpui::{Role, SharedString, WindowOptions};
+    use gpui_base::test_support::{find, snapshots};
+    use gpui_material::MaterialRoot;
+
+    struct Example {
+        state: Entity<ExposedDropdownState>,
+        reversed: bool,
+        empty: bool,
+        selected: Vec<SharedString>,
+    }
+    impl Render for Example {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let owner = cx.entity().downgrade();
+            let count = if self.empty { 0 } else { 2_000 };
+            let reversed = self.reversed;
+            gpui::div().w(px(300.)).child(
+                ExposedDropdown::new(
+                    "large-menu",
+                    "Choose",
+                    &self.state,
+                    (0..count).map(move |index| {
+                        let index = if reversed { count - 1 - index } else { index };
+                        DropdownOption::new(format!("option-{index}"), format!("Option {index}"))
+                    }),
+                )
+                .on_select(move |choice, _, cx| {
+                    owner
+                        .update(cx, |view, cx| {
+                            view.selected.push(choice.label.clone());
+                            cx.notify();
+                        })
+                        .unwrap();
+                }),
+            )
+        }
+    }
+    let (handle, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut view = None;
+        let handle = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let state = cx.new(|cx| ExposedDropdownState::new("Option 0", false, window, cx));
+            let entity = cx.new(|_| Example {
+                state,
+                reversed: false,
+                empty: false,
+                selected: vec![],
+            });
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (handle, view.unwrap())
+    });
+    let draw = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+    };
+    let assert_row = |cx: &mut gpui::TestAppContext, id: &str| {
+        cx.update_window(handle.into(), |_, window, _| {
+            let rows: Vec<_> = snapshots(window)
+                .into_iter()
+                .filter(|node| node.role() == Some(Role::ListBoxOption))
+                .collect();
+            assert!(
+                !rows.is_empty() && rows.len() <= 24,
+                "only viewport and bounded overscan rows are built: {}",
+                rows.len()
+            );
+            let list = find(window, &[], &"options-scroll-region".into()).unwrap();
+            let row = find(window, list.path(), &id.to_owned().into()).unwrap();
+            assert_eq!(row.selected(), Some(true));
+            assert_eq!(row.bounds().size.height, px(48.));
+            assert!(row.bounds().top() >= list.bounds().top());
+            assert!(row.bounds().bottom() <= list.bounds().bottom());
+            let editor = find(window, &[], &"value".into()).unwrap();
+            assert_eq!(editor.focused(), Some(true));
+        })
+        .unwrap();
+    };
+    draw(cx);
+    cx.update_window(handle.into(), |_, window, cx| window.focus_next(cx))
+        .unwrap();
+    cx.simulate_keystrokes(handle.into(), "down");
+    draw(cx);
+    assert_row(cx, "option-0");
+    cx.simulate_keystrokes(handle.into(), "up");
+    draw(cx);
+    assert_row(cx, "option-1999");
+    cx.update(|cx| {
+        view.update(cx, |view, cx| {
+            view.reversed = true;
+            cx.notify();
+        })
+    });
+    draw(cx);
+    assert_row(cx, "option-1999");
+    cx.simulate_keystrokes(handle.into(), "enter");
+    draw(cx);
+    cx.update(|cx| {
+        assert_eq!(
+            view.read(cx).selected.as_slice(),
+            &[SharedString::from("Option 1999")]
+        )
+    });
+    cx.simulate_keystrokes(handle.into(), "space");
+    draw(cx);
+    cx.simulate_keystrokes(handle.into(), "down");
+    draw(cx);
+    cx.update(|cx| {
+        view.update(cx, |view, cx| {
+            view.empty = true;
+            cx.notify();
+        })
+    });
+    draw(cx);
+    cx.simulate_keystrokes(handle.into(), "down enter escape");
+    draw(cx);
+    cx.update(|cx| assert_eq!(view.read(cx).selected.len(), 1));
+    cx.update_window(handle.into(), |_, window, _| {
+        assert!(find(window, &[], &"options".into()).is_none());
+        assert_eq!(
+            find(window, &[], &"value".into()).unwrap().value(),
+            Some("Option 1999")
+        );
+    })
+    .unwrap();
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn dropdown_keeps_multiline_row_measurements(cx: &mut gpui::TestAppContext) {
+    use gpui_base::test_support::find;
+    use gpui_material::MaterialRoot;
+    struct Example(Entity<ExposedDropdownState>);
+    impl Render for Example {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            gpui::div().w(px(300.)).child(ExposedDropdown::new(
+                "multiline-menu",
+                "Choose",
+                &self.0,
+                [
+                    DropdownOption::new("short", "Short"),
+                    DropdownOption::new(
+                        "multiline",
+                        "First line\nSecond line\nThird line\nFourth line",
+                    ),
+                ],
+            ))
+        }
+    }
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |window, cx| {
+            let state = cx.new(|cx| ExposedDropdownState::new("Short", false, window, cx));
+            cx.new(|_| Example(state))
+        })
+        .unwrap()
+    });
+    let draw = |cx: &mut gpui::TestAppContext| {
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+    };
+    draw(cx);
+    cx.update_window(handle.into(), |_, window, cx| window.focus_next(cx))
+        .unwrap();
+    cx.simulate_keystrokes(handle.into(), "down");
+    draw(cx);
+    draw(cx);
+    cx.update_window(handle.into(), |_, window, _| {
+        let short = find(window, &[], &"short".into()).unwrap().bounds();
+        let multiline = find(window, &[], &"multiline".into()).unwrap().bounds();
+        assert_eq!(short.size.height, px(48.));
+        assert!(multiline.size.height > short.size.height);
+        assert_eq!(short.bottom(), multiline.top());
+        let viewport = find(window, &[], &"options-scroll-region".into())
+            .unwrap()
+            .bounds();
+        assert!(multiline.bottom() <= viewport.bottom());
+    })
+    .unwrap();
+}

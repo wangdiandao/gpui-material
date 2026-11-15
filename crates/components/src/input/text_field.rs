@@ -26,6 +26,31 @@ pub enum TextFieldVariant {
     Outlined,
 }
 
+/// Position of the visual label. Filled uses Inside and Outlined uses Cutout by default.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TextFieldLabelPosition {
+    /// The minimized label remains within the container, above the editor.
+    Inside,
+    /// The minimized label crosses the container's top edge.
+    Cutout,
+    /// The label is always minimized, with its own row above the container.
+    Above,
+}
+
+/// Horizontal label alignment. Start and End follow the Material theme direction.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum TextFieldLabelAlignment {
+    #[default]
+    Start,
+    Center,
+    End,
+}
+
+struct FieldDescription {
+    text: SharedString,
+    content: Option<AnyElement>,
+}
+
 /// A Material presentation for a caller-owned Base text editing entity.
 ///
 /// Keep the entity across renders. It owns selection, undo, composition, focus,
@@ -37,9 +62,21 @@ pub struct TextField {
     label: SharedString,
     editor: Editor,
     variant: TextFieldVariant,
-    supporting_text: Option<SharedString>,
+    label_content: Option<AnyElement>,
+    label_position: Option<TextFieldLabelPosition>,
+    label_minimized: bool,
+    expanded_alignment: TextFieldLabelAlignment,
+    minimized_alignment: TextFieldLabelAlignment,
+    placeholder: Option<(SharedString, AnyElement)>,
+    supporting: Option<FieldDescription>,
     error: Option<SharedString>,
+    invalid: bool,
+    required: bool,
+    character_count: Option<usize>,
+    leading: Option<AnyElement>,
     trailing: Option<AnyElement>,
+    prefix: Option<AnyElement>,
+    suffix: Option<AnyElement>,
     expanded: Option<bool>,
     font_scale: f32,
 }
@@ -90,9 +127,21 @@ impl TextField {
             label: label.into(),
             editor,
             variant: TextFieldVariant::Filled,
-            supporting_text: None,
+            label_content: None,
+            label_position: None,
+            label_minimized: false,
+            expanded_alignment: TextFieldLabelAlignment::Start,
+            minimized_alignment: TextFieldLabelAlignment::Start,
+            placeholder: None,
+            supporting: None,
             error: None,
+            invalid: false,
+            required: false,
+            character_count: None,
+            leading: None,
             trailing: None,
+            prefix: None,
+            suffix: None,
             expanded: None,
             font_scale: 1.,
         }
@@ -110,19 +159,111 @@ impl TextField {
     }
 
     pub fn supporting_text(mut self, text: impl Into<SharedString>) -> Self {
-        self.supporting_text = Some(text.into());
+        self.supporting = Some(FieldDescription {
+            text: text.into(),
+            content: None,
+        });
+        self
+    }
+
+    /// Replaces the visible label. The constructor label remains the accessible name.
+    pub fn label_content(mut self, element: impl IntoElement) -> Self {
+        self.label_content = Some(element.into_any_element());
+        self
+    }
+
+    pub fn label_position(mut self, position: TextFieldLabelPosition) -> Self {
+        self.label_position = Some(position);
+        self
+    }
+
+    /// Keeps an Inside or Cutout label minimized so affixes and hints can remain visible.
+    pub fn label_always_minimized(mut self, minimized: bool) -> Self {
+        self.label_minimized = minimized;
+        self
+    }
+
+    /// Configures the alignment in each label state. Above uses `minimized`.
+    pub fn label_alignment(
+        mut self,
+        expanded: TextFieldLabelAlignment,
+        minimized: TextFieldLabelAlignment,
+    ) -> Self {
+        self.expanded_alignment = expanded;
+        self.minimized_alignment = minimized;
+        self
+    }
+
+    /// Replaces the Base placeholder's presentation. `hint` is the accessible placeholder.
+    pub fn placeholder_content(
+        mut self,
+        hint: impl Into<SharedString>,
+        element: impl IntoElement,
+    ) -> Self {
+        self.placeholder = Some((hint.into(), element.into_any_element()));
+        self
+    }
+
+    /// Supplies custom supporting content and the field's plain-text accessible description.
+    pub fn supporting_content(
+        mut self,
+        description: impl Into<SharedString>,
+        element: impl IntoElement,
+    ) -> Self {
+        self.supporting = Some(FieldDescription {
+            text: description.into(),
+            content: Some(element.into_any_element()),
+        });
         self
     }
 
     /// Displays an error message in place of the supporting text.
     pub fn error(mut self, message: impl Into<SharedString>) -> Self {
         self.error = Some(message.into());
+        self.invalid = true;
+        self
+    }
+
+    /// Sets the invalid visual and accessibility state independently of the supporting content.
+    pub fn invalid(mut self, invalid: bool) -> Self {
+        self.invalid = invalid;
+        self
+    }
+
+    /// Displays a required mark and reports the required state to assistive technology.
+    pub fn required(mut self, required: bool) -> Self {
+        self.required = required;
+        self
+    }
+
+    /// Shows a Unicode scalar count and the supplied limit. Base still owns validation.
+    /// The count is omitted for secure or masked fields.
+    pub fn character_count(mut self, limit: usize) -> Self {
+        self.character_count = Some(limit);
+        self
+    }
+
+    /// Places an adornment in the 48 dp leading icon slot.
+    pub fn leading(mut self, element: impl IntoElement) -> Self {
+        self.leading = Some(element.into_any_element());
         self
     }
 
     /// Places an addon at the logical end of the editing region.
     pub fn trailing(mut self, element: impl IntoElement) -> Self {
         self.trailing = Some(element.into_any_element());
+        self
+    }
+
+    /// Places an element before the value while the label is minimized.
+    pub fn prefix(mut self, element: impl IntoElement) -> Self {
+        self.prefix = Some(element.into_any_element());
+        self
+    }
+
+    /// Places an element after the value while the label is minimized.
+    pub fn suffix(mut self, element: impl IntoElement) -> Self {
+        self.suffix = Some(element.into_any_element());
         self
     }
 
@@ -167,7 +308,15 @@ impl RenderOnce for TextField {
         let focus = presentation.focus_handle().clone();
         let focused = !disabled && focus.is_focused(window);
         let filled = self.variant == TextFieldVariant::Filled;
-        let error = self.error.is_some();
+        let label_position = self.label_position.unwrap_or(if filled {
+            TextFieldLabelPosition::Inside
+        } else {
+            TextFieldLabelPosition::Cutout
+        });
+        let label_inside = label_position == TextFieldLabelPosition::Inside;
+        let label_above = label_position == TextFieldLabelPosition::Above;
+        let has_cutout = label_position == TextFieldLabelPosition::Cutout && !filled;
+        let error = self.invalid;
         let indicator = match (disabled, error, focused) {
             (true, _, _) => tone(OnSurface).opacity(0.12),
             (_, true, _) => tone(Error),
@@ -214,7 +363,7 @@ impl RenderOnce for TextField {
             .spec(MotionKind::Effects, MotionSpeed::Fast, cx.reduce_motion());
         let floating = animate(
             (self.id.clone(), "floating-label"),
-            f32::from(focused || has_text),
+            f32::from(focused || has_text || self.label_minimized || label_above),
             theme
                 .motion
                 .spec(MotionKind::Spatial, MotionSpeed::Fast, cx.reduce_motion()),
@@ -258,11 +407,11 @@ impl RenderOnce for TextField {
             // when another window uses a different Material appearance.
             background: tone(SurfaceContainer),
             border: tone(OutlineVariant),
-            muted_foreground: if has_text {
-                secondary
-            } else {
+            muted_foreground: match (has_text, self.placeholder.is_some()) {
+                (true, _) => secondary,
                 // Base treats exactly transparent ink as an unset palette override.
-                secondary.opacity(floating.max(f32::EPSILON))
+                (false, true) => secondary.opacity(f32::EPSILON),
+                (false, false) => secondary.opacity(floating.max(f32::EPSILON)),
             },
             caret: if self.expanded.is_some() && readonly {
                 // Base treats zero alpha as unset. A negligible nonzero alpha
@@ -322,12 +471,30 @@ impl RenderOnce for TextField {
                 (state.into_any_element(), Role::PasswordInput, None, None)
             }
         };
-        let support = self.error.or(self.supporting_text);
+        let support = self.error.map_or(self.supporting, |text| {
+            Some(FieldDescription {
+                text,
+                content: None,
+            })
+        });
+        let count: Option<SharedString> = self
+            .character_count
+            .zip(value.as_ref())
+            .map(|(limit, text)| format!("{} / {limit}", text.chars().count()).into());
+        let description = match (support.as_ref(), count.as_ref()) {
+            (Some(support), Some(count)) => Some(format!("{}. {count}", support.text).into()),
+            (Some(support), None) => Some(support.text.clone()),
+            (None, count) => count.cloned(),
+        };
+        let placeholder_hint = self.placeholder.as_ref().map_or_else(
+            || presentation.placeholder().clone(),
+            |(hint, _)| hint.clone(),
+        );
         let label_size = type_style.size + (caption_style.size - type_style.size) * floating;
         let label_height = type_style.line_height
             + (caption_style.line_height - type_style.line_height) * floating;
         let resting_top = (56. - type_style.line_height) * 0.5;
-        let floating_top = if filled {
+        let floating_top = if label_inside {
             8.
         } else {
             -caption_style.line_height * 0.5
@@ -396,18 +563,45 @@ impl RenderOnce for TextField {
             .absolute()
             .inset_0()
         });
+        let rtl = direction == Direction::Rtl;
+        let label_alignment = if floating >= 0.5 {
+            self.minimized_alignment
+        } else {
+            self.expanded_alignment
+        };
+        let label_inset = if has_cutout { 12. } else { 16. };
+        let leading_inset = if self.leading.is_some() {
+            56. * (1. - floating)
+        } else {
+            0.
+        };
+        let label_content = self
+            .label_content
+            .unwrap_or_else(|| label.clone().into_any_element());
         let label_container = div()
             .id("label")
             .test_support()
-            .absolute()
-            .top(px(label_top))
-            .left(px(if filled { 16. } else { 12. }))
-            .right(px(if filled { 16. } else { 12. }))
+            .when_else(
+                label_above,
+                |label| label.px(px(label_inset)),
+                |label| {
+                    label
+                        .absolute()
+                        .top(px(label_top))
+                        .left(px(label_inset + if rtl { 0. } else { leading_inset }))
+                        .right(px(label_inset + if rtl { leading_inset } else { 0. }))
+                },
+            )
             .text_size(px(label_size))
             .line_height(px(label_height))
             .text_color(label_color)
             .flex()
-            .when(direction == Direction::Rtl, Styled::justify_end)
+            .map(|label| match label_alignment {
+                TextFieldLabelAlignment::Center => label.justify_center(),
+                TextFieldLabelAlignment::Start if rtl => label.justify_end(),
+                TextFieldLabelAlignment::End if !rtl => label.justify_end(),
+                _ => label,
+            })
             .child(
                 div()
                     .id("label-text")
@@ -416,9 +610,19 @@ impl RenderOnce for TextField {
                     .max_w_full()
                     .relative()
                     .truncate()
-                    .when(!filled, |label| label.px(px(4.)))
-                    .child(label.clone())
-                    .when(!filled, |label| {
+                    .when(has_cutout, |label| label.px(px(4.)))
+                    .role(Role::Label)
+                    .a11y_synthetic_children(|tree| tree.parent_node().set_hidden())
+                    .when(self.required, |label| {
+                        label
+                            .flex()
+                            .items_baseline()
+                            .gap(px(4.))
+                            .when(rtl, Styled::flex_row_reverse)
+                    })
+                    .child(label_content)
+                    .children(self.required.then_some("*"))
+                    .when(has_cutout, |label| {
                         label.child(
                             canvas(
                                 move |bounds, _, _| measure_cutout.set(Some(bounds)),
@@ -435,6 +639,12 @@ impl RenderOnce for TextField {
                     focus.focus(window, cx);
                 })
             });
+        let (above_label, attached_label) = if label_above {
+            (Some(label_container), None)
+        } else {
+            (None, Some(label_container))
+        };
+        let show_affixes = floating >= 0.5;
         div()
             .id(self.id)
             .test_support()
@@ -451,7 +661,7 @@ impl RenderOnce for TextField {
             })
             .aria_label(label)
             .accessibility_id(accessible_id)
-            .aria_placeholder(presentation.placeholder().clone())
+            .aria_placeholder(placeholder_hint)
             .when_some(self.expanded, |field, expanded| {
                 field.aria_expanded(expanded)
             })
@@ -464,7 +674,7 @@ impl RenderOnce for TextField {
                     }
                 })
             })
-            .when_some(support.clone(), |field, text| field.aria_description(text))
+            .when_some(description, |field, text| field.aria_description(text))
             .a11y_synthetic_children(move |tree| {
                 let node = tree.parent_node();
                 if error {
@@ -476,7 +686,11 @@ impl RenderOnce for TextField {
                 if readonly || disabled {
                     node.set_read_only();
                 }
+                if self.required {
+                    node.set_required();
+                }
             })
+            .children(above_label)
             .child(
                 div()
                     .id("container")
@@ -484,12 +698,12 @@ impl RenderOnce for TextField {
                     .flex()
                     .flex_col()
                     .when_else(
-                        filled || presentation.is_multi_line(),
+                        label_inside || presentation.is_multi_line(),
                         Styled::justify_end,
                         Styled::justify_center,
                     )
                     .min_h(px(56.).max(px(type_style.line_height
-                        + if filled {
+                        + if label_inside {
                             caption_style.line_height + 16.
                         } else {
                             16.
@@ -501,9 +715,11 @@ impl RenderOnce for TextField {
                     .when(filled, |mut field| {
                         // Compose reserves 8 dp above the minimized label and below
                         // the editor; larger text grows the container instead of overlapping.
-                        field = field
-                            .pt(px(caption_style.line_height + 8.))
-                            .pb(px(8.) - outline_width);
+                        field = field.when(label_inside, |field| {
+                            field
+                                .pt(px(caption_style.line_height + 8.))
+                                .pb(px(8.) - outline_width)
+                        });
                         field.style().border_widths.bottom = Some(outline_width.into());
                         field
                             .bg(background)
@@ -511,6 +727,9 @@ impl RenderOnce for TextField {
                             .when(!disabled && !focused && !error, |field| {
                                 field.hover(|style| style.border_color(foreground))
                             })
+                    })
+                    .when(label_inside && !filled, |field| {
+                        field.pt(px(caption_style.line_height + 8.))
                     })
                     .when(!filled && !disabled, |field| {
                         field.on_hover(move |hovering, window, _| {
@@ -531,13 +750,41 @@ impl RenderOnce for TextField {
                             .min_w_0()
                             .text_size(px(type_style.size))
                             .line_height(px(type_style.line_height))
-                            .when(direction == Direction::Rtl, |row| row.flex_row_reverse())
-                            .child(div().flex_1().min_w_0().child(editor))
+                            .when(rtl, Styled::flex_row_reverse)
+                            .children(self.leading.map(|leading| {
+                                div()
+                                    .w(px(48.))
+                                    .flex_none()
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .child(leading)
+                            }))
+                            .children(self.prefix.filter(|_| show_affixes))
+                            .child(div().flex_1().min_w_0().relative().child(editor).children(
+                                self.placeholder.filter(|_| show_affixes && !has_text).map(
+                                    |(_, content)| {
+                                        div()
+                                            .id("placeholder")
+                                            .absolute()
+                                            .top_0()
+                                            .left_0()
+                                            .right_0()
+                                            .text_color(secondary)
+                                            .role(Role::Label)
+                                            .a11y_synthetic_children(|tree| {
+                                                tree.parent_node().set_hidden()
+                                            })
+                                            .child(content)
+                                    },
+                                ),
+                            ))
+                            .children(self.suffix.filter(|_| show_affixes))
                             .children(self.trailing),
                     )
-                    .child(label_container),
+                    .children(attached_label),
             )
-            .when_some(support, |field, text| {
+            .when(support.is_some() || count.is_some(), |field| {
                 field.child(
                     div()
                         .px(px(16.))
@@ -548,7 +795,16 @@ impl RenderOnce for TextField {
                         } else {
                             secondary
                         })
-                        .child(text),
+                        .flex()
+                        .gap(px(8.))
+                        .justify_between()
+                        .when(rtl, Styled::flex_row_reverse)
+                        .child(div().flex_1().min_w_0().children(support.map(|support| {
+                            support
+                                .content
+                                .unwrap_or_else(|| support.text.into_any_element())
+                        })))
+                        .children(count.map(|count| div().flex_none().child(count))),
                 )
             })
     }

@@ -1,4 +1,4 @@
-name: Build documentation website
+name: Build website
 
 on:
   workflow_call:

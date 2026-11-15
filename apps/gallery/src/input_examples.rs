@@ -504,7 +504,12 @@ mod tests {
     #[gpui::test]
     fn focus_range_drag_and_dialog_use_the_production_adapters(cx: &mut TestAppContext) {
         let (handle, view) = cx.update(|cx| {
-            crate::init_gallery(cx);
+            MaterialRoot::init(Default::default(), cx);
+            cx.bind_keys([gpui::KeyBinding::new(
+                "escape",
+                CancelDrag,
+                Some("FoundationInput"),
+            )]);
             let mut view = None;
             let handle =
                 MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |window, cx| {

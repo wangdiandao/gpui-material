@@ -259,7 +259,13 @@ impl RenderOnce for TextField {
                 // Base treats exactly transparent ink as an unset palette override.
                 secondary.opacity(floating.max(f32::EPSILON))
             },
-            caret: if error { tone(Error) } else { tone(Primary) },
+            caret: if self.expanded.is_some() && readonly {
+                // Base treats zero alpha as unset. A negligible nonzero alpha
+                // hides the caret while the combobox retains focus.
+                tone(Primary).opacity(f32::EPSILON)
+            } else {
+                tone(if error { Error } else { Primary })
+            },
             selection: tone(Primary).opacity(0.3),
             ..Default::default()
         };

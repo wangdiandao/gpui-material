@@ -96,12 +96,23 @@ impl NavigationExamples {
                 ),
             )
             .child(
-                section("Scrolling primary").child(
-                    div().max_w(px(320.)).child(
-                        Tabs::new(self.items("scroll-tabs", "Scrolling tabs", 6, true, false, cx))
+                section("Scrolling primary")
+                    .description(
+                        "Scroll the tab strip or use the arrow keys to reach more destinations.",
+                    )
+                    .child(
+                        div().max_w(px(320.)).child(
+                            Tabs::new(self.items(
+                                "scroll-tabs",
+                                "Scrolling tabs",
+                                6,
+                                true,
+                                false,
+                                cx,
+                            ))
                             .scrollable(true),
+                        ),
                     ),
-                ),
             )
             .into_any_element()
     }
@@ -172,7 +183,7 @@ impl NavigationExamples {
             .iter()
             .find(|(id, _, _)| *id == self.selected.as_ref())
             .map_or("Inbox", |(_, label, _)| *label);
-        section("Expanded rail")
+        section("Inline and modal rails")
             .child(toolbar)
             .child(
                 div()
@@ -241,13 +252,18 @@ impl NavigationExamples {
                 ),
             )
             .child(
-                section("Large flexible").child(
-                    div()
-                        .h(px(320.))
-                        .flex()
-                        .flex_col()
-                        .child(
-                            AppBar::new("large-app-bar", "Documents shared across your workspace")
+                section("Large flexible")
+                    .description("Scroll the example content to collapse the app bar.")
+                    .child(
+                        div()
+                            .h(px(320.))
+                            .flex()
+                            .flex_col()
+                            .child(
+                                AppBar::new(
+                                    "large-app-bar",
+                                    "Documents shared across your workspace",
+                                )
                                 .variant(AppBarVariant::LargeFlexible)
                                 .subtitle("Workspace")
                                 .font_scale(self.font_scale)
@@ -267,24 +283,26 @@ impl NavigationExamples {
                                     ),
                                 )
                                 .track_scroll(&self.scroll),
-                        )
-                        .child(
-                            div()
-                                .id("app-bar-scroll")
-                                .flex_1()
-                                .min_h_0()
-                                .overflow_y_scroll()
-                                .occlude()
-                                .track_scroll(&self.scroll)
-                                .children(DESTINATIONS.iter().cycle().take(24).enumerate().map(
-                                    |(index, (_, title, _))| {
-                                        div()
-                                            .p_3()
-                                            .child(Text::new(*title).id(("app-bar-line", index)))
-                                    },
-                                )),
-                        ),
-                ),
+                            )
+                            .child(
+                                div()
+                                    .id("app-bar-scroll")
+                                    .flex_1()
+                                    .min_h_0()
+                                    .overflow_y_scroll()
+                                    .occlude()
+                                    .track_scroll(&self.scroll)
+                                    .children(
+                                        DESTINATIONS.iter().cycle().take(24).enumerate().map(
+                                            |(index, (_, title, _))| {
+                                                div().p_3().child(
+                                                    Text::new(*title).id(("app-bar-line", index)),
+                                                )
+                                            },
+                                        ),
+                                    ),
+                            ),
+                    ),
             )
             .into_any_element()
     }

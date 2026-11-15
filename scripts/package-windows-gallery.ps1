@@ -44,6 +44,7 @@ try {
         -Destination $bundle.FullName
     Copy-Item -LiteralPath 'crates/components/assets/material-symbols/LICENSE' `
         -Destination (Join-Path $licenses.FullName 'Material-Symbols-LICENSE')
+    Copy-Item -LiteralPath 'apps/gallery/assets/Octicons-LICENSE' -Destination $licenses.FullName
 
     $supplement = @{
         'accesskit@0.24.1' = 'accesskit'

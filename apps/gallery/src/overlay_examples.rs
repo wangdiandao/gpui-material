@@ -10,7 +10,7 @@ use gpui_material::{
 };
 use gpui_material::{Menu, MenuItem, Text, Tooltip};
 
-use crate::story::{Story, stack};
+use crate::story::{Story, section, stack};
 
 pub(crate) struct ModalExamples {
     story: Story,
@@ -48,8 +48,13 @@ impl ModalExamples {
     fn dialogs(&self) -> impl IntoElement {
         let editor = self.name.clone();
         stack()
-            .items_start()
-            .child(Self::trigger("rename", "Rename project…", &self.primary))
+            .child(
+                section("Rename a project")
+                    .description(
+                        "Enter a project name or open Naming guidelines from inside the dialog.",
+                    )
+                    .child(div().child(Self::trigger("rename", "Rename project…", &self.primary))),
+            )
             .child(
                 Dialog::new("project-dialog", &self.primary, "Rename project")
                     .description("Use a name people can recognize in the project list.")
@@ -82,11 +87,13 @@ impl ModalExamples {
         let owner = cx.entity().downgrade();
         stack()
             .child(
-                div()
-                    .flex()
-                    .flex_wrap()
-                    .gap_2()
-                    .child(Self::trigger(
+                section("Modal sheets")
+                    .description("Project activity opens from the bottom. Project details opens at the trailing edge.")
+                    .child(div()
+                        .flex()
+                        .flex_wrap()
+                        .gap_2()
+                        .child(Self::trigger(
                         "activity",
                         "Project activity…",
                         &self.primary,
@@ -95,7 +102,7 @@ impl ModalExamples {
                         "details",
                         "Project details…",
                         &self.secondary,
-                    )),
+                    ))),
             )
             .child(
                 Sheet::new(
@@ -533,30 +540,48 @@ impl Render for SnackbarExamples {
         let persistent = self.host.clone();
         stack()
             .max_w(px(480.))
-            .items_start()
-            .child(div().id("save-region").test_support().child(
-                Button::new("save-message", "Save changes").on_activate(move |window, cx| {
-                    timed.update(cx, |host, cx| {
-                        host.push(Snackbar::new("Changes saved"), window, cx);
-                    });
-                }),
-            ))
-            .child(div().id("archive-region").test_support().child(
-                Button::new("archive-message", "Archive draft").on_activate(move |window, cx| {
-                    let host = persistent.downgrade();
-                    persistent.update(cx, |queue, cx| {
-                        queue.push(
-                            Snackbar::new("Draft archived").action("Undo", move |window, cx| {
-                                let _ = host.update(cx, |host, cx| {
-                                    host.push(Snackbar::new("Draft restored"), window, cx);
+            .child(
+                section("Timed message")
+                    .description("Save changes to show a message that dismisses itself.")
+                    .child(div().id("save-region").test_support().child(
+                        Button::new("save-message", "Save changes").on_activate(
+                            move |window, cx| {
+                                timed.update(cx, |host, cx| {
+                                    host.push(Snackbar::new("Changes saved"), window, cx);
                                 });
-                            }),
-                            window,
-                            cx,
-                        );
-                    });
-                }),
-            ))
+                            },
+                        ),
+                    )),
+            )
+            .child(
+                section("Message with Undo")
+                    .description("Archive a draft and use Undo to restore it.")
+                    .child(div().id("archive-region").test_support().child(
+                        Button::new("archive-message", "Archive draft").on_activate(
+                            move |window, cx| {
+                                let host = persistent.downgrade();
+                                persistent.update(cx, |queue, cx| {
+                                    queue.push(
+                                        Snackbar::new("Draft archived").action(
+                                            "Undo",
+                                            move |window, cx| {
+                                                let _ = host.update(cx, |host, cx| {
+                                                    host.push(
+                                                        Snackbar::new("Draft restored"),
+                                                        window,
+                                                        cx,
+                                                    );
+                                                });
+                                            },
+                                        ),
+                                        window,
+                                        cx,
+                                    );
+                                });
+                            },
+                        ),
+                    )),
+            )
             .child(self.host.clone())
     }
 }
@@ -677,88 +702,111 @@ impl Render for MenuTooltipExamples {
         let label_owner = cx.entity().downgrade();
         if self.story == Story::Menu {
             stack()
-                .items_start()
-                .child(Menu::new(
-                    "options",
-                    gpui_base::Button::new("open-options")
-                        .track_focus(&self.trigger)
-                        .accessibility_label("View options")
-                        .px_3()
-                        .py_2()
-                        .rounded_sm()
-                        .border_1()
-                        .child("View options"),
-                    [
-                        MenuItem::group("display", "Display"),
-                        MenuItem::new("labels", "Show labels")
-                            .checked(self.labels)
-                            .on_activate(move |_, cx| {
-                                let _ = label_owner.update(cx, |state, cx| {
-                                    state.labels = !state.labels;
-                                    cx.notify();
-                                });
-                            }),
-                        MenuItem::new("columns", "Configure columns").disabled(true),
-                        MenuItem::new("sort", "Sort by").submenu([
-                            MenuItem::new("name", "Name")
-                                .selected(self.output.as_ref() == "Sort by name")
-                                .on_activate(update("Sort by name")),
-                            MenuItem::new("date", "Date modified")
-                                .selected(self.output.as_ref() == "Sort by date modified")
-                                .on_activate(update("Sort by date modified")),
-                        ]),
-                    ],
-                ))
                 .child(
-                    Menu::new(
-                        "context-actions",
-                        gpui_base::Button::new("open-context")
-                            .accessibility_label("Roadmap context actions")
-                            .px_3()
-                            .py_2()
-                            .rounded_sm()
-                            .border_1()
-                            .child("Roadmap"),
-                        [
-                            MenuItem::new("pin", "Pin roadmap")
-                                .on_activate(update("Roadmap pinned")),
-                        ],
-                    )
-                    .context(),
+                    section("Command menu")
+                        .description("Open Sort by to choose how the results are ordered.")
+                        .child(
+                            div().child(Menu::new(
+                                "options",
+                                gpui_base::Button::new("open-options")
+                                    .track_focus(&self.trigger)
+                                    .accessibility_label("View options")
+                                    .px_3()
+                                    .py_2()
+                                    .rounded_sm()
+                                    .border_1()
+                                    .child("View options"),
+                                [
+                                    MenuItem::group("display", "Display"),
+                                    MenuItem::new("labels", "Show labels")
+                                        .checked(self.labels)
+                                        .on_activate(move |_, cx| {
+                                            let _ = label_owner.update(cx, |state, cx| {
+                                                state.labels = !state.labels;
+                                                cx.notify();
+                                            });
+                                        }),
+                                    MenuItem::new("columns", "Configure columns").disabled(true),
+                                    MenuItem::new("sort", "Sort by").submenu([
+                                        MenuItem::new("name", "Name")
+                                            .selected(self.output.as_ref() == "Sort by name")
+                                            .on_activate(update("Sort by name")),
+                                        MenuItem::new("date", "Date modified")
+                                            .selected(
+                                                self.output.as_ref() == "Sort by date modified",
+                                            )
+                                            .on_activate(update("Sort by date modified")),
+                                    ]),
+                                ],
+                            )),
+                        ),
+                )
+                .child(
+                    section("Context menu")
+                        .description("Right-click Roadmap to see the actions for that item.")
+                        .child(
+                            div().child(
+                                Menu::new(
+                                    "context-actions",
+                                    gpui_base::Button::new("open-context")
+                                        .accessibility_label("Roadmap context actions")
+                                        .px_3()
+                                        .py_2()
+                                        .rounded_sm()
+                                        .border_1()
+                                        .child("Roadmap"),
+                                    [MenuItem::new("pin", "Pin roadmap")
+                                        .on_activate(update("Roadmap pinned"))],
+                                )
+                                .context(),
+                            ),
+                        ),
                 )
                 .child(Text::new(self.output.clone()))
                 .into_any_element()
         } else {
             stack()
-                .items_start()
                 .child(
-                    Tooltip::plain(
-                        "pin-tooltip",
-                        Button::new("pin", "Pin roadmap")
-                            .track_focus(&self.trigger)
-                            .on_activate(update("Roadmap pinned")),
-                        "Keep this roadmap at the top of the project list",
-                    )
-                    .track_focus(&self.trigger),
+                    section("Plain tooltip")
+                        .description("Hover over Pin roadmap or focus it with the keyboard.")
+                        .child(
+                            div().child(
+                                Tooltip::plain(
+                                    "pin-tooltip",
+                                    Button::new("pin", "Pin roadmap")
+                                        .track_focus(&self.trigger)
+                                        .on_activate(update("Roadmap pinned")),
+                                    "Keep this roadmap at the top of the project list",
+                                )
+                                .track_focus(&self.trigger),
+                            ),
+                        ),
                 )
                 .child(
-                    Tooltip::rich(
-                        "archive-tooltip",
-                        Button::new("retention", "Archive policy").track_focus(&self.rich_trigger),
-                        "Archived drafts",
-                        "Archived drafts stay available for 30 days.",
-                    )
-                    .track_focus(&self.rich_trigger)
-                    .action(
-                        "Show retention period",
-                        &self.rich_action,
-                        move |_, cx| {
-                            let _ = tooltip_owner.update(cx, |state, cx| {
-                                state.output = "30 days".into();
-                                cx.notify();
-                            });
-                        },
-                    ),
+                    section("Rich tooltip")
+                        .description("Open the tooltip and activate Show retention period.")
+                        .child(
+                            div().child(
+                                Tooltip::rich(
+                                    "archive-tooltip",
+                                    Button::new("retention", "Archive policy")
+                                        .track_focus(&self.rich_trigger),
+                                    "Archived drafts",
+                                    "Archived drafts stay available for 30 days.",
+                                )
+                                .track_focus(&self.rich_trigger)
+                                .action(
+                                    "Show retention period",
+                                    &self.rich_action,
+                                    move |_, cx| {
+                                        let _ = tooltip_owner.update(cx, |state, cx| {
+                                            state.output = "30 days".into();
+                                            cx.notify();
+                                        });
+                                    },
+                                ),
+                            ),
+                        ),
                 )
                 .child(Text::new(if self.output.as_ref() == "Sort by name" {
                     SharedString::default()

@@ -1,12 +1,12 @@
 use gpui::{
-    Context, InteractiveElement, IntoElement, ParentElement, Render, Role,
+    AppContext, Context, Entity, InteractiveElement, IntoElement, ParentElement, Render, Role,
     StatefulInteractiveElement, Styled, Window, div,
 };
 use gpui_base::TestSupportExt;
 use gpui_material::{
     Button, ButtonShape, ButtonVariant, ControlSize, ExtendedFab, Fab, FabColor, FabSize, Icon,
-    IconButton, IconButtonVariant, IconButtonWidth, IconName, IconToggleButton, Text, ToggleButton,
-    ToggleButtonVariant,
+    IconButton, IconButtonVariant, IconButtonWidth, IconName, IconToggleButton, InteractionSource,
+    Text, ToggleButton, ToggleButtonVariant,
     theme::{ColorRole, TypeRole},
 };
 
@@ -19,6 +19,7 @@ pub(crate) struct ActionExamples {
     toggles: [bool; 5],
     icon_toggles: [bool; 5],
     collapsed: bool,
+    interactions: Option<Entity<InteractionSource>>,
 }
 
 impl ActionExamples {
@@ -32,10 +33,60 @@ impl ActionExamples {
     fn shows(&self, story: Story) -> bool {
         self.story.is_none_or(|active| active == story)
     }
+
+    fn interaction_sample(
+        &mut self,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> crate::story::StorySection {
+        let source = self.interactions.get_or_insert_with(|| {
+            let source = cx.new(|_| InteractionSource::new());
+            cx.observe(&source, |_, _, cx| cx.notify()).detach();
+            source
+        });
+        let window_id = window.window_handle().window_id();
+        let state = |id: &'static str| {
+            let snapshot = source
+                .read(cx)
+                .state(window_id, &id.into())
+                .unwrap_or_default();
+            match snapshot {
+                state if state.pressed => "Pressed",
+                state if state.focus_visible => "Keyboard focus",
+                state if state.hovered => "Hovered",
+                _ => "Idle",
+            }
+        };
+        let toggle = cx.entity();
+        section("Shared interaction source")
+            .description("Hover, press, or focus each control to inspect its interaction state.")
+            .child(
+                row()
+                    .child(labeled_sample(
+                        state("observed-action-example"),
+                        Button::new("observed-action-example", "Action")
+                            .interaction_source(source)
+                            .on_activate(|_, _| {}),
+                    ))
+                    .child(labeled_sample(
+                        state("observed-toggle-example"),
+                        ToggleButton::new("observed-toggle-example", "Toggle", self.toggles[4])
+                            .interaction_source(source)
+                            .on_change(move |selected, _, cx| {
+                                toggle.update(cx, |this, cx| {
+                                    this.toggles[4] = selected;
+                                    cx.notify();
+                                });
+                            }),
+                    )),
+            )
+    }
 }
 
 impl Render for ActionExamples {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let interaction_sample = (self.shows(Story::Button) || self.shows(Story::ToggleButton))
+            .then(|| self.interaction_sample(window, cx));
         let button_variants = [
             ("Elevated", ButtonVariant::Elevated),
             ("Filled", ButtonVariant::Filled),
@@ -292,6 +343,7 @@ impl Render for ActionExamples {
                         ),
                 )
             }))
+            .children(interaction_sample)
     }
 }
 
@@ -523,6 +575,192 @@ mod tests {
             );
         })
         .unwrap();
+    }
+
+    #[gpui::test]
+    fn button_interaction_sources_deliver_short_presses_and_detach(cx: &mut TestAppContext) {
+        use std::{cell::RefCell, rc::Rc};
+
+        use gpui::{ElementId, Entity, KeyDownEvent, KeyUpEvent, Keystroke};
+        use gpui_material::{InteractionSource, InteractionUpdate};
+
+        struct Controls {
+            sources: [Entity<InteractionSource>; 2],
+            second_source: usize,
+            second_parent: Option<&'static str>,
+            second_disabled: bool,
+            clicks: usize,
+            requested: Vec<bool>,
+        }
+
+        impl Render for Controls {
+            fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+                let action = cx.entity();
+                let toggle = cx.entity();
+                div()
+                    .flex()
+                    .gap_4()
+                    .child(
+                        Button::new("observed-button", "Action")
+                            .interaction_source(&self.sources[0])
+                            .on_activate(move |_, cx| {
+                                action.update(cx, |model, _| model.clicks += 1);
+                            }),
+                    )
+                    .children(self.second_parent.map(|parent| {
+                        div().id(parent).child(
+                            ToggleButton::new("observed-toggle", "Selection", false)
+                                .interaction_source(&self.sources[self.second_source])
+                                .disabled(self.second_disabled)
+                                .on_change(move |selected, _, cx| {
+                                    toggle.update(cx, |model, _| model.requested.push(selected));
+                                }),
+                        )
+                    }))
+            }
+        }
+
+        let events = Rc::new(RefCell::new(Vec::<InteractionUpdate>::new()));
+        let (handle, model, sources) = cx.update(|cx| {
+            crate::init_gallery(cx);
+            let sources = std::array::from_fn(|_| cx.new(|_| InteractionSource::new()));
+            let model = cx.new(|cx: &mut Context<Controls>| {
+                let events = events.clone();
+                cx.subscribe(&sources[0], move |_, _, event, _| {
+                    events.borrow_mut().push(event.clone());
+                })
+                .detach();
+                Controls {
+                    sources: sources.clone(),
+                    second_source: 0,
+                    second_parent: Some("original-parent"),
+                    second_disabled: false,
+                    clicks: 0,
+                    requested: Vec::new(),
+                }
+            });
+            let window =
+                MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, _| model.clone())
+                    .unwrap();
+            (window, model, sources)
+        });
+        let first = ElementId::from("observed-button");
+        let second = ElementId::from("observed-toggle");
+        let window_id = cx
+            .update_window(handle.into(), |_, window, _| {
+                window.activate_window();
+                window.window_handle().window_id()
+            })
+            .unwrap();
+        let draw = |cx: &mut TestAppContext| {
+            cx.update_window(handle.into(), |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+            })
+            .unwrap();
+            cx.run_until_parked();
+        };
+        let read = |source: usize, id: &ElementId, cx: &mut TestAppContext| {
+            cx.update(|cx| sources[source].read(cx).state(window_id, id))
+        };
+        draw(cx);
+        assert_eq!(read(0, &first, cx), Some(Default::default()));
+        assert_eq!(read(0, &second, cx), Some(Default::default()));
+
+        let press_edges = |id: &ElementId| {
+            let mut pressed = false;
+            events
+                .borrow()
+                .iter()
+                .filter(|event| &event.id == id)
+                .filter_map(|event| {
+                    let current = event.state?.pressed;
+                    (std::mem::replace(&mut pressed, current) != current).then_some(current)
+                })
+                .collect::<Vec<_>>()
+        };
+        events.borrow_mut().clear();
+        cx.update_window(handle.into(), |_, window, cx| {
+            let position = find(window, &[], &first).unwrap().bounds().center();
+            window.dispatch_event(
+                MouseDownEvent {
+                    button: MouseButton::Left,
+                    position,
+                    click_count: 1,
+                    first_mouse: false,
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.dispatch_event(
+                MouseUpEvent {
+                    button: MouseButton::Left,
+                    position,
+                    click_count: 1,
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+        })
+        .unwrap();
+        assert_eq!(press_edges(&first), [true, false]);
+        assert_eq!(cx.update(|cx| model.read(cx).clicks), 1);
+
+        cx.update_window(handle.into(), |_, window, cx| window.focus_next(cx))
+            .unwrap();
+        draw(cx);
+        events.borrow_mut().clear();
+        cx.update_window(handle.into(), |_, window, cx| {
+            let key = Keystroke::parse_with_os("space", cx.platform_info().os).unwrap();
+            window.dispatch_event(
+                KeyDownEvent {
+                    keystroke: key.clone(),
+                    is_held: false,
+                    prefer_character_input: false,
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.dispatch_event(KeyUpEvent { keystroke: key }.to_platform_input(), cx);
+        })
+        .unwrap();
+        let edges = press_edges(&second);
+        assert_eq!(edges, [true, false]);
+        assert_eq!(cx.update(|cx| model.read(cx).requested.clone()), [true]);
+
+        // Reuse the public ID in a new layout scope while the previous tracker
+        // detaches. Its cleanup cannot clear the replacement's snapshot.
+        cx.update(|cx| {
+            model.update(cx, |model, cx| {
+                model.second_parent = Some("replacement-parent");
+                model.second_disabled = true;
+                cx.notify();
+            });
+        });
+        draw(cx);
+        assert!(read(0, &second, cx).unwrap().disabled);
+
+        cx.update(|cx| {
+            model.update(cx, |model, cx| {
+                model.second_source = 1;
+                cx.notify();
+            });
+        });
+        draw(cx);
+        assert!(read(0, &second, cx).is_none());
+        assert!(read(1, &second, cx).unwrap().disabled);
+
+        cx.update(|cx| {
+            model.update(cx, |model, cx| {
+                model.second_parent = None;
+                cx.notify();
+            });
+        });
+        draw(cx);
+        assert!(read(1, &second, cx).is_none());
+        assert!(read(0, &first, cx).is_some());
     }
 
     #[gpui::test]

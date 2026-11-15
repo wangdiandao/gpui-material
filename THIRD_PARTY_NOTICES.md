@@ -20,6 +20,6 @@ The Foundation crate uses [polymorpher 0.1.4](https://crates.io/crates/polymorph
 
 The extras crate's `date-time` feature uses [chrono 0.4.45](https://crates.io/crates/chrono/0.4.45) for Gregorian calendar arithmetic and local date and time values. Chrono is available under MIT or Apache-2.0.
 
-When including third-party source, icons, fonts, or documentation excerpts, record the exact source, version, modifications, and redistribution terms in the owning phase. [Design sources](docs/design-sources.md) · [Architecture and dependencies](docs/architecture.md)
+When including third-party source, icons, fonts, or documentation excerpts, update these notices or the applicable asset manifest with the exact source, version, modifications, and redistribution terms. [Design sources](docs/design-sources.md) · [Architecture and dependencies](docs/architecture.md)
 
 The Windows Gallery ZIP includes the license material for its locked Windows runtime dependencies, the Rust standard library, and the bundled icons. See `DEPENDENCIES.txt` inside the ZIP for versions and license locations, and [supplemental license sources](scripts/gallery-license-sources.txt) for upstream texts and attributions used by the packager.

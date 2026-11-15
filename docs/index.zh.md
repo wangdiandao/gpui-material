@@ -2,23 +2,12 @@
 
 [English](index.md) | 中文
 
-1. [P0 需求与来源冻结](phases/P00.zh.md)记录范围、工作单元与验收标准。
-2. [设计依据与版本基线](design-sources.zh.md)记录设计快照、实现参考与冲突裁决规则。
-3. [组件覆盖矩阵](component-coverage.zh.md)记录变体、状态、平台、首次实现阶段与验收方向。
-4. [架构与依赖](architecture.zh.md)定义依赖方向、状态所有权、主题边界及候选依赖。
-5. [平台与质量要求](verification.zh.md)定义验证环境、覆盖范围和支持声明门槛。
-6. [阶段推进与返修](phases.zh.md)定义 P0–P9 的顺序、工作流和完成条件。[阶段状态](../status.toml)提供机器可读记录。
-7. [P1 能力验证](phases/P01.zh.md)列出探针工作单元、候选依赖和阻塞判据。
-8. [P2 工程基线](phases/P02.zh.md)记录 Workspace、Windows Gallery、工程检查及合并门禁。
-9. [开发与验证](development.zh.md)记录编码、测试、上游贡献规范，以及构建、测量与持续集成。
-10. [P3 纯主题](phases/P03.zh.md)记录 Token、主题与离线验证范围。
-11. [纯主题](theme/theme.zh.md)记录主题值、默认策略和数据来源。
-12. [P4 基础原语](phases/P04.zh.md) 记录适配边界和 Windows 验收标准。
-13. [P5 基础组件](phases/P05.zh.md)记录组件族、门面、Gallery 和预览版验收标准。
-14. [P6 文本字段与浮层](phases/P06.zh.md)记录输入与浮层组件、依赖顺序及原生验收条件。
-15. [P7 导航与自适应布局](phases/P07.zh.md)记录导航组件、布局模式和预览验收条件。
-16. [P8 复合与扩展组件](phases/P08.zh.md)记录组件族、可选特性和候选版验收条件。
-17. [P9 集成与发布准备](phases/P09.zh.md)记录平台支持、迁移、回归和分发验收。
-18. [下游集成](integration.zh.md)记录平台支持、门面 API 和迁移。
-
-后续设计、组件和阶段文档在所属工作开始时加入本索引，历史由 Git 保留。
+- [设计依据与版本基线](design-sources.zh.md)记录锁定的 Material 规范、实现参考和采用顺序。
+- [组件覆盖矩阵](component-coverage.zh.md)记录组件变体、状态、平台检查和兼容指引。
+- [架构与依赖](architecture.zh.md)说明 crate 边界、状态所有权和上游依赖。
+- [纯主题](theme/theme.zh.md)记录主题数值、默认值和 Token 数据。
+- [下游集成](integration.zh.md)说明公开门面、支持的平台和迁移方式。
+- [平台与质量要求](verification.zh.md)定义验证环境、覆盖范围和实机验收标准。
+- [贡献指南](../CONTRIBUTING.zh.md)说明 Issue、设计提议和 PR 评审。
+- [开发与验证](development.zh.md)说明编码、测试、构建和 CI。
+- [版本与发布](release.zh.md)定义版本递进、变更记录和发布验证。

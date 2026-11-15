@@ -573,9 +573,9 @@ fn fields_preserve_native_editing_and_secure_copy(cx: &mut gpui::TestAppContext)
         window.draw(cx).clear(cx);
     })
     .unwrap();
-    cx.simulate_input(window.into(), "p6-password");
+    cx.simulate_input(window.into(), "sample-password");
     cx.update_window(window.into(), |_, window, cx| {
-        assert_eq!(password.read(cx).value().as_ref(), "p6-password");
+        assert_eq!(password.read(cx).value().as_ref(), "sample-password");
         assert!(!password.read(cx).is_copyable());
         password.update(cx, |state, cx| state.select_all(window, cx));
         cx.write_to_clipboard(ClipboardItem::new_string("sentinel".into()));

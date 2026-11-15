@@ -30,25 +30,25 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          # xtask verifies that every frozen acceptance commit is an ancestor.
+          # Whitespace checks compare the entire PR or push against its base.
           fetch-depth: 0
           persist-credentials: false
 
       - name: Check formatting
         run: cargo fmt --all --check
 
-      - name: Check phase, documents, generated tokens and dependency graphs
+      - name: Check diff whitespace
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
         run: |
           base=${PR_BASE:-$PUSH_BEFORE}
-          if [[ -z "$base" || "$base" =~ ^0+$ ]]; then
-            cargo xtask check
-          else
+          if [[ -n "$base" && ! "$base" =~ ^0+$ ]]; then
             git diff --check "$base" HEAD
-            cargo xtask check "$base"
           fi
+
+      - name: Check documents, generated tokens and dependency graphs
+        run: cargo xtask check
 
       - name: Check default workspace
         run: cargo check --locked

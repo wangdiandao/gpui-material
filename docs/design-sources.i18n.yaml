@@ -1,16 +1,16 @@
 # Section fingerprints for the English and Chinese pages.
 /design-sources-and-version-baseline:
-  en: "d581918f7cb2e579"
-  zh: "daab6a26854d56cc"
+  en: "d62d121343986a5b"
+  zh: "67c23a2f382e8e2c"
 /design-sources-and-version-baseline/source-precedence:
-  en: "8744789285dd0621"
-  zh: "b18c05b26be7e3e3"
+  en: "59439db97726d48c"
+  zh: "bb04f8a13b7452c2"
 /design-sources-and-version-baseline/material-specification:
-  en: "fafcf1a8d2d7f9a7"
-  zh: "212aa861e633b1ea"
+  en: "201ab25e870b3389"
+  zh: "f367b1d31ff60bb7"
 /design-sources-and-version-baseline/source-code-and-algorithm-references:
-  en: "8e0d7f1d4b3e6711"
-  zh: "a334ee0232fd2991"
+  en: "1284f36ee785b091"
+  zh: "1ef0d3ca6772a797"
 /design-sources-and-version-baseline/gpui-and-base:
-  en: "1bdd1c57d4930293"
-  zh: "a0a0880f938131fe"
+  en: "7a983fa9966f77ca"
+  zh: "d0ac63bcedff430c"

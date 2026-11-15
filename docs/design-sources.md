@@ -2,7 +2,7 @@
 
 English | [中文](design-sources.zh.md)
 
-Verified on 2026-11-13. The frozen baseline includes Material site snapshots, published source packages, algorithm references, and the GPUI version pairing. Before an upgrade, review coverage, tokens, behavior, platforms, licensing, and dependency graphs, then update this page and affected specifications.
+Verified on 2026-11-13. The pinned baseline includes Material site snapshots, published source packages, algorithm references, and the GPUI version pairing. Propose any Material specification version update through the [contribution process](../CONTRIBUTING.md#design-specification). After maintainers approve adoption, verify coverage, tokens, behavior, platforms, licensing, and dependency graphs, and update this page and the affected specifications.
 
 <a id="采用顺序"></a>
 
@@ -14,25 +14,25 @@ Verified on 2026-11-13. The frozen baseline includes Material site snapshots, pu
 4. Pinned GPUI and gpui-base define desktop event, drawing, and platform boundaries. Document input paths and the reasons for desktop adaptations.
 5. Pinned Material Components Android supplements implementation references such as Side Sheet and Docked Toolbar, including deprecation and replacement guidance. Material Web provides historical context.
 
-Resolve differences by using pinned public guidance for scope and pinned sources for implementation details. The component's owning phase documents deviations and replacement interactions. Record test results in the associated issue or PR. Review scope before adopting new upstream functionality. Record device applicability as specified by the site.
+Resolve differences by using pinned public guidance for scope and pinned sources for implementation details. Document accepted desktop adaptations and their replacement interactions in the relevant component or architecture documentation. Record test results in the associated issue or PR. Review scope before adopting new upstream functionality. Record device applicability as specified by the site.
 
 <a id="material-规范"></a>
 
 ## Material specification
 
-The [site directory](https://m3.material.io/components) and component Overview, Specs, Guidelines, and Accessibility tabs were checked against data version `2026-10-13_06-10-19`. The [snapshot index](material-snapshot.md) records pinned JSON and SHA-256 by page. Embedded token tables are from the same release. P3 and the relevant component phases verify values, references, and generation rules. This repository keeps project specifications, page locations, and checksums.
+The [site directory](https://m3.material.io/components) and component Overview, Specs, Guidelines, and Accessibility tabs were checked against data version `2026-10-13_06-10-19`. The [snapshot index](material-snapshot.md) records pinned JSON and SHA-256 by page. Embedded token tables are from the same release. Verify token values and references against the pinned data and regenerate checked-in output when the data changes. This repository keeps project specifications, page locations, and checksums.
 
 | Area | Scope and verification | Official entry point |
 | --- | --- | --- |
-| Tokens | Reference, System, and Component, with traceable original names and Rust fields. P3 verifies reference closure and reproducible generation. | [Design tokens](https://m3.material.io/foundations/design-tokens/overview) |
-| Color | Static light and dark colors, role pairs, brand and dynamic seeds, contrast, and fixed roles. P3 uses MCU to verify semantic colors and boundaries. | [Color roles](https://m3.material.io/styles/color/roles), [Dynamic color](https://m3.material.io/styles/color/dynamic) |
-| Typography | Baseline and emphasized roles, weight, line height, tracking, and overridable font fallback. P3 compares roles and P4 verifies glyphs and metrics. | [Typography](https://m3.material.io/styles/typography/overview) |
-| Shape | Corner scale, state shapes, limited rounded polygon topologies, and morphing. P3 compares geometry parameters and P4 checks drawing, clipping, and hit testing. | [Shape](https://m3.material.io/styles/shape/overview-principles), [Shape morph](https://m3.material.io/styles/shape/shape-morph) |
-| Motion | Standard and Expressive schemes, distinguishing spatial motion from effects such as color and opacity. P4 verifies retargeting, reduced motion, and stopping redraws. | [Motion](https://m3.material.io/styles/motion/overview/specs) |
+| Tokens | Reference, System, and Component, with traceable original names and Rust fields. Verify reference closure and reproducible generation. | [Design tokens](https://m3.material.io/foundations/design-tokens/overview) |
+| Color | Static light and dark colors, role pairs, brand and dynamic seeds, contrast, and fixed roles. Verify semantic colors and boundaries against MCU. | [Color roles](https://m3.material.io/styles/color/roles), [Dynamic color](https://m3.material.io/styles/color/dynamic) |
+| Typography | Baseline and emphasized roles, weight, line height, tracking, and overridable font fallback. Check role definitions, rendered glyphs, and metrics. | [Typography](https://m3.material.io/styles/typography/overview) |
+| Shape | Corner scale, state shapes, limited rounded polygon topologies, and morphing. Compare geometry parameters and check drawing, clipping, and hit testing. | [Shape](https://m3.material.io/styles/shape/overview-principles), [Shape morph](https://m3.material.io/styles/shape/shape-morph) |
+| Motion | Standard and Expressive schemes, distinguishing spatial motion from effects such as color and opacity. Verify retargeting, reduced motion, and stopping redraws. | [Motion](https://m3.material.io/styles/motion/overview/specs) |
 | Elevation | Surface roles, tonal elevation, shadow, and scrim. Verify light and dark separately. | [Elevation](https://m3.material.io/styles/elevation/overview) |
-| Interaction | Hover, focus-visible, pressed, dragged, disabled, and component value states. P4 verifies input cancellation and state sources. | [States](https://m3.material.io/foundations/interaction/states/overview), [Inputs](https://m3.material.io/foundations/interaction/inputs) |
-| Layout | Available window size, density, RTL, font scaling, and visual and hit areas. P7 verifies state continuity across layout changes. | [Breakpoints](https://m3.material.io/foundations/layout/breakpoints/overview), [RTL](https://m3.material.io/foundations/layout/bidirectionality-rtl) |
-| Accessibility | Names, roles, values, states, actions, relationships, and announcements. P1 verifies platform bridges and component phases verify semantics and actual interaction. | [Assistive technology](https://m3.material.io/foundations/overview/assistive-technology) |
+| Interaction | Hover, focus-visible, pressed, dragged, disabled, and component value states. Verify input cancellation and state sources. | [States](https://m3.material.io/foundations/interaction/states/overview), [Inputs](https://m3.material.io/foundations/interaction/inputs) |
+| Layout | Available window size, density, RTL, font scaling, and visual and hit areas. Verify state continuity across layout changes. | [Breakpoints](https://m3.material.io/foundations/layout/breakpoints/overview), [RTL](https://m3.material.io/foundations/layout/bidirectionality-rtl) |
+| Accessibility | Names, roles, values, states, actions, relationships, and announcements. Check platform bridges and verify semantics and actual interaction for the affected components. | [Assistive technology](https://m3.material.io/foundations/overview/assistive-technology) |
 
 <a id="源码与算法参考"></a>
 
@@ -52,15 +52,15 @@ The [site directory](https://m3.material.io/components) and component Overview, 
 
 The [Compose release notes][compose-release] list stable 1.4.0 and release candidate 1.5.0-rc01. The latter's source package provides the Expressive baseline, with a change range ending at [`1f549b6f5ba84cb3553be9c79110c4c5f6413039`][compose-tree]. Locate sources by versioned packages and checksums. Use the Android implementation to clarify interactions. [Adaptive release notes][adaptive-release] · [graphics-shapes release notes][shapes-release]
 
-P1 shape vectors come from pinned `RoundedPolygon.kt`, `CornerRounding.kt`, and `Morph.kt`. Starting cases are endpoint recovery in `MorphTest.cubicsTest`, radius allocation in `RoundedPolygonTest.roundingSpaceUsageTest`, and parameters in `CornerRoundingTest.cornerRoundingTest`. Cover rounded triangles, squares, circles, and polygons with matching and different vertex counts at progress 0, 0.5, and 1. Record radius, smoothing, cubic endpoints and control points, closure, bounds, and sampling error.
+The [foundation shape tests](../crates/foundation/src/shape.rs) adapt cases from the pinned AndroidX `MorphTest.cubicsTest` and `RoundedPolygonTest.roundingSpaceUsageTest` to Material's production shapes. They check how adjacent rounded corners share an edge, whether identity morphs preserve Bézier anchors and control points, and whether transitions between the triangle, square, and circle stay closed and within bounds at progress 0, 0.5, and 1. They also check hit testing at distinct morph endpoints. Run `cargo test --locked -p gpui-material-foundation shape::tests` to check this geometry in isolation.
 
-Pinned MCU vectors include tone 40 of blue `0xff0000ff` yielding `0xff343dff`, red `0xffff0000` under dark Tonal Spot at contrast 0 yielding `primaryFixed = 0xffffdad4`, and clamped contrast between tones −10 and 110 yielding 21 within 0.001. P3 adds seed round trips, light and dark modes, low, default, and high contrast, and fixed roles. Record versions, algorithm specifications, expected values, and tolerances.
+Pinned MCU vectors include tone 40 of blue `0xff0000ff` yielding `0xff343dff`, red `0xffff0000` under dark Tonal Spot at contrast 0 yielding `primaryFixed = 0xffffdad4`, and clamped contrast between tones −10 and 110 yielding 21 within 0.001. The theme crate also checks seed round trips, light and dark modes, low, default, and high contrast, and fixed roles. Record versions, algorithm specifications, expected values, and tolerances when updating the vectors.
 
 <a id="gpui-与-base"></a>
 
 ## GPUI and Base
 
-[GPUI Kit v0.9.1][kit-release] and the crates.io `gpui-base` metadata both point to [`39ab849a93b5f15507b969164d49891db8d5b470`][kit]. The [pinned workspace manifest][kit-manifest] and release package metadata establish the table. P0 pins the version contract. P1 probes and P2 workspace record the versions in their own manifests and lockfiles.
+[GPUI Kit v0.9.1][kit-release] and the crates.io `gpui-base` metadata both point to [`39ab849a93b5f15507b969164d49891db8d5b470`][kit]. The [pinned workspace manifest][kit-manifest] and release package metadata establish the table. The workspace and standalone host probe record the versions in their manifests and lockfiles.
 
 | Cargo package | Exact version | crates.io SHA-256 |
 | --- | --- | --- |

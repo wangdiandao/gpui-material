@@ -263,6 +263,87 @@ mod tests {
     use gpui::size;
     use gpui_material_theme::CornerRole;
 
+    const TOLERANCE: f32 = 0.000_01;
+
+    #[test]
+    fn adjacent_rounded_corners_share_the_available_edge() {
+        let bounds = Bounds::new(point(px(5.), px(10.)), size(px(40.), px(60.)));
+        let corners = CornerShape::Radii([40., 40., 0., 0.]);
+        let shape = Shape::rounded(bounds, corners, Direction::Ltr).unwrap();
+
+        // Oversized adjacent radii meet at the midpoint of the normalized top edge.
+        let mut top_anchors = shape
+            .outline
+            .cubics
+            .iter()
+            .flat_map(|cubic| [cubic.anchor0(), cubic.anchor1()])
+            .filter(|point| point.y.abs() <= TOLERANCE)
+            .peekable();
+        assert!(top_anchors.peek().is_some());
+        assert!(top_anchors.all(|point| (point.x - 0.5).abs() <= TOLERANCE));
+    }
+
+    #[test]
+    fn identity_morph_preserves_cubic_control_points() {
+        let bounds = Bounds::new(point(px(5.), px(10.)), size(px(80.), px(40.)));
+        let points = |cubic: &Cubic| {
+            [
+                cubic.anchor0(),
+                cubic.control0(),
+                cubic.control1(),
+                cubic.anchor1(),
+            ]
+        };
+
+        for role in [
+            PolygonRole::Triangle,
+            PolygonRole::Square,
+            PolygonRole::Circle,
+        ] {
+            // Use the feature curves before the drawing outline splits its first corner.
+            let expected: Vec<_> = polygon(role)
+                .features
+                .into_iter()
+                .flat_map(|feature| feature.cubics)
+                .filter(|cubic| !cubic.zero_length())
+                .collect();
+            let morph = PolygonMorph::new(role, role);
+            for progress in [0., 0.5, 1.] {
+                let sample = morph.sample(bounds, progress).unwrap();
+                let actual: Vec<_> = sample
+                    .outline
+                    .cubics
+                    .iter()
+                    .filter(|cubic| !cubic.zero_length())
+                    .collect();
+                assert_eq!(actual.len(), expected.len(), "{role:?} at {progress}");
+                assert!(
+                    (0..expected.len()).any(|start| {
+                        actual.iter().zip(expected.iter().cycle().skip(start)).all(
+                            |(actual, expected)| {
+                                points(actual)
+                                    .into_iter()
+                                    .zip(points(expected))
+                                    .all(|(a, b)| (a - b).length() <= TOLERANCE)
+                            },
+                        )
+                    }),
+                    "{role:?} changed cubic geometry at {progress}",
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn distinct_morph_endpoints_preserve_their_hit_regions() {
+        let bounds = Bounds::new(point(px(5.), px(10.)), size(px(80.), px(40.)));
+        let near_corner = bounds.center() + point(px(17.), px(13.));
+        let morph = PolygonMorph::new(PolygonRole::Square, PolygonRole::Circle);
+
+        assert!(morph.sample(bounds, 0.).unwrap().contains(near_corner));
+        assert!(!morph.sample(bounds, 1.).unwrap().contains(near_corner));
+    }
+
     #[test]
     fn logical_corners_and_polygon_samples_have_shape_aware_hit_tests() {
         let bounds = Bounds::new(point(px(5.), px(10.)), size(px(80.), px(40.)));
@@ -281,6 +362,22 @@ mod tests {
             let morph = PolygonMorph::new(from, to);
             for progress in [0., 0.5, 1.] {
                 let sample = morph.sample(bounds, progress).unwrap();
+                let cubics = &sample.outline.cubics;
+                assert!(!cubics.is_empty());
+                let extent = -TOLERANCE..=1. + TOLERANCE;
+                for (cubic, next) in cubics.iter().zip(cubics.iter().cycle().skip(1)) {
+                    assert!(
+                        (cubic.anchor1() - next.anchor0()).length() <= TOLERANCE,
+                        "{from:?} to {to:?} is open at {progress}",
+                    );
+                    for step in 0..=16 {
+                        let point = cubic.point_on_curve(step as f32 / 16.);
+                        assert!(
+                            extent.contains(&point.x) && extent.contains(&point.y),
+                            "{from:?} to {to:?} leaves the normalized bounds at {progress}: {point:?}",
+                        );
+                    }
+                }
                 assert!(sample.contains(bounds.center()));
                 assert!(!sample.contains(at_start));
                 let ripple = clipped_ripple(&sample.fill, bounds.center(), px(25.));

@@ -5,6 +5,7 @@ use serde::Deserialize;
 use crate::{Result, output};
 
 const GALLERY: &str = "gpui-material-gallery";
+const PROBE_PREFIX: &str = "gpui-material-probe-";
 const REGISTRY: &str = "registry+https://github.com/rust-lang/crates.io-index";
 const TARGETS: [(&str, &str, &[&str]); 3] = [
     ("x86_64-pc-windows-msvc", "gpui-pre-windows", &[]),
@@ -98,7 +99,7 @@ fn verify_pure(target: &str, features: &[&str], theme_only: bool) -> Result {
     for line in tree.lines() {
         let mut fields = line.split_whitespace();
         let package = fields.next().unwrap_or_default();
-        if (package.starts_with("gpui") && package != THEME) || package.starts_with("p1-") {
+        if package.starts_with("gpui") && package != THEME {
             return Err(
                 format!("{target}: unexpected dependency in the pure graph: {line}").into(),
             );
@@ -161,20 +162,17 @@ fn verify(target: &str, backend: &str, backend_features: &[&str], test: bool) ->
         .collect();
     if metadata.workspace_default_members.iter().any(|id| {
         let package = packages[id.as_str()];
-        matches!(
-            package.name.as_str(),
-            GALLERY | "p1-host" | "p1-theme" | "p1-shapes"
-        )
+        package.name == GALLERY || package.name.starts_with(PROBE_PREFIX)
     }) {
         return Err(
-            "Gallery and P1 experiments must stay outside the default workspace members".into(),
+            "Gallery and standalone probes must stay outside the default workspace members".into(),
         );
     }
     for line in tree.lines() {
         let name = line.split_whitespace().next().unwrap_or_default();
         if name.starts_with("gpui-fast")
             || matches!(name, "gpui" | "gpui-component" | "gpui-kit")
-            || name.starts_with("p1-")
+            || name.starts_with(PROBE_PREFIX)
         {
             return Err(format!("{target}: unexpected Gallery dependency {name}").into());
         }

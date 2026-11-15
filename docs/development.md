@@ -6,10 +6,9 @@ English | [中文](development.zh.md)
 
 ## Contribution workflow and branch naming
 
-- Choose Bug report, Feature request, or Phase deliverable in `.github/ISSUE_TEMPLATE/`. Include a minimal reproduction for bugs, a use case and acceptance criteria for proposals, and dependencies and file ownership for phase tasks.
+- Follow the [contribution guide](../CONTRIBUTING.md) for Issue templates, design changes, and review.
 - Branch from the latest `main` and use `<type>/<short-topic>`, such as `ci/cross-platform-workflow`. Write the topic in lowercase English with hyphens. Link the issue in the PR description.
-- Choose the prefix by purpose. Use `feat/` for features, `fix/` for fixes, `docs/` for documentation, `test/` for tests, `refactor/` for refactoring, `ci/` for CI, `chore/` for maintenance, and `release/` for releases. For example, use `fix/pointer-capture`. Record phase ownership in the issue, PR, and `status.toml`.
-- Keep each PR focused on one problem. Use the template to link the issue, list public API changes and migration steps, and provide reproducible verification. For UI changes, identify the affected Gallery scenario. [GPUI Kit contribution guide](https://github.com/longbridge/gpui-kit/blob/main/CONTRIBUTING.md)
+- Choose the prefix by purpose. Use `feat/` for features, `fix/` for fixes, `docs/` for documentation, `test/` for tests, `refactor/` for refactoring, `ci/` for CI, `chore/` for maintenance, and `release/` for releases. For example, use `fix/pointer-capture`.
 
 <a id="workspace-与组件开发"></a>
 
@@ -22,7 +21,7 @@ English | [中文](development.zh.md)
 
 ## Coding conventions
 
-- Find the current specification in the [documentation index](index.md) and check the allowed paths in [phase status](../status.toml). Follow the [repair process](phases.md#repairs) when revising a frozen contract.
+- Use the [documentation index](index.md) to find the current specification. Follow the [pinned design and review rules](../CONTRIBUTING.md#design-specification) when changing Material presentation.
 - Keep the English `foo.md`, Chinese `foo.zh.md`, and section fingerprints in `foo.i18n.yaml` together. Link the counterpart immediately below the title and use the current page's language for links to other paired pages. Update both pages in the same PR and run `cargo xtask docs --write path/to/foo.md` to record the reviewed pair. `cargo xtask check` verifies pairing, language links, heading depth, code samples, and fingerprints. GitHub issue and PR templates use English. [DeepSeek Harness documentation conventions](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/i18n/README.md)
 - Keep theme in pure Rust and use foundation for GPUI/Base adapters. The application or Base owns business and input state. Material owns presentation and additional composition state. Reuse existing public APIs where possible. [Architecture and dependencies](architecture.md)
 - Use idiomatic Rust naming and stable semantic identifiers. Explain invariants, lifetimes, and platform differences in comments. Document state ownership, defaults, focus, callbacks, and platform support for public APIs.
@@ -31,9 +30,9 @@ English | [中文](development.zh.md)
 
 ## Testing conventions
 
-- Verify the affected behavior for every change. Start with existing tests, build checks, or a minimal reproduction. Add a permanent test when a phase requirement, public behavior, or critical invariant lacks coverage, or when a reproducible defect has a meaningful risk of recurring. Run the relevant existing checks for documentation, formatting, or internal changes with sufficient coverage.
+- Verify the affected behavior for every change. Start with existing tests, build checks, or a minimal reproduction. Add a permanent test when a specification requirement, public behavior, or critical invariant lacks coverage, or when a reproducible defect has a meaningful risk of recurring. Run the relevant existing checks for documentation, formatting, or internal changes with sufficient coverage.
 - Verify observable behavior at the lowest effective layer. Extend existing cases where possible and add UI, integration, or native verification when that layer has its own risks. Tests should be repeatable and show the contract they cover and how a regression fails. Verify actual rendering, keyboard and pointer input, semantics, focus, cancellation, and native paths where applicable. [Platforms and quality requirements](verification.md)
-- Use temporary commands or scripts for one-off fixes, environment diagnosis, migrations, and phase probes. Record significant results and reproduction steps in the issue or PR. Keep the smallest permanent assertion when it fills a gap in supported behavior.
+- Use temporary commands or scripts for one-off fixes, environment diagnosis, migrations, and capability probes. Record significant results and reproduction steps in the issue or PR. Keep the smallest permanent assertion when it fills a gap in supported behavior.
 - When changing behavior or replacing a probe, remove obsolete cases and helpers after checking for unique coverage and references.
 
 <a id="上游贡献"></a>
@@ -57,11 +56,23 @@ cargo gallery
 cargo test --locked -p gpui-material-gallery --features test-support
 ```
 
-The default workspace build covers the pure theme and engineering tools. Select Gallery with `-p gpui-material-gallery` or `cargo gallery`. The normal Gallery build uses platform defaults. UI integration tests enable `test-support`. Run isolated P1 probes with their own `--manifest-path`.
+The default workspace build covers the pure theme and engineering tools. Select Gallery with `-p gpui-material-gallery` or `cargo gallery`. The normal Gallery build uses platform defaults. UI integration tests enable `test-support`.
 
 On macOS, use Apple Silicon and the Xcode command-line tools. Linux CI uses Ubuntu 24.04 x64. See `Install Linux platform dependencies` in the [workflow](../.github/workflows/ci.yml) for the system packages. Both platforms use the same Rust toolchain and Cargo commands.
 
-Check that the Gallery title bar reads “Material Gallery” and the body shows “Window check” and a “Display scale” value matching the current display. Narrow the window and confirm the text remains visible. On Windows, inspect the StatusBar named “Display scale …%” in the UI Automation tree. Close the window from the title bar or with Alt+F4 and confirm the process exits normally. Record the environment and results in the PR. [Platforms and quality requirements](verification.md)
+Open a component story in “Material Gallery”, resize into the compact layout, and verify you can reopen the catalog and select a story. Check that “Display scale” matches the current display. On Windows, inspect the StatusBar named “Display scale …%” in the UI Automation tree. Close the window from the title bar or with Alt+F4 and confirm the process exits normally. Record the environment and results in the PR. [Platforms and quality requirements](verification.md)
+
+<a id="独立探针"></a>
+
+## Standalone probes
+
+The host probe checks pinned GPUI and Base behavior directly, including real-window startup, native capture loss, text input, semantics, motion, drawing, and overlays. Select an entry point with `--bin`. Run the probe with its own manifest and lockfile. Point `CARGO_TARGET_DIR` to the main checkout's `target` directory for incremental builds.
+
+```powershell
+$env:CARGO_TARGET_DIR = Join-Path (Get-Location) 'target'
+cargo run --locked --manifest-path experiments/gpui-host/Cargo.toml --bin window
+cargo test --locked --manifest-path experiments/gpui-host/Cargo.toml --features test-support
+```
 
 <a id="本地检查"></a>
 
@@ -72,10 +83,10 @@ cargo fmt --all --check
 cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 cargo test --locked --workspace --all-features
 cargo xtask check
-cargo xtask check origin/main
+git diff --check origin/main
 ```
 
-The `check` command validates phase status, merged deliverables and acceptance commit ancestry, local links and heading anchors in tracked Markdown, and GPUI/Base package identities and features. With a base commit, it compares Git paths and checks them against the base phase's scope. A trailing slash denotes a directory. File entries match the full path. After the deliverables merge, record the freeze in a separate PR. The documentation check runs offline. Use `cargo xtask tokens --check` to check generated tokens or `cargo xtask tokens` to update the Rust tables and index after editing the data. The dependency check resolves normal and test graphs for Windows, macOS, and Linux. [Token data](theme/theme.md#token-data)
+The `check` command validates tracked Markdown links, headings, and bilingual pairs, checks generated tokens, and verifies GPUI/Base package identities and features on the Windows, macOS, and Linux dependency graphs. Stage Markdown additions, renames, and removals so the checker sees the intended Git index. The documentation check runs offline. Use `cargo xtask tokens --check` to check generated tokens or `cargo xtask tokens` to update the Rust tables and index after editing the data. [Token data](theme/theme.md#token-data)
 
 <a id="冷热构建基线"></a>
 
@@ -83,7 +94,7 @@ The `check` command validates phase status, merged deliverables and acceptance c
 
 ```powershell
 cargo fetch --locked --target x86_64-pc-windows-msvc
-cargo xtask timings target/timings/p2-baseline
+cargo xtask timings target/timings/gallery-baseline
 ```
 
 Use a new report directory for each measurement. Prefetch the Cargo registry and source caches. The cold check and cold build each start in an empty target directory. The command then reuses each target directory for the corresponding warm run. The tool records four wall-clock times, HTML timelines, the Git commit, target, and toolchain. The last Gallery build unit includes code generation and linking. Use the normal Gallery features and the development profile without overriding Cargo's job count. Record the key timings, reproduction command, and relevant environment in the issue or PR.
@@ -96,7 +107,7 @@ Use a new report directory for each measurement. Prefetch the Cargo registry and
 
 | Job | Checks |
 | --- | --- |
-| `Repository checks` | Formatting, diff whitespace, phase scope, documentation links, generated tokens, three-platform dependency graphs, and the default workspace. PRs and main pushes use the corresponding base commit. Manual runs check without a base. |
+| `Repository checks` | Formatting, documentation links and pairs, generated tokens, three-platform dependency graphs, and the default workspace. Diff whitespace is checked against the base commit for PRs and pushes with a base. |
 | `Windows MSVC`, `macOS ARM64`, `Linux x64` | Clippy, workspace tests, headless Gallery UI tests, and native Gallery builds on Windows Server 2025 x64, macOS 15 ARM64, and Ubuntu 24.04 x64. Other platforms continue if one fails. |
 | `CI required` | Passes when the repository checks and all three native jobs succeed. |
 
@@ -104,9 +115,11 @@ Rust build caches are isolated by platform. Successful pushes to `main` save the
 
 Hosted CI covers builds and automated tests on three platforms. The initial release follows the native acceptance criteria in [platforms and quality requirements](verification.md).
 
-The Windows job uploads `gallery-windows-x64-msvc` with the executable, Cargo timeline, and licensing information for native retesting. It runs `cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings`. This profile disables debug assertions so GPUI can embed DirectX shaders at build time using the Windows SDK's x64 `fxc.exe`. CI sets `GPUI_FXC_PATH` to the SDK compiler. Normal `cargo gallery` builds read the shader sources from the local Cargo cache. Releases follow the applicable delivery phase.
+The Windows job uploads `gallery-windows-x64-msvc` with the executable, Cargo timeline, and licensing information for native retesting. It runs `cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings`. This profile disables debug assertions so GPUI can embed DirectX shaders at build time using the Windows SDK's x64 `fxc.exe`. CI sets `GPUI_FXC_PATH` to the SDK compiler. Normal `cargo gallery` builds read the shader sources from the local Cargo cache. [Release procedure](release.md#prepare-and-publish)
 
-The GitHub ruleset requires changes to `main` to go through a PR. The PR must be current with the base branch, resolve review conversations, and pass the GitHub Actions check `CI required`.
+The GitHub ruleset requires a PR for changes to `main`. Bring the PR up to date with its base and follow the [review and merge rules](../CONTRIBUTING.md#pr-review-and-merge).
+
+<a id="windows-分发"></a>
 
 ## Windows distribution
 

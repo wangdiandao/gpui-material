@@ -2,7 +2,7 @@
 
 [English](design-sources.md) | 中文
 
-核验日期为 2026-11-13。冻结内容包括 Material 站点快照、发布源码包、算法参考与 GPUI 版本组合。升级时先检查覆盖矩阵、Token、行为、平台、许可和依赖图，再更新本页及对应规格。
+核验日期为 2026-11-13。锁定内容包括 Material 站点快照、发布源码包、算法参考与 GPUI 版本组合。Material 规范版本升级遵循[贡献流程](../CONTRIBUTING.zh.md#设计规范)。维护者同意采纳后，核对覆盖范围、Token、行为、平台、许可和依赖图，并更新本页及受影响的规格。
 
 <a id="source-precedence"></a>
 
@@ -14,25 +14,25 @@
 4. 固定的 GPUI 与 gpui-base 定义桌面事件、绘制和平台边界。桌面适配说明输入路径及偏离原因。
 5. Material Components Android 的固定源码补充 Side Sheet、Docked Toolbar 等实现参照，以及弃用与替代说明。Material Web 用于历史背景。
 
-同一主题出现差异时，以锁定的公开设计指南定范围，以锁定源码解读实现细节。组件所属阶段写明偏离及替代交互，测试结果记在对应 Issue 或 PR。新增上游源码功能先进入范围审查。网站中的设备适用条件照实记录。
+同一主题出现差异时，以锁定的公开设计指南定范围，以锁定源码解读实现细节。在对应的组件或架构文档中写明获准的桌面适配及替代交互，测试结果记在对应 Issue 或 PR。新增上游源码功能先进入范围审查。网站中的设备适用条件照实记录。
 
 <a id="material-specification"></a>
 
 ## Material 规范
 
-[站点目录](https://m3.material.io/components)及各组件的 Overview、Specs、Guidelines 和 Accessibility 按发布数据版本 `2026-10-13_06-10-19` 核对。[站点快照索引](material-snapshot.zh.md)记录各页固定 JSON 和 SHA-256。内容分块内嵌的 Token 表属于同一数据版本，具体数值、引用及生成规则归 P3 及相关组件阶段核对。此仓库保存本项目的规格、页面定位和校验值。
+[站点目录](https://m3.material.io/components)及各组件的 Overview、Specs、Guidelines 和 Accessibility 按发布数据版本 `2026-10-13_06-10-19` 核对。[站点快照索引](material-snapshot.zh.md)记录各页固定 JSON 和 SHA-256。内容分块内嵌的 Token 表属于同一数据版本，按锁定数据核对 Token 数值与引用，数据变更时重新生成并更新仓库中的生成物。此仓库保存本项目的规格、页面定位和校验值。
 
 | 领域 | 设计范围与验证 | 官方入口 |
 | --- | --- | --- |
-| Token | Reference、System、Component 三层，原名和 Rust 字段可追溯。P3 验证引用闭合与生成可复现。 | [Design tokens](https://m3.material.io/foundations/design-tokens/overview) |
-| 色彩 | 静态浅深色、角色配对、品牌/动态源色、对比度与固定角色。P3 用 MCU 检验语义色和边界。 | [Color roles](https://m3.material.io/styles/color/roles)、[Dynamic color](https://m3.material.io/styles/color/dynamic) |
-| 排版 | baseline 与 emphasized 角色、字重、行高、字距与可覆盖字体回退。P3 比对角色，P4 验证实际字形及度量。 | [Typography](https://m3.material.io/styles/typography/overview) |
-| 形状 | 角形阶梯、状态形状、有限圆角多边形及 morph。P3 对照几何参数，P4 对照绘制、裁剪和命中。 | [Shape](https://m3.material.io/styles/shape/overview-principles)、[Shape morph](https://m3.material.io/styles/shape/shape-morph) |
-| 动效 | Standard/Expressive motion scheme，区分空间与颜色/透明度等效果。P4 测重定向、减少动态效果、终止重绘。 | [Motion](https://m3.material.io/styles/motion/overview/specs) |
+| Token | Reference、System、Component 三层，原名和 Rust 字段可追溯。验证引用闭合与生成可复现。 | [Design tokens](https://m3.material.io/foundations/design-tokens/overview) |
+| 色彩 | 静态浅深色、角色配对、品牌/动态源色、对比度与固定角色。对照 MCU 检验语义色和边界。 | [Color roles](https://m3.material.io/styles/color/roles)、[Dynamic color](https://m3.material.io/styles/color/dynamic) |
+| 排版 | baseline 与 emphasized 角色、字重、行高、字距与可覆盖字体回退。对照角色定义，验证实际字形及度量。 | [Typography](https://m3.material.io/styles/typography/overview) |
+| 形状 | 角形阶梯、状态形状、有限圆角多边形及 morph。对照几何参数，验证绘制、裁剪和命中。 | [Shape](https://m3.material.io/styles/shape/overview-principles)、[Shape morph](https://m3.material.io/styles/shape/shape-morph) |
+| 动效 | Standard/Expressive motion scheme，区分空间与颜色/透明度等效果。验证重定向、减少动态效果和终止重绘。 | [Motion](https://m3.material.io/styles/motion/overview/specs) |
 | 层级 | Surface 角色、tonal elevation、阴影和 scrim。浅深色分别验证。 | [Elevation](https://m3.material.io/styles/elevation/overview) |
-| 交互 | hover、focus-visible、pressed、dragged、disabled 和组件值状态。P4 验证输入取消和状态来源。 | [States](https://m3.material.io/foundations/interaction/states/overview)、[Inputs](https://m3.material.io/foundations/interaction/inputs) |
-| 布局 | 可用窗口尺寸、密度、RTL、字体缩放与视觉/命中区域。P7 验证模式切换时的状态延续。 | [Breakpoints](https://m3.material.io/foundations/layout/breakpoints/overview)、[RTL](https://m3.material.io/foundations/layout/bidirectionality-rtl) |
-| 无障碍 | 名称、角色、值、状态、动作、关系与通知。P1 验证平台桥接，组件阶段验证各语义及真实操作。 | [Assistive technology](https://m3.material.io/foundations/overview/assistive-technology) |
+| 交互 | hover、focus-visible、pressed、dragged、disabled 和组件值状态。验证输入取消和状态来源。 | [States](https://m3.material.io/foundations/interaction/states/overview)、[Inputs](https://m3.material.io/foundations/interaction/inputs) |
+| 布局 | 可用窗口尺寸、密度、RTL、字体缩放与视觉/命中区域。验证模式切换时的状态延续。 | [Breakpoints](https://m3.material.io/foundations/layout/breakpoints/overview)、[RTL](https://m3.material.io/foundations/layout/bidirectionality-rtl) |
+| 无障碍 | 名称、角色、值、状态、动作、关系与通知。检查平台桥接，验证受影响组件的语义与实际操作。 | [Assistive technology](https://m3.material.io/foundations/overview/assistive-technology) |
 
 <a id="source-code-and-algorithm-references"></a>
 
@@ -52,15 +52,15 @@
 
 [Compose 发布说明][compose-release]列出稳定版 1.4.0 和候选版 1.5.0-rc01。后者的源码包提供 Expressive 实现基线，其发布变更范围终点是 [`1f549b6f5ba84cb3553be9c79110c4c5f6413039`][compose-tree]。源码以版本化包及校验值定位，Android 实现仅用于澄清交互。自适应与形状版本分别由[自适应发布说明][adaptive-release]和 [graphics-shapes 发布说明][shapes-release]核对。
 
-P1 形状参考向量从锁定的 `RoundedPolygon.kt`、`CornerRounding.kt` 与 `Morph.kt` 建立。以 `MorphTest.cubicsTest` 的端点还原、`RoundedPolygonTest.roundingSpaceUsageTest` 的半径空间分配和 `CornerRoundingTest.cornerRoundingTest` 的参数为起点。用圆角三角形、正方形、圆、同拓扑与不同顶点数的多边形覆盖进度 0、0.5、1，记录半径、smoothing、Cubic 端点/控制点、闭合、边界与采样误差。
+[foundation 形状测试](../crates/foundation/src/shape.rs)参考锁定版本的 AndroidX `MorphTest.cubicsTest` 和 `RoundedPolygonTest.roundingSpaceUsageTest`，验证 Material 实际使用的形状。测试覆盖相邻圆角的边长分配、同形变形对贝塞尔端点和控制点的保留，以及圆角三角形、正方形和圆之间的过渡在进度 0、0.5、1 时的闭合与边界。另验证不同形状在变形起点和终点的命中区域。运行 `cargo test --locked -p gpui-material-foundation shape::tests` 可单独检查这些几何行为。
 
-MCU 的固定向量包括蓝色 `0xff0000ff` 的色板 tone 40 得 `0xff343dff`，红色 `0xffff0000` 在 Tonal Spot、深色、对比度 0 下的 `primaryFixed` 为 `0xffffdad4`，tone −10 与 110 的夹取后对比度为 21（容差 0.001）。P3 增补源色往返、浅深模式、低/默认/高对比度和固定角色，记录版本、算法规格、预期值与容差。
+MCU 的固定向量包括蓝色 `0xff0000ff` 的色板 tone 40 得 `0xff343dff`，红色 `0xffff0000` 在 Tonal Spot、深色、对比度 0 下的 `primaryFixed` 为 `0xffffdad4`，tone −10 与 110 的夹取后对比度为 21（容差 0.001）。主题 crate 还验证源色往返、浅深模式、低/默认/高对比度和固定角色。更新向量时记录版本、算法规格、预期值与容差。
 
 <a id="gpui-and-base"></a>
 
 ## GPUI 与 Base
 
-上游正式版为 [GPUI Kit v0.9.1][kit-release]，其 tag 和 crates.io 中 `gpui-base` 的包元数据均指向 [`39ab849a93b5f15507b969164d49891db8d5b470`][kit]. [固定工作区清单][kit-manifest]与两个发布包的元数据核实了下表。P0 固定版本契约，P1 探针和 P2 正式 Workspace 在各自阶段写入 manifest 与 lockfile。
+上游正式版为 [GPUI Kit v0.9.1][kit-release]，其 tag 和 crates.io 中 `gpui-base` 的包元数据均指向 [`39ab849a93b5f15507b969164d49891db8d5b470`][kit]. [固定工作区清单][kit-manifest]与两个发布包的元数据核实了下表。Workspace 和独立宿主探针在各自的清单和锁文件中记录版本。
 
 | Cargo 包 | 精确版本 | crates.io SHA-256 |
 | --- | --- | --- |

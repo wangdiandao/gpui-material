@@ -51,7 +51,7 @@ Search and dropdown virtualization require no caller migration. Result and optio
 
 The supported application entry point is the [public facade](../crates/material/src/lib.rs), including its documented `foundation` and `theme` paths. Enable optional families at the facade with the [feature names in the README](../README.md). `date-time` exposes its API under `gpui_material::date_time`. `dynamic-color` and `serde` forward to the pure theme crate. GPUI and Base types in public signatures follow the pinned upstream versions. Gallery modules and the internal organization of the workspace crates may change.
 
-Applications using the 0.0.4 facade can move their checkout to the accepted P9 commit with the same imports, feature names, and state initialization. The next version line remains pre-1.0. Review changes to this contract and the migration steps when updating to a new minor release.
+Applications updating the 0.0.4 facade to 0.1.0 can keep their imports, feature names, and state initialization. Add arms for the four new `IconName` variants when matching the enum exhaustively, or use a fallback for variants that share behavior. See the [changelog](../CHANGELOG.md) for the variant names and other changes.
 
 ## Platform support
 
@@ -63,4 +63,4 @@ Applications using the 0.0.4 facade can move their checkout to the accepted P9 c
 
 Touch-first gestures and unverified touchpad or mixed-DPI hardware configurations remain outside the initial native coverage. The pinned Windows Base slider supports keyboard and semantic increment/decrement. Programmatic UI Automation RangeValue writes are tracked in [#49](https://github.com/wangdiandao/gpui-material/issues/49). Native pointer capture loss in GPUI is tracked in [#48](https://github.com/wangdiandao/gpui-material/issues/48).
 
-[Platform acceptance scenarios](verification.md) · [Pinned sources](design-sources.md) · [P9 acceptance](phases/P09.md)
+[Platform acceptance scenarios](verification.md) · [Pinned sources](design-sources.md) · [Versioning and releases](release.md)

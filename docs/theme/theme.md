@@ -12,14 +12,14 @@ English | [中文](theme.zh.md)
 | Shape | `CornerShape` uses logical corner order, maps it by direction, and limits adjacent corner sums. Fully rounded corners use half the shorter side. Circle, Square, and Triangle provide fixed morph endpoint parameters. The renderer owns normalization, contour interpolation, drawing, and hit testing. |
 | Motion | Standard is the default and Expressive is optional. Spatial and effects motion each have Fast, Default, and Slow springs. Effects springs are critically damped. Reduced motion resolves to immediate completion. Query fixed durations and Bézier curves through tokens. |
 | Layout | Available-width thresholds are 600, 840, 1200, and 1600 logical units. Exact thresholds use the larger class. Logical start and end map by LTR or RTL. Use the host's text scale for font size, line height, and tracking. |
-| Density | The desktop policy adjusts visual component sizes by Compact −4, Standard 0, or Comfortable +4 logical units. Interactive size keeps a minimum of 48 logical units. Each component phase applies the policy and verifies layout and hit testing. |
+| Density | The desktop policy adjusts visual component sizes by Compact −4, Standard 0, or Comfortable +4 logical units. Interactive size keeps a minimum of 48 logical units. Verify layout and hit testing when changing component density. |
 | Serialization | `serde` independently enables serialization of theme values. Color overrides use semantic role keys. Missing roles resolve from the current appearance's baseline. |
 
 <a id="token-数据"></a>
 
 ## Token data
 
-The [single numeric source](../../tokens/material.json) groups data by pinned source. The [generated index](token-index.md) retains Material names, Rust constants, and exact upstream symbols. Tables that expose only Kotlin symbols in Compose map to Material's three-layer naming convention. Static color tables keep light/dark keys under each role. Filled Button and Small Button keys verify Component coverage for color, shape, size, and state. Each component family adds data in its owning phase.
+The [single numeric source](../../tokens/material.json) groups data by pinned source. The [generated index](token-index.md) retains Material names, Rust constants, and exact upstream symbols. Tables that expose only Kotlin symbols in Compose map to Material's three-layer naming convention. Static color tables keep light/dark keys under each role. Filled Button and Small Button keys verify Component coverage for color, shape, size, and state. When extending a component family, add its pinned token data here.
 
 Reference holds foundational values such as palettes and font families. System defines semantics and shared scales. Component can refer to System or Reference. Color references retain `ColorRole` and resolve against the caller's current theme. Same-layer aliases support static colors and composite typography. The generator checks duplicate names, Rust identifier collisions, units, ranges, layer rules, missing targets, and cycles.
 
@@ -36,8 +36,8 @@ The generator reads checked-in data and writes the Rust tables and both language
 ## Sources and desktop decisions
 
 - Static colors, palettes, typography values, corners, state layers, elevation, and motion come from pinned Compose Material 3 1.5.0-rc01. The Material site specifies Roboto as the default family. Compose uses the platform sans-serif abstraction. The desktop project expresses this choice with a configurable family list.
-- Dynamic color uses Tonal Spot Spec2021, verified in P0 and P1. The 49 semantic roles include legacy background and surface-variant, inverse, fixed, outline, surface containers, scrim, and MCU shadow.
-- Rounded polygons use the three topologies verified in P1. Circle uses the final AndroidX circle radius, Square uses rectangle width and height, and Triangle uses the circumradius. Parameters are compared against pinned Compose `MaterialShapes.kt` and AndroidX graphics-shapes 1.1.0. Uniformly scaling adjacent corners of rounded rectangles is a desktop geometry policy.
+- Dynamic color uses Tonal Spot Spec2021, verified against the pinned MCU reference vectors. The 49 semantic roles include legacy background and surface-variant, inverse, fixed, outline, surface containers, scrim, and MCU shadow.
+- Rounded polygons use circle, square, and triangle topologies. Circle uses the final AndroidX circle radius, Square uses rectangle width and height, and Triangle uses the circumradius. Parameters are compared against pinned Compose `MaterialShapes.kt` and AndroidX graphics-shapes 1.1.0. Uniformly scaling adjacent corners of rounded rectangles is a desktop geometry policy.
 - Available width comes from the pinned Material Breakpoints table. The 48 logical unit minimum comes from Compose `LocalMinimumInteractiveComponentSize`. Density offsets, font fallback order, and immediate completion for reduced motion are desktop project conventions.
 
 See [design sources](../design-sources.md) for pinned versions and checksums.

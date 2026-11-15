@@ -4,13 +4,13 @@ English | [中文](component-coverage.zh.md)
 
 This matrix covers the [Material 3 component directory](https://m3.material.io/components) and the desktop compositions required by the project. Official component links correspond to the [pinned site snapshots](material-snapshot.md). Kotlin files refer to `commonMain/androidx/compose/material3/` in the [pinned Compose package](design-sources.md#source-code-and-algorithm-references). Android and Adaptive rows use their respective packages.
 
-The categories are **Specification**, **Adaptation**, **Experimental**, and **Compatibility**. Specification and adaptation entries are required for the first complete candidate. P8 records whether to adopt or defer experimental entries. Compatibility work follows in later phases. The types are `component`, `primitive`, and `pattern`. Production entries in the table are `planned`. [Platform acceptance](verification.md)
+**Specification** and **Adaptation** describe the supported Material scope and its desktop adaptations. **Experimental** entries require a concrete use case and verification before adoption. **Compatibility** entries give migration guidance for legacy components. The types are `component`, `primitive`, and `pattern`. [Platform acceptance](verification.md)
 
-The owning phase delivers and verifies applicable sizes, tokens, visuals, interactions, motion, and semantics. **Desktop** means Windows 11 x64 with keyboard and pointer, light and dark themes, RTL, high DPI, and applicable screen readers. **Text** adds Windows Chinese IME. **Touch** adds testing on a touch device or touchpad. If hardware is unavailable, mark the touch checks as unverified in the issue or PR. macOS and Linux exploratory results can use the same categories.
+When changing a component, verify the applicable sizes, tokens, visuals, interactions, motion, and semantics. **Desktop** means Windows 11 x64 with keyboard and pointer, light and dark themes, RTL, high DPI, and applicable screen readers. **Text** adds Windows Chinese IME. **Touch** adds testing on a touch device or touchpad. If hardware is unavailable, mark the touch checks as unverified in the issue or PR. macOS and Linux exploratory results can use the same categories.
 
-<a id="p4-基础原语"></a>
+<a id="基础原语"></a>
 
-## P4 Foundation primitives
+## Foundation primitives
 
 | Deliverable | Type / Category | Specification and source | Scope and acceptance criteria | Platform |
 | --- | --- | --- | --- | --- |
@@ -18,9 +18,9 @@ The owning phase delivers and verifies applicable sizes, tokens, visuals, intera
 | State layer, focus ring, ripple, shape, and motion | primitive / Specification | [States](https://m3.material.io/foundations/interaction/states/overview), [Motion](https://m3.material.io/styles/motion/overview/specs), `Ripple.kt`, `MotionScheme.kt` | Input source, precedence of disabling and cancellation, shape clipping and hit testing, continuous retargeting, reduced motion, and stopping redraw when animation ends. | Desktop |
 | Focus, overlays, drag, scroll, value labels, text measurement, and semantics | primitive / Adaptation | [Inputs](https://m3.material.io/foundations/interaction/inputs), [GPUI Base][base], `Label.kt`, `PrecisionPointer.kt` | Capture and cancellation, nested scroll ownership, roving focus, overlay avoidance, font and localization entry points, and semantic actions. Slider value labels belong here. | Text |
 
-<a id="p5-基础组件"></a>
+<a id="基础组件"></a>
 
-## P5 Basic components
+## Basic components
 
 | Deliverable | Type / Category | Specification and source | Scope and acceptance criteria | Platform |
 | --- | --- | --- | --- | --- |
@@ -42,9 +42,9 @@ The owning phase delivers and verifies applicable sizes, tokens, visuals, intera
 | Linear / Circular Progress | component / Specification | [Progress indicators](https://m3.material.io/components/progress-indicators/overview), `ProgressIndicator.kt`, `WavyProgressIndicator.kt` | Linear and circular, determinate and indeterminate, and applicable straight or wavy forms. Verify ranges, smooth switching, value semantics, and reduced motion. | Desktop |
 | LoadingIndicator | component / Specification | [Loading indicator](https://m3.material.io/components/loading-indicator/overview), `LoadingIndicator.kt` | Default and contained, with morph sequences. Verify loading announcements, stopping redraws, and reduced motion. | Desktop |
 
-<a id="p6-输入与浮层"></a>
+<a id="输入与浮层"></a>
 
-## P6 Input and overlays
+## Input and overlays
 
 | Deliverable | Type / Category | Specification and source | Scope and acceptance criteria | Platform |
 | --- | --- | --- | --- | --- |
@@ -55,25 +55,25 @@ The owning phase delivers and verifies applicable sizes, tokens, visuals, intera
 | Snackbar | component / Specification | [Snackbar](https://m3.material.io/components/snackbar/overview), `Snackbar.kt`, `SnackbarHost.kt` | Timed and persistent messages, actions, dismissal, and queueing. Verify announcements, timing, reachable actions, and dismissal races. | Desktop |
 | Bottom Sheet | component / Specification | [Bottom sheets](https://m3.material.io/components/bottom-sheets/overview), `BottomSheet.kt`, `BottomSheetScaffold.kt`, `ModalBottomSheet.kt` | Standard and Modal, expanded and collapsed, with an applicable drag handle. Verify non-gesture operation, drag cancellation, nested scrolling, and modal focus restoration. | Desktop |
 | Side Sheet | component / Adaptation | [Side sheets](https://m3.material.io/components/side-sheets/overview), [MDC SideSheet][side-sheet] | Standard and Modal, docked pane or overlay, and mirrored placement in RTL. Verify width changes, scrim, scrolling, focus, and Esc. | Desktop |
-| ExposedDropdown | component / Adaptation | [Menus](https://m3.material.io/components/menus/overview), [Text fields](https://m3.material.io/components/text-fields/overview), `ExposedDropdownMenu.kt`, Android implementation | Compose after TextField and Menu are complete. Verify editable and selection-only modes, filtering, anchoring, commit and cancellation, IME, and expanded-state announcements. | Text |
+| ExposedDropdown | component / Adaptation | [Menus](https://m3.material.io/components/menus/overview), [Text fields](https://m3.material.io/components/text-fields/overview), `ExposedDropdownMenu.kt`, Android implementation | Compose the text field with a popup for available choices. Verify editable and selection-only modes, filtering, anchoring, commit and cancellation, IME, and expanded-state announcements. | Text |
 
-<a id="p7-导航与自适应"></a>
+<a id="导航与自适应"></a>
 
-## P7 Navigation and adaptive layout
+## Navigation and adaptive layout
 
 | Deliverable | Type / Category | Specification and source | Scope and acceptance criteria | Platform |
 | --- | --- | --- | --- | --- |
 | Tabs | component / Specification | [Tabs](https://m3.material.io/components/tabs/overview), `Tab.kt`, `TabRow.kt` | Primary and Secondary, fixed and scrolling, with text and icons. Verify focus, controlled selection, scrolling selection into view, and RTL. | Desktop |
-| AppBar | component / Specification | [App bars](https://m3.material.io/components/app-bars/overview), `AppBar.kt` | Small with applicable centered layout, Medium/Large Flexible, and a search slot for P8. Verify expansion and collapse, scroll color, long titles, and navigation commands. | Desktop |
+| AppBar | component / Specification | [App bars](https://m3.material.io/components/app-bars/overview), `AppBar.kt` | Small with applicable centered layout, Medium/Large Flexible, and a slot for search. Verify expansion and collapse, scroll color, long titles, and navigation commands. | Desktop |
 | NavigationBar | component / Specification | [Navigation bar](https://m3.material.io/components/navigation-bar/overview), `ShortNavigationBar.kt`, `NavigationBar.kt` | Use vertical items in compact windows and horizontal items in medium windows for the Expressive short bar. Verify scaling, disabled states, keyboard movement, and accessible destinations. | Desktop |
 | NavigationRail / Expanded Rail | component / Specification | [Navigation rail](https://m3.material.io/components/navigation-rail/overview), `NavigationRail.kt`, `WideNavigationRail.kt` | Collapsed and expanded, non-modal and modal, optionally hidden when collapsed, with title and FAB slots. Verify overflow, focus transitions, destination retention, and RTL. | Desktop |
 | Scaffold | pattern / Adaptation | [Scaffold](https://m3.material.io/foundations/layout/scaffold/overview), `Scaffold.kt` | AppBar, navigation, content, FAB, and Snackbar slots. Verify content bounds, layering, and scroll ownership. | Desktop |
 | Adaptive navigation | pattern / Adaptation | [Breakpoints](https://m3.material.io/foundations/layout/breakpoints/overview), Adaptive Suite `NavigationSuiteScaffold.kt` | Switch between Bar and Rail by available width while retaining destination, state, and focus. Exercise both sides of breakpoints and repeated resize. | Desktop |
 | List-detail / Supporting pane / Feed | pattern / Adaptation | [Canonical layouts](https://m3.material.io/foundations/layout/canonical-examples/overview), Adaptive `ListDetailPaneScaffold.kt`, `SupportingPaneScaffold.kt` | Single and multiple panes, list-detail back path, primary and supporting panes, and Feed column count and scrolling. Verify width transitions, selection and scroll identity, focus, and RTL. | Desktop |
 
-<a id="p8-复合组件与实验模式"></a>
+<a id="复合组件与实验模式"></a>
 
-## P8 Composite components and experimental patterns
+## Composite components and experimental patterns
 
 | Deliverable | Type / Category | Specification and source | Scope and acceptance criteria | Platform |
 | --- | --- | --- | --- | --- |
@@ -95,11 +95,11 @@ The owning phase delivers and verifies applicable sizes, tokens, visuals, intera
 
 | Item | Type / Category | Source | Future scope and acceptance criteria |
 | --- | --- | --- | --- |
-| Segmented Buttons | component / Compatibility | [Segmented buttons](https://m3.material.io/components/segmented-buttons/overview), [MDC ToggleButtonGroup][toggle-group], `SegmentedButton.kt` | Assess single and multiple selection and legacy layout when migration needs arise. P8 Connected ButtonGroup is the current migration target. Desktop. |
-| Navigation Drawer | component / Compatibility | [Navigation drawer](https://m3.material.io/components/navigation-drawer/overview), [MDC NavigationDrawer][drawer], `NavigationDrawer.kt` | Verify migration of standard and modal navigation and focus as needed. P7 Expanded Rail is the current migration target. Desktop. |
+| Segmented Buttons | component / Compatibility | [Segmented buttons](https://m3.material.io/components/segmented-buttons/overview), [MDC ToggleButtonGroup][toggle-group], `SegmentedButton.kt` | Assess single and multiple selection and legacy layout when migration needs arise. Connected ButtonGroup is the current migration target. Desktop. |
+| Navigation Drawer | component / Compatibility | [Navigation drawer](https://m3.material.io/components/navigation-drawer/overview), [MDC NavigationDrawer][drawer], `NavigationDrawer.kt` | Verify migration of standard and modal navigation and focus as needed. Expanded Rail is the current migration target. Desktop. |
 | Baseline Bottom App Bar, Medium/Large AppBar | component / Compatibility | [App bars](https://m3.material.io/components/app-bars/overview), [Toolbars](https://m3.material.io/components/toolbars/overview), `AppBar.kt` | Assess migration from legacy layout and behavior. Current compositions use Docked Toolbar or Flexible AppBar. Desktop. |
-| Baseline NavigationBar/Rail, Small/Surface FAB, Divided Search | component / Compatibility | [Navigation bar](https://m3.material.io/components/navigation-bar/overview), [Navigation rail](https://m3.material.io/components/navigation-rail/overview), [FAB](https://m3.material.io/components/floating-action-button/overview), [Search](https://m3.material.io/components/search/overview) | Verify legacy sizes, colors, labels, selection, and placement as migration needs arise. Expressive Small Extended FAB belongs to P5. Desktop. |
-| XR variants | pattern / Experimental | [Material XR components](https://m3.material.io/foundations/xr/components/overview) | The initial platform scope is flat desktop windows. Spatial interaction, distance, and input devices require an independent environment and phase. |
+| Baseline NavigationBar/Rail, Small/Surface FAB, Divided Search | component / Compatibility | [Navigation bar](https://m3.material.io/components/navigation-bar/overview), [Navigation rail](https://m3.material.io/components/navigation-rail/overview), [FAB](https://m3.material.io/components/floating-action-button/overview), [Search](https://m3.material.io/components/search/overview) | Verify legacy sizes, colors, labels, selection, and placement as migration needs arise. Use the Small Expressive Extended FAB where appropriate. Desktop. |
+| XR variants | pattern / Experimental | [Material XR components](https://m3.material.io/foundations/xr/components/overview) | The initial platform scope is flat desktop windows. Spatial interaction, distance, and input devices require a dedicated verification environment. |
 
 All buttons is a navigation index. Independently exposed components are listed under their specifications. DragHandle, Label, placement, and layout helpers are verified with their owning primitive or component. The caller provides app navigation, result data, and business validation.
 

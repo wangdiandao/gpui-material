@@ -823,7 +823,7 @@ SearchBar::new("search", "Search projects", &self.search)`,
     title: "DatePicker",
     source: "crates/extras/src/date_time/date.rs",
     feature: "date-time",
-    relatedStory: "date-range-picker",
+    relatedStory: { id: "date-range-picker", title: { en: "Date range", zh: "日期范围" } },
     description: {
       en: "Choose a date or an inclusive date range.",
       zh: "选择一个日期或包含起止两日的日期范围。",

@@ -5,16 +5,16 @@ use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
 use gpui::{
     AnyView, App, AppContext, Application, ApplicationHandle, Context, InteractiveElement,
-    IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled, Window, WindowOptions,
-    div,
+    IntoElement, ParentElement, Render, ScrollHandle, StatefulInteractiveElement, Styled, Window,
+    WindowOptions, div,
 };
-use gpui_base::Root;
+use gpui_base::{Root, Scrollbar, ScrollbarMode};
 use gpui_material::{
     Surface,
     foundation::set_material_theme,
     theme::{Appearance, ColorRole, MaterialTheme},
 };
-use gpui_material_story::{Gallery, Story, init_gallery};
+use gpui_material_story::{Story, init_gallery};
 use gpui_web::{CanvasFontFallback, WebBackendPreference, WebPlatform};
 use js_sys::Function;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
@@ -24,11 +24,10 @@ thread_local! {
 }
 
 #[wasm_bindgen]
-pub fn run(story_id: Option<String>, dark: bool, ready: Function) -> Result<(), JsValue> {
-    let story = story_id
-        .as_deref()
-        .map(|id| Story::find(id).ok_or_else(|| JsValue::from_str("Unknown Gallery story")))
-        .transpose()?;
+pub fn run(story_id: String, dark: bool, ready: Function) -> Result<(), JsValue> {
+    let story = Story::find(&story_id)
+        .filter(|story| *story != Story::Introduction)
+        .ok_or_else(|| JsValue::from_str("Unknown component story"))?;
 
     gpui_web::init_logging();
     let platform = Rc::new(WebPlatform::new_with_backend_and_font_fallback(
@@ -63,12 +62,7 @@ fn apply_theme(dark: bool, cx: &mut App) {
     set_material_theme(MaterialTheme::baseline(appearance), cx);
 }
 
-fn open_gallery(
-    story: Option<Story>,
-    dark: bool,
-    ready: &Function,
-    cx: &mut App,
-) -> gpui::Result<()> {
+fn open_gallery(story: Story, dark: bool, ready: &Function, cx: &mut App) -> gpui::Result<()> {
     cx.text_system().add_fonts(vec![Cow::Borrowed(
         include_bytes!("../fonts/IBMPlexSans-Regular.ttf").as_slice(),
     )])?;
@@ -77,12 +71,13 @@ fn open_gallery(
 
     let ready = ready.clone();
     cx.open_window(WindowOptions::default(), |window, cx| {
-        let view: AnyView = match story.and_then(|story| story.new_view(window, cx)) {
-            Some(view) => cx.new(|_| EmbeddedStory(view)).into(),
-            None => cx
-                .new(|cx| Gallery::new(Story::Introduction, window, cx))
-                .into(),
-        };
+        let view = story
+            .new_view(window, cx)
+            .expect("component story has a view");
+        let view = cx.new(|_| EmbeddedStory {
+            view,
+            scroll: ScrollHandle::new(),
+        });
         window.on_next_frame(move |_, _| {
             let _ = ready.call0(&JsValue::NULL);
         });
@@ -92,17 +87,25 @@ fn open_gallery(
     Ok(())
 }
 
-struct EmbeddedStory(AnyView);
+struct EmbeddedStory {
+    view: AnyView,
+    scroll: ScrollHandle,
+}
 
 impl Render for EmbeddedStory {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        Surface::new(ColorRole::Surface).size_full().child(
-            div()
-                .id("embedded-story")
-                .size_full()
-                .overflow_y_scroll()
-                .p_4()
-                .child(self.0.clone()),
-        )
+        Surface::new(ColorRole::Surface)
+            .size_full()
+            .relative()
+            .child(
+                div()
+                    .id("embedded-story")
+                    .size_full()
+                    .overflow_y_scroll()
+                    .track_scroll(&self.scroll)
+                    .p_4()
+                    .child(self.view.clone()),
+            )
+            .child(Scrollbar::vertical(&self.scroll).mode(ScrollbarMode::Always))
     }
 }

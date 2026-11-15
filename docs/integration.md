@@ -61,6 +61,4 @@ Applications updating the 0.0.4 facade to 0.1.0 can keep their imports, feature 
 | macOS 15 ARM64 | CI builds and automated tests. Exploratory native support. |
 | Ubuntu 24.04 x64 | CI builds and automated tests. Exploratory native support. |
 
-Touch-first gestures and unverified touchpad or mixed-DPI hardware configurations remain outside the initial native coverage. The pinned Windows Base slider supports keyboard and semantic increment/decrement. Programmatic UI Automation RangeValue writes are tracked in [#49](https://github.com/wangdiandao/gpui-material/issues/49). Native pointer capture loss in GPUI is tracked in [#48](https://github.com/wangdiandao/gpui-material/issues/48).
-
 [Platform acceptance scenarios](verification.md) · [Pinned sources](design-sources.md) · [Versioning and releases](release.md)

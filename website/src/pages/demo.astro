@@ -9,14 +9,14 @@ const bindings = pagePath('', 'en') + 'wasm/material-gallery.js';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <title>Material Gallery</title>
+    <title>Component preview · gpui-material</title>
   </head>
   <body data-bindings={bindings} data-state="loading">
-    <p id="status" role="status">Loading the Rust Gallery…</p>
+    <p id="status" role="status">Loading the component preview…</p>
     <script>
       const params = new URLSearchParams(location.search);
       const zh = params.get('lang') === 'zh';
-      const story = params.get('story') || undefined;
+      const story = params.get('story');
       const status = document.querySelector<HTMLParagraphElement>('#status')!;
       const preference = matchMedia('(prefers-color-scheme: dark)');
       const embedded = window.parent !== window;
@@ -28,21 +28,26 @@ const bindings = pagePath('', 'en') + 'wasm/material-gallery.js';
         || (!hostTheme.classList.contains('mdui-theme-light') && preference.matches);
 
       document.documentElement.lang = zh ? 'zh-CN' : 'en';
-      status.textContent = zh ? '正在加载 Rust Gallery…' : 'Loading the Rust Gallery…';
+      status.textContent = zh ? '正在加载组件预览…' : 'Loading the component preview…';
       document.documentElement.classList.toggle('dark', isDark());
 
       let usedPointer = false;
       window.addEventListener('pointerdown', () => { usedPointer = true; }, { capture: true, once: true });
 
       const showFailure = (error: unknown) => {
-        console.error('Material Gallery failed to start', error);
+        console.error('Component preview failed to start', error);
         document.body.dataset.state = 'failed';
         status.textContent = zh
-          ? '无法启动 Rust Gallery。请使用支持 WebGPU 或 WebGL2 的浏览器。'
-          : 'The Rust Gallery could not start. Use a browser with WebGPU or WebGL2.';
+          ? '无法启动组件预览。请使用支持 WebGPU 或 WebGL2 的浏览器。'
+          : 'The component preview could not start. Use a browser with WebGPU or WebGL2.';
       };
 
       async function start() {
+        if (!story) {
+          document.body.dataset.state = 'failed';
+          status.textContent = zh ? '请从组件文档打开预览。' : 'Open a preview from a component guide.';
+          return;
+        }
         try {
           const wasm = await import(/* @vite-ignore */ document.body.dataset.bindings!);
           await wasm.default();
@@ -85,6 +90,8 @@ const bindings = pagePath('', 'en') + 'wasm/material-gallery.js';
 </html>
 
 <style is:global>
+  /* Give the GPUI canvas the iframe viewport and keep scroll offsets in GPUI. */
+  html, body { height: 100%; overflow: hidden; }
   html { color-scheme: light; }
   html.dark { color-scheme: dark; }
   body { margin: 0; background: Canvas; color: CanvasText; font: 1rem/1.5 system-ui, sans-serif; }

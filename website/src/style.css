@@ -165,25 +165,13 @@ a { color: var(--accent); text-underline-offset: .2em; }
   gap: .5rem 1rem;
   margin-bottom: .9rem;
 }
-.section-heading h2, .gallery-callout h2 { margin: 0; font-size: clamp(1.5rem, 3vw, 2.15rem); }
+.section-heading h2 { margin: 0; font-size: clamp(1.5rem, 3vw, 2.15rem); }
 .home-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem; }
 .capability-card { display: block; width: 100%; min-width: 0; height: 100%; padding: 1.15rem; }
 .capability-card h3 { margin: .2rem 0 .45rem; font-size: 1.17rem; }
 .capability-card p { margin: 0 0 .8rem; color: var(--muted); line-height: 1.55; }
 .capability-card code { color: var(--accent); overflow-wrap: anywhere; }
 .capability-links { gap: .35rem; }
-.gallery-callout {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-  width: 100%;
-  margin-top: 2rem;
-  padding: 1.4rem;
-}
-.gallery-callout p { margin: .45rem 0 0; color: var(--muted); }
-
 .docs-shell {
   display: grid;
   grid-template-columns: 15rem minmax(0, 56rem) minmax(0, 13rem);

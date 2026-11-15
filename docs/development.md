@@ -117,9 +117,9 @@ The development server uses `/`. The production build defaults to `/gpui-materia
 
 Edit shared guides under `docs/` and component examples under `website/component/`. Add English and Chinese text together. Each component page shares one Rust example across both languages.
 
-The website component catalog and sidebar use the same basic, form, layout, and advanced groups. The sidebar lists Rust names alphabetically within each group. Write imports separately from usage snippets, and group browser previews and Gallery commands under Examples.
+The website component catalog and sidebar use the same basic, form, layout, and advanced groups. The sidebar lists Rust names alphabetically within each group. Write imports separately from usage snippets, and put interactive browser previews under Examples.
 
-Use MDUI for website navigation and controls. The browser previews compile the Rust Gallery to WebAssembly, and each component page opens its Gallery story in a single GPUI canvas. The browser needs WebGPU or WebGL2. For desktop-specific behavior, run the native Gallery.
+Use MDUI for website navigation and controls. The browser previews compile the Rust Gallery to WebAssembly and open each story in its own GPUI canvas. Size the canvas to the frame so the GPUI viewport handles wheel input and scrollbar dragging. The browser needs WebGPU or WebGL2. For desktop-specific behavior, run the native Gallery.
 
 To enable the previews locally, install the web toolchain and matching bindings generator, then build the WASM assets before starting Astro.
 

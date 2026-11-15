@@ -12,14 +12,13 @@ export const guides = Object.entries(markdown).map(([file, module]) => ({
 
 export const copy = {
   en: {
-    docs: 'Docs', components: 'Components', gallery: 'Gallery', api: 'API reference',
+    docs: 'Docs', components: 'Components', api: 'API reference',
     search: 'Search documentation', skip: 'Skip to content', theme: 'Color theme',
     light: 'Light', dark: 'Dark', system: 'System', language: '简体中文', menu: 'Navigation',
     themeNav: 'Theme', resources: 'Resources', releases: 'Releases', contribute: 'Contribute', close: 'Close',
     capabilities: 'What you can build', architecture: 'How it fits together', preview: 'Browser preview',
     previewNote: 'This example runs the Rust Gallery with WebAssembly.',
     openPreview: 'Open in browser',
-    nativeGallery: 'Native Gallery', seeExamples: 'Explore examples',
     frontendLicenses: 'Frontend licenses',
     onThisPage: 'On this page', source: 'Source', imports: 'Import', usage: 'Usage',
     examples: 'Examples', references: 'References',
@@ -29,19 +28,15 @@ export const copy = {
     introduction: 'Material components, semantic themes, and adaptive layouts for native Rust desktop applications built with GPUI.',
     catalogIntro: 'Browse components by purpose or look up a Rust name within each group.',
     catalogFeatures: 'Enable the listed Cargo feature on gpui-material to use an optional component.',
-    galleryIntro: 'Run the native Gallery from a source checkout to try variants, keyboard interactions, and light and dark themes.',
-    galleryOpen: 'Pass a story ID to open its example directly.',
-    sourceOnly: 'Run from the repository root.',
   },
   zh: {
-    docs: '文档', components: '组件', gallery: 'Gallery', api: 'API 参考',
+    docs: '文档', components: '组件', api: 'API 参考',
     search: '搜索文档', skip: '跳到内容', theme: '配色主题',
     light: '浅色', dark: '深色', system: '跟随系统', language: 'English', menu: '导航',
     themeNav: '主题', resources: '资源', releases: '版本发布', contribute: '参与贡献', close: '关闭',
     capabilities: '组件与布局', architecture: '项目分层', preview: '浏览器预览',
     previewNote: '此示例通过 WebAssembly 运行 Rust Gallery。',
     openPreview: '在浏览器中打开',
-    nativeGallery: '原生 Gallery', seeExamples: '查看演示',
     frontendLicenses: '前端许可证',
     onThisPage: '本页目录', source: '源码', imports: '导入', usage: '用法',
     examples: '示例', references: '参考',
@@ -51,9 +46,6 @@ export const copy = {
     introduction: '为 GPUI 原生 Rust 桌面应用提供 Material 控件、语义主题和自适应布局。',
     catalogIntro: '按用途浏览控件，或在各组内按 Rust 名称查找。',
     catalogFeatures: '使用可选控件时，在 gpui-material 依赖中启用该控件所列的 Cargo feature。',
-    galleryIntro: '从源码检出运行原生 Gallery，体验组件变体、键盘操作和浅色及深色主题。',
-    galleryOpen: '传入演示 ID 即可直接打开对应示例。',
-    sourceOnly: '在仓库根目录运行。',
   },
 };
 
@@ -134,7 +126,6 @@ export function sidebar(lang, kind) {
         { label: t.allGuides, route: 'docs' },
         { label: t.setup, route: 'docs/integration' },
         { label: lang === 'zh' ? '控件支持范围' : 'Component coverage', route: 'docs/component' },
-        { label: t.nativeGallery, route: 'gallery' },
       ],
     },
     {

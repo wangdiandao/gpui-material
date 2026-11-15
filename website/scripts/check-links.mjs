@@ -50,7 +50,7 @@ for (const [route, { links }] of pages) {
   }
 }
 
-for (const route of ['', 'component/', 'docs/', 'gallery/', ...components.map(({ slug }) => `component/${slug}/`)]) {
+for (const route of ['', 'component/', 'docs/', ...components.map(({ slug }) => `component/${slug}/`)]) {
   for (const locale of ['', 'zh-CN/']) {
     if (!pages.has(base + locale + route)) errors.push(`Missing ${base}${locale}${route}`);
   }
@@ -58,7 +58,7 @@ for (const route of ['', 'component/', 'docs/', 'gallery/', ...components.map(({
 
 const storySource = await readFile(new URL('../../apps/gallery/src/story.rs', import.meta.url), 'utf8');
 const galleryStories = new Set([...storySource.matchAll(/=> "([a-z][a-z-]+)",/g)].map(([, story]) => story));
-const documentedStories = new Set(['introduction', ...components.flatMap(({ story, relatedStory }) => [story, relatedStory]).filter(Boolean)]);
+const documentedStories = new Set(['introduction', ...components.flatMap(({ story, relatedStory }) => [story, relatedStory?.id]).filter(Boolean)]);
 for (const story of galleryStories.difference(documentedStories)) errors.push(`Gallery story has no guide: ${story}`);
 for (const story of documentedStories.difference(galleryStories)) errors.push(`Unknown Gallery story: ${story}`);
 

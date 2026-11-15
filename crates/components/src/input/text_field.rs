@@ -10,7 +10,9 @@ use gpui_base::{
     TestSupportExt,
     input::{InputAccessibility, InputBaseState, InputEditorStyle, InputModeKind},
 };
-use gpui_material_foundation::{animate, color, font_for_style, window_material_theme};
+use gpui_material_foundation::{
+    InteractionSource, InteractionState, animate, color, font_for_style, window_material_theme,
+};
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Direction, LayoutPolicy, MotionKind, MotionSpeed, TypeRole,
     TypeStyle, TypographyEmphasis,
@@ -124,6 +126,7 @@ pub struct TextField {
     content_padding: Option<Edges<Pixels>>,
     colors: TextFieldColors,
     on_text_layout: Option<OnTextLayout>,
+    interaction_source: Option<Entity<InteractionSource>>,
 }
 
 #[derive(Clone)]
@@ -211,6 +214,7 @@ impl TextField {
             content_padding: None,
             colors: TextFieldColors::default(),
             on_text_layout: None,
+            interaction_source: None,
         }
     }
 
@@ -256,6 +260,13 @@ impl TextField {
         listener: impl FnOnce(TextFieldLayout, &mut Window, &mut App) + 'static,
     ) -> Self {
         self.on_text_layout = Some(Box::new(listener));
+        self
+    }
+
+    /// Observes hover, keyboard-visible focus, and disabled state through a shared source.
+    /// Editing and selection stay with the Base entity.
+    pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
+        self.interaction_source = Some(source.clone());
         self
     }
 
@@ -387,6 +398,14 @@ fn editor_ink(mut color: Hsla) -> Hsla {
         color.a = f32::EPSILON;
     }
     color
+}
+
+fn interaction_state(disabled: bool, hovered: bool, focus_visible: bool) -> InteractionState {
+    let mut state = InteractionState::default();
+    state.disabled = disabled;
+    state.hovered = hovered && !disabled;
+    state.focus_visible = focus_visible && !disabled;
+    state
 }
 
 type SetValue = Box<dyn Fn(SharedString, &mut Window, &mut App)>;
@@ -663,14 +682,11 @@ impl RenderOnce for TextField {
             px(0.)
         };
         let editor_top_padding = padding.top + label_reserve;
+        // The canvas covers the whole container, including the filled indicator.
+        let editor_bottom_padding = padding.bottom + if filled { outline_width } else { px(0.) };
         let minimum_height = px(56.)
             .max(px(type_style.line_height + 16.) + label_reserve)
-            .max(
-                px(type_style.line_height)
-                    + editor_top_padding
-                    + padding.bottom
-                    + if filled { outline_width } else { px(0.) },
-            );
+            .max(px(type_style.line_height) + editor_top_padding + editor_bottom_padding);
         let resting_top = f32::from(minimum_height - px(type_style.line_height)) * 0.5;
         let floating_top = if label_inside {
             f32::from(padding.top)
@@ -686,6 +702,18 @@ impl RenderOnce for TextField {
             })
             .read(cx)
             .clone();
+        let tracker = self.interaction_source.map(|source| {
+            let tracker = InteractionSource::track(&source, &self.id, window, cx);
+            tracker.record(
+                interaction_state(
+                    disabled,
+                    hover.get(),
+                    focused && window.last_input_was_keyboard(),
+                ),
+                cx,
+            );
+            tracker
+        });
         let outline_tint = if hover.get() && !disabled && !error {
             crate::motion::mix(
                 colors.hovered_indicator.unwrap_or(foreground),
@@ -917,17 +945,22 @@ impl RenderOnce for TextField {
                     .min_h(minimum_height)
                     .pt(editor_top_padding)
                     .pr(padding.right)
-                    .pb(padding.bottom)
+                    .pb(editor_bottom_padding)
                     .pl(padding.left)
-                    .when(filled, |mut field| {
-                        // Reserve the bottom stroke in layout. The canvas paints it with
-                        // the actual corner geometry.
-                        field.style().border_widths.bottom = Some(outline_width.into());
-                        field.border_color(gpui::transparent_black())
-                    })
                     .when(!disabled, |field| {
-                        field.on_hover(move |hovering, window, _| {
+                        field.on_hover(move |hovering, window, cx| {
                             if hover.replace(*hovering) != *hovering {
+                                if let Some(tracker) = &tracker {
+                                    tracker.record(
+                                        interaction_state(
+                                            false,
+                                            *hovering,
+                                            focus.is_focused(window)
+                                                && window.last_input_was_keyboard(),
+                                        ),
+                                        cx,
+                                    );
+                                }
                                 window.refresh();
                             }
                         })

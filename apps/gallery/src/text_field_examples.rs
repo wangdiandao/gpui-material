@@ -403,7 +403,7 @@ fn styled_text_field_observes_layout_and_keeps_the_custom_outline_cutout(
     use gpui::{Edges, Hsla, Rgba, WindowOptions, point, rgb, size};
     use gpui_base::test_support::find;
     use gpui_material::{
-        MaterialRoot, TextFieldColorOverrides, TextFieldColors, TextFieldLayout,
+        InteractionSource, MaterialRoot, TextFieldColorOverrides, TextFieldColors, TextFieldLayout,
         theme::{CornerShape, TypeRole, TypographyEmphasis},
     };
     use std::{cell::RefCell, rc::Rc};
@@ -414,6 +414,8 @@ fn styled_text_field_observes_layout_and_keeps_the_custom_outline_cutout(
 
     struct StyledField {
         state: Entity<TextFieldState>,
+        interaction: Entity<InteractionSource>,
+        variant: TextFieldVariant,
         invalid: bool,
         layouts: Rc<RefCell<Vec<TextFieldLayout>>>,
     }
@@ -426,7 +428,7 @@ fn styled_text_field_observes_layout_and_keeps_the_custom_outline_cutout(
                 ..Default::default()
             };
             TextField::new("styled-field", "Project", &self.state)
-                .variant(TextFieldVariant::Outlined)
+                .variant(self.variant)
                 .shape(CornerShape::Radii([12., 18., 10., 8.]))
                 .content_padding(Edges {
                     left: px(20.),
@@ -443,6 +445,7 @@ fn styled_text_field_observes_layout_and_keeps_the_custom_outline_cutout(
                     hovered_indicator: Some(tint(0x103355)),
                 })
                 .invalid(self.invalid)
+                .interaction_source(&self.interaction)
                 .on_text_layout(move |layout, _, _| layouts.borrow_mut().push(layout))
         }
     }
@@ -454,8 +457,11 @@ fn styled_text_field_observes_layout_and_keeps_the_custom_outline_cutout(
         let mut view = None;
         let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
             let state = cx.new(|cx| TextFieldState::new(window, cx).default_value("Roadmap"));
+            let interaction = cx.new(|_| InteractionSource::new());
             let entity = cx.new(|_| StyledField {
                 state,
+                interaction,
+                variant: TextFieldVariant::Outlined,
                 invalid: false,
                 layouts: layouts.clone(),
             });
@@ -512,6 +518,16 @@ fn styled_text_field_observes_layout_and_keeps_the_custom_outline_cutout(
         .unwrap()
     };
     let container = render(cx, 0x103355);
+    let observed = |cx: &mut gpui::TestAppContext| {
+        cx.update(|cx| {
+            view.read(cx)
+                .interaction
+                .read(cx)
+                .state(window.window_id(), &"styled-field".into())
+                .unwrap()
+        })
+    };
+    assert!(!observed(cx).disabled);
     let layout = *layouts.borrow().last().unwrap();
     assert_eq!(layout.editor_bounds.left(), container.left() + px(20.));
     assert_eq!(layout.editor_bounds.right(), container.right() - px(30.));
@@ -527,7 +543,9 @@ fn styled_text_field_observes_layout_and_keeps_the_custom_outline_cutout(
             .update(cx, |state, cx| state.focus(window, cx));
     })
     .unwrap();
+    cx.simulate_keystrokes(window.into(), "home");
     render(cx, 0x105500);
+    assert!(observed(cx).focus_visible);
     view.update(cx, |view, cx| {
         view.invalid = true;
         cx.notify();
@@ -541,11 +559,35 @@ fn styled_text_field_observes_layout_and_keeps_the_custom_outline_cutout(
     })
     .unwrap();
     render(cx, 0x666666);
+    assert!(observed(cx).disabled);
     cx.simulate_window_resize(window.into(), size(px(350.), px(300.)));
     render(cx, 0x666666);
     assert!(
         layouts.borrow().last().unwrap().editor_bounds.size.width < layout.editor_bounds.size.width
     );
+
+    view.update(cx, |view, cx| {
+        view.variant = TextFieldVariant::Filled;
+        cx.notify();
+    });
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let field = find(window, &[], &"styled-field".into()).unwrap();
+        let container = find(window, field.path(), &"container".into()).unwrap();
+        let factor = window.scale_factor();
+        let bounds = container.bounds().scale(factor);
+        assert!(
+            window.painted_quads().iter().any(|quad| {
+                quad.bounds.bottom() == bounds.bottom().round()
+                    && quad.border_color == tint(0x666666)
+                    && quad.border_widths.bottom > px(0.).scale(factor)
+                    && quad.border_widths.top == px(0.).scale(factor)
+            }),
+            "the filled indicator reaches the container's bottom edge"
+        );
+    })
+    .unwrap();
 }
 
 #[cfg(all(test, feature = "test-support"))]

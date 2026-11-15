@@ -23,7 +23,7 @@ Use a real window for Windows visual checks. macOS and Linux may use headless re
 | Visual | Light and dark themes, fonts, available width, DPI, animation sample points, and layout boundaries. Compare in a fixed environment and record visual deviations and acceptance rationale. |
 | Native system | Chinese IME preedit, candidate positioning and commit, clipboard, focus loss, system reduced motion, scaling and display transitions, and actual screen readers. |
 | Integration | Complete paths such as menu activation, input inside dialogs, navigation mode changes, applying search results, and date and time editing. |
-| Performance | Active frame time and allocation, long lists, exit and idle redraw, theme updates, and build time. P1 and P2 establish repeatable baselines for later phases. |
+| Performance | Active frame time and allocation, long lists, exit and idle redraw, theme updates, and build time. For performance-sensitive changes, compare against a reproducible baseline with the same workload and environment. |
 
 Shared scenarios cover Chinese and long labels, LTR and RTL, light and dark themes, normal and scaled fonts, narrow windows, and high DPI. High-risk combinations include disabled with hover or press, selected with focus, overlays and IME during scrolling, interrupted animations, and stale async results. Verify semantic roles, names, values, states, relationships, and actions with accessibility tools. Check announcements and interaction with actual screen readers and inspect visible focus in the rendered UI.
 

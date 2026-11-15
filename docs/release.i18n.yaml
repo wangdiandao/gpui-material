@@ -1,0 +1,13 @@
+# Section fingerprints for the English and Chinese pages.
+/versioning-and-releases:
+  en: "4fe63728dba46183"
+  zh: "10f2a4d61a1d30f7"
+/versioning-and-releases/version-policy:
+  en: "567f13d85cd08d53"
+  zh: "c63c1651efe8337b"
+/versioning-and-releases/changelog:
+  en: "ad209a61ba575787"
+  zh: "ea2fc6ab36bd248f"
+/versioning-and-releases/prepare-and-publish:
+  en: "2813235a1f3ed05b"
+  zh: "ecb8bfbe1f9fd946"

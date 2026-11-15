@@ -1,16 +1,16 @@
 # Section fingerprints for the English and Chinese pages.
 /architecture-and-dependencies:
-  en: "d260ea5384d29753"
-  zh: "7cfe7a4db2ec71de"
+  en: "6200061a28d653b5"
+  zh: "1a37d77ff5be57b0"
 /architecture-and-dependencies/crate-dependency-direction:
-  en: "5da821629810b66d"
-  zh: "d3aca52eb8ccf575"
+  en: "4b068c32db338f75"
+  zh: "797352e3d998e3d7"
 /architecture-and-dependencies/state-and-theme:
-  en: "f78c322eb6809bea"
-  zh: "43f2fa93d02d985e"
-/architecture-and-dependencies/candidate-dependencies:
-  en: "1caabdc31547ca52"
-  zh: "c7e24f4b904e3c34"
-/architecture-and-dependencies/boundaries-verified-in-p1:
-  en: "c587ea729adb5764"
-  zh: "a1be6549195ebff9"
+  en: "2884a91ecfaaf188"
+  zh: "97403668783b43a2"
+/architecture-and-dependencies/dependency-policy:
+  en: "ab557488e157a236"
+  zh: "b1e94cd1cf5707f1"
+/architecture-and-dependencies/desktop-adapter-boundaries:
+  en: "545686bc472aef76"
+  zh: "b2855ae21bfd7403"

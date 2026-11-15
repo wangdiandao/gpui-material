@@ -51,16 +51,16 @@ Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID �
 
 应用通过[公开门面](../crates/material/src/lib.rs)集成，包括已记录的 `foundation` 和 `theme` 路径。按 [README 中的特性名](../README.zh.md)启用可选组件系列。`date-time` 的 API 位于 `gpui_material::date_time` 下。`dynamic-color` 和 `serde` 转发到纯主题 crate。公开签名中的 GPUI 和 Base 类型遵循固定的上游版本。Gallery 模块和工作区 crate 的内部组织可能调整。
 
-使用 0.0.4 门面的应用可将检出目录移至 P9 验收提交，沿用同样的导入、特性名和状态初始化方式。下一版本仍处于 1.0 之前。升级次版本时核对 API 契约变化及迁移步骤。
+使用 0.0.4 门面的应用升级至 0.1.0 时可沿用导入、feature 名称和状态初始化方式。若对 `IconName` 使用穷尽匹配，为四个新增变体添加分支，或用一个兜底分支处理行为相同的变体。变体名称和其他变更见[变更日志](../CHANGELOG.md)。
 
 ## 平台支持
 
 | 目标 | 范围 |
 | --- | --- |
 | Windows 11 x64、MSVC、DirectX | 首发支持。原生键盘、指针、鼠标滚轮、微软拼音、UI Automation 和讲述人采用 Windows 验收场景。分发包为独立 ZIP。 |
-| macOS 15 ARM64 | CI 构建与自动测试。原生支持处于探索阶段。 |
-| Ubuntu 24.04 x64 | CI 构建与自动测试。原生支持处于探索阶段。 |
+| macOS 15 ARM64 | CI 构建与自动测试。原生支持仍在探索。 |
+| Ubuntu 24.04 x64 | CI 构建与自动测试。原生支持仍在探索。 |
 
 触摸优先手势和尚未验证的触控板或混合 DPI 硬件组合不在初版原生覆盖范围内。固定版本中的 Windows Base 滑块支持键盘和语义递增、递减操作。UI Automation RangeValue 编程写入由 [#49](https://github.com/wangdiandao/gpui-material/issues/49) 跟踪。GPUI 的原生指针捕获丢失由 [#48](https://github.com/wangdiandao/gpui-material/issues/48) 跟踪。
 
-[平台验收场景](verification.zh.md) · [固定来源](design-sources.zh.md) · [P9 验收](phases/P09.zh.md)
+[平台验收场景](verification.zh.md) · [固定来源](design-sources.zh.md) · [版本与发布](release.zh.md)

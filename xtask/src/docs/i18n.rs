@@ -76,8 +76,8 @@ fn in_scope(path: &str) -> bool {
         path,
         "README.md"
             | "README.zh.md"
-            | "CONTRIBUTION.md"
-            | "CONTRIBUTION.zh.md"
+            | "CONTRIBUTING.md"
+            | "CONTRIBUTING.zh.md"
             | "THIRD_PARTY_NOTICES.md"
             | "THIRD_PARTY_NOTICES.zh.md"
     ) || path.starts_with("docs/")

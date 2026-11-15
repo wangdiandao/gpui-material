@@ -1,11 +1,10 @@
 mod docs;
 mod graph;
-mod phase;
 mod timings;
 mod tokens;
 
 use std::{
-    env, fs, io,
+    env, io,
     path::PathBuf,
     process::{Command, ExitCode},
 };
@@ -13,7 +12,7 @@ use std::{
 type Result<T = ()> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 const USAGE: &str = "Usage:
-  cargo xtask check [<base-commit>]
+  cargo xtask check
   cargo xtask docs --write <english-markdown>...
   cargo xtask graph
   cargo xtask tokens [--check]
@@ -39,8 +38,7 @@ fn run() -> Result {
         .as_slice()
     {
         [] | ["help" | "--help" | "-h"] => println!("{USAGE}"),
-        ["check"] => check(None)?,
-        ["check", base] => check(Some(base))?,
+        ["check"] => check()?,
         ["docs", "--write", paths @ ..] if !paths.is_empty() => docs::write_records(paths)?,
         ["graph"] => graph::check()?,
         ["tokens"] => tokens::run(false)?,
@@ -51,8 +49,7 @@ fn run() -> Result {
     Ok(())
 }
 
-fn check(base: Option<&str>) -> Result {
-    phase::check(&fs::read_to_string("status.toml")?, base)?;
+fn check() -> Result {
     docs::check()?;
     tokens::run(true)?;
     graph::check()

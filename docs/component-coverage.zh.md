@@ -4,13 +4,13 @@
 
 本表覆盖 [Material 3 组件目录](https://m3.material.io/components)和项目所需的桌面组合。官方组件链接对应[固定站点快照](material-snapshot.zh.md)。Kotlin 文件名对应[固定 Compose 源码包](design-sources.zh.md#source-code-and-algorithm-references)的 `commonMain/androidx/compose/material3/`，标注 Android 或 Adaptive 的条目使用相应发布包。
 
-类别为 **规范**、**适配**、**实验**、**兼容**。规范和适配条目是首个完整候选版的必需范围。实验项在 P8 记录纳入或暂缓的结论。兼容项由后续串行阶段安排。类型为 `component`、`primitive` 或 `pattern`。表中生产交付均处于 `planned`，其平台验收以[平台矩阵](verification.zh.md)为准。
+**规范**和**适配**条目描述受支持的 Material 范围及其桌面适配。**实验**条目需有具体使用场景并完成验证后才能纳入。**兼容**条目为旧组件提供迁移指引。类型为 `component`、`primitive` 或 `pattern`，其平台验收以[平台矩阵](verification.zh.md)为准。
 
-每项在归属阶段交付并验证适用的尺寸、Token、视觉、交互、动效和语义。首版平台列使用 **桌面**（Windows 11 x64，覆盖键盘/指针、浅深色、RTL、高 DPI 及适用的读屏）、**文本**（桌面加 Windows 中文 IME）、**触控**（桌面加真实触摸设备或触控板测试）。缺少设备时，在 Issue 或 PR 中注明触控未验证。macOS 与 Linux 可按同样分类记录探索结果。
+修改组件时验证适用的尺寸、Token、视觉、交互、动效和语义。首版平台列使用 **桌面**（Windows 11 x64，覆盖键盘/指针、浅深色、RTL、高 DPI 及适用的读屏）、**文本**（桌面加 Windows 中文 IME）、**触控**（桌面加真实触摸设备或触控板测试）。缺少设备时，在 Issue 或 PR 中注明触控未验证。macOS 与 Linux 可按同样分类记录探索结果。
 
-<a id="p4-foundation-primitives"></a>
+<a id="foundation-primitives"></a>
 
-## P4 基础原语
+## 基础原语
 
 | 交付 | 类型 / 类别 | 规范与源码 | 范围和主要验收 | 平台 |
 | --- | --- | --- | --- | --- |
@@ -18,9 +18,9 @@
 | 状态层、焦点环、ripple、形状与动效 | primitive / 规范 | [States](https://m3.material.io/foundations/interaction/states/overview)、[Motion](https://m3.material.io/styles/motion/overview/specs)，`Ripple.kt`、`MotionScheme.kt` | 输入来源、禁用与取消优先级、形状裁剪和命中、连续重定向、减少动态效果、动画结束停止重绘。 | 桌面 |
 | 焦点、浮层、拖拽、滚动、值标签、文本度量和语义 | primitive / 适配 | [Inputs](https://m3.material.io/foundations/interaction/inputs)、[GPUI Base][base]，`Label.kt`、`PrecisionPointer.kt` | 捕获及取消、嵌套滚动归属、roving focus、浮层避让、字体与本地化入口、语义动作。Slider 值标签属于这里。 | 文本 |
 
-<a id="p5-basic-components"></a>
+<a id="basic-components"></a>
 
-## P5 基础组件
+## 基础组件
 
 | 交付 | 类型 / 类别 | 规范与源码 | 必需变体、状态和验收重点 | 平台 |
 | --- | --- | --- | --- | --- |
@@ -42,9 +42,9 @@
 | Linear / Circular Progress | component / 规范 | [Progress indicators](https://m3.material.io/components/progress-indicators/overview)，`ProgressIndicator.kt`、`WavyProgressIndicator.kt` | 线形/圆形、确定/不确定、适用平直/波形。验证范围、切换连续性、值语义和低动效。 | 桌面 |
 | LoadingIndicator | component / 规范 | [Loading indicator](https://m3.material.io/components/loading-indicator/overview)，`LoadingIndicator.kt` | 默认/contained 及形变序列。验证加载通知、停止重绘和减少动态效果。 | 桌面 |
 
-<a id="p6-input-and-overlays"></a>
+<a id="input-and-overlays"></a>
 
-## P6 输入与浮层
+## 输入与浮层
 
 | 交付 | 类型 / 类别 | 规范与源码 | 必需变体、状态和验收重点 | 平台 |
 | --- | --- | --- | --- | --- |
@@ -55,25 +55,25 @@
 | Snackbar | component / 规范 | [Snackbar](https://m3.material.io/components/snackbar/overview)，`Snackbar.kt`、`SnackbarHost.kt` | 定时及持续、动作、关闭和队列。验证播报、定时策略、可达动作与关闭竞态。 | 桌面 |
 | Bottom Sheet | component / 规范 | [Bottom sheets](https://m3.material.io/components/bottom-sheets/overview)，`BottomSheet.kt`、`BottomSheetScaffold.kt`、`ModalBottomSheet.kt` | Standard/Modal、展开/折叠及适用拖柄。验证非手势操作、拖动取消、嵌套滚动和模态回焦。 | 桌面 |
 | Side Sheet | component / 适配 | [Side sheets](https://m3.material.io/components/side-sheets/overview)、[MDC SideSheet][side-sheet] | Standard/Modal，固定窗格与覆盖层、RTL 对应边。验证宽度变化、Scrim、滚动、焦点及 Esc。 | 桌面 |
-| ExposedDropdown | component / 适配 | [Menus](https://m3.material.io/components/menus/overview)、[Text fields](https://m3.material.io/components/text-fields/overview)，`ExposedDropdownMenu.kt`、Android 实现 | TextField 与 Menu 完成后组合。验证可编辑及只选模式、过滤、锚点、提交/取消、IME 和展开状态播报。 | 文本 |
+| ExposedDropdown | component / 适配 | [Menus](https://m3.material.io/components/menus/overview)、[Text fields](https://m3.material.io/components/text-fields/overview)，`ExposedDropdownMenu.kt`、Android 实现 | 将文本字段与显示可选项的浮层组合。验证可编辑及只选模式、过滤、锚点、提交/取消、IME 和展开状态播报。 | 文本 |
 
-<a id="p7-navigation-and-adaptive-layout"></a>
+<a id="navigation-and-adaptive-layout"></a>
 
-## P7 导航与自适应
+## 导航与自适应
 
 | 交付 | 类型 / 类别 | 规范与源码 | 必需变体、状态和验收重点 | 平台 |
 | --- | --- | --- | --- | --- |
 | Tabs | component / 规范 | [Tabs](https://m3.material.io/components/tabs/overview)，`Tab.kt`、`TabRow.kt` | Primary/Secondary、固定/滚动、文本/图标。验证焦点、受控选中、选中项入视和 RTL。 | 桌面 |
-| AppBar | component / 规范 | [App bars](https://m3.material.io/components/app-bars/overview)，`AppBar.kt` | Small 含可用居中布局、Medium/Large Flexible；为 P8 提供搜索 slot。验证收展、滚动色与长标题、导航命令。 | 桌面 |
+| AppBar | component / 规范 | [App bars](https://m3.material.io/components/app-bars/overview)，`AppBar.kt` | Small 含可用居中布局、Medium/Large Flexible；提供搜索插槽。验证收展、滚动色与长标题、导航命令。 | 桌面 |
 | NavigationBar | component / 规范 | [Navigation bar](https://m3.material.io/components/navigation-bar/overview)，`ShortNavigationBar.kt`、`NavigationBar.kt` | Expressive 短式在紧凑窗口用垂直条目，中等窗口用水平条目。验证缩放、禁用、键盘移动和可访问目的地。 | 桌面 |
 | NavigationRail / Expanded Rail | component / 规范 | [Navigation rail](https://m3.material.io/components/navigation-rail/overview)，`NavigationRail.kt`、`WideNavigationRail.kt` | 折叠/展开，非模态/模态、折叠时可隐藏，标题和 FAB slot。验证溢出、焦点迁移、目的地保持与 RTL。 | 桌面 |
 | Scaffold | pattern / 适配 | [Scaffold](https://m3.material.io/foundations/layout/scaffold/overview)，`Scaffold.kt` | AppBar、导航、内容、FAB、Snackbar 等 slot，验证内容边界、层级和滚动所有权。 | 桌面 |
 | 自适应导航 | pattern / 适配 | [Breakpoints](https://m3.material.io/foundations/layout/breakpoints/overview)，Adaptive Suite `NavigationSuiteScaffold.kt` | 依可用宽度在 Bar 和 Rail 间切换，保留目的地、状态和焦点；覆盖断点两侧及窗口往返缩放。 | 桌面 |
 | 列表详情 / 支持窗格 / Feed | pattern / 适配 | [Canonical layouts](https://m3.material.io/foundations/layout/canonical-examples/overview)，Adaptive `ListDetailPaneScaffold.kt`、`SupportingPaneScaffold.kt` | 单/多窗格、列表详情返回路径、主/支持窗格、Feed 列数和滚动。验证窄宽往返、选中和滚动身份、焦点及 RTL。 | 桌面 |
 
-<a id="p8-composite-components-and-experimental-patterns"></a>
+<a id="composite-components-and-experimental-patterns"></a>
 
-## P8 复合组件与实验模式
+## 复合组件与实验模式
 
 | 交付 | 类型 / 类别 | 规范与源码 | 变体、状态和验收重点 | 平台 |
 | --- | --- | --- | --- | --- |
@@ -95,11 +95,11 @@
 
 | 项目 | 类型 / 类别 | 来源 | 后续范围与验收方向 |
 | --- | --- | --- | --- |
-| Segmented Buttons | component / 兼容 | [Segmented buttons](https://m3.material.io/components/segmented-buttons/overview)、[MDC ToggleButtonGroup][toggle-group]，`SegmentedButton.kt` | 后续有迁移需求时评估单选/多选与旧布局，当前迁移目的地为 P8 Connected ButtonGroup。桌面。 |
-| Navigation Drawer | component / 兼容 | [Navigation drawer](https://m3.material.io/components/navigation-drawer/overview)、[MDC NavigationDrawer][drawer]，`NavigationDrawer.kt` | 后续按需验证 standard/modal 导航迁移及焦点。当前迁移目的地为 P7 Expanded Rail。桌面。 |
+| Segmented Buttons | component / 兼容 | [Segmented buttons](https://m3.material.io/components/segmented-buttons/overview)、[MDC ToggleButtonGroup][toggle-group]，`SegmentedButton.kt` | 后续有迁移需求时评估单选/多选与旧布局，当前迁移目的地为 Connected ButtonGroup。桌面。 |
+| Navigation Drawer | component / 兼容 | [Navigation drawer](https://m3.material.io/components/navigation-drawer/overview)、[MDC NavigationDrawer][drawer]，`NavigationDrawer.kt` | 后续按需验证 standard/modal 导航迁移及焦点。当前迁移目的地为 Expanded Rail。桌面。 |
 | Baseline Bottom App Bar、Medium/Large AppBar | component / 兼容 | [App bars](https://m3.material.io/components/app-bars/overview)、[Toolbars](https://m3.material.io/components/toolbars/overview)，`AppBar.kt` | 后续评估旧布局与行为的迁移。当前用 Docked Toolbar 或 Flexible AppBar 对应组合。桌面。 |
-| Baseline NavigationBar/Rail、Small/Surface FAB、Divided Search | component / 兼容 | [Navigation bar](https://m3.material.io/components/navigation-bar/overview)、[Navigation rail](https://m3.material.io/components/navigation-rail/overview)、[FAB](https://m3.material.io/components/floating-action-button/overview)、[Search](https://m3.material.io/components/search/overview) | 后续根据迁移需求逐项验证旧尺寸、颜色、标签、选中及位置。Extended FAB 的 Expressive Small 属于 P5。桌面。 |
-| XR 变体 | pattern / 实验 | [Material XR components](https://m3.material.io/foundations/xr/components/overview) | 首版平台限定为平面桌面窗口。空间交互、距离和输入设备需独立验证环境及阶段。 |
+| Baseline NavigationBar/Rail、Small/Surface FAB、Divided Search | component / 兼容 | [Navigation bar](https://m3.material.io/components/navigation-bar/overview)、[Navigation rail](https://m3.material.io/components/navigation-rail/overview)、[FAB](https://m3.material.io/components/floating-action-button/overview)、[Search](https://m3.material.io/components/search/overview) | 后续根据迁移需求逐项验证旧尺寸、颜色、标签、选中及位置。适用时使用 Small Expressive Extended FAB。桌面。 |
+| XR 变体 | pattern / 实验 | [Material XR components](https://m3.material.io/foundations/xr/components/overview) | 首版平台限定为平面桌面窗口。空间交互、距离和输入设备需专用验证环境。 |
 
 All buttons 是导航索引。独立公开的组件按其规范单列，DragHandle、Label、定位或布局 helper 在所属原语或组件验收中覆盖。通用应用导航、结果数据源和业务校验由调用者提供。
 

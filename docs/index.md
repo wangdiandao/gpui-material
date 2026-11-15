@@ -2,23 +2,12 @@
 
 English | [中文](index.zh.md)
 
-1. [P0 Requirements and source freeze](phases/P00.md) records the scope, deliverables, and acceptance criteria.
-2. [Design sources and version baseline](design-sources.md) records pinned design snapshots, implementation references, and how to resolve differences.
-3. [Component coverage matrix](component-coverage.md) lists variants, states, platforms, delivery phases, and acceptance criteria.
-4. [Architecture and dependencies](architecture.md) defines dependency direction, state ownership, theme boundaries, and candidate dependencies.
-5. [Platforms and quality requirements](verification.md) defines verification environments, coverage, and platform support criteria.
-6. [Phase progression and repairs](phases.md) defines the P0–P9 sequence, workflow, and exit criteria. [Phase status](../status.toml) is the machine-readable record.
-7. [P1 Capability probes](phases/P01.md) lists the probes, candidate dependencies, and blocking criteria.
-8. [P2 Engineering baseline](phases/P02.md) records the workspace, Windows Gallery, engineering checks, and merge requirements.
-9. [Development and verification](development.md) covers coding, testing, upstream contributions, builds, timings, and CI.
-10. [P3 Pure theme](phases/P03.md) records the scope of tokens, the theme, and offline verification.
-11. [Pure theme](theme/theme.md) records theme values, defaults, and data sources.
-12. [P4 Foundation primitives](phases/P04.md) records the adapters and Windows acceptance criteria.
-13. [P5 Basic components](phases/P05.md) records the component families, facade, Gallery, and preview acceptance criteria.
-14. [P6 Text fields and overlays](phases/P06.md) records the input and overlay families, dependency order, and native acceptance criteria.
-15. [P7 Navigation and adaptive layout](phases/P07.md) records the navigation components, layout patterns, and preview acceptance criteria.
-16. [P8 Composite and extended components](phases/P08.md) records the component families, optional features, and candidate acceptance criteria.
-17. [P9 Integration and release readiness](phases/P09.md) records support, migration, regression, and distribution acceptance.
-18. [Downstream integration](integration.md) records platform support, the facade API, and migration.
-
-Add design, component, and phase documents to this index when the corresponding work starts. Git preserves the history.
+- [Design sources and version baseline](design-sources.md) records the pinned Material specification, implementation references, and source precedence.
+- [Component coverage matrix](component-coverage.md) records component variants, states, platform checks, and compatibility guidance.
+- [Architecture and dependencies](architecture.md) describes crate boundaries, state ownership, and upstream dependencies.
+- [Pure theme](theme/theme.md) documents theme values, defaults, and token data.
+- [Downstream integration](integration.md) describes the facade, supported platforms, and migration.
+- [Platforms and quality requirements](verification.md) defines verification environments, coverage, and native acceptance criteria.
+- [Contributing](../CONTRIBUTING.md) describes issues, design proposals, and pull request review.
+- [Development and verification](development.md) describes coding, testing, builds, and CI.
+- [Versioning and releases](release.md) defines version bumps, changelog entries, and release verification.

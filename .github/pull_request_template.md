@@ -4,7 +4,11 @@
 
 ## Changes
 
-<!-- Focus on one problem. Describe the change, the affected modules, and any relevant phase scope. -->
+<!-- Focus on one problem. Describe the change and the affected modules. -->
+
+## Design specification
+
+<!-- For UI changes, cite the applicable pinned requirement or token. Describe any desktop adaptation. For an approved specification update, link the maintainer decision in the issue. -->
 
 ## Public API and migration
 
@@ -18,3 +22,4 @@
 
 - [ ] I reviewed the change scope, file ownership, and affected dependencies.
 - [ ] I ran the relevant tests or Gallery scenarios and recorded the results.
+- [ ] I updated `CHANGELOG.md` under `Unreleased` if this change affects users or downstream applications.

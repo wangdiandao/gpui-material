@@ -6,10 +6,9 @@
 
 ## 贡献流程与分支命名
 
-- 从 `.github/ISSUE_TEMPLATE/` 选择缺陷报告、功能提议或阶段交付。缺陷附最小复现，提议交代场景与验收，阶段 Issue 记录前置依赖和文件归属。
+- Issue 模板、设计变更与评审要求见[贡献指南](../CONTRIBUTING.zh.md)。
 - 从最新 `main` 建分支，使用 `<类型>/<简短主题>`，如 `ci/cross-platform-workflow`。主题使用小写英文和连字符。在 PR 说明里关联 Issue。
-- 按改动目的选前缀。`feat/` 新功能，`fix/` 缺陷，`docs/` 文档，`test/` 测试，`refactor/` 重构，`ci/` CI，`chore/` 工程维护，`release/` 发布。例如 `fix/pointer-capture`。阶段归属由 Issue、PR 和 `status.toml` 记录。
-- 每个 PR 解决一个问题。按模板关联 Issue，列出公开 API 及迁移方式，记录可复现的验证。界面改动注明受影响的 Gallery 场景。[GPUI Kit 贡献指南](https://github.com/longbridge/gpui-kit/blob/main/CONTRIBUTING.md)
+- 按改动目的选前缀。`feat/` 新功能，`fix/` 缺陷，`docs/` 文档，`test/` 测试，`refactor/` 重构，`ci/` CI，`chore/` 工程维护，`release/` 发布。例如 `fix/pointer-capture`。
 
 <a id="workspace-and-component-development"></a>
 
@@ -22,7 +21,7 @@
 
 ## 编码规范
 
-- 从[文档索引](index.zh.md)定位当前规格，再查[阶段状态](../status.toml)的允许路径。已冻结契约的修订遵循[返修流程](phases.zh.md#repairs)。
+- 从[文档索引](index.zh.md)定位当前规格。修改 Material 呈现时遵循[锁定规范与评审规则](../CONTRIBUTING.zh.md#设计规范)。
 - 英文 `foo.md`、中文 `foo.zh.md` 与逐节指纹 `foo.i18n.yaml` 放在同一目录。标题下链接另一语言，正文链接优先指向同语言页面。在同一 PR 同步两页，确认内容对应后运行 `cargo xtask docs --write path/to/foo.md` 更新记录。`cargo xtask check` 核验配对、语言入口、标题层级、代码示例和指纹。GitHub Issue 和 PR 模板使用英文。[DeepSeek Harness 文档约定](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/i18n/README.md)
 - theme 保持纯 Rust，foundation 负责 GPUI/Base 适配。应用或 Base 持有业务与输入状态，Material 持有呈现和新增组合状态。优先复用现有公共接口。[架构与依赖](architecture.zh.md)
 - 采用 Rust 惯用命名和稳定的语义标识。注释说明不变量、生命周期与平台差异。公开文档交代状态所有权、默认值、焦点、回调和平台支持。
@@ -31,9 +30,9 @@
 
 ## 测试规范
 
-- 每次变更都验证受影响的行为。先用已有测试、构建检查或最小复现。阶段规格要求、公共行为或关键不变量缺少覆盖，或可稳定复现的缺陷仍有实际复发风险时，新增长期自动化测试。仅改文档、格式或内部结构且已有覆盖足够时，运行相关检查即可。
+- 每次变更都验证受影响的行为。先用已有测试、构建检查或最小复现。规格要求、公共行为或关键不变量缺少覆盖，或可稳定复现的缺陷仍有实际复发风险时，新增长期自动化测试。仅改文档、格式或内部结构且已有覆盖足够时，运行相关检查即可。
 - 在最低有效层验证可观察结果。同一行为优先补到已有用例，只有上层存在独有风险才增加 UI、集成或原生验证。用例应可重复运行，并能说明覆盖的契约和退化时的失败表现。组件按适用场景验证真实渲染、键盘、指针、语义、焦点、取消和原生系统路径。[平台与质量要求](verification.zh.md)
-- 单次修复验证、环境排查、迁移和阶段探测可用临时命令或脚本。重要结果和复现步骤写入对应 Issue 或 PR。只有覆盖仍受支持且现有测试漏掉的回归时，才将最小断言纳入长期套件。
+- 单次修复验证、环境排查、迁移和能力探测可用临时命令或脚本。重要结果和复现步骤写入对应 Issue 或 PR。只有覆盖仍受支持且现有测试漏掉的回归时，才将最小断言纳入长期套件。
 - 修改行为或替换探针时，清理已被正式测试覆盖、失去验证对象或仅用于一次排查的用例及辅助代码。删除前核对独有覆盖与引用。
 
 <a id="upstream-contributions"></a>
@@ -57,11 +56,23 @@ cargo gallery
 cargo test --locked -p gpui-material-gallery --features test-support
 ```
 
-默认 Workspace 构建包含纯主题和工程工具。Gallery 用 `-p gpui-material-gallery` 或 `cargo gallery` 显式选择。正常 Gallery 构建采用平台默认行为，UI 集成测试启用 `test-support`。P1 的独立探针可以继续通过各自的 `--manifest-path` 运行。
+默认 Workspace 构建包含纯主题和工程工具。Gallery 用 `-p gpui-material-gallery` 或 `cargo gallery` 显式选择。正常 Gallery 构建采用平台默认行为，UI 集成测试启用 `test-support`。
 
 macOS 使用 Apple Silicon 和 Xcode 命令行工具。Linux CI 使用 Ubuntu 24.04 x64，系统依赖见[工作流](../.github/workflows/ci.yml)中的 `Install Linux platform dependencies` 步骤。两平台使用同一 Rust 工具链与 Cargo 命令。
 
-Gallery 标题栏显示「Material Gallery」。确认正文显示「Window check」及与当前显示器一致的「Display scale」。缩窄窗口时确认文字仍可见。Windows 的 UI Automation 树可检查名为「Display scale …%」的 StatusBar。使用标题栏关闭按钮或 Alt+F4，进程应正常退出。在 PR 中记录运行环境和验证结果。组件交互与更广的原生验收见[平台与质量要求](verification.zh.md)。
+在「Material Gallery」打开组件示例，缩窄窗口进入紧凑布局，确认还能重新打开目录并选择示例。检查「Display scale」是否与当前显示器一致。Windows 的 UI Automation 树可检查名为「Display scale …%」的 StatusBar。使用标题栏关闭按钮或 Alt+F4，确认进程正常退出。在 PR 中记录环境与结果。见[平台与质量要求](verification.zh.md)。
+
+<a id="standalone-probes"></a>
+
+## 独立探针
+
+宿主探针直接检查锁定版本的 GPUI 和 Base，包括实窗启动、原生捕获丢失、文本输入、语义、动效、绘制与浮层。使用 `--bin` 选择入口。探针使用自己的清单和锁文件运行。将 `CARGO_TARGET_DIR` 指向主检出的 `target`，以便复用增量构建。
+
+```powershell
+$env:CARGO_TARGET_DIR = Join-Path (Get-Location) 'target'
+cargo run --locked --manifest-path experiments/gpui-host/Cargo.toml --bin window
+cargo test --locked --manifest-path experiments/gpui-host/Cargo.toml --features test-support
+```
 
 <a id="local-checks"></a>
 
@@ -72,10 +83,10 @@ cargo fmt --all --check
 cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 cargo test --locked --workspace --all-features
 cargo xtask check
-cargo xtask check origin/main
+git diff --check origin/main
 ```
 
-`check` 校验阶段状态、已合并的交付项与接受提交的祖先关系、已跟踪 Markdown 的仓库内链接和标题锚点，以及 GPUI/Base 的包身份与 feature。传入基线提交后，使用 Git 提交比较路径并依据基线的阶段范围校验。目录条目以斜杠结束，文件条目按完整路径匹配。交付项合并后，以单独 PR 登记冻结。文档检查无需访问外部链接。Token 生成物检查可单独运行 `cargo xtask tokens --check`。修改数据后用 `cargo xtask tokens` 更新 Rust 表与索引。依赖检查解析 Windows、macOS 和 Linux 的普通及测试图。见[纯主题](theme/theme.zh.md#token-data)。
+`check` 验证已跟踪 Markdown 的链接、标题和双语配对，校验 Token 生成物，并核对 Windows、macOS 和 Linux 依赖图上的 GPUI/Base 包身份与 feature。先暂存 Markdown 文件的新增、重命名和删除，使检查读取到对应的 Git 索引。文档检查无需访问外部链接。可用 `cargo xtask tokens --check` 单独检查 Token，或者在数据变更后用 `cargo xtask tokens` 更新 Rust 表与索引。见[纯主题](theme/theme.zh.md#token-data)。
 
 <a id="cold-and-warm-build-baseline"></a>
 
@@ -83,7 +94,7 @@ cargo xtask check origin/main
 
 ```powershell
 cargo fetch --locked --target x86_64-pc-windows-msvc
-cargo xtask timings target/timings/p2-baseline
+cargo xtask timings target/timings/gallery-baseline
 ```
 
 每次传入新的报告目录。Cargo 的注册表和源码缓存已预取，冷检查与冷构建各使用自己的空目标目录。随后用同一命令与同一目录测热结果。工具保存四次 wall time、HTML 时间线、Git 提交、目标和工具链。时间线中的 Gallery 最后一个编译单元包含代码生成和链接，可用于定位构建成本。测量使用普通 Gallery feature 和开发 profile，沿用 Cargo 默认作业数。在 Issue 或 PR 中记录关键计时、复现命令和相关运行环境。
@@ -96,7 +107,7 @@ cargo xtask timings target/timings/p2-baseline
 
 | 作业 | 检查 |
 | --- | --- |
-| `Repository checks` | 格式、差异空白、阶段范围、文档链接、Token 生成物、三平台依赖图及默认 Workspace。PR 和主线 push 使用对应基线提交，手动运行执行无基线检查。 |
+| `Repository checks` | 格式、文档链接和双语配对、Token 生成物、三平台依赖图及默认 Workspace。PR 和有基线提交的 push 与对应基线比较差异空白。 |
 | `Windows MSVC`、`macOS ARM64`、`Linux x64` | 在 Windows Server 2025 x64、macOS 15 ARM64 和 Ubuntu 24.04 x64 上分别运行 Clippy、工作区测试、Gallery 无头 UI 测试和原生 Gallery 构建。平台失败后其余平台继续执行。 |
 | `CI required` | 通用检查与三个原生作业全部通过时成功。 |
 
@@ -104,9 +115,11 @@ Rust 构建缓存按平台隔离，由 `main` 的成功 push 更新，PR 可复�
 
 三平台托管验证覆盖构建与自动化测试，首版原生实机支持按[平台与质量要求](verification.zh.md)验收。
 
-Windows 作业上传 `gallery-windows-x64-msvc`，包含可执行文件、Cargo 时间线及许可记录，供实机复验。制品使用 `cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings`。此 profile 关闭 debug assertions，GPUI 通过 Windows SDK 的 x64 `fxc.exe` 在构建时嵌入 DirectX 着色器。CI 通过 `GPUI_FXC_PATH` 指定 SDK 中的编译器。常规 `cargo gallery` 在开发机上从 Cargo 缓存读取着色器。正式发布由对应交付阶段启动。
+Windows 作业上传 `gallery-windows-x64-msvc`，包含可执行文件、Cargo 时间线及许可记录，供实机复验。制品使用 `cargo build --locked -p gpui-material-gallery --profile gallery-artifact --timings`。此 profile 关闭 debug assertions，GPUI 通过 Windows SDK 的 x64 `fxc.exe` 在构建时嵌入 DirectX 着色器。CI 通过 `GPUI_FXC_PATH` 指定 SDK 中的编译器。常规 `cargo gallery` 在开发机上从 Cargo 缓存读取着色器。见[发布流程](release.zh.md#prepare-and-publish)。
 
 GitHub 规则集要求通过 PR 更新 `main`。PR 必须基于最新主线、解决评审对话，并通过 GitHub Actions 的 `CI required` 检查。
+
+<a id="windows-distribution"></a>
 
 ## Windows 分发
 

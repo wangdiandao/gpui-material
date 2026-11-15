@@ -3,32 +3,35 @@
   en: "eb985aa3f4a3c789"
   zh: "06af984e56990aaa"
 /development-and-verification/contribution-workflow-and-branch-naming:
-  en: "a0ce3c6d94bb2dd9"
-  zh: "683c4a1ff23319db"
+  en: "ec9cb06f32fe4f93"
+  zh: "27d025e8137e3843"
 /development-and-verification/workspace-and-component-development:
   en: "e198e5bbc9c46082"
   zh: "02d49b4b650f0a28"
 /development-and-verification/coding-conventions:
-  en: "9f5fa92f95981ff7"
-  zh: "8b6519e816df19bd"
+  en: "5488fb4cc7107127"
+  zh: "1e8d9e72c81ff65e"
 /development-and-verification/testing-conventions:
-  en: "7b5f8c206bcf721d"
-  zh: "5521b22748a006f1"
+  en: "03e1102176091410"
+  zh: "bcf11ac2845e3309"
 /development-and-verification/upstream-contributions:
   en: "bc9d06b568603e1e"
   zh: "09acaf110232cf52"
 /development-and-verification/development-environment:
-  en: "5f9a53d4c0353f1e"
-  zh: "541a1f70335b6aac"
+  en: "5d84a86d767b860b"
+  zh: "f7eda0b529a9afda"
+/development-and-verification/standalone-probes:
+  en: "af354a09a03def8e"
+  zh: "f83a0558b5d6978f"
 /development-and-verification/local-checks:
-  en: "c7e373898c6d2496"
-  zh: "fb9f4b51df3b7e9f"
+  en: "221b14872b20e582"
+  zh: "d9e59133e8f75fc5"
 /development-and-verification/cold-and-warm-build-baseline:
   en: "1a227e066babc8aa"
   zh: "647c513a2c5be1a6"
 /development-and-verification/ci-and-merging:
-  en: "70b726536346e56f"
-  zh: "a00ce725415bc826"
+  en: "ac4cc189f1521f0e"
+  zh: "ec0726ef8918b34d"
 /development-and-verification/windows-distribution:
   en: "940494bc4934a0d9"
   zh: "1e8f06350071e6eb"

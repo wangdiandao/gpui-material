@@ -55,7 +55,8 @@ let save = Button::new("save", "Save")
 - [下游集成](docs/integration.zh.md)
 - [架构与依赖](docs/architecture.zh.md)
 - [文档索引](docs/index.zh.md)
-- [贡献指南](CONTRIBUTION.zh.md)
+- [贡献指南](CONTRIBUTING.zh.md)
+- [变更日志](CHANGELOG.md)
 
 ## 许可证
 

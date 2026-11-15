@@ -55,7 +55,8 @@ See the [component coverage matrix](docs/component-coverage.md) for variants, st
 - [Downstream integration](docs/integration.md)
 - [Architecture and dependencies](docs/architecture.md)
 - [Documentation index](docs/index.md)
-- [Contributing](CONTRIBUTION.md)
+- [Contributing](CONTRIBUTING.md)
+- [Changelog](CHANGELOG.md)
 
 ## License
 

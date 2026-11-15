@@ -12,14 +12,14 @@
 | 形状 | `CornerShape` 使用逻辑角顺序，按方向映射并限制相邻角总和。满圆角取短边的一半。Circle、Square 和 Triangle 提供固定源参数作为 morph 端点，渲染层负责规范化、轮廓插值、绘制及命中。 |
 | 动效 | 默认 Standard，可选 Expressive。空间与效果各有 Fast、Default 和 Slow 弹簧。效果弹簧采用临界阻尼。减少动态效果偏好将规格解析为立即完成。固定时长和 Bézier 曲线可通过 Token 查询。 |
 | 布局 | 可用宽度的分界为 600、840、1200、1600 逻辑单位。阈值归入较大的尺寸级。逻辑起止边按 LTR 或 RTL 映射。字号、行高和字距由宿主提供的文字缩放比例换算。 |
-| 密度 | 桌面策略对组件可视尺寸使用 Compact −4、Standard 0、Comfortable +4 逻辑单位。交互尺寸保留 48 逻辑单位下限。组件在各自阶段应用该策略并核验布局与命中。 |
+| 密度 | 桌面策略对组件可视尺寸使用 Compact −4、Standard 0、Comfortable +4 逻辑单位。交互尺寸保留 48 逻辑单位下限。修改组件密度时核验布局与命中。 |
 | 序列化 | `serde` 独立启用主题值的序列化。颜色覆盖以语义角色为键，缺省角色从当前外观的基准表解析。 |
 
 <a id="token-data"></a>
 
 ## Token 数据
 
-[唯一数值源](../../tokens/material.json)按固定来源分组。[生成索引](token-index.zh.md)保留 Material 名称、Rust 常量和精确上游符号。Compose 中只暴露 Kotlin 符号的表使用 Material 三层命名规则映射，颜色静态表在角色下保留 light/dark 键。Filled Button 和 Small Button 的键用于校验 Component 层覆盖颜色、形状、尺寸和状态。各组件族在归属阶段扩充数据。
+[唯一数值源](../../tokens/material.json)按固定来源分组。[生成索引](token-index.zh.md)保留 Material 名称、Rust 常量和精确上游符号。Compose 中只暴露 Kotlin 符号的表使用 Material 三层命名规则映射，颜色静态表在角色下保留 light/dark 键。Filled Button 和 Small Button 的键用于校验 Component 层覆盖颜色、形状、尺寸和状态。扩充组件族时，将对应的锁定 Token 数据加入此文件。
 
 Reference 层存放色板和字族等基础值。System 层定义语义和公共尺度。Component 层可引用 System 或 Reference，颜色引用保留 `ColorRole`，通过调用者当前的主题解析。同层别名支持静态色和组合排版的内部引用。生成器检查重名、Rust 标识冲突、单位、值域、层级、缺失目标与循环。
 
@@ -36,8 +36,8 @@ cargo xtask docs --write docs/theme/token-index.md
 ## 来源与桌面裁决
 
 - 静态色、色板、排版数值、角形、状态层、层级与动效取固定的 Compose Material 3 1.5.0-rc01。网站将 Roboto 定义为默认家族。Compose 使用平台无衬线抽象，桌面通过可配置家族列表表达这个选择。
-- 动态色选用 P0/P1 已验证的 Tonal Spot Spec2021。49 个语义角色包括 legacy background/surface-variant、inverse、fixed、outline、surface containers、scrim 及 MCU 的 shadow。
-- 圆角多边形限制在 P1 已验证的三类拓扑。Circle 参数采用 AndroidX 的最终圆半径，Square 参数为矩形宽高，Triangle 参数采用外接圆半径。参数与固定 Compose `MaterialShapes.kt` 及 AndroidX graphics-shapes 1.1.0 对照。圆角矩形的相邻角统一缩放属于桌面几何策略。
+- 动态色选用 Tonal Spot Spec2021，并对照锁定的 MCU 参考向量验证。49 个语义角色包括 legacy background/surface-variant、inverse、fixed、outline、surface containers、scrim 及 MCU 的 shadow。
+- 圆角多边形支持圆、方形和三角形三种拓扑。Circle 参数采用 AndroidX 的最终圆半径，Square 参数为矩形宽高，Triangle 参数采用外接圆半径。参数与固定 Compose `MaterialShapes.kt` 及 AndroidX graphics-shapes 1.1.0 对照。圆角矩形的相邻角统一缩放属于桌面几何策略。
 - 可用宽度来自固定 Material Breakpoints 表。48 逻辑单位取 Compose `LocalMinimumInteractiveComponentSize`。密度偏移、字体回退顺序和立即完成的低动效策略是本项目的桌面约定。
 
 固定版本和校验值见[设计依据](../design-sources.zh.md)。

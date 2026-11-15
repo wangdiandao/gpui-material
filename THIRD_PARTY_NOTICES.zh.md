@@ -2,7 +2,7 @@
 
 [English](THIRD_PARTY_NOTICES.md) | 中文
 
-项目原创代码与文档适用根目录的 [Apache-2.0](LICENSE)。本阶段从以下来源核对技术事实，仓库中的规格与验收文字由本项目编写。
+项目原创代码与文档适用根目录的 [Apache-2.0](LICENSE)。本项目从以下来源核对技术事实，仓库中的规格与验收文字由本项目编写。
 
 | 来源 | 用途与许可记录 |
 | --- | --- |
@@ -20,6 +20,6 @@ Foundation crate 使用 [polymorpher 0.1.4](https://crates.io/crates/polymorpher
 
 extras crate 的 `date-time` 特性使用 [chrono 0.4.45](https://crates.io/crates/chrono/0.4.45) 进行公历运算并表示本地日期和时间。Chrono 可按 MIT 或 Apache-2.0 许可使用。
 
-引入第三方源码、图标、字体或文档节选时，在其归属阶段记录精确来源、版本、修改与再分发条款。源版本和 Cargo 候选见[设计依据](docs/design-sources.zh.md)及[架构与依赖](docs/architecture.zh.md)。
+引入第三方源码、图标、字体或文档节选时，在本声明或对应的资源清单登记精确来源、版本、修改与再分发条款。源版本和 Cargo 候选见[设计依据](docs/design-sources.zh.md)及[架构与依赖](docs/architecture.zh.md)。
 
 Windows Gallery ZIP 包含锁定的 Windows 运行时依赖、Rust 标准库和随包图标的许可材料。版本与许可位置见 ZIP 内的 `DEPENDENCIES.txt`。打包所用的补充许可证文本及署名见[补充许可来源](scripts/gallery-license-sources.txt)。

@@ -766,6 +766,7 @@ impl RenderOnce for TextField {
                                     |(_, content)| {
                                         div()
                                             .id("placeholder")
+                                            .test_support()
                                             .absolute()
                                             .top_0()
                                             .left_0()

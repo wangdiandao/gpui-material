@@ -35,8 +35,9 @@ pub use overlay::{Menu, MenuItem, Tooltip};
 mod input;
 pub use input::{DropdownOption, ExposedDropdown, ExposedDropdownState};
 pub use input::{
-    TextAreaState, TextField, TextFieldEvent, TextFieldLabelAlignment, TextFieldLabelPosition,
-    TextFieldState, TextFieldVariant,
+    TextAreaState, TextField, TextFieldColorOverrides, TextFieldColors, TextFieldEvent,
+    TextFieldLabelAlignment, TextFieldLabelPosition, TextFieldLayout, TextFieldState,
+    TextFieldVariant,
 };
 mod overlay;
 

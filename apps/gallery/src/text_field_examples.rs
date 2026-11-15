@@ -265,6 +265,13 @@ impl Render for TextFieldExamples {
                 section("Outside label and affixes").child(
                     TextField::new("amount", "Budget amount", &self.amount)
                         .variant(TextFieldVariant::Outlined)
+                        .shape(gpui_material::theme::CornerRole::Medium.shape())
+                        .content_padding(gpui::Edges {
+                            left: px(16.),
+                            right: px(20.),
+                            top: px(8.),
+                            bottom: px(8.),
+                        })
                         .label_position(TextFieldLabelPosition::Above)
                         .label_alignment(
                             TextFieldLabelAlignment::Start,
@@ -386,6 +393,159 @@ fn decorated_field_keeps_its_editor_value_and_accessible_metadata(cx: &mut gpui:
     })
     .unwrap();
     verify(cx, Direction::Rtl, "１２🙂", "Amount in US dollars. 3 / 8");
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn styled_text_field_observes_layout_and_keeps_the_custom_outline_cutout(
+    cx: &mut gpui::TestAppContext,
+) {
+    use gpui::{Edges, Hsla, Rgba, WindowOptions, point, rgb, size};
+    use gpui_base::test_support::find;
+    use gpui_material::{
+        MaterialRoot, TextFieldColorOverrides, TextFieldColors, TextFieldLayout,
+        theme::{CornerShape, TypeRole, TypographyEmphasis},
+    };
+    use std::{cell::RefCell, rc::Rc};
+
+    fn tint(hex: u32) -> Hsla {
+        rgb(hex).into()
+    }
+
+    struct StyledField {
+        state: Entity<TextFieldState>,
+        invalid: bool,
+        layouts: Rc<RefCell<Vec<TextFieldLayout>>>,
+    }
+
+    impl Render for StyledField {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let layouts = self.layouts.clone();
+            let colors = |hex| TextFieldColorOverrides {
+                indicator: Some(tint(hex)),
+                ..Default::default()
+            };
+            TextField::new("styled-field", "Project", &self.state)
+                .variant(TextFieldVariant::Outlined)
+                .shape(CornerShape::Radii([12., 18., 10., 8.]))
+                .content_padding(Edges {
+                    left: px(20.),
+                    right: px(30.),
+                    top: px(6.),
+                    bottom: px(6.),
+                })
+                .text_style(TypeRole::TitleLarge.style(TypographyEmphasis::Baseline))
+                .colors(TextFieldColors {
+                    unfocused: colors(0x103355),
+                    focused: colors(0x105500),
+                    invalid: colors(0x901800),
+                    disabled: colors(0x666666),
+                    hovered_indicator: Some(tint(0x103355)),
+                })
+                .invalid(self.invalid)
+                .on_text_layout(move |layout, _, _| layouts.borrow_mut().push(layout))
+        }
+    }
+
+    let layouts = Rc::new(RefCell::new(Vec::new()));
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let state = cx.new(|cx| TextFieldState::new(window, cx).default_value("Roadmap"));
+            let entity = cx.new(|_| StyledField {
+                state,
+                invalid: false,
+                layouts: layouts.clone(),
+            });
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    cx.simulate_window_resize(window.into(), size(px(460.), px(300.)));
+    let render = |cx: &mut gpui::TestAppContext, expected_tint| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let field = find(window, &[], &"styled-field".into()).unwrap();
+            let container = find(window, field.path(), &"container".into()).unwrap();
+            let label = find(window, field.path(), &"label-text".into()).unwrap();
+            let factor = window.scale_factor();
+            let bounds = container.bounds().scale(factor);
+            let inside_label = point(
+                label.bounds().center().x,
+                container.bounds().top() + px(0.25),
+            )
+            .scale(factor);
+            let quads: Vec<_> = window
+                .painted_quads()
+                .into_iter()
+                .filter(|quad| {
+                    quad.border_widths.top > px(0.).scale(factor)
+                        && quad.bounds.origin == point(bounds.left().round(), bounds.top().round())
+                })
+                .collect();
+            let rendered: Rgba = quads
+                .first()
+                .expect("custom outline paints")
+                .border_color
+                .into();
+            let expected = rgb(expected_tint);
+            assert!(
+                (rendered.r - expected.r).abs() < 0.001
+                    && (rendered.g - expected.g).abs() < 0.001
+                    && (rendered.b - expected.b).abs() < 0.001,
+                "border tint {rendered:?} differs from {expected:?}"
+            );
+            assert_eq!(quads[0].corner_radii.top_left, px(12.).scale(factor));
+            assert_eq!(quads[0].corner_radii.top_right, px(18.).scale(factor));
+            assert!(
+                quads
+                    .iter()
+                    .all(|quad| !quad.content_mask.bounds.contains(&inside_label))
+            );
+            container.bounds()
+        })
+        .unwrap()
+    };
+    let container = render(cx, 0x103355);
+    let layout = *layouts.borrow().last().unwrap();
+    assert_eq!(layout.editor_bounds.left(), container.left() + px(20.));
+    assert_eq!(layout.editor_bounds.right(), container.right() - px(30.));
+    assert_eq!(layout.line_count, 1);
+    assert!(layout.text_bounds.is_some());
+    let stable_count = layouts.borrow().len();
+    render(cx, 0x103355);
+    assert_eq!(layouts.borrow().len(), stable_count);
+    cx.update_window(window.into(), |_, window, cx| {
+        view.read(cx)
+            .state
+            .clone()
+            .update(cx, |state, cx| state.focus(window, cx));
+    })
+    .unwrap();
+    render(cx, 0x105500);
+    view.update(cx, |view, cx| {
+        view.invalid = true;
+        cx.notify();
+    });
+    render(cx, 0x901800);
+    cx.update_window(window.into(), |_, _, cx| {
+        view.read(cx)
+            .state
+            .clone()
+            .update(cx, |state, cx| state.set_disabled(true, cx));
+    })
+    .unwrap();
+    render(cx, 0x666666);
+    cx.simulate_window_resize(window.into(), size(px(350.), px(300.)));
+    render(cx, 0x666666);
+    assert!(
+        layouts.borrow().last().unwrap().editor_bounds.size.width < layout.editor_bounds.size.width
+    );
 }
 
 #[cfg(all(test, feature = "test-support"))]

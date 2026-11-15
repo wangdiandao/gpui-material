@@ -1,9 +1,9 @@
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{
-    AccessibleAction, AnyElement, App, BorderStyle, Bounds, ContentMask, ElementId, Entity,
-    InteractiveElement, IntoElement, MouseButton, ParentElement, RenderOnce, Role, SharedString,
-    StatefulInteractiveElement, Styled, TextAlign, Window, canvas, div, point,
+    AccessibleAction, AnyElement, App, BorderStyle, Bounds, ContentMask, Corners, Edges, ElementId,
+    Entity, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement, Pixels, RenderOnce,
+    Role, SharedString, StatefulInteractiveElement, Styled, TextAlign, Window, canvas, div, point,
     prelude::FluentBuilder, px, quad,
 };
 use gpui_base::{
@@ -12,8 +12,8 @@ use gpui_base::{
 };
 use gpui_material_foundation::{animate, color, font_for_style, window_material_theme};
 use gpui_material_theme::{
-    ColorRole, CornerRole, Direction, LayoutPolicy, MotionKind, MotionSpeed, TypeRole,
-    TypographyEmphasis,
+    ColorRole, CornerRole, CornerShape, Direction, LayoutPolicy, MotionKind, MotionSpeed, TypeRole,
+    TypeStyle, TypographyEmphasis,
 };
 
 use super::{TextAreaState, TextFieldState};
@@ -45,6 +45,46 @@ pub enum TextFieldLabelAlignment {
     Center,
     End,
 }
+
+/// Optional colors for a single text field state. An unset role uses the window theme.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct TextFieldColorOverrides {
+    pub container: Option<Hsla>,
+    pub text: Option<Hsla>,
+    pub label: Option<Hsla>,
+    pub placeholder: Option<Hsla>,
+    pub leading: Option<Hsla>,
+    pub trailing: Option<Hsla>,
+    pub prefix: Option<Hsla>,
+    pub suffix: Option<Hsla>,
+    pub supporting: Option<Hsla>,
+    pub indicator: Option<Hsla>,
+    pub caret: Option<Hsla>,
+    pub selection: Option<Hsla>,
+}
+
+/// Per-instance colors. Disabled takes precedence over invalid, then focused.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct TextFieldColors {
+    pub unfocused: TextFieldColorOverrides,
+    pub focused: TextFieldColorOverrides,
+    pub disabled: TextFieldColorOverrides,
+    pub invalid: TextFieldColorOverrides,
+    pub hovered_indicator: Option<Hsla>,
+}
+
+/// Geometry reported after the retained Base editor lays out the field.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TextFieldLayout {
+    /// Bounds of the input content area in the window.
+    pub editor_bounds: Bounds<Pixels>,
+    /// Bounds reported by Base for the laid-out text viewport, when available.
+    pub text_bounds: Option<Bounds<Pixels>>,
+    /// Number of wrapped visual lines, independent of row limits and scrolling.
+    pub line_count: usize,
+}
+
+type OnTextLayout = Box<dyn FnOnce(TextFieldLayout, &mut Window, &mut App)>;
 
 struct FieldDescription {
     text: SharedString,
@@ -79,12 +119,34 @@ pub struct TextField {
     suffix: Option<AnyElement>,
     expanded: Option<bool>,
     font_scale: f32,
+    text_style: Option<TypeStyle>,
+    shape: Option<CornerShape>,
+    content_padding: Option<Edges<Pixels>>,
+    colors: TextFieldColors,
+    on_text_layout: Option<OnTextLayout>,
 }
 
+#[derive(Clone)]
 enum Editor {
     Single(Entity<TextFieldState>),
     Multiple(Entity<TextAreaState>),
     Secure(Entity<TextFieldState>),
+}
+
+impl Editor {
+    fn layout(&self, cx: &App) -> TextFieldLayout {
+        fn snapshot(state: &InputBaseState<impl InputModeKind>) -> TextFieldLayout {
+            TextFieldLayout {
+                editor_bounds: state.input_bounds(),
+                text_bounds: state.text_bounds(),
+                line_count: state.display_map().wrap_row_count(),
+            }
+        }
+        match self {
+            Self::Single(state) | Self::Secure(state) => snapshot(state.read(cx)),
+            Self::Multiple(state) => snapshot(state.read(cx)),
+        }
+    }
 }
 
 impl TextField {
@@ -144,6 +206,11 @@ impl TextField {
             suffix: None,
             expanded: None,
             font_scale: 1.,
+            text_style: None,
+            shape: None,
+            content_padding: None,
+            colors: TextFieldColors::default(),
+            on_text_layout: None,
         }
     }
 
@@ -155,6 +222,40 @@ impl TextField {
     /// Applies the caller's user text scale to the editor, label, and supporting text.
     pub fn font_scale(mut self, scale: f32) -> Self {
         self.font_scale = scale;
+        self
+    }
+
+    /// Overrides the Material type metrics for input, hint, and affixes before applying font scale.
+    pub fn text_style(mut self, style: TypeStyle) -> Self {
+        self.text_style = Some(style);
+        self
+    }
+
+    /// Overrides the container's logical corner shape. Full uses the laid-out bounds.
+    pub fn shape(mut self, shape: CornerShape) -> Self {
+        self.shape = Some(shape);
+        self
+    }
+
+    /// Sets physical editor insets. An Inside label reserves additional height above the editor.
+    pub fn content_padding(mut self, padding: Edges<Pixels>) -> Self {
+        self.content_padding = Some(padding);
+        self
+    }
+
+    /// Applies per-state color overrides while preserving theme defaults for unset colors.
+    pub fn colors(mut self, colors: TextFieldColors) -> Self {
+        self.colors = colors;
+        self
+    }
+
+    /// Called after paint when the editor's reported layout changes. Subscribe to the Base entity
+    /// for text changes that do not affect layout.
+    pub fn on_text_layout(
+        mut self,
+        listener: impl FnOnce(TextFieldLayout, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.on_text_layout = Some(Box::new(listener));
         self
     }
 
@@ -280,6 +381,14 @@ fn configure_editor<M: InputModeKind>(state: &mut InputBaseState<M>, style: Inpu
     state.set_editor_style(style);
 }
 
+fn editor_ink(mut color: Hsla) -> Hsla {
+    // Base resolves zero alpha to its application palette.
+    if color.a == 0. {
+        color.a = f32::EPSILON;
+    }
+    color
+}
+
 type SetValue = Box<dyn Fn(SharedString, &mut Window, &mut App)>;
 
 fn edit_handler<M: InputModeKind>(state: Entity<InputBaseState<M>>) -> SetValue {
@@ -317,43 +426,48 @@ impl RenderOnce for TextField {
         let label_above = label_position == TextFieldLabelPosition::Above;
         let has_cutout = label_position == TextFieldLabelPosition::Cutout && !filled;
         let error = self.invalid;
-        let indicator = match (disabled, error, focused) {
-            (true, _, _) => tone(OnSurface).opacity(0.12),
-            (_, true, _) => tone(Error),
-            (_, _, true) => tone(Primary),
-            _ if filled => tone(OnSurfaceVariant),
-            _ => tone(Outline),
-        };
-        let foreground = if disabled {
-            tone(OnSurface).opacity(0.38)
-        } else {
-            tone(OnSurface)
+        let colors = self.colors;
+        let state_colors = match (disabled, error, focused) {
+            (true, _, _) => colors.disabled,
+            (_, true, _) => colors.invalid,
+            (_, _, true) => colors.focused,
+            _ => colors.unfocused,
         };
         let secondary = if disabled {
-            foreground
+            tone(OnSurface).opacity(0.38)
         } else {
             tone(OnSurfaceVariant)
         };
-        let label_color = if !disabled && (focused || error) {
-            indicator
-        } else {
-            secondary
-        };
-        let background = if disabled {
-            tone(OnSurface).opacity(0.04)
-        } else {
-            tone(SurfaceContainerHighest)
-        };
-        let radius = px(CornerRole::ExtraSmall.shape().radii(56., 56., direction)[0]);
+        let foreground =
+            state_colors
+                .text
+                .unwrap_or(if disabled { secondary } else { tone(OnSurface) });
+        let placeholder_color = state_colors.placeholder.unwrap_or(secondary);
+        let background = state_colors
+            .container
+            .unwrap_or_else(|| match (filled, disabled) {
+                (false, _) => gpui::transparent_black(),
+                (true, true) => tone(OnSurface).opacity(0.04),
+                (true, false) => tone(SurfaceContainerHighest),
+            });
+        let shape = self.shape.unwrap_or(
+            if filled {
+                CornerRole::ExtraSmallTop
+            } else {
+                CornerRole::ExtraSmall
+            }
+            .shape(),
+        );
         let type_style = LayoutPolicy::scale_text(
-            TypeRole::BodyLarge.style(TypographyEmphasis::Baseline),
+            self.text_style
+                .unwrap_or(TypeRole::BodyLarge.style(TypographyEmphasis::Baseline)),
             self.font_scale,
         );
         let caption_style = LayoutPolicy::scale_text(
             TypeRole::BodySmall.style(TypographyEmphasis::Baseline),
             self.font_scale,
         );
-        let font = font_for_style(&theme.typography, type_style, cx).family;
+        let font = font_for_style(&theme.typography, type_style, cx);
         let has_text = match &self.editor {
             Editor::Single(state) | Editor::Secure(state) => !state.read(cx).value().is_empty(),
             Editor::Multiple(state) => !state.read(cx).value().is_empty(),
@@ -387,40 +501,59 @@ impl RenderOnce for TextField {
             cx,
         )
         .clamp(0., 1.);
+        let animated_color = |idle, active, invalid| {
+            let focused_tint = crate::motion::mix(idle, active, focus_amount);
+            crate::motion::mix(focused_tint, invalid, error_amount)
+        };
         let indicator = if disabled {
-            indicator
+            colors
+                .disabled
+                .indicator
+                .unwrap_or(tone(OnSurface).opacity(0.12))
         } else {
-            let idle = tone(if filled { OnSurfaceVariant } else { Outline });
-            let active = crate::motion::mix(idle, tone(Primary), focus_amount);
-            crate::motion::mix(active, tone(Error), error_amount)
+            animated_color(
+                colors.unfocused.indicator.unwrap_or(tone(if filled {
+                    OnSurfaceVariant
+                } else {
+                    Outline
+                })),
+                colors.focused.indicator.unwrap_or(tone(Primary)),
+                colors.invalid.indicator.unwrap_or(tone(Error)),
+            )
         };
         let label_color = if disabled {
-            label_color
+            colors.disabled.label.unwrap_or(secondary)
         } else {
-            let active = crate::motion::mix(secondary, tone(Primary), focus_amount);
-            crate::motion::mix(active, tone(Error), error_amount)
+            animated_color(
+                colors.unfocused.label.unwrap_or(secondary),
+                colors.focused.label.unwrap_or(tone(Primary)),
+                colors.invalid.label.unwrap_or(tone(Error)),
+            )
         };
         let style = InputEditorStyle {
-            foreground,
+            foreground: editor_ink(foreground),
             // Base resolves unset palette fields against its application theme.
             // Supply every palette field so editor decorations also stay local
             // when another window uses a different Material appearance.
             background: tone(SurfaceContainer),
             border: tone(OutlineVariant),
             muted_foreground: match (has_text, self.placeholder.is_some()) {
-                (true, _) => secondary,
-                // Base treats exactly transparent ink as an unset palette override.
-                (false, true) => secondary.opacity(f32::EPSILON),
-                (false, false) => secondary.opacity(floating.max(f32::EPSILON)),
+                (true, _) => editor_ink(placeholder_color),
+                (false, true) => editor_ink(gpui::transparent_black()),
+                (false, false) => editor_ink(placeholder_color.opacity(floating)),
             },
             caret: if self.expanded.is_some() && readonly {
                 // Base treats zero alpha as unset. A negligible nonzero alpha
                 // hides the caret while the combobox retains focus.
-                tone(Primary).opacity(f32::EPSILON)
+                editor_ink(gpui::transparent_black())
             } else {
-                tone(if error { Error } else { Primary })
+                editor_ink(
+                    state_colors
+                        .caret
+                        .unwrap_or(tone(if error { Error } else { Primary })),
+                )
             },
-            selection: tone(Primary).opacity(0.3),
+            selection: editor_ink(state_colors.selection.unwrap_or(tone(Primary).opacity(0.3))),
             ..Default::default()
         };
         let label = self.label;
@@ -430,6 +563,26 @@ impl RenderOnce for TextField {
         } else {
             TextAlign::Left
         };
+        let layout_probe = self.on_text_layout.map(|listener| {
+            let editor = self.editor.clone();
+            let previous = window
+                .use_keyed_state((self.id.clone(), "field-layout"), cx, |_, _| {
+                    Rc::new(Cell::new(None::<TextFieldLayout>))
+                })
+                .read(cx)
+                .clone();
+            canvas(
+                |_, _, _| (),
+                move |_, _, window, cx| {
+                    let layout = editor.layout(cx);
+                    if previous.replace(Some(layout)) != Some(layout) {
+                        window.defer(cx, move |window, cx| listener(layout, window, cx));
+                    }
+                },
+            )
+            .absolute()
+            .inset_0()
+        });
         let (editor, role, value, set_value): (_, _, _, Option<SetValue>) = match self.editor {
             Editor::Single(state) => {
                 let role = if presentation.is_masked() {
@@ -493,16 +646,40 @@ impl RenderOnce for TextField {
         let label_size = type_style.size + (caption_style.size - type_style.size) * floating;
         let label_height = type_style.line_height
             + (caption_style.line_height - type_style.line_height) * floating;
-        let resting_top = (56. - type_style.line_height) * 0.5;
+        let outline_width = px(1. + focus_amount);
+        let padding = self.content_padding.unwrap_or(Edges {
+            left: px(16.),
+            right: px(16.),
+            top: px(if label_inside { 8. } else { 4. }),
+            bottom: if label_inside && filled {
+                px(8.) - outline_width
+            } else {
+                px(4.)
+            },
+        });
+        let label_reserve = if label_inside {
+            px(caption_style.line_height)
+        } else {
+            px(0.)
+        };
+        let editor_top_padding = padding.top + label_reserve;
+        let minimum_height = px(56.)
+            .max(px(type_style.line_height + 16.) + label_reserve)
+            .max(
+                px(type_style.line_height)
+                    + editor_top_padding
+                    + padding.bottom
+                    + if filled { outline_width } else { px(0.) },
+            );
+        let resting_top = f32::from(minimum_height - px(type_style.line_height)) * 0.5;
         let floating_top = if label_inside {
-            8.
+            f32::from(padding.top)
         } else {
             -caption_style.line_height * 0.5
         };
         let cutout = Rc::new(Cell::new(None::<Bounds<gpui::Pixels>>));
         let measure_cutout = cutout.clone();
         let label_top = resting_top + (floating_top - resting_top) * floating;
-        let outline_width = px(1. + focus_amount);
         let hover = window
             .use_keyed_state((self.id.clone(), "field-hover"), cx, |_, _| {
                 Rc::new(Cell::new(false))
@@ -510,66 +687,100 @@ impl RenderOnce for TextField {
             .read(cx)
             .clone();
         let outline_tint = if hover.get() && !disabled && !error {
-            crate::motion::mix(foreground, tone(Primary), focus_amount)
+            crate::motion::mix(
+                colors.hovered_indicator.unwrap_or(foreground),
+                colors.focused.indicator.unwrap_or(tone(Primary)),
+                focus_amount,
+            )
         } else {
             indicator
         };
-        let outline_canvas = (!filled).then(|| {
-            canvas(
-                |_, _, _| (),
-                move |bounds, _, window, _| {
-                    let border = quad(
+        let outline_canvas = canvas(
+            |_, _, _| (),
+            move |bounds, _, window, _| {
+                let [top_left, top_right, bottom_right, bottom_left] = shape
+                    .radii(
+                        bounds.size.width.into(),
+                        bounds.size.height.into(),
+                        direction,
+                    )
+                    .map(px);
+                let corners = Corners {
+                    top_left,
+                    top_right,
+                    bottom_right,
+                    bottom_left,
+                };
+                if background.a > 0. {
+                    window.paint_quad(quad(
                         bounds,
-                        radius,
+                        corners,
+                        background,
+                        px(0.),
                         gpui::transparent_black(),
-                        outline_width,
-                        outline_tint,
                         BorderStyle::Solid,
+                    ));
+                }
+                let border = quad(
+                    bounds,
+                    corners,
+                    gpui::transparent_black(),
+                    if filled {
+                        Edges {
+                            bottom: outline_width,
+                            ..Default::default()
+                        }
+                    } else {
+                        Edges::all(outline_width)
+                    },
+                    outline_tint,
+                    BorderStyle::Solid,
+                );
+                // The outer edge and stroke width each snap independently.
+                // Account for their combined rounding when opening the notch.
+                let device_pixel = px(1. / window.scale_factor());
+                let Some(label_bounds) = cutout.get().filter(|label| {
+                    label.top() < bounds.top() + outline_width + device_pixel
+                        && label.bottom() > bounds.top() - device_pixel
+                }) else {
+                    window.paint_quad(border);
+                    return;
+                };
+                // The missing stroke must clear the complete label in each
+                // frame that overlaps it, including when focus is leaving.
+                let left = label_bounds.left().max(bounds.left());
+                let right = label_bounds.right().min(bounds.right());
+                for (min, max) in [
+                    (bounds.origin, point(left, bounds.bottom())),
+                    (point(right, bounds.top()), bounds.bottom_right()),
+                    // Only the bottom edge must be restored between the two
+                    // side masks. Start in the interior, so outward clip
+                    // rounding cannot expose a snapped top-stroke pixel.
+                    (
+                        point(left, bounds.center().y),
+                        point(right, bounds.bottom()),
+                    ),
+                ] {
+                    window.with_content_mask(
+                        Some(ContentMask {
+                            bounds: Bounds::from_corners(min, max),
+                        }),
+                        |window| window.paint_quad(border.clone()),
                     );
-                    // The outer edge and stroke width each snap independently.
-                    // Account for their combined rounding when opening the notch.
-                    let device_pixel = px(1. / window.scale_factor());
-                    let Some(label_bounds) = cutout.get().filter(|label| {
-                        label.top() < bounds.top() + outline_width + device_pixel
-                            && label.bottom() > bounds.top() - device_pixel
-                    }) else {
-                        window.paint_quad(border);
-                        return;
-                    };
-                    // The missing stroke must clear the complete label in each
-                    // frame that overlaps it, including when focus is leaving.
-                    let left = label_bounds.left().max(bounds.left());
-                    let right = label_bounds.right().min(bounds.right());
-                    for (min, max) in [
-                        (bounds.origin, point(left, bounds.bottom())),
-                        (point(right, bounds.top()), bounds.bottom_right()),
-                        // Only the bottom edge must be restored between the two
-                        // side masks. Start in the interior, so outward clip
-                        // rounding cannot expose a snapped top-stroke pixel.
-                        (
-                            point(left, bounds.center().y),
-                            point(right, bounds.bottom()),
-                        ),
-                    ] {
-                        window.with_content_mask(
-                            Some(ContentMask {
-                                bounds: Bounds::from_corners(min, max),
-                            }),
-                            |window| window.paint_quad(border.clone()),
-                        );
-                    }
-                },
-            )
-            .absolute()
-            .inset_0()
-        });
+                }
+            },
+        )
+        .absolute()
+        .inset_0();
         let rtl = direction == Direction::Rtl;
         let label_alignment = if floating >= 0.5 {
             self.minimized_alignment
         } else {
             self.expanded_alignment
         };
-        let label_inset = if has_cutout { 12. } else { 16. };
+        let label_padding = if has_cutout { px(4.) } else { px(0.) };
+        let label_left = (padding.left - label_padding).max(px(0.));
+        let label_right = (padding.right - label_padding).max(px(0.));
         let leading_inset = if self.leading.is_some() {
             56. * (1. - floating)
         } else {
@@ -583,13 +794,13 @@ impl RenderOnce for TextField {
             .test_support()
             .when_else(
                 label_above,
-                |label| label.px(px(label_inset)),
+                |label| label.pl(label_left).pr(label_right),
                 |label| {
                     label
                         .absolute()
                         .top(px(label_top))
-                        .left(px(label_inset + if rtl { 0. } else { leading_inset }))
-                        .right(px(label_inset + if rtl { leading_inset } else { 0. }))
+                        .left(label_left + px(if rtl { 0. } else { leading_inset }))
+                        .right(label_right + px(if rtl { leading_inset } else { 0. }))
                 },
             )
             .text_size(px(label_size))
@@ -653,7 +864,7 @@ impl RenderOnce for TextField {
             .flex()
             .flex_col()
             .gap(px(4.))
-            .font_family(font)
+            .font_family(font.family.clone())
             .role(match (self.expanded, readonly) {
                 (Some(_), true) => Role::ComboBox,
                 (Some(_), false) => Role::EditableComboBox,
@@ -694,6 +905,7 @@ impl RenderOnce for TextField {
             .child(
                 div()
                     .id("container")
+                    .test_support()
                     .relative()
                     .flex()
                     .flex_col()
@@ -702,43 +914,25 @@ impl RenderOnce for TextField {
                         Styled::justify_end,
                         Styled::justify_center,
                     )
-                    .min_h(px(56.).max(px(type_style.line_height
-                        + if label_inside {
-                            caption_style.line_height + 16.
-                        } else {
-                            16.
-                        })))
-                    .rounded(radius)
-                    .border_color(indicator)
-                    .px(px(16.))
-                    .py(px(4.))
+                    .min_h(minimum_height)
+                    .pt(editor_top_padding)
+                    .pr(padding.right)
+                    .pb(padding.bottom)
+                    .pl(padding.left)
                     .when(filled, |mut field| {
-                        // Compose reserves 8 dp above the minimized label and below
-                        // the editor; larger text grows the container instead of overlapping.
-                        field = field.when(label_inside, |field| {
-                            field
-                                .pt(px(caption_style.line_height + 8.))
-                                .pb(px(8.) - outline_width)
-                        });
+                        // Reserve the bottom stroke in layout. The canvas paints it with
+                        // the actual corner geometry.
                         field.style().border_widths.bottom = Some(outline_width.into());
-                        field
-                            .bg(background)
-                            .rounded_b_none()
-                            .when(!disabled && !focused && !error, |field| {
-                                field.hover(|style| style.border_color(foreground))
-                            })
+                        field.border_color(gpui::transparent_black())
                     })
-                    .when(label_inside && !filled, |field| {
-                        field.pt(px(caption_style.line_height + 8.))
-                    })
-                    .when(!filled && !disabled, |field| {
+                    .when(!disabled, |field| {
                         field.on_hover(move |hovering, window, _| {
                             if hover.replace(*hovering) != *hovering {
                                 window.refresh();
                             }
                         })
                     })
-                    .children(outline_canvas)
+                    .child(outline_canvas)
                     .when(direction == Direction::Rtl, |field| {
                         field.text_align(TextAlign::Right)
                     })
@@ -748,6 +942,7 @@ impl RenderOnce for TextField {
                             .items_center()
                             .gap(px(8.))
                             .min_w_0()
+                            .font(font)
                             .text_size(px(type_style.size))
                             .line_height(px(type_style.line_height))
                             .when(rtl, Styled::flex_row_reverse)
@@ -758,44 +953,66 @@ impl RenderOnce for TextField {
                                     .flex()
                                     .items_center()
                                     .justify_center()
+                                    .when_some(state_colors.leading, Styled::text_color)
                                     .child(leading)
                             }))
-                            .children(self.prefix.filter(|_| show_affixes))
-                            .child(div().flex_1().min_w_0().relative().child(editor).children(
-                                self.placeholder.filter(|_| show_affixes && !has_text).map(
-                                    |(_, content)| {
-                                        div()
-                                            .id("placeholder")
-                                            .test_support()
-                                            .absolute()
-                                            .top_0()
-                                            .left_0()
-                                            .right_0()
-                                            .text_color(secondary)
-                                            .role(Role::Label)
-                                            .a11y_synthetic_children(|tree| {
-                                                tree.parent_node().set_hidden()
-                                            })
-                                            .child(content)
-                                    },
-                                ),
-                            ))
-                            .children(self.suffix.filter(|_| show_affixes))
-                            .children(self.trailing),
+                            .children(self.prefix.filter(|_| show_affixes).map(|prefix| {
+                                div()
+                                    .when_some(state_colors.prefix, Styled::text_color)
+                                    .child(prefix)
+                            }))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .relative()
+                                    .child(editor)
+                                    .children(
+                                        self.placeholder.filter(|_| show_affixes && !has_text).map(
+                                            |(_, content)| {
+                                                div()
+                                                    .id("placeholder")
+                                                    .test_support()
+                                                    .absolute()
+                                                    .top_0()
+                                                    .left_0()
+                                                    .right_0()
+                                                    .text_color(placeholder_color)
+                                                    .role(Role::Label)
+                                                    .a11y_synthetic_children(|tree| {
+                                                        tree.parent_node().set_hidden()
+                                                    })
+                                                    .child(content)
+                                            },
+                                        ),
+                                    )
+                                    .children(layout_probe),
+                            )
+                            .children(self.suffix.filter(|_| show_affixes).map(|suffix| {
+                                div()
+                                    .when_some(state_colors.suffix, Styled::text_color)
+                                    .child(suffix)
+                            }))
+                            .children(self.trailing.map(|trailing| {
+                                div()
+                                    .when_some(state_colors.trailing, Styled::text_color)
+                                    .child(trailing)
+                            })),
                     )
                     .children(attached_label),
             )
             .when(support.is_some() || count.is_some(), |field| {
                 field.child(
                     div()
-                        .px(px(16.))
+                        .pl(padding.left)
+                        .pr(padding.right)
                         .text_size(px(caption_style.size))
                         .line_height(px(caption_style.line_height))
-                        .text_color(if error && !disabled {
+                        .text_color(state_colors.supporting.unwrap_or(if error && !disabled {
                             indicator
                         } else {
                             secondary
-                        })
+                        }))
                         .flex()
                         .gap(px(8.))
                         .justify_between()

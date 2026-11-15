@@ -63,7 +63,7 @@ Use package-level commands in CI and development to isolate theme, components, a
 
 ## Desktop adapter boundaries
 
-Use the pinned Base and GPUI versions when verifying these boundaries. The [native host probe](development.md#standalone-probes) isolates upstream behavior. The [foundation shape tests](../crates/foundation/src/shape.rs) exercise Material geometry in the workspace test suite.
+Use the pinned Base and GPUI versions when verifying these boundaries. The [foundation shape tests](../crates/foundation/src/shape.rs) exercise Material geometry in the workspace test suite.
 
 | Mechanism | Adapter and boundary |
 | --- | --- |

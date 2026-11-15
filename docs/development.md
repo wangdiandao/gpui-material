@@ -15,7 +15,7 @@ English | [中文](development.zh.md)
 ## Workspace and component development
 
 - Organize production libraries under `crates/` and group components by family. Gallery lives in `apps/gallery/` and its stories exercise the production public API. [Architecture and dependencies](architecture.md) · [Components](component.md)
-- Verify public behavior in the owning crate and exercise the affected variants and interactions in Gallery. Use a minimal entry point for independently reproducible scenarios. Keep isolated probes in `experiments/` and engineering checks and offline generation in `xtask/`.
+- Verify public behavior in the owning crate and exercise the affected variants and interactions in Gallery. Use a minimal entry point for independently reproducible scenarios. Keep engineering checks and offline generation in `xtask/`.
 
 <a id="编码规范"></a>
 
@@ -64,20 +64,6 @@ cargo gallery text-field
 ```
 
 The default workspace members are the theme crate and `xtask`. Use `-p gpui-material-gallery` to select Gallery explicitly. From a worktree, point `CARGO_TARGET_DIR` to the main checkout's `target` to reuse developer builds.
-
-<a id="独立探针"></a>
-
-## Standalone probes
-
-Use the [GPUI host probe](../experiments/gpui-host/) to isolate a suspected GPUI or Base regression, such as native capture loss, text input, or accessibility semantics. Its binaries share a manifest and lockfile. `cargo run` opens the window probe. `cargo test` runs the automated probe tests.
-
-```powershell
-$env:CARGO_TARGET_DIR = Join-Path (Get-Location) 'target'
-cargo run --locked --manifest-path experiments/gpui-host/Cargo.toml --bin window
-cargo test --locked --manifest-path experiments/gpui-host/Cargo.toml --features test-support
-```
-
-Run these commands from the main checkout. In a worktree, set `CARGO_TARGET_DIR` to that main checkout's absolute `target` path. Use the owning crate and Gallery for Material behavior.
 
 <a id="本地检查"></a>
 

@@ -6,8 +6,8 @@
   en: "ec9cb06f32fe4f93"
   zh: "27d025e8137e3843"
 /development-and-verification/workspace-and-component-development:
-  en: "99cfcb9f9a391954"
-  zh: "7ce53f673760245b"
+  en: "3ef5a3295efcc86b"
+  zh: "263333b842e194a5"
 /development-and-verification/coding-conventions:
   en: "c933d1f3056e1230"
   zh: "61726341de9a6b70"
@@ -18,11 +18,8 @@
   en: "bc9d06b568603e1e"
   zh: "09acaf110232cf52"
 /development-and-verification/development-environment:
-  en: "faafaf50c37ba18a"
-  zh: "1df16f5df03153a6"
-/development-and-verification/standalone-probes:
-  en: "6576118601a39706"
-  zh: "4add88aa8f5900a8"
+  en: "0dc650c88fec924c"
+  zh: "8ca7df4160326e22"
 /development-and-verification/local-checks:
   en: "e5ab2757c1d2c44f"
   zh: "4562b577512df125"

@@ -3,10 +3,10 @@ name: Documentation website
 on:
   pull_request:
     branches: [main]
-    paths: ["website/**", "docs/**", "Cargo.toml", "apps/gallery/src/story.rs", ".github/workflows/website.yml"]
+    paths: ["website/**", "docs/**", "Cargo.toml", "Cargo.lock", "apps/gallery/**", "apps/gallery-web/**", "crates/**", ".github/workflows/website.yml"]
   push:
     branches: [main]
-    paths: ["website/**", "docs/**", "Cargo.toml", "apps/gallery/src/story.rs", ".github/workflows/website.yml"]
+    paths: ["website/**", "docs/**", "Cargo.toml", "Cargo.lock", "apps/gallery/**", "apps/gallery-web/**", "crates/**", ".github/workflows/website.yml"]
   workflow_dispatch:
 
 permissions:
@@ -20,7 +20,9 @@ jobs:
   build:
     name: Build documentation
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 30
+    env:
+      RUSTUP_TOOLCHAIN: nightly-2026-10-31
     permissions:
       contents: read
       pages: read
@@ -42,6 +44,29 @@ jobs:
 
       - name: Install website dependencies
         run: npm ci
+        working-directory: website
+
+      - name: Set up the WebAssembly target
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --target wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: website-wasm
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Install wasm-bindgen
+        run: |
+          version=0.2.130
+          archive="wasm-bindgen-${version}-x86_64-unknown-linux-musl.tar.gz"
+          cd "$RUNNER_TEMP"
+          url="https://github.com/wasm-bindgen/wasm-bindgen/releases/download/${version}/${archive}"
+          curl --fail --silent --show-error --location --remote-name "$url" --remote-name "$url.sha256sum"
+          sha256sum --check "$archive.sha256sum"
+          tar -xf "$archive"
+          echo "$RUNNER_TEMP/${archive%.tar.gz}" >> "$GITHUB_PATH"
+
+      - name: Build the Rust Gallery
+        run: npm run build:wasm -- --release
         working-directory: website
 
       - name: Build and check links

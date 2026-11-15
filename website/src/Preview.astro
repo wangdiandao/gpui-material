@@ -1,84 +1,14 @@
 ---
-const { lang, kind } = Astro.props;
-const zh = lang === 'zh';
-const label = {
-  save: zh ? '保存设置' : 'Save preferences',
-  saved: zh ? '设置已保存' : 'Preferences saved',
-  email: zh ? '电子邮件' : 'Email address',
-  updates: zh ? '邮件通知' : 'Email notifications',
-  show: zh ? '打开对话框' : 'Open dialog',
-  prompt: zh ? '保存更改？' : 'Save changes?',
-  description: zh ? '保存后可在设置中修改。' : 'You can edit these preferences later.',
-  close: zh ? '取消' : 'Cancel',
-  progress: zh ? '上传进度' : 'Upload progress',
-};
+import { copy, pagePath } from './site.mjs';
+
+const { lang, story, title } = Astro.props;
+const t = copy[lang];
+const query = new URLSearchParams({ story, lang });
+const href = `${pagePath('demo', 'en')}?${query}`;
 ---
-<div class="demo-controls" data-pagefind-ignore>
-  {(kind === 'home' || kind === 'button') && (
-    <form class="demo-form" data-success={label.saved}>
-      {kind === 'home' && <>
-        <mdui-text-field label={label.email} value="name@example.com" type="email" variant="outlined" required></mdui-text-field>
-        <label class="demo-option"><mdui-switch checked aria-label={label.updates}></mdui-switch>{label.updates}</label>
-      </>}
-      <div class="demo-action">
-        <mdui-button type="submit">{label.save}</mdui-button>
-        <output aria-live="polite"></output>
-      </div>
-    </form>
-  )}
-  {kind === 'text-field' && <mdui-text-field label={label.email} type="email" placeholder="name@example.com" variant="outlined" clearable></mdui-text-field>}
-  {kind === 'checkbox' && <mdui-checkbox checked>{label.updates}</mdui-checkbox>}
-  {kind === 'switch' && <label class="demo-option"><mdui-switch checked aria-label={label.updates}></mdui-switch>{label.updates}</label>}
-  {kind === 'slider' && <mdui-slider min="0" max="10" step="1" value="3" tickmarks aria-label={zh ? '级别' : 'Level'}></mdui-slider>}
-  {kind === 'radio' && (
-    <mdui-radio-group value="system" aria-label={zh ? '颜色偏好' : 'Color preference'}>
-      <mdui-radio value="system">{zh ? '跟随系统' : 'System'}</mdui-radio>
-      <mdui-radio value="light">{zh ? '浅色' : 'Light'}</mdui-radio>
-      <mdui-radio value="dark">{zh ? '深色' : 'Dark'}</mdui-radio>
-    </mdui-radio-group>
-  )}
-  {kind === 'progress' && (
-    <div class="demo-progress">
-      <mdui-linear-progress value="0.65" aria-label={label.progress}></mdui-linear-progress>
-      <mdui-circular-progress aria-label={zh ? '正在刷新' : 'Refreshing'}></mdui-circular-progress>
-    </div>
-  )}
-  {kind === 'dialog' && (
-    <div class="demo-dialog">
-      <mdui-button data-demo-open>{label.show}</mdui-button>
-      <mdui-dialog headline={label.prompt} description={label.description} role="dialog" aria-modal="true" aria-label={label.prompt}
-        close-on-esc close-on-overlay-click>
-        <mdui-button slot="action" variant="text" data-demo-close>{label.close}</mdui-button>
-        <mdui-button slot="action" variant="tonal" data-demo-close>{label.save}</mdui-button>
-      </mdui-dialog>
-    </div>
-  )}
+<div class="gallery-preview" data-pagefind-ignore>
+  <iframe title={title + ' · Rust / WebAssembly'} src={href} loading="lazy"></iframe>
+  <div class="gallery-preview-actions">
+    <mdui-button variant="text" href={href} target="_blank" rel="noopener">{t.openPreview} <span slot="end-icon" aria-hidden="true">↗</span></mdui-button>
+  </div>
 </div>
-<script>
-  import 'mdui/components/checkbox.js';
-  import 'mdui/components/circular-progress.js';
-  import 'mdui/components/linear-progress.js';
-  import 'mdui/components/radio.js';
-  import 'mdui/components/radio-group.js';
-  import 'mdui/components/slider.js';
-  import 'mdui/components/switch.js';
-  import 'mdui/components/text-field.js';
-
-  for (const form of document.querySelectorAll<HTMLFormElement>('.demo-form')) {
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      form.querySelector('output')!.value = form.dataset.success!;
-    });
-    form.addEventListener('input', () => { form.querySelector('output')!.value = ''; });
-  }
-
-  for (const wrapper of document.querySelectorAll('.demo-dialog')) {
-    const dialog = wrapper.querySelector('mdui-dialog')!;
-    const trigger = wrapper.querySelector('mdui-button[data-demo-open]')!;
-    trigger.addEventListener('click', () => { dialog.open = true; });
-    for (const button of wrapper.querySelectorAll('[data-demo-close]')) {
-      button.addEventListener('click', () => { dialog.open = false; });
-    }
-    dialog.addEventListener('closed', () => trigger.focus());
-  }
-</script>

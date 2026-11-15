@@ -117,9 +117,19 @@ The development server uses `/`. The production build defaults to `/gpui-materia
 
 Edit shared guides under `docs/` and component examples under `website/component/`. Add English and Chinese text together. Each component page shares one Rust example across both languages.
 
-The website component catalog groups guides by basic, form, layout, and advanced controls. The sidebar lists components alphabetically by their Rust names. Write imports separately from usage snippets, and group browser previews and Gallery commands under Examples.
+The website component catalog and sidebar use the same basic, form, layout, and advanced groups. The sidebar lists Rust names alphabetically within each group. Write imports separately from usage snippets, and group browser previews and Gallery commands under Examples.
 
-Use MDUI for site controls and browser previews. Label previews as MDUI web examples and use the native Gallery to verify GPUI rendering and behavior.
+Use MDUI for website navigation and controls. The browser previews compile the Rust Gallery to WebAssembly, and each component page opens its Gallery story in a single GPUI canvas. The browser needs WebGPU or WebGL2. For desktop-specific behavior, run the native Gallery.
+
+To enable the previews locally, install the web toolchain and matching bindings generator, then build the WASM assets before starting Astro.
+
+```sh
+rustup toolchain install nightly-2026-10-31 --profile minimal --target wasm32-unknown-unknown
+cargo install wasm-bindgen-cli --version 0.2.130 --locked
+npm --prefix website run build:wasm
+```
+
+The local build uses Cargo's dev profile. The Pages workflow builds and publishes optimized WASM with the site.
 
 Set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. The website workflow builds on PRs and deploys updates to `main`. To redeploy, run **Documentation website** on `main` from the Actions tab.
 

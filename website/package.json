@@ -6,6 +6,7 @@
     "node": "24.x"
   },
   "scripts": {
+    "build:wasm": "node scripts/build-gallery.mjs",
     "dev": "astro dev --base /",
     "build": "astro build && pagefind --site dist && node scripts/check-links.mjs",
     "preview": "astro preview"

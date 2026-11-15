@@ -17,10 +17,12 @@ Arrows point from caller to dependency. The table describes each layer's depende
 | `gpui-material-components` | → foundation and theme as needed. Owns controls, display, inputs, overlays, and navigation. |
 | `gpui-material-extras` | → components, foundation, and relevant theme APIs. Enable by family and declare additional dependencies separately. |
 | `gpui-material` | → shipped public implementation crates. Forwards features as needed. Extras are optional. |
-| `gpui-material-gallery` | → the shipped facade and host platform entry point. Builds by component family and stays outside the default build set. |
+| `gpui-material-gallery` | → the shipped facade. The package provides the `gpui_material_story` library and a desktop executable outside the default workspace build. |
 | `xtask` | Documentation and dependency checks, build timings, and offline token generation. Independent of GPUI. |
 
 Inputs, overlays, and navigation may use controls/display. The TextField editing model exposes editing commands to the composition layer, which integrates ExposedDropdown and the editing menu. Navigation provides slots for search and toolbars. Implementation crates share lower-level interfaces. The facade provides the user entry point. Production depends on gpui-base and uses `gpui-component` as an upstream integration reference.
+
+A host can depend on `apps/gallery` with `default-features = false` to use `gpui_material_story` without the desktop launcher. Call `init_gallery` before opening the first window. Mount `Gallery::new` for the full catalog or `Story::new_view` for a single component example under a `gpui_base::Root`. The Story identifier can be used in a URL and resolved with `Story::find`.
 
 <a id="状态与主题"></a>
 

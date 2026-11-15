@@ -17,10 +17,12 @@ gpui-material 提供 Material 的 Token、主题、视觉状态、布局和组�
 | `gpui-material-components` | → foundation，必要时 → theme。负责控件、内容展示、输入、浮层和导航。 |
 | `gpui-material-extras` | → components、foundation 和所需的 theme API。按组件族启用，独立声明额外依赖。 |
 | `gpui-material` | → 已交付的公开实现 crate，按需转发 feature。extras 为可选依赖。 |
-| `gpui-material-gallery` | → 已交付的门面和宿主平台入口。按组件族构建，排除在日常默认构建集合之外。 |
+| `gpui-material-gallery` | → 已交付的门面。同一个包提供 `gpui_material_story` 库和桌面可执行程序，排除在 Workspace 默认构建之外。 |
 | `xtask` | 文档与依赖检查、构建计时和 Token 离线生成。保持 GPUI 无关。 |
 
 controls/display 可被 inputs、overlays、navigation 使用。TextField 的编辑模型向组合层提供编辑命令，ExposedDropdown 和编辑菜单由组合层衔接。navigation 使用 slot 接入搜索和工具条。实现 crate 通过底层接口共享代码，门面仅负责用户入口。生产依赖链使用 gpui-base，`gpui-component` 作为上游集成参考。
+
+宿主可以用 `default-features = false` 依赖 `apps/gallery`，直接使用 `gpui_material_story`。打开第一个窗口前调用 `init_gallery`。在 `gpui_base::Root` 下用 `Gallery::new` 放置完整目录，或用 `Story::new_view` 放置单个组件示例。URL 可以使用 Story 标识符，并通过 `Story::find` 查找对应示例。
 
 <a id="state-and-theme"></a>
 

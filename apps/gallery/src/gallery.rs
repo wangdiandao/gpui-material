@@ -26,10 +26,11 @@ const COMPACT_MARGIN: Pixels = px(16.);
 const PANE_SPACING: Pixels = px(24.);
 const STORY_MAX_WIDTH: Pixels = px(1120.);
 const README_MAX_WIDTH: Pixels = px(840.);
-pub(crate) const REPOSITORY_URL: &str = "https://github.com/wangdiandao/gpui-material";
+const REPOSITORY_URL: &str = "https://github.com/wangdiandao/gpui-material";
 const README: &str = include_str!("../../../README.md");
 
-pub(crate) struct Gallery {
+/// The full Gallery view with a searchable catalog and retained example state.
+pub struct Gallery {
     local_theme: bool,
     catalog_collapsed: bool,
     single_pane_catalog_open: bool,
@@ -45,12 +46,9 @@ pub(crate) struct Gallery {
 }
 
 impl Gallery {
-    pub(crate) fn new(
-        local_theme: bool,
-        initial_story: Story,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> Self {
+    /// Creates a Gallery in an existing GPUI window, starting at `initial_story`.
+    /// The theme toggle updates the application's Material theme by default.
+    pub fn new(initial_story: Story, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let search = cx.new(|cx| TextFieldState::new(window, cx));
         let catalog_scroll = ScrollHandle::new();
         let observe_search =
@@ -89,7 +87,7 @@ impl Gallery {
             cx.notify();
         });
         Self {
-            local_theme,
+            local_theme: false,
             catalog_collapsed: false,
             single_pane_catalog_open: false,
             current: initial_story,
@@ -102,6 +100,12 @@ impl Gallery {
             _search: observe_search,
             _bounds: bounds,
         }
+    }
+
+    /// Scopes changes from the theme toggle to the current window when enabled.
+    pub fn with_window_theme_toggle(mut self, enabled: bool) -> Self {
+        self.local_theme = enabled;
+        self
     }
 
     fn width_class(window: &Window) -> WidthClass {

@@ -12,6 +12,7 @@ Changes since [`v0.0.4`](https://github.com/wangdiandao/gpui-material/releases/t
 
 ### Gallery and components
 
+- Reuse the Material Gallery catalog or a single interactive story in another GPUI host, including WebAssembly builds. [#237](https://github.com/wangdiandao/gpui-material/issues/237)
 - Browse component previews with a searchable catalog and a dedicated compact-window layout. The Gallery app bar provides theme controls and opens the project repository. [#227](https://github.com/wangdiandao/gpui-material/pull/227)
 - Keep the docked search button fully visible in a vertical toolbar and align carousel scrolling with the painted positions at the trailing edge. [#221](https://github.com/wangdiandao/gpui-material/pull/221), [#227](https://github.com/wangdiandao/gpui-material/pull/227)
 - Keep exposed dropdown interactions inside their visible hit areas. Opening from the trailing control, selecting an option, and dismissing outside the menu follow their respective pointer paths. [#233](https://github.com/wangdiandao/gpui-material/pull/233)

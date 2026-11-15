@@ -1,7 +1,4 @@
-use std::{
-    f32::consts::TAU,
-    time::{Duration, Instant},
-};
+use std::{f32::consts::TAU, time::Duration};
 
 use gpui::{
     App, Bounds, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement, PathBuilder,
@@ -12,6 +9,7 @@ use gpui_base::motion::Easing;
 use gpui_material_foundation::{animate, color, window_material_theme};
 use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpeed, TokenValue, token};
 use polymorpher::{Morph, shapes};
+use web_time::Instant;
 
 /// Straight or Expressive wavy progress track.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]

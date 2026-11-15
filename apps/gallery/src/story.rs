@@ -24,8 +24,10 @@ use crate::{
     toolbar_examples::ToolbarExamples,
 };
 
+/// An entry in the Material Gallery catalog.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
-pub(crate) enum Story {
+#[non_exhaustive]
+pub enum Story {
     #[default]
     Introduction,
     AdaptiveLayout,
@@ -70,8 +72,8 @@ pub(crate) enum Story {
 }
 
 impl Story {
-    // Introduction is the landing page. The component index follows display-name order.
-    pub(crate) const ALL: &[Self] = &[
+    /// The Gallery landing page followed by examples in display-name order.
+    pub const ALL: &[Self] = &[
         Self::Introduction,
         Self::AdaptiveLayout,
         Self::AppBar,
@@ -114,7 +116,8 @@ impl Story {
         Self::Tooltip,
     ];
 
-    pub(crate) fn id(self) -> &'static str {
+    /// Returns the stable identifier used for routes and command-line arguments.
+    pub fn id(self) -> &'static str {
         match self {
             Self::ButtonGroup => "button-group",
             Self::Introduction => "introduction",
@@ -159,7 +162,8 @@ impl Story {
         }
     }
 
-    pub(crate) fn name(self) -> &'static str {
+    /// Returns the display name of this catalog entry.
+    pub fn name(self) -> &'static str {
         match self {
             Self::ButtonGroup => "Button group",
             Self::Introduction => "Introduction",
@@ -204,7 +208,8 @@ impl Story {
         }
     }
 
-    pub(crate) fn description(self) -> &'static str {
+    /// Returns the description shown in the Gallery.
+    pub fn description(self) -> &'static str {
         match self {
             Self::ButtonGroup => {
                 "Arrange actions or controlled choices in standard and connected rows."
@@ -267,7 +272,8 @@ impl Story {
         }
     }
 
-    pub(crate) fn find(name: &str) -> Option<Self> {
+    /// Finds an entry by identifier or display name, ignoring ASCII case.
+    pub fn find(name: &str) -> Option<Self> {
         let name = name.trim();
         Self::ALL.iter().copied().find(|story| {
             story.id().eq_ignore_ascii_case(name) || story.name().eq_ignore_ascii_case(name)
@@ -281,7 +287,9 @@ impl Story {
             .all(|word| name.contains(word) || self.id().contains(word))
     }
 
-    pub(crate) fn new_view(self, window: &mut Window, cx: &mut App) -> Option<AnyView> {
+    /// Creates one example with fresh state for the given window.
+    /// The Gallery renders [`Self::Introduction`] itself, so it returns `None`.
+    pub fn new_view(self, window: &mut Window, cx: &mut App) -> Option<AnyView> {
         let view = match self {
             Self::Introduction => return None,
             Self::AdaptiveLayout => cx.new(AdaptiveExamples::new).into(),

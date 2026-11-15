@@ -1,5 +1,12 @@
-use gpui::{AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, px};
-use gpui_material::{TextAreaState, TextField, TextFieldState, TextFieldVariant};
+use gpui::{
+    AppContext, Context, Entity, InteractiveElement, IntoElement, ParentElement, Render, Styled,
+    Window, div, px,
+};
+use gpui_base::TestSupportExt;
+use gpui_material::{
+    Icon, IconName, TextAreaState, TextField, TextFieldLabelAlignment, TextFieldLabelPosition,
+    TextFieldState, TextFieldVariant,
+};
 
 use crate::story::{section, stack};
 
@@ -168,6 +175,7 @@ pub(crate) struct TextFieldExamples {
     account: Entity<TextFieldState>,
     disabled: Entity<TextFieldState>,
     scaled: Entity<TextFieldState>,
+    amount: Entity<TextFieldState>,
 }
 
 impl TextFieldExamples {
@@ -196,6 +204,7 @@ impl TextFieldExamples {
                 state
             }),
             scaled: cx.new(|cx| TextFieldState::new(window, cx)),
+            amount: cx.new(|cx| TextFieldState::new(window, cx)),
         }
     }
 }
@@ -222,7 +231,15 @@ impl Render for TextFieldExamples {
                         TextField::multiline("notes", "备注", &self.notes)
                             .variant(TextFieldVariant::Outlined),
                     )
-                    .child(TextField::secure("password", "Password", &self.password)),
+                    .child(
+                        TextField::secure("password", "Password", &self.password)
+                            .label_always_minimized(true)
+                            .placeholder_content(
+                                "Sample password",
+                                Text::new("Enter a sample password"),
+                            )
+                            .character_count(24),
+                    ),
             )
             .child(
                 section("Readonly and disabled")
@@ -244,7 +261,131 @@ impl Render for TextFieldExamples {
                     .supporting_text("用于项目沟通，可输入中英文"),
                 ),
             )
+            .child(
+                section("Outside label and affixes").child(
+                    TextField::new("amount", "Budget amount", &self.amount)
+                        .variant(TextFieldVariant::Outlined)
+                        .label_position(TextFieldLabelPosition::Above)
+                        .label_alignment(
+                            TextFieldLabelAlignment::Start,
+                            TextFieldLabelAlignment::End,
+                        )
+                        .label_content(Text::new("Project budget"))
+                        .placeholder_content("Amount", Text::new("0.00"))
+                        .leading(Icon::new(IconName::Edit))
+                        .prefix(div().id("currency-prefix").test_support().child("$"))
+                        .suffix(div().id("currency-suffix").test_support().child("USD"))
+                        .supporting_content("Amount in US dollars", Text::new("US dollars"))
+                        .required(true)
+                        .character_count(8),
+                ),
+            )
     }
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn decorated_field_keeps_its_editor_value_and_accessible_metadata(cx: &mut gpui::TestAppContext) {
+    use gpui::{InputEvent, MouseButton, MouseDownEvent, MouseUpEvent, Role, WindowOptions, size};
+    use gpui_base::test_support::find;
+    use gpui_material::{MaterialRoot, material_theme, set_material_theme, theme::Direction};
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let examples = cx.new(|cx| TextFieldExamples::new(window, cx));
+            view = Some(examples.clone());
+            examples
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    cx.simulate_window_resize(window.into(), size(px(560.), px(1000.)));
+    let verify = |cx: &mut gpui::TestAppContext, direction, value, description| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let field = find(window, &[], &"amount".into()).unwrap();
+            assert_eq!(field.role(), Some(Role::TextInput));
+            assert_eq!(field.label(), Some("Budget amount"));
+            assert_eq!(field.placeholder(), Some("Amount"));
+            assert_eq!(field.value(), Some(value));
+            assert_eq!(field.description(), Some(description));
+            assert_eq!(
+                find(window, field.path(), &"placeholder".into()).is_some(),
+                value.is_empty(),
+            );
+            let label = find(window, field.path(), &"label".into()).unwrap();
+            let prefix = find(window, field.path(), &"currency-prefix".into()).unwrap();
+            let suffix = find(window, field.path(), &"currency-suffix".into()).unwrap();
+            assert!(label.bounds().bottom() <= prefix.bounds().top());
+            if direction == Direction::Ltr {
+                assert!(prefix.bounds().right() < suffix.bounds().left());
+            } else {
+                assert!(suffix.bounds().right() < prefix.bounds().left());
+            }
+            let password = find(window, &[], &"password".into()).unwrap();
+            assert_eq!(password.role(), Some(Role::PasswordInput));
+            assert_eq!(password.value(), None);
+            assert_eq!(password.description(), None);
+            assert_eq!(
+                find(window, password.path(), &"placeholder".into()).is_some(),
+                value.is_empty(),
+            );
+        })
+        .unwrap();
+    };
+    verify(cx, Direction::Ltr, "", "Amount in US dollars. 0 / 8");
+    cx.update_window(window.into(), |_, window, cx| {
+        let field = find(window, &[], &"amount".into()).unwrap();
+        let position = find(window, field.path(), &"placeholder".into())
+            .unwrap()
+            .bounds()
+            .center();
+        window.dispatch_event(
+            MouseDownEvent {
+                button: MouseButton::Left,
+                position,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.refresh();
+        window.draw(cx).clear(cx);
+        window.dispatch_event(
+            MouseUpEvent {
+                button: MouseButton::Left,
+                position,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+        assert!(
+            view.read(cx)
+                .amount
+                .read(cx)
+                .presentation()
+                .focus_handle()
+                .is_focused(window)
+        );
+    })
+    .unwrap();
+    cx.simulate_input(window.into(), "１２🙂");
+    cx.update_window(window.into(), |_, window, cx| {
+        let mut theme = material_theme(cx).clone();
+        theme.layout.direction = Direction::Rtl;
+        set_material_theme(theme, cx);
+        let password = view.read(cx).password.clone();
+        password.update(cx, |state, cx| state.replace_all("masked", window, cx));
+    })
+    .unwrap();
+    verify(cx, Direction::Rtl, "１２🙂", "Amount in US dollars. 3 / 8");
 }
 
 #[cfg(all(test, feature = "test-support"))]

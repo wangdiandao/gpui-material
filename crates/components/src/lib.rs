@@ -34,7 +34,10 @@ pub use icon::{Icon, IconName};
 pub use overlay::{Menu, MenuItem, Tooltip};
 mod input;
 pub use input::{DropdownOption, ExposedDropdown, ExposedDropdownState};
-pub use input::{TextAreaState, TextField, TextFieldEvent, TextFieldState, TextFieldVariant};
+pub use input::{
+    TextAreaState, TextField, TextFieldEvent, TextFieldLabelAlignment, TextFieldLabelPosition,
+    TextFieldState, TextFieldVariant,
+};
 mod overlay;
 
 /// Installs component keybindings after initializing the Material root.

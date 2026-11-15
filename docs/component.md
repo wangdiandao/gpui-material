@@ -48,12 +48,14 @@ Use `.color(ColorRole::Primary)` to resolve a role against the window theme or `
 
 | Component | Supported variants and behavior | Material 3 |
 | --- | --- | --- |
-| `TextField` | Filled and Outlined, with single-line, multiline, secure, read-only, and disabled modes. Supports error and supporting text. | [Text fields](https://m3.material.io/components/text-fields/overview) |
+| `TextField` | Filled and Outlined, with single-line, multiline, secure, read-only, and disabled modes. Supports label placement, adornment and description slots, required and invalid states, and character counts. | [Text fields](https://m3.material.io/components/text-fields/overview) |
 | `ExposedDropdown` | Editable filtering and selection-only lists anchored to a text field. | [Menus](https://m3.material.io/components/menus/overview) · [Text fields](https://m3.material.io/components/text-fields/overview) |
 | `Menu` | Anchored menus and context menus, with groups, checked items, and submenus. | [Menus](https://m3.material.io/components/menus/overview) |
 | `Tooltip` | Plain and rich tooltips with hover and keyboard focus activation. | [Tooltips](https://m3.material.io/components/tooltips/overview) |
 | `Dialog` | Basic dialogs and full-screen task dialogs that use the window content area on compact layouts. | [Dialogs](https://m3.material.io/components/dialogs/overview) |
 | `Sheet` | Standard and modal bottom sheets, and side sheets docked or overlaid at the logical start or end. | [Bottom sheets](https://m3.material.io/components/bottom-sheets/overview) · [Side sheets](https://m3.material.io/components/side-sheets/overview) |
+
+`TextField` decorates the caller's retained Base editor. Use `label_content`, `placeholder_content`, and `supporting_content` with plain text for the accessible name, hint, and description. Leading and trailing elements are separate from the prefix and suffix next to the value. Prefix and suffix appear while the label is minimized. Labels default to Inside for Filled and Cutout for Outlined. Select Above for a label outside the container, or configure the horizontal alignments and keep an inside or cutout label minimized. The character count shows Unicode scalar values without enforcing the limit. Secure fields suppress this count along with their accessible value. The Base entity still owns editing, selection, validation, scrolling, and IME composition.
 
 <a id="导航与自适应布局"></a>
 

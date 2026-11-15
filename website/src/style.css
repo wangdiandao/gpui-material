@@ -154,7 +154,6 @@ a { color: var(--accent); text-underline-offset: .2em; }
   background: var(--page);
 }
 .hero-card-preview .gallery-preview iframe { height: 15rem; }
-.gallery-preview-actions { display: flex; justify-content: flex-end; margin-top: .35rem; }
 
 .home-section { padding-block: .25rem 1.25rem; margin-top: 2.2rem; }
 .section-heading {

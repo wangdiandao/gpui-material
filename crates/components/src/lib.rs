@@ -2,6 +2,7 @@
 
 mod action;
 mod button;
+mod button_style;
 mod fab;
 mod motion;
 
@@ -11,6 +12,7 @@ pub use button::{
     Button, ButtonShape, ButtonVariant, ControlSize, IconButton, IconButtonVariant,
     IconButtonWidth, IconToggleButton, ToggleButton, ToggleButtonVariant,
 };
+pub use button_style::{ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShapes};
 pub use fab::{ExtendedFab, Fab, FabColor, FabSize, FloatingAction};
 
 mod selection;

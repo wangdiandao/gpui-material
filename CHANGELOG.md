@@ -10,6 +10,7 @@ See [versioning and releases](docs/release.md) for the release process.
 - Compose text fields with configurable label placement, leading and trailing elements, value affixes, custom hints and supporting content, and required, invalid, and character count presentation.
 - Observe Button and ToggleButton interaction changes through an optional shared interaction source.
 - Set text-field colors, shape, content padding and input typography per instance, observe the Base editor's laid-out geometry, and share field interaction state.
+- Customize Button and ToggleButton content, shapes, colors, borders, padding, and elevations per instance.
 
 ### Gallery
 

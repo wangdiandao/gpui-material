@@ -1,0 +1,167 @@
+---
+import { Code } from 'astro:components';
+import Layout from '../Layout.astro';
+import { components } from '../../component/catalog.mjs';
+import { api, copy, groups, guides, packageVersion, pagePath, sidebar } from '../site.mjs';
+import { repository } from '../markdown.mjs';
+
+export function getStaticPaths() {
+  const pages = ['', 'component', 'gallery', ...components.map((item) => `component/${item.slug}`)];
+  return [
+    ...guides.map((guide) => ({
+      params: { path: guide.route },
+      props: { guide },
+    })),
+    ...pages.flatMap((route) => [
+      { params: { path: route || undefined } },
+      { params: { path: ['zh-CN', route].filter(Boolean).join('/') } },
+    ]),
+  ];
+}
+
+const path = Astro.params.path ?? '';
+const lang = path === 'zh-CN' || path.startsWith('zh-CN/') ? 'zh' : 'en';
+const route = path.replace(/^zh-CN(?:\/|$)/, '');
+const t = copy[lang];
+const { guide } = Astro.props;
+const component = components.find((item) => route === `component/${item.slug}`);
+const headings = guide ? await guide.module.getHeadings() : [];
+const Content = guide?.module.Content;
+const isHome = route === '';
+const isCatalog = route === 'component';
+const isGallery = route === 'gallery';
+const toc = isCatalog
+  ? Object.entries(groups).map(([slug, label]) => ({ slug, text: label[lang], depth: 2 }))
+  : headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+const title = component?.title ?? headings[0]?.text ?? (isCatalog ? t.overview : isGallery ? t.gallery : '');
+const codeThemes = { light: 'github-light', dark: 'github-dark' };
+const featureCode = component?.feature ? `[dependencies]\ngpui-material = { version = "${packageVersion}", features = ["${component.feature}"] }` : '';
+const componentApi = component?.feature
+  ? `https://docs.rs/crate/gpui-material/latest/features#${component.feature}`
+  : api + (component?.api ?? '');
+const source = component ? `${repository}/blob/main/${component.source}` : '';
+const button = components.find((item) => item.slug === 'button');
+const introCode = 'git clone https://github.com/wangdiandao/gpui-material.git\ncd gpui-material\ncargo gallery';
+---
+<Layout {lang} {route} {title} description={component?.description[lang]}>
+  {isHome ? (
+    <main id="main" class="home" data-pagefind-body>
+      <section class="hero">
+        <div>
+          <p class="platform">{t.platform}</p>
+          <h1>{t.headline}</h1>
+          <p class="hero-intro">{t.introduction}</p>
+          <div class="hero-actions">
+            <a class="button primary" href={pagePath('docs/integration', lang)}>{t.setup}<span aria-hidden="true">→</span></a>
+            <a class="button secondary" href={pagePath('component', lang)}>{t.overview}</a>
+          </div>
+        </div>
+        <div class="hero-sample">
+          <div class="sample-ui" aria-hidden="true">
+            <span class="sample-button">Save</span>
+            <span class="sample-field"><small>Email</small>name@example.com</span>
+            <span class="sample-switch"></span>
+          </div>
+          <div class="sample-code">
+            <p>Cargo.toml</p>
+            <Code code={`gpui-material = "${packageVersion}"`} lang="toml" themes={codeThemes} />
+            <p>main.rs</p>
+            <Code code={button.code} lang="rust" themes={codeThemes} />
+          </div>
+        </div>
+      </section>
+      <section class="home-catalog" aria-labelledby="home-components">
+        <div class="section-heading">
+          <h2 id="home-components">{t.components}</h2>
+          <a href={pagePath('component', lang)}>{t.overview} <span aria-hidden="true">→</span></a>
+        </div>
+        <div class="feature-grid">
+          {['button', 'text-field', 'dialog', 'adaptive-layout'].map((slug) => {
+            const item = components.find((entry) => entry.slug === slug);
+            return (
+              <a class="feature-card" href={pagePath(`component/${slug}`, lang)}>
+                <strong>{item.title}</strong><span>{item.description[lang]}</span>
+              </a>
+            );
+          })}
+        </div>
+      </section>
+    </main>
+  ) : (
+    <div class="docs-shell">
+      <aside class="sidebar" data-pagefind-ignore>
+        <details open>
+          <summary>{t.menu}</summary>
+          <nav aria-label={t.menu}>
+            {sidebar(lang, route.split('/')[0]).map((group) => (
+              <section>
+                <p>{group.title}</p>
+                {group.items.map((item) => (
+                  <a href={pagePath(item.route, lang)} aria-current={route === item.route ? 'page' : undefined}>{item.label}</a>
+                ))}
+              </section>
+            ))}
+          </nav>
+        </details>
+      </aside>
+      <main id="main" class="article" data-pagefind-body>
+        {Content && <Content />}
+        {isCatalog && <>
+          <h1>{title}</h1>
+          <p class="lede">{t.catalogIntro}</p>
+          {Object.entries(groups).map(([group, label]) => (
+            <section class="component-family" aria-labelledby={group}>
+              <h2 id={group}>{label[lang]}</h2>
+              <div class="component-grid">
+                {components.filter((item) => item.group === group).map((item) => (
+                  <a class="component-card" href={pagePath(`component/${item.slug}`, lang)}>
+                    <strong>{item.title}</strong>
+                    <span>{item.description[lang]}</span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          ))}
+        </>}
+        {component && <>
+          <p class="breadcrumb"><a href={pagePath('component', lang)}>{t.overview}</a> <span aria-hidden="true">/</span> {groups[component.group][lang]}</p>
+          <h1>{title}</h1>
+          <p class="lede">{component.description[lang]}</p>
+          <div class="article-links">
+            <a href={componentApi}>{component.feature ? t.feature : t.api} <span aria-hidden="true">↗</span></a>
+            <a href={source}>{t.source} <span aria-hidden="true">↗</span></a>
+            {component.story && <a href={`${repository}/tree/main/apps/gallery/src`}>Gallery <span aria-hidden="true">↗</span></a>}
+          </div>
+          {component.feature && <>
+            <h2>{t.feature}</h2>
+            <Code code={featureCode} lang="toml" themes={codeThemes} />
+          </>}
+          <h2>{t.usage}</h2>
+          <p>{component.usage[lang]}</p>
+          <Code code={component.code} lang="rust" themes={codeThemes} />
+          {component.story && <>
+            <h2>{t.tryIt}</h2>
+            <p>{t.sourceOnly}</p>
+            <Code code={[component.story, component.relatedStory].filter(Boolean).map((id) => `cargo gallery ${id}`).join('\n')} lang="sh" themes={codeThemes} />
+          </>}
+        </>}
+        {isGallery && <>
+          <h1>{title}</h1>
+          <p class="lede">{t.galleryIntro}</p>
+          <Code code={introCode} lang="sh" themes={codeThemes} />
+          <p>{t.galleryOpen}</p>
+          <Code code="cargo gallery text-field" lang="sh" themes={codeThemes} />
+          <p><a href={pagePath('component', lang)}>{t.overview}</a> · <a href={`${repository}/tree/main/apps/gallery`}>{t.source}</a></p>
+        </>}
+      </main>
+      {toc.length > 0 && (
+        <aside class="toc" data-pagefind-ignore>
+          <nav aria-label={t.onThisPage}>
+            <p>{t.onThisPage}</p>
+            {toc.map(({ slug, text, depth }) => <a href={`#${slug}`} class:list={{ nested: depth === 3 }}>{text}</a>)}
+          </nav>
+        </aside>
+      )}
+    </div>
+  )}
+</Layout>

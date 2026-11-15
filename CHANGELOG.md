@@ -4,6 +4,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Documentation
+
+- Add a bilingual documentation site with component usage examples and searchable guides.
+
 ### Distribution
 
 - The Gallery now ships as source. Run `cargo gallery` from a checkout.

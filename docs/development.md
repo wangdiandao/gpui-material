@@ -131,7 +131,7 @@ npm --prefix website run build:wasm
 
 The local build uses Cargo's dev profile. The Pages workflow builds and publishes optimized WASM with the site.
 
-Set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. The website workflow builds on PRs and deploys updates to `main`. To redeploy, run **Documentation website** on `main` from the Actions tab.
+Set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. PRs that change website sources or WASM build inputs run the website build. Changes to the website, its build inputs, or documentation trigger the Pages build and deployment on `main`. To redeploy, run **Documentation website** on `main` from the Actions tab.
 
 <a id="冷热构建基线"></a>
 
@@ -148,13 +148,18 @@ Use a new report directory for each measurement. Prefetch the Cargo registry and
 
 ## CI and merging
 
-[Engineering CI](../.github/workflows/ci.yml) runs for PRs targeting `main`, pushes to `main`, and manual dispatches.
+[Engineering CI](../.github/workflows/ci.yml) selects checks for PRs targeting `main` and pushes to `main` by comparing the checkout with the event's base commit. A manual run executes the full checks.
 
 | Job | Checks |
 | --- | --- |
-| `Repository checks` | Formatting, documentation links and pairs, generated tokens, three-platform dependency graphs, and the default workspace. Diff whitespace is checked against the base commit for PRs and pushes with a base. |
-| `Windows MSVC`, `macOS ARM64`, `Linux x64` | Clippy, workspace tests, headless Gallery UI tests, and native Gallery builds on Windows Server 2025 x64, macOS 15 ARM64, and Ubuntu 24.04 x64. Other platforms continue if one fails. |
-| `CI required` | Passes when the repository checks and all three native jobs succeed. |
+| `Change scope` | Classifies changed files and checks diff whitespace when a base commit is available. |
+| `Documentation checks` | Runs `cargo xtask docs --check` for documentation and engineering changes. Checks Markdown links and bilingual pairs. |
+| `Website / Build documentation` | Builds and link-checks the site with the WASM Gallery for PRs that change website sources or website build inputs. The Pages workflow reuses this build on `main`. |
+| `Repository checks` | For engineering changes, checks Rust formatting, generated tokens, three-platform dependency graphs, and the default workspace. |
+| `Windows MSVC`, `macOS ARM64`, `Linux x64` | For engineering changes, runs Clippy, workspace tests, headless Gallery UI tests, and native Gallery builds. Other platforms continue if one fails. |
+| `CI required` | Requires the jobs selected for the change to pass and verifies the other jobs were skipped. |
+
+A docs-only PR runs the documentation checks. A website-only PR runs the website build. Changes in both areas run both checks. Changes to shared Rust build inputs, such as the Gallery, libraries, or workspace manifests, also run the native checks. The browser-only Gallery entry point belongs to the website scope.
 
 Rust build caches are isolated by platform. Successful pushes to `main` save the caches and PRs can restore them.
 

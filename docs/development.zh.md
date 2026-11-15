@@ -131,7 +131,7 @@ npm --prefix website run build:wasm
 
 本地构建使用 Cargo dev profile。Pages 工作流会构建并随网站发布优化后的 WASM。
 
-在 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**。网站工作流会在 PR 上构建，并在 `main` 更新后部署。需要重新部署时，在 Actions 页面选择 `main` 运行 **Documentation website**。
+在 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**。修改网站源码或 WASM 构建输入的 PR 会构建网站。网站、构建输入或文档在 `main` 更新后，会触发 Pages 构建和部署。需要重新部署时，在 Actions 页面选择 `main` 运行 **Documentation website**。
 
 <a id="cold-and-warm-build-baseline"></a>
 
@@ -148,13 +148,18 @@ cargo xtask timings target/timings/gallery-baseline
 
 ## 持续集成与合并
 
-[Engineering CI](../.github/workflows/ci.yml) 在面向 `main` 的 PR、`main` 更新和手动触发时运行。
+[Engineering CI](../.github/workflows/ci.yml) 对面向 `main` 的 PR 和 `main` 的 push，将检出内容与事件的基线提交比较，以选择检查作业。手动运行会执行完整检查。
 
 | 作业 | 检查 |
 | --- | --- |
-| `Repository checks` | 格式、文档链接和双语配对、Token 生成物、三平台依赖图及默认 Workspace。PR 和有基线提交的 push 与对应基线比较差异空白。 |
-| `Windows MSVC`、`macOS ARM64`、`Linux x64` | 在 Windows Server 2025 x64、macOS 15 ARM64 和 Ubuntu 24.04 x64 上分别运行 Clippy、工作区测试、Gallery 无头 UI 测试和原生 Gallery 构建。平台失败后其余平台继续执行。 |
-| `CI required` | 通用检查与三个原生作业全部通过时成功。 |
+| `Change scope` | 判断变更范围，并在有基线提交时检查差异空白。 |
+| `Documentation checks` | 文档和工程变更运行 `cargo xtask docs --check`，核验 Markdown 链接与双语配对。 |
+| `Website / Build documentation` | 修改网站源码或构建输入的 PR 会构建带 WASM Gallery 的网站并检查链接。Pages 工作流在 `main` 复用此构建。 |
+| `Repository checks` | 工程变更检查 Rust 格式、Token 生成物、三平台依赖图及默认工作区。 |
+| `Windows MSVC`、`macOS ARM64`、`Linux x64` | 工程变更运行 Clippy、工作区测试、Gallery 无头 UI 测试和原生 Gallery 构建。平台失败后其余平台继续执行。 |
+| `CI required` | 核验选中的作业全部通过，其余作业均已跳过。 |
+
+纯文档 PR 运行文档检查，纯网站 PR 运行网站构建，同时修改两处时执行两项检查。Gallery、库和工作区清单等共享 Rust 构建输入有变更时，还会运行原生检查。仅用于浏览器的 Gallery 入口属于网站范围。
 
 Rust 构建缓存按平台隔离，由 `main` 的成功 push 更新，PR 可复用。
 

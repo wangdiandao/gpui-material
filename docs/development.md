@@ -110,10 +110,11 @@ The GitHub ruleset requires changes to `main` to go through a PR. The PR must be
 
 ## Windows distribution
 
-Run the following commands in PowerShell 7 from the accepted checkout. Set `GPUI_FXC_PATH` to the installed x64 Windows SDK shader compiler. A matching Windows engineering build from CI can also be used as the executable input. Rust's `rust-docs` component supplies the standard library licensing materials.
+Run the following commands in PowerShell 7 from the accepted checkout. Set `GPUI_FXC_PATH` to the installed x64 Windows SDK shader compiler. A matching Windows engineering build from CI can also be used as the executable input. Fetch the locked Windows dependencies before running the offline packager. Rust's `rust-docs` component supplies the standard library licensing materials.
 
 ```powershell
 rustup component add rust-docs
+cargo fetch --locked --target x86_64-pc-windows-msvc
 $env:GPUI_FXC_PATH = 'C:\path\to\the\Windows SDK\x64\fxc.exe'
 cargo build --locked -p gpui-material-gallery --profile gallery-artifact
 ./scripts/package-windows-gallery.ps1 -Executable target/gallery-artifact/gpui-material-gallery.exe -OutputDirectory target/gallery-distribution

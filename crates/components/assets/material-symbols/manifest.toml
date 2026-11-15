@@ -148,6 +148,46 @@ upstream_path = "symbols/web/contrast/materialsymbolsoutlined/contrast_fill1_24p
 sha256 = "156a9ba3f9f56c1dd8d6d409d2ebd99b2ce2749215a34b0b61aa120715551320"
 
 [[icons]]
+file = "dark_mode_24px.svg"
+upstream_path = "symbols/web/dark_mode/materialsymbolsoutlined/dark_mode_24px.svg"
+sha256 = "b45f29f9b3268bb674a00c025b619292e36a86e6dc6b28851f954763d943eca7"
+
+[[icons]]
+file = "dark_mode_fill1_24px.svg"
+upstream_path = "symbols/web/dark_mode/materialsymbolsoutlined/dark_mode_fill1_24px.svg"
+sha256 = "0b8ad218c19a73fdfeb6ae735348af76a419b0a72da0528ac72a2da098e12527"
+
+[[icons]]
+file = "light_mode_24px.svg"
+upstream_path = "symbols/web/light_mode/materialsymbolsoutlined/light_mode_24px.svg"
+sha256 = "59f62df813e1b2c5c9db89088ea4489617f8c89d4ccd179f713b9d6938d82db5"
+
+[[icons]]
+file = "light_mode_fill1_24px.svg"
+upstream_path = "symbols/web/light_mode/materialsymbolsoutlined/light_mode_fill1_24px.svg"
+sha256 = "7e9ea3d444c4de77d4781dada3eee6103acd9a6690c7a62f487f012dea9ef928"
+
+[[icons]]
+file = "left_panel_open_24px.svg"
+upstream_path = "symbols/web/left_panel_open/materialsymbolsoutlined/left_panel_open_24px.svg"
+sha256 = "d36bf6be167aacf642e0812fd6e05bac5b010b6f228367aa30200151c5b6394e"
+
+[[icons]]
+file = "left_panel_open_fill1_24px.svg"
+upstream_path = "symbols/web/left_panel_open/materialsymbolsoutlined/left_panel_open_fill1_24px.svg"
+sha256 = "9052a24fb53360876ff791588e6e90a8d7fda128094db48d5ab4f637c96f103d"
+
+[[icons]]
+file = "left_panel_close_24px.svg"
+upstream_path = "symbols/web/left_panel_close/materialsymbolsoutlined/left_panel_close_24px.svg"
+sha256 = "5fdc881396f531dc3aaf44af75425b43f0df0b0935682cf43bd9e2138afb8d48"
+
+[[icons]]
+file = "left_panel_close_fill1_24px.svg"
+upstream_path = "symbols/web/left_panel_close/materialsymbolsoutlined/left_panel_close_fill1_24px.svg"
+sha256 = "612735db07036141051e3acdbd666fbc678cf7a52b9ac9562185de901b94899f"
+
+[[icons]]
 file = "search_24px.svg"
 upstream_path = "symbols/web/search/materialsymbolsoutlined/search_24px.svg"
 sha256 = "46d4ab85eba6eb4fe7c9a9a4c4db2fdf8fa9cc74c1f398ac72e7d872d490dd4c"

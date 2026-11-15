@@ -6,9 +6,9 @@ use gpui::{
 };
 use gpui_base::TestSupportExt;
 use gpui_material::{
-    Button, ButtonVariant, ControlSize, Fab, FloatingAction, Icon, IconButton, IconName, List,
-    ListDetail, ListDetailPane, ListItem, ListVariant, Text, TextField, TextFieldEvent,
-    TextFieldState, TextFieldVariant, ToggleButton, ToggleButtonVariant,
+    ControlSize, Fab, FabColor, FloatingAction, Icon, IconButton, IconName, List, ListDetail,
+    ListDetailPane, ListItem, ListVariant, Text, TextField, TextFieldEvent, TextFieldState,
+    TextFieldVariant, ToggleButton, ToggleButtonVariant, Tooltip,
     foundation::{
         Surface, color, set_material_theme, set_window_material_theme, window_material_theme,
     },
@@ -365,32 +365,26 @@ impl Gallery {
                     .child(if self.current == Story::AdaptiveLayout {
                         div().size_full().min_h_0().overflow_hidden().child(content)
                     } else {
-                        div()
-                            .px(inset)
-                            .py_4()
-                            .when(self.current == Story::Fab, |content| content.pb_24())
-                            .child(content)
+                        div().px(inset).pt_4().pb_24().child(content)
                     }),
             )
     }
 
     fn render_app_bar(
         &self,
-        single_pane: bool,
         show_catalog: bool,
+        theme_in_app_bar: bool,
         margin: Pixels,
         window: &Window,
         cx: &Context<Self>,
     ) -> impl IntoElement {
-        let theme = window_material_theme(window, cx);
-        let appearance = theme.colors.appearance();
-        let rtl = theme.layout.direction == Direction::Rtl;
-        let local_theme = self.local_theme;
-        let label = match (single_pane, show_catalog) {
-            (true, true) => "Back",
-            (false, true) => "Hide components",
-            (_, false) => "Components",
+        let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
+        let (label, icon) = if show_catalog {
+            ("Hide components", IconName::LeftPanelClose)
+        } else {
+            ("Show components", IconName::LeftPanelOpen)
         };
+        let owner = cx.weak_entity();
         div()
             .w_full()
             .flex_none()
@@ -402,56 +396,84 @@ impl Gallery {
             .justify_between()
             .gap_2()
             .when(rtl, Styled::flex_row_reverse)
+            .child(Tooltip::plain(
+                "browse-components-tooltip",
+                IconButton::new(
+                    "browse-components",
+                    label,
+                    Icon::new(icon).mirror_in_rtl(true),
+                )
+                .on_activate(move |window, cx| {
+                    let _ = owner.update(cx, |this, cx| this.toggle_catalog(window, cx));
+                }),
+                label,
+            ))
             .child(
-                Button::new("browse-components", label)
-                    .variant(ButtonVariant::Text)
+                ToggleButton::new("toggle-motion", "Reduced motion", cx.reduce_motion())
+                    .variant(ToggleButtonVariant::Outlined)
                     .size(ControlSize::ExtraSmall)
-                    .on_activate({
-                        let owner = cx.weak_entity();
-                        move |window, cx| {
-                            let _ = owner.update(cx, |this, cx| this.toggle_catalog(window, cx));
-                        }
-                    }),
+                    .on_change(|next, _, cx| cx.set_reduce_motion(next)),
             )
-            .child(
-                div()
-                    .flex()
-                    .flex_wrap()
-                    .items_center()
-                    .gap_1()
-                    .when(rtl, Styled::flex_row_reverse)
-                    .child(
-                        Button::new(
-                            "toggle-theme",
-                            if appearance == Appearance::Dark {
-                                "Light theme"
-                            } else {
-                                "Dark theme"
-                            },
-                        )
-                        .variant(ButtonVariant::Text)
-                        .size(ControlSize::ExtraSmall)
-                        .on_activate(move |window, cx| {
-                            let mut theme = window_material_theme(window, cx).clone();
-                            let appearance = match theme.colors.appearance() {
-                                Appearance::Light => Appearance::Dark,
-                                Appearance::Dark => Appearance::Light,
-                            };
-                            theme.colors = gpui_material::theme::ColorScheme::baseline(appearance);
-                            if local_theme {
-                                set_window_material_theme(Some(theme), window, cx);
-                            } else {
-                                set_material_theme(theme, cx);
-                            }
-                        }),
+            .children(theme_in_app_bar.then(|| self.render_theme_toggle(false, window, cx)))
+    }
+
+    fn render_theme_toggle(&self, floating: bool, window: &Window, cx: &App) -> Tooltip {
+        let (label, icon, appearance) = match window_material_theme(window, cx).colors.appearance()
+        {
+            Appearance::Light => ("Switch to dark theme", IconName::DarkMode, Appearance::Dark),
+            Appearance::Dark => (
+                "Switch to light theme",
+                IconName::LightMode,
+                Appearance::Light,
+            ),
+        };
+        let local_theme = self.local_theme;
+        let activate = move |window: &mut Window, cx: &mut App| {
+            let mut theme = window_material_theme(window, cx).clone();
+            theme.colors = gpui_material::theme::ColorScheme::baseline(appearance);
+            if local_theme {
+                set_window_material_theme(Some(theme), window, cx);
+            } else {
+                set_material_theme(theme, cx);
+            }
+        };
+        let icon = Icon::new(icon);
+        let button = if floating {
+            Fab::new("toggle-theme", label, icon)
+                .color(FabColor::Secondary)
+                .on_activate(activate)
+                .into_any_element()
+        } else {
+            IconButton::new("toggle-theme", label, icon)
+                .on_activate(activate)
+                .into_any_element()
+        };
+        Tooltip::plain("theme-tooltip", button, label)
+    }
+
+    fn render_floating_actions(
+        &self,
+        show_story: bool,
+        window: &Window,
+        cx: &App,
+    ) -> FloatingAction {
+        let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
+        FloatingAction::new(
+            div()
+                .flex()
+                .gap_2()
+                .when(rtl, Styled::flex_row_reverse)
+                .children((show_story && self.current == Story::Fab).then(|| {
+                    Fab::new(
+                        "floating-motion",
+                        "Toggle reduced motion",
+                        Icon::new(IconName::MotionPhotosOn),
                     )
-                    .child(
-                        ToggleButton::new("toggle-motion", "Reduced motion", cx.reduce_motion())
-                            .variant(ToggleButtonVariant::Outlined)
-                            .size(ControlSize::ExtraSmall)
-                            .on_change(|next, _, cx| cx.set_reduce_motion(next)),
-                    ),
-            )
+                    .on_activate(|_, cx| cx.set_reduce_motion(!cx.reduce_motion()))
+                }))
+                .child(self.render_theme_toggle(true, window, cx)),
+        )
+        .margin(px(52.))
     }
 
     fn render_status_bar(&self, margin: Pixels, window: &Window, cx: &App) -> impl IntoElement {
@@ -500,6 +522,8 @@ impl Render for Gallery {
             !self.catalog_collapsed
         };
         let show_story = !single_pane || !show_catalog;
+        // Leave the adaptive example's own navigation and FAB unobstructed.
+        let theme_in_app_bar = self.current == Story::AdaptiveLayout;
         let margin = if width_class == WidthClass::Compact {
             COMPACT_MARGIN
         } else {
@@ -521,7 +545,7 @@ impl Render for Gallery {
             .size_full()
             .flex()
             .flex_col()
-            .child(self.render_app_bar(single_pane, show_catalog, margin, window, cx))
+            .child(self.render_app_bar(show_catalog, theme_in_app_bar, margin, window, cx))
             .child(
                 div()
                     .flex_1()
@@ -548,16 +572,8 @@ impl Render for Gallery {
                     }),
             )
             .child(self.render_status_bar(margin, window, cx))
-            .children((show_story && self.current == Story::Fab).then(|| {
-                FloatingAction::new(
-                    Fab::new(
-                        "floating-motion",
-                        "Toggle reduced motion",
-                        Icon::new(IconName::MotionPhotosOn),
-                    )
-                    .on_activate(|_, cx| cx.set_reduce_motion(!cx.reduce_motion())),
-                )
-                .margin(px(52.))
-            }))
+            .children(
+                (!theme_in_app_bar).then(|| self.render_floating_actions(show_story, window, cx)),
+            )
     }
 }

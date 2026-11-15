@@ -126,9 +126,10 @@ jobs:
         run: |
           rustup component add rust-docs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $output = Join-Path $env:RUNNER_TEMP "gallery-distribution-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
           ./scripts/package-windows-gallery.ps1 `
             -Executable target/gallery-artifact/gpui-material-gallery.exe `
-            -OutputDirectory target/gallery-distribution
+            -OutputDirectory $output
 
       - name: Upload Windows engineering build
         if: runner.os == 'Windows'

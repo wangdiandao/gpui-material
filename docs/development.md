@@ -100,6 +100,25 @@ cargo test --locked --workspace --all-features
 
 For Gallery UI tests alone, run `cargo test --locked -p gpui-material-gallery --features test-support`. For token data changes, follow the [generation steps](theme/theme.md#token-data).
 
+<a id="文档网站"></a>
+
+## Documentation website
+
+The [website source](../website/) uses Astro and indexes the static pages with Pagefind. With Node.js 24 and npm installed, run these commands from the repository root.
+
+```sh
+npm --prefix website ci
+npm --prefix website run dev
+npm --prefix website run build
+npm --prefix website run preview
+```
+
+The development server uses `/`. The production build defaults to `/gpui-material/` and writes `website/dist/`. The production preview includes the search index.
+
+Edit shared guides under `docs/` and component examples under `website/component/`. Add English and Chinese text together. Each component page shares one Rust example across both languages.
+
+Set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. The website workflow builds on PRs and deploys updates to `main`. To redeploy, run **Documentation website** on `main` from the Actions tab.
+
 <a id="冷热构建基线"></a>
 
 ## Cold and warm build baseline

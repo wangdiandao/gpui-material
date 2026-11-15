@@ -52,6 +52,7 @@ See the [component guide](docs/component.md) for supported controls, variants, a
 
 ## Project documentation
 
+- [Documentation website](https://wangdiandao.github.io/gpui-material/)
 - [Downstream integration](docs/integration.md)
 - [Architecture and dependencies](docs/architecture.md)
 - [Documentation index](docs/index.md)

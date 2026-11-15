@@ -100,6 +100,25 @@ cargo test --locked --workspace --all-features
 
 单独运行 Gallery UI 测试可用 `cargo test --locked -p gpui-material-gallery --features test-support`。修改 Token 数据时按[生成步骤](theme/theme.zh.md#token-data)操作。
 
+<a id="documentation-website"></a>
+
+## 文档网站
+
+[网站源码](../website/)使用 Astro，并通过 Pagefind 为静态页面建立搜索索引。安装 Node.js 24 和 npm 后，从仓库根目录执行以下命令。
+
+```sh
+npm --prefix website ci
+npm --prefix website run dev
+npm --prefix website run build
+npm --prefix website run preview
+```
+
+开发服务器使用 `/`。生产构建默认使用 `/gpui-material/` 并输出到 `website/dist/`。搜索索引可在生产预览中使用。
+
+共用指南在 `docs/` 编辑，控件示例在 `website/component/` 编辑。同时补充英文和中文说明，同一个控件页面的中英文共用一份 Rust 示例。
+
+在 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**。网站工作流会在 PR 上构建，并在 `main` 更新后部署。需要重新部署时，在 Actions 页面选择 `main` 运行 **Documentation website**。
+
 <a id="cold-and-warm-build-baseline"></a>
 
 ## 冷热构建基线

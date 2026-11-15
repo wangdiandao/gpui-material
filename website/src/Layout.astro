@@ -1,0 +1,135 @@
+---
+import { repository } from './markdown.mjs';
+import { api, copy, pagePath } from './site.mjs';
+import './style.css';
+
+const { lang, route, title, description } = Astro.props;
+const t = copy[lang];
+const other = lang === 'en' ? 'zh' : 'en';
+const nav = [
+  { label: t.docs, route: 'docs', href: pagePath('docs', lang) },
+  { label: t.components, route: 'component', href: pagePath('component', lang) },
+  { label: t.gallery, route: 'gallery', href: pagePath('gallery', lang) },
+  { label: t.api, href: api },
+];
+const searchScript = pagePath('pagefind', 'en') + 'pagefind-ui.js';
+const searchStyle = pagePath('pagefind', 'en') + 'pagefind-ui.css';
+---
+<!doctype html>
+<html lang={lang === 'zh' ? 'zh-CN' : 'en'}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description ?? t.introduction} />
+    <meta name="color-scheme" content="light dark" />
+    <title>{title ? `${title} · gpui-material` : 'gpui-material'}</title>
+    <link rel="canonical" href={new URL(pagePath(route, lang), Astro.site)} />
+    <link rel="alternate" hreflang={other === 'zh' ? 'zh-CN' : 'en'} href={new URL(pagePath(route, other), Astro.site)} />
+    <script is:inline>
+      const theme = localStorage.getItem('material-theme');
+      if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">{t.skip}</a>
+    <header class="site-header" data-pagefind-ignore>
+      <div class="topbar">
+        <a class="brand" href={pagePath('', lang)}><span class="brand-mark" aria-hidden="true">M</span>gpui-material</a>
+        <nav aria-label={t.menu}>
+          {nav.map((item) => (
+            <a href={item.href} aria-current={item.route === route || route.startsWith(item.route + '/') ? 'page' : undefined}>
+              {item.label}
+            </a>
+          ))}
+        </nav>
+        <div class="tools">
+          {import.meta.env.PROD && <button type="button" id="open-search" title={t.search} aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>
+            </svg>
+            {t.search}<kbd>/</kbd>
+          </button>}
+          <label class="theme-control">
+            <span class="sr-only">{t.theme}</span>
+            <select id="theme" title={t.theme}>
+              <option value="system">{t.system}</option>
+              <option value="light">{t.light}</option>
+              <option value="dark">{t.dark}</option>
+            </select>
+          </label>
+          <a class="locale" href={pagePath(route, other)} hreflang={other === 'zh' ? 'zh-CN' : 'en'} lang={other === 'zh' ? 'zh-CN' : 'en'}>{t.language}</a>
+          <a class="repo" href={repository}>GitHub</a>
+        </div>
+      </div>
+    </header>
+    <slot />
+    <footer class="footer" data-pagefind-ignore>
+      <a href={pagePath('', lang)}>gpui-material</a>
+      <a href={repository + '/blob/main/LICENSE'}>Apache-2.0</a>
+      <a href={pagePath('docs', lang)}>{t.allGuides}</a>
+    </footer>
+    {import.meta.env.PROD && <dialog id="search-dialog" aria-label={t.search} data-pagefind-ignore
+      data-script={searchScript} data-style={searchStyle} data-base={pagePath('', 'en')}>
+      <div class="search-heading">
+        <strong>{t.search}</strong>
+        <form method="dialog"><button aria-label={lang === 'zh' ? '关闭' : 'Close'}>×</button></form>
+      </div>
+      <p id="search-error" hidden>{lang === 'zh' ? '搜索暂时不可用。' : 'Search is temporarily unavailable.'}</p>
+      <div id="pagefind"></div>
+    </dialog>}
+    <script>
+      const selector = document.querySelector<HTMLSelectElement>('#theme')!;
+      selector.value = document.documentElement.dataset.theme ?? 'system';
+      selector.addEventListener('change', () => {
+        if (selector.value === 'system') delete document.documentElement.dataset.theme;
+        else document.documentElement.dataset.theme = selector.value;
+        localStorage.setItem('material-theme', selector.value);
+      });
+
+      const search = document.querySelector<HTMLDialogElement>('#search-dialog');
+      const opener = document.querySelector<HTMLButtonElement>('#open-search');
+      if (search && opener) {
+        let assets: Promise<void> | undefined;
+        const open = async () => {
+          if (search.open) return;
+          search.showModal();
+          assets ??= new Promise<void>((resolve, reject) => {
+            const style = document.createElement('link');
+            style.rel = 'stylesheet';
+            style.href = search.dataset.style!;
+            document.head.append(style);
+            const script = document.createElement('script');
+            script.src = search.dataset.script!;
+            script.onload = () => {
+              try {
+                const { PagefindUI } = window as unknown as {
+                  PagefindUI: new (options: object) => unknown;
+                };
+                new PagefindUI({ element: '#pagefind', baseUrl: search.dataset.base, showImages: false });
+                resolve();
+              } catch (error) {
+                reject(error);
+              }
+            };
+            script.onerror = reject;
+            document.head.append(script);
+          });
+          try {
+            await assets;
+            if (search.open) search.querySelector('input')?.focus();
+          } catch {
+            document.querySelector<HTMLElement>('#search-error')!.hidden = false;
+          }
+        };
+        opener.addEventListener('click', open);
+        document.addEventListener('keydown', (event) => {
+          if (event.key === '/' && !search.open && !event.altKey && !event.ctrlKey && !event.metaKey &&
+              !(event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]'))) {
+            event.preventDefault();
+            void open();
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

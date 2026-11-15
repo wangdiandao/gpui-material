@@ -1,0 +1,20 @@
+{
+  "name": "gpui-material-website",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "24.x" },
+  "scripts": {
+    "dev": "astro dev --base /",
+    "build": "astro build && pagefind --site dist && node scripts/check-links.mjs",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/markdown-remark": "7.3.9",
+    "astro": "7.4.12",
+    "pagefind": "1.6.0",
+    "unist-util-visit": "5.2.0"
+  },
+  "devDependencies": {
+    "parse5": "8.1.1"
+  }
+}

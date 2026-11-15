@@ -52,6 +52,7 @@ let save = Button::new("save", "Save")
 
 ## 项目文档
 
+- [文档网站](https://wangdiandao.github.io/gpui-material/zh-CN/)
 - [下游集成](docs/integration.zh.md)
 - [架构与依赖](docs/architecture.zh.md)
 - [文档索引](docs/index.zh.md)

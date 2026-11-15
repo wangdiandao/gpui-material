@@ -1,0 +1,930 @@
+// Each guide shares its Rust snippet across the two locales. A story defaults to the page slug.
+export const components = [
+  {
+    slug: "button",
+    group: "actions",
+    title: "Button",
+    source: "crates/components/src/button.rs",
+    api: "struct.Button.html",
+    description: {
+      en: "Run a command with a labeled action.",
+      zh: "用有文本标签的按钮执行命令。",
+    },
+    usage: {
+      en: "Use on_activate for pointer, keyboard, and accessibility activation. Filled is the default variant. Set disabled when the command is unavailable.",
+      zh: "用 on_activate 统一处理指针、键盘和无障碍激活。默认是 Filled。命令不可用时设置 disabled。",
+    },
+    code: `use gpui_material::Button;
+
+Button::new("save", "Save")
+    .on_activate(|_, _| println!("Save requested"))`,
+  },
+  {
+    slug: "toggle-button",
+    group: "actions",
+    title: "ToggleButton",
+    source: "crates/components/src/button.rs",
+    api: "struct.ToggleButton.html",
+    description: {
+      en: "Toggle a persistent selection with a text label.",
+      zh: "通过有文本标签的按钮切换选中状态。",
+    },
+    usage: {
+      en: "Pass the current selection to new. Use the requested boolean from on_change to update your application state and rerender.",
+      zh: "将当前选中状态传给 new。在 on_change 中使用回调给出的布尔值更新应用状态并重新渲染。",
+    },
+    code: `use gpui_material::ToggleButton;
+
+ToggleButton::new("pin", "Pin", is_pinned)
+    .on_change(|selected, _, _| println!("Pinned: {selected}"))`,
+  },
+  {
+    slug: "icon-button",
+    group: "actions",
+    title: "IconButton",
+    source: "crates/components/src/button.rs",
+    api: "struct.IconButton.html",
+    description: {
+      en: "Run a command represented by an icon.",
+      zh: "通过图标执行命令。",
+    },
+    usage: {
+      en: "Provide an accessible name even when no label is visible. Use the variant, width, and size builders to change appearance.",
+      zh: "即使没有可见文字也要提供无障碍名称。用 variant、width 和 size 调整外观。",
+    },
+    code: `use gpui_material::{Icon, IconButton, IconName};
+
+IconButton::new("archive", "Archive", Icon::new(IconName::Archive))
+    .on_activate(|_, _| println!("Archive requested"))`,
+  },
+  {
+    slug: "icon-toggle-button",
+    group: "actions",
+    title: "IconToggleButton",
+    source: "crates/components/src/button.rs",
+    api: "struct.IconToggleButton.html",
+    story: "icon-button",
+    description: {
+      en: "Expose an on or off state using an icon.",
+      zh: "用图标表达开关状态。",
+    },
+    usage: {
+      en: "Keep the selected value in the application. Give the control an accessible name and optionally supply a different selected icon.",
+      zh: "由应用持有选中值。为控件提供无障碍名称，还可单独配置选中时的图标。",
+    },
+    code: `use gpui_material::{Icon, IconName, IconToggleButton};
+
+IconToggleButton::new(
+    "favorite", "Favorite", Icon::new(IconName::Favorite), is_favorite,
+)
+.selected_icon(Icon::new(IconName::Favorite).filled(true))
+.on_change(|selected, _, _| println!("Favorite: {selected}"))`,
+  },
+  {
+    slug: "fab",
+    group: "actions",
+    title: "Fab",
+    source: "crates/components/src/fab.rs",
+    api: "struct.Fab.html",
+    description: {
+      en: "Place a prominent primary action above the content.",
+      zh: "把主要操作悬浮在内容上方。",
+    },
+    usage: {
+      en: "Supply an accessibility name and icon. Mount the FAB alongside the scroll viewport or put it in the Scaffold FAB slot to keep it visible while the content scrolls.",
+      zh: "提供无障碍名称和图标。把 FAB 放在滚动区域旁或 Scaffold 的 FAB 槽位中，内容滚动时它仍然可见。",
+    },
+    code: `use gpui_material::{Fab, Icon, IconName};
+
+Fab::new("create", "Create", Icon::new(IconName::Add))
+    .on_activate(|_, _| println!("Create requested"))`,
+  },
+  {
+    slug: "extended-fab",
+    group: "actions",
+    title: "ExtendedFab",
+    source: "crates/components/src/fab.rs",
+    api: "struct.ExtendedFab.html",
+    description: {
+      en: "Give a floating action a visible text label.",
+      zh: "给悬浮操作加上可见的文字标签。",
+    },
+    usage: {
+      en: "Provide the label and icon. Pass expanded(false) to collapse the visible label while preserving the accessibility name.",
+      zh: "传入标签和图标。使用 expanded(false) 收起可见标签，同时保留无障碍名称。",
+    },
+    code: `use gpui_material::{ExtendedFab, Icon, IconName};
+
+ExtendedFab::new("compose", "Compose", Icon::new(IconName::Edit))
+    .expanded(true)
+    .on_activate(|_, _| println!("Compose requested"))`,
+  },
+  {
+    slug: "checkbox",
+    group: "actions",
+    title: "Checkbox",
+    source: "crates/components/src/selection.rs",
+    api: "struct.Checkbox.html",
+    description: {
+      en: "Select independent options and represent a mixed selection.",
+      zh: "选择独立选项，也可以表示部分选中。",
+    },
+    usage: {
+      en: "Pass the app-owned CheckboxState into new and apply the value received in on_change. For a parent checkbox, use Checkbox::aggregate to derive its value from the child states.",
+      zh: "将应用持有的 CheckboxState 传给 new，并应用 on_change 给出的值。父复选框可以用 Checkbox::aggregate 从子项状态推导。",
+    },
+    code: `use gpui_material::{Checkbox, CheckboxState};
+
+Checkbox::new("alerts", "Email alerts", CheckboxState::Unchecked)
+    .on_change(|state, _, _| println!("New state: {state:?}"))`,
+  },
+  {
+    slug: "radio",
+    group: "actions",
+    title: "Radio / RadioGroup",
+    source: "crates/components/src/selection.rs",
+    api: "struct.RadioGroup.html",
+    description: {
+      en: "Choose one option from a set.",
+      zh: "从一组选项中选择一项。",
+    },
+    usage: {
+      en: "Pass stable option IDs and the current selected ID to RadioGroup. Handle on_select in the app. The group provides keyboard navigation.",
+      zh: "给 RadioGroup 传入稳定的选项 ID 和当前选中项 ID。在应用里处理 on_select。组内支持键盘导航。",
+    },
+    code: `use gpui_material::{Radio, RadioGroup};
+
+RadioGroup::new("theme", "Theme")
+    .options([Radio::new("light", "Light"), Radio::new("dark", "Dark")])
+    .selected("light")
+    .on_select(|id, _, _| println!("Selected: {id:?}"))`,
+  },
+  {
+    slug: "switch",
+    group: "actions",
+    title: "Switch",
+    source: "crates/components/src/selection.rs",
+    api: "struct.Switch.html",
+    description: {
+      en: "Turn a preference on or off.",
+      zh: "开启或关闭一项设置。",
+    },
+    usage: {
+      en: "Pass the current boolean value into the constructor. Apply the new value from on_change, and optionally use checked_icon or unchecked_icon for the thumb.",
+      zh: "在构造时传入当前布尔值，并在 on_change 中应用目标值。可使用 checked_icon 或 unchecked_icon 配置滑块图标。",
+    },
+    code: `use gpui_material::Switch;
+
+Switch::new("sync", "Sync", is_sync_enabled)
+    .on_change(|checked, _, _| println!("Sync: {checked}"))`,
+  },
+  {
+    slug: "chip",
+    group: "actions",
+    title: "Chip",
+    source: "crates/components/src/chip.rs",
+    api: "struct.Chip.html",
+    description: {
+      en: "Represent a filter, suggestion, input, or small action.",
+      zh: "表示筛选项、建议项、输入项或轻量操作。",
+    },
+    usage: {
+      en: "Filter and Input chips can request a selection change or expose a separate removal action. Use on_activate for command-style chips.",
+      zh: "Filter 和 Input 可以请求改变选中状态，也可以提供独立移除操作。执行命令的标签使用 on_activate。",
+    },
+    code: `use gpui_material::{Chip, ChipVariant};
+
+Chip::new("unread", "Unread")
+    .variant(ChipVariant::Filter)
+    .selected(is_unread_only)
+    .on_change(|selected, _, _| println!("Unread only: {selected}"))`,
+  },
+  {
+    slug: "slider",
+    group: "actions",
+    title: "Slider",
+    source: "crates/components/src/slider.rs",
+    api: "struct.Slider.html",
+    description: {
+      en: "Adjust a value or range using the pointer or keyboard.",
+      zh: "通过指针或键盘调整单值或范围。",
+    },
+    usage: {
+      en: "Create a SliderState entity once and store it in the view. Read or subscribe to the entity for value changes. Use Slider::range with a range value for two thumbs.",
+      zh: "创建一次 SliderState 实体并保存在视图中。读取或订阅实体获取值变化。双滑块使用 Slider::range 并给状态配置范围值。",
+    },
+    code: `use gpui_material::{Slider, SliderState};
+
+// In the owning view's constructor
+let level = cx.new(|_| SliderState::new().max(10.).step(1.).default_value(3.));
+
+// In render
+Slider::new("level", "Level", &self.level)`,
+  },
+
+  {
+    slug: "text",
+    group: "content",
+    title: "Text",
+    source: "crates/components/src/text.rs",
+    api: "struct.Text.html",
+    description: {
+      en: "Render text with a Material typography role.",
+      zh: "按 Material 排版角色渲染文字。",
+    },
+    usage: {
+      en: "Choose a TypeRole to inherit size, weight, and line height from the active theme. Use wrap or truncate to control narrow layouts.",
+      zh: "选择 TypeRole，从当前主题继承字号、字重和行高。可用 wrap 或 truncate 处理窄布局。",
+    },
+    code: `use gpui_material::{Text, theme::TypeRole};
+
+Text::new("Recent projects").role(TypeRole::HeadlineSmall).wrap()`,
+  },
+  {
+    slug: "icon",
+    group: "content",
+    title: "Icon",
+    source: "crates/components/src/icon.rs",
+    api: "struct.Icon.html",
+    description: {
+      en: "Render a bundled Material Symbol.",
+      zh: "渲染库内置的 Material Symbol。",
+    },
+    usage: {
+      en: "Use built-in IconName values for Material Symbols. Give a standalone icon a label when it conveys information. For icon buttons, set the accessible name on the button.",
+      zh: "使用内置的 IconName 渲染 Material Symbols。独立图标承担信息表达时应添加标签。图标按钮的无障碍名称由按钮提供。",
+    },
+    code: `use gpui::px;
+use gpui_material::{Icon, IconName};
+
+Icon::new(IconName::Favorite).filled(true).size(px(24.))`,
+  },
+  {
+    slug: "surface",
+    group: "content",
+    title: "Surface",
+    source: "crates/foundation/src/surface.rs",
+    api: "struct.Surface.html",
+    story: null,
+    description: {
+      en: "Paint a themed surface behind application content.",
+      zh: "为应用内容绘制主题表面。",
+    },
+    usage: {
+      en: "Choose a ColorRole and fill the surface with GPUI elements. Tonal and shadow elevation can be configured separately.",
+      zh: "指定 ColorRole，再放入 GPUI 子元素。色调层级和阴影层级可分别配置。",
+    },
+    code: `use gpui::ParentElement as _;
+use gpui_material::{Surface, Text, theme::ColorRole};
+
+Surface::new(ColorRole::SurfaceContainerHigh)
+    .child(Text::new("Project details"))`,
+  },
+  {
+    slug: "card",
+    group: "content",
+    title: "Card",
+    source: "crates/components/src/display.rs",
+    api: "struct.Card.html",
+    description: {
+      en: "Group related content on a Material surface.",
+      zh: "把相关内容组织到同一个 Material 表面上。",
+    },
+    usage: {
+      en: "Build the card from child elements. Choose Filled, Elevated, or Outlined. Add on_activate with an accessible name when the whole card opens a destination.",
+      zh: "用子元素构成卡片，再选择 Filled、Elevated 或 Outlined。如果整张卡片用于打开目标，给 on_activate 提供无障碍名称。",
+    },
+    code: `use gpui::ParentElement as _;
+use gpui_material::{Card, CardVariant, Text};
+
+Card::new("project")
+    .variant(CardVariant::Outlined)
+    .child(Text::new("Project Orion"))`,
+  },
+  {
+    slug: "list",
+    group: "content",
+    title: "List / ListItem",
+    source: "crates/components/src/display.rs",
+    api: "struct.List.html",
+    description: {
+      en: "Present rows with labels, supporting text, and actions.",
+      zh: "展示带标题、辅助文本和操作的列表行。",
+    },
+    usage: {
+      en: "Build rows with unique, stable IDs. Use ListItem::on_activate for a row action. Each row can provide its own leading and trailing elements.",
+      zh: "给每行提供唯一且稳定的 ID。用 ListItem::on_activate 处理行操作，每行都可以添加前置和尾部元素。",
+    },
+    code: `use gpui_material::{List, ListItem};
+
+List::new("projects").items([
+    ListItem::new("orion", "Orion")
+        .on_activate(|_, _| println!("Open Orion")),
+])`,
+  },
+  {
+    slug: "divider",
+    group: "content",
+    title: "Divider",
+    source: "crates/components/src/display.rs",
+    api: "struct.Divider.html",
+    description: {
+      en: "Separate adjacent regions or list items.",
+      zh: "分隔相邻区域或列表项。",
+    },
+    usage: {
+      en: "Pick horizontal or vertical according to the parent layout. Give a vertical divider a parent with a bounded height.",
+      zh: "根据父布局选择横向或纵向。垂直分隔线的父布局应有确定高度。",
+    },
+    code: `use gpui_material::Divider;
+
+Divider::horizontal()`,
+  },
+  {
+    slug: "badge",
+    group: "content",
+    title: "Badge",
+    source: "crates/components/src/display.rs",
+    api: "struct.Badge.html",
+    description: {
+      en: "Add a dot, short label, or count to a host element.",
+      zh: "给宿主元素添加圆点、短标签或计数。",
+    },
+    usage: {
+      en: "Wrap the host element with dot, label, or count. count takes the maximum number to display before it switches to a capped label such as 99+.",
+      zh: "用 dot、label 或 count 包裹宿主元素。count 接收显示上限，超过时会显示类似 99+ 的简写。",
+    },
+    code: `use gpui_material::{Badge, Icon, IconName};
+
+Badge::count(Icon::new(IconName::Notifications), 3, 99)`,
+  },
+  {
+    slug: "progress",
+    group: "content",
+    title: "LinearProgress / CircularProgress",
+    source: "crates/components/src/progress.rs",
+    api: "struct.LinearProgress.html",
+    description: {
+      en: "Show a measured fraction or an indeterminate operation.",
+      zh: "显示确定进度或不确定操作。",
+    },
+    usage: {
+      en: "Pass a fraction from 0.0 to 1.0 with value for determinate progress. Omit value for an indeterminate operation. Both constructors take an accessibility label.",
+      zh: "确定进度用 value 传入 0.0 至 1.0 的比例，不确定进度省略 value。两种构造器都接收无障碍标签。",
+    },
+    code: `use gpui_material::{CircularProgress, LinearProgress};
+
+let upload = LinearProgress::new("upload", "Upload").value(0.65);
+let refresh = CircularProgress::new("refresh", "Refreshing");`,
+  },
+  {
+    slug: "loading-indicator",
+    group: "content",
+    title: "LoadingIndicator",
+    source: "crates/components/src/progress.rs",
+    api: "struct.LoadingIndicator.html",
+    description: {
+      en: "Indicate activity while a result is pending.",
+      zh: "等待结果时显示加载状态。",
+    },
+    usage: {
+      en: "Provide an accessibility label that describes the current operation. Use contained(true) to draw the indicator inside a themed container.",
+      zh: "提供描述当前操作的无障碍标签。用 contained(true) 将指示器画在有主题背景的容器中。",
+    },
+    code: `use gpui_material::LoadingIndicator;
+
+LoadingIndicator::new("fetching", "Fetching projects").contained(true)`,
+  },
+  {
+    slug: "snackbar",
+    group: "content",
+    title: "Snackbar / SnackbarHost",
+    source: "crates/components/src/overlay/snackbar.rs",
+    api: "struct.SnackbarHost.html",
+    description: {
+      en: "Queue transient feedback and optional follow-up actions.",
+      zh: "排队显示短时反馈和可选的后续操作。",
+    },
+    usage: {
+      en: "Keep one SnackbarHost entity in the view. Mount it in the Scaffold snackbar slot and call push from a command to show feedback. A timeout of None keeps a message visible until dismissal.",
+      zh: "在视图中保留一个 SnackbarHost 实体，将它放进 Scaffold 的 snackbar 槽位，再从命令里调用 push。把超时设为 None 可以持续显示，直到关闭。",
+    },
+    code: `use gpui_material::{Scaffold, Snackbar, SnackbarHost};
+
+// In the view constructor
+let host = cx.new(|_| SnackbarHost::default());
+
+// When an operation completes
+self.host.update(cx, |host, cx| {
+    host.push(Snackbar::new("Project saved"), window, cx);
+});
+
+// In render
+Scaffold::new("project", content).snackbar(self.host.clone())`,
+  },
+
+  {
+    slug: "text-field",
+    group: "input",
+    title: "TextField",
+    source: "crates/components/src/input/text_field.rs",
+    api: "struct.TextField.html",
+    description: {
+      en: "Edit single-line, multiline, or masked text.",
+      zh: "编辑单行、多行或带掩码的文本字段。",
+    },
+    usage: {
+      en: "Create and retain a TextFieldState entity. Subscribe to TextFieldEvent on it to react to edits. Use TextAreaState with TextField::multiline, and a dedicated masked state with TextField::secure.",
+      zh: "创建并保留 TextFieldState 实体，通过订阅 TextFieldEvent 响应编辑。多行输入使用 TextAreaState 和 TextField::multiline，密码输入使用独立的掩码状态和 TextField::secure。",
+    },
+    code: `use gpui_material::{TextField, TextFieldState, TextFieldVariant};
+
+// In the owning view's constructor
+let email = cx.new(|cx| TextFieldState::new(window, cx).placeholder("name@example.com"));
+
+// In render
+TextField::new("email", "Email", &self.email)
+    .variant(TextFieldVariant::Outlined)`,
+  },
+  {
+    slug: "exposed-dropdown",
+    group: "input",
+    title: "ExposedDropdown",
+    source: "crates/components/src/input/exposed_dropdown.rs",
+    api: "struct.ExposedDropdown.html",
+    description: {
+      en: "Choose a value from a text-field anchored list.",
+      zh: "从文本字段锚定的下拉列表中选择值。",
+    },
+    usage: {
+      en: "Create one ExposedDropdownState per field. Pass true for editable filtering or false for selection only. Give each option a stable ID and handle on_select in the application.",
+      zh: "给每个字段创建一个 ExposedDropdownState。传入 true 允许输入筛选，false 仅允许选择。为每个选项设置稳定的 ID，并在应用里处理 on_select。",
+    },
+    code: `use gpui_material::{DropdownOption, ExposedDropdown, ExposedDropdownState};
+
+let language = cx.new(|cx| ExposedDropdownState::new("English", false, window, cx));
+
+// In render
+ExposedDropdown::new("language", "Language", &self.language, [
+    DropdownOption::new("en", "English"),
+    DropdownOption::new("zh", "简体中文"),
+])`,
+  },
+  {
+    slug: "menu",
+    group: "input",
+    title: "Menu",
+    source: "crates/components/src/overlay/menu.rs",
+    api: "struct.Menu.html",
+    description: {
+      en: "Open an anchored list of commands or a context menu.",
+      zh: "打开锚定命令列表或上下文菜单。",
+    },
+    usage: {
+      en: "Supply a focusable trigger and a list of MenuItem values with stable IDs. Use context() to open on secondary click. Bind each command with on_activate.",
+      zh: "提供可聚焦的触发控件和带稳定 ID 的 MenuItem 列表。使用 context() 响应右键打开，用 on_activate 绑定各项命令。",
+    },
+    code: `use gpui_material::{Button, Menu, MenuItem};
+
+Menu::new("options", Button::new("open-options", "Options"), [
+    MenuItem::new("rename", "Rename").on_activate(|_, _| println!("Rename")),
+])`,
+  },
+  {
+    slug: "tooltip",
+    group: "input",
+    title: "Tooltip",
+    source: "crates/components/src/overlay/tooltip.rs",
+    api: "struct.Tooltip.html",
+    description: {
+      en: "Attach a short hint or richer help to a control.",
+      zh: "给控件添加简短提示或更丰富的帮助内容。",
+    },
+    usage: {
+      en: "Wrap the trigger with Tooltip::plain for a text hint. For keyboard-triggered help, share a retained FocusHandle between the trigger and Tooltip::track_focus.",
+      zh: "用 Tooltip::plain 包裹触发控件，显示文本提示。键盘提示需要让触发控件和 Tooltip::track_focus 共用一个持久化的 FocusHandle。",
+    },
+    code: `use gpui_material::{Button, Tooltip};
+
+Tooltip::plain(
+    "archive-help",
+    Button::new("archive", "Archive").track_focus(&self.archive_focus),
+    "Move this project out of the active list",
+)
+.track_focus(&self.archive_focus)`,
+  },
+  {
+    slug: "dialog",
+    group: "input",
+    title: "Dialog",
+    source: "crates/components/src/overlay/dialog.rs",
+    api: "struct.Dialog.html",
+    description: {
+      en: "Ask for a decision or accept input in a modal.",
+      zh: "通过模态对话框请求确认或接收输入。",
+    },
+    usage: {
+      en: "Retain a DialogState entity and mount the dialog alongside its trigger. Open the entity from the trigger callback. Return true from confirm to dismiss the dialog.",
+      zh: "保留 DialogState 实体，将对话框与触发控件一起渲染。在触发回调中打开实体。确认回调返回 true 时关闭对话框。",
+    },
+    code: `use gpui_material::{Button, Dialog, DialogState};
+
+let dialog = cx.new(DialogState::new);
+
+// In render
+let state = self.dialog.clone();
+let trigger = Button::new("open", "Delete project").on_activate(move |window, cx| {
+    state.update(cx, |state, cx| state.open(window, cx));
+});
+let dialog = Dialog::new("delete", &self.dialog, "Delete project?")
+    .description("You can restore it from the archive.")
+    .confirm("Delete", |_, _| true);`,
+  },
+  {
+    slug: "sheet",
+    group: "input",
+    title: "Sheet",
+    source: "crates/components/src/overlay/sheet.rs",
+    api: "struct.Sheet.html",
+    story: "sheets",
+    description: {
+      en: "Reveal supporting content at the bottom or one side.",
+      zh: "从底部或侧边展开补充内容。",
+    },
+    usage: {
+      en: "Share a retained DialogState with the trigger. Select Bottom, Start, or End with edge, and choose Modal when the sheet should block background interaction.",
+      zh: "与触发控件共用持久化的 DialogState。用 edge 选 Bottom、Start 或 End，需要阻止背景交互时用 Modal。",
+    },
+    code: `use gpui_material::{Sheet, SheetEdge, SheetMode, Text};
+
+Sheet::new("filters", &self.filters, "Filters", Text::new("Project filters"))
+    .edge(SheetEdge::End)
+    .mode(SheetMode::Modal)`,
+  },
+
+  {
+    slug: "app-bar",
+    group: "navigation",
+    title: "AppBar",
+    source: "crates/components/src/navigation/app_bar.rs",
+    api: "struct.AppBar.html",
+    description: {
+      en: "Place a title, navigation, and commands above the content.",
+      zh: "在内容上方布置标题、导航和命令。",
+    },
+    usage: {
+      en: "Choose a variant and supply optional navigation and action elements. For a flexible app bar, pass the same ScrollHandle used by the content viewport.",
+      zh: "选择变体，再按需传入导航和操作元素。Flexible 应用栏需传入与内容滚动区共用的 ScrollHandle。",
+    },
+    code: `use gpui_material::{AppBar, AppBarVariant};
+
+AppBar::new("projects-header", "Projects")
+    .variant(AppBarVariant::MediumFlexible)
+    .track_scroll(&self.scroll)`,
+  },
+  {
+    slug: "tabs",
+    group: "navigation",
+    title: "Tabs",
+    source: "crates/components/src/navigation/items.rs",
+    api: "struct.Tabs.html",
+    description: {
+      en: "Switch between peer content panels.",
+      zh: "在同级内容面板之间切换。",
+    },
+    usage: {
+      en: "Build NavigationItems with stable IDs and the current selection. Use on_select to update the active panel. Enable scrollable when the tabs may overflow.",
+      zh: "给 NavigationItems 传入稳定的 ID 和当前选中项。在 on_select 中切换面板，标签可能溢出时启用 scrollable。",
+    },
+    code: `use gpui_material::{NavigationItem, NavigationItems, Tabs};
+
+Tabs::new(NavigationItems::new("tabs", "Project views", [
+    NavigationItem::new("recent", "Recent"),
+    NavigationItem::new("shared", "Shared"),
+]).selected("recent"))`,
+  },
+  {
+    slug: "navigation-bar",
+    group: "navigation",
+    title: "NavigationBar",
+    source: "crates/components/src/navigation/items.rs",
+    api: "struct.NavigationBar.html",
+    description: {
+      en: "Switch between primary destinations in a short bar.",
+      zh: "通过短导航栏切换主要目的地。",
+    },
+    usage: {
+      en: "Pass the current destination through NavigationItems and handle on_select in the application. Place the bar in Scaffold::bottom_bar when composing a window.",
+      zh: "通过 NavigationItems 传入当前目的地，并在应用中处理 on_select。组合窗口时可把导航栏放进 Scaffold::bottom_bar。",
+    },
+    code: `use gpui_material::{Icon, IconName, NavigationBar, NavigationItem, NavigationItems};
+
+NavigationBar::new(NavigationItems::new("destinations", "Destinations", [
+    NavigationItem::new("inbox", "Inbox").icon(Icon::new(IconName::Inbox)),
+    NavigationItem::new("archive", "Archive").icon(Icon::new(IconName::Archive)),
+]).selected("inbox"))`,
+  },
+  {
+    slug: "navigation-rail",
+    group: "navigation",
+    title: "NavigationRail",
+    source: "crates/components/src/navigation/rail.rs",
+    api: "struct.NavigationRail.html",
+    description: {
+      en: "Place primary destinations in a side rail.",
+      zh: "在侧边轨道上布置主要目的地。",
+    },
+    usage: {
+      en: "Build the rail from NavigationItems. Bind mode to your window layout, and pass a DialogState to modal to show it as a modal rail.",
+      zh: "用 NavigationItems 构造导航轨道。根据窗口布局设置 mode，向 modal 传入 DialogState 可将轨道用作模态导航。",
+    },
+    code: `use gpui_material::{NavigationItem, NavigationItems, NavigationRail, RailMode};
+
+NavigationRail::new("rail", NavigationItems::new("sections", "Sections", [
+    NavigationItem::new("inbox", "Inbox"),
+    NavigationItem::new("archive", "Archive"),
+]).selected("inbox")).mode(RailMode::Expanded)`,
+  },
+  {
+    slug: "scaffold",
+    group: "navigation",
+    title: "Scaffold",
+    source: "crates/components/src/navigation/scaffold.rs",
+    api: "struct.Scaffold.html",
+    story: "adaptive-layout",
+    description: {
+      en: "Compose a window from app chrome, content, and feedback.",
+      zh: "组合窗口界面、内容和操作反馈。",
+    },
+    usage: {
+      en: "Place the header, rail, bottom bar, FAB, and snackbar in their named slots. Give the scaffold a bounded size and scroll the content within its viewport.",
+      zh: "将应用栏、轨道、底部栏、FAB 和消息条放入各自槽位。给 Scaffold 一个确定的尺寸，在内容区域内实现滚动。",
+    },
+    code: `use gpui_material::{AppBar, Scaffold, Text};
+
+Scaffold::new("workspace", Text::new("Recent projects"))
+    .app_bar(AppBar::new("header", "Workspace"))`,
+  },
+  {
+    slug: "adaptive-layout",
+    group: "navigation",
+    title: "AdaptiveNavigation",
+    source: "crates/components/src/navigation/adaptive.rs",
+    api: "struct.AdaptiveNavigation.html",
+    description: {
+      en: "Choose a navigation bar or rail based on available width.",
+      zh: "根据可用宽度选择导航栏或导航轨道。",
+    },
+    usage: {
+      en: "Create the scaffold and supply an application-controlled NavigationItems model. Pass the available width in GPUI pixels on each render.",
+      zh: "先创建 Scaffold，再提供应用控制的 NavigationItems。每次渲染都传入以 GPUI 像素表示的可用宽度。",
+    },
+    code: `use gpui_material::{AdaptiveNavigation, NavigationItem, NavigationItems, Scaffold, Text};
+
+let items = NavigationItems::new("sections", "Sections", [
+    NavigationItem::new("inbox", "Inbox"),
+    NavigationItem::new("archive", "Archive"),
+]).selected("inbox");
+
+AdaptiveNavigation::new(Scaffold::new("mail", Text::new("Inbox")), items, width)`,
+  },
+  {
+    slug: "list-detail",
+    group: "navigation",
+    title: "ListDetail",
+    source: "crates/components/src/navigation/adaptive.rs",
+    api: "struct.ListDetail.html",
+    story: "adaptive-layout",
+    description: {
+      en: "Show a list and its selected detail in a responsive layout.",
+      zh: "响应式展示列表及选中项详情。",
+    },
+    usage: {
+      en: "Pass the list, detail, and available width. Keep the selected item in your application and use active_pane to choose the visible pane at narrow widths.",
+      zh: "传入列表、详情和可用宽度。应用持有选中项，并通过 active_pane 指定较窄时显示哪个面板。",
+    },
+    code: `use gpui_material::{ListDetail, ListDetailPane, Text};
+
+ListDetail::new("projects", width, Text::new("Projects"), Text::new("Orion"))
+    .active_pane(ListDetailPane::Detail)`,
+  },
+  {
+    slug: "supporting-pane",
+    group: "navigation",
+    title: "SupportingPane",
+    source: "crates/components/src/navigation/adaptive.rs",
+    api: "struct.SupportingPane.html",
+    story: "adaptive-layout",
+    description: {
+      en: "Place supplementary content next to the primary view.",
+      zh: "在主视图旁显示辅助内容。",
+    },
+    usage: {
+      en: "Supply the primary element, supporting element, and available width. Use show_support to control whether the supporting view is shown.",
+      zh: "传入主元素、辅助元素和可用宽度。通过 show_support 控制辅助视图是否显示。",
+    },
+    code: `use gpui_material::{SupportingPane, Text};
+
+SupportingPane::new("editor", width, Text::new("Document"), Text::new("Outline"))
+    .show_support(true)`,
+  },
+  {
+    slug: "feed",
+    group: "navigation",
+    title: "Feed",
+    source: "crates/components/src/navigation/adaptive.rs",
+    api: "struct.Feed.html",
+    story: "adaptive-layout",
+    description: {
+      en: "Lay out a collection of cards in a responsive feed.",
+      zh: "用响应式信息流排列多张卡片。",
+    },
+    usage: {
+      en: "Retain a GPUI ScrollHandle and pass the current available width to Feed. Add cards as child elements.",
+      zh: "持久化保留一个 GPUI ScrollHandle，并将当前可用宽度传给 Feed。以子元素形式添加卡片。",
+    },
+    code: `use gpui::ParentElement as _;
+use gpui_material::{Card, Feed, Text};
+
+Feed::new("projects-feed", width, &self.scroll)
+    .child(Card::new("orion").child(Text::new("Orion")))
+    .child(Card::new("lyra").child(Text::new("Lyra")))`,
+  },
+
+  {
+    slug: "button-group",
+    group: "optional",
+    title: "ButtonGroup",
+    source: "crates/extras/src/groups.rs",
+    feature: "expressive-groups",
+    description: {
+      en: "Group commands or connected selections.",
+      zh: "组合一组命令或相连的选择按钮。",
+    },
+    usage: {
+      en: "Use ButtonGroupItem for each member. With a connected selection group, keep the selected IDs in your application and apply the changes reported by on_change.",
+      zh: "为每个成员构造 ButtonGroupItem。相连的选择按钮组由应用保存选中 ID，并应用 on_change 报告的变化。",
+    },
+    code: `use gpui_material::{ButtonGroup, ButtonGroupItem};
+
+ButtonGroup::new("alignment", "Alignment", [
+    ButtonGroupItem::new("left", "Left").on_activate(|_, _| println!("Left")),
+    ButtonGroupItem::new("right", "Right").on_activate(|_, _| println!("Right")),
+])`,
+  },
+  {
+    slug: "split-button",
+    group: "optional",
+    title: "SplitButton",
+    source: "crates/extras/src/groups.rs",
+    feature: "expressive-groups",
+    description: {
+      en: "Expose a primary command next to a menu of related commands.",
+      zh: "把主要命令与相关命令的菜单放在一起。",
+    },
+    usage: {
+      en: "Provide separate labels for the primary action and the menu. Bind the primary command with on_activate, and each secondary command on its MenuItem.",
+      zh: "分别提供主操作和菜单的标签。用 on_activate 绑定主要命令，并在各 MenuItem 上绑定次要命令。",
+    },
+    code: `use gpui_material::{MenuItem, SplitButton};
+
+SplitButton::new("export", "Export PDF", "More formats", [
+    MenuItem::new("csv", "Export CSV").on_activate(|_, _| println!("CSV")),
+])
+.on_activate(|_, _| println!("PDF"))`,
+  },
+  {
+    slug: "fab-menu",
+    group: "optional",
+    title: "FabMenu",
+    source: "crates/extras/src/toolbar.rs",
+    feature: "toolbars",
+    description: {
+      en: "Expand a floating action into a set of related commands.",
+      zh: "从悬浮按钮展开一组相关命令。",
+    },
+    usage: {
+      en: "Pass the trigger label and icon, then add stable FabMenuItem IDs. Each item can have its own on_activate callback.",
+      zh: "传入触发按钮的标签和图标，再添加带稳定 ID 的 FabMenuItem。每个菜单项可以有自己的 on_activate 回调。",
+    },
+    code: `use gpui_material::{FabMenu, FabMenuItem, IconName};
+
+FabMenu::new("create-menu", "Create", IconName::Add, [
+    FabMenuItem::new("note", "New note", IconName::Edit)
+        .on_activate(|_, _| println!("New note")),
+])`,
+  },
+  {
+    slug: "toolbar",
+    group: "optional",
+    title: "Toolbar",
+    source: "crates/extras/src/toolbar/bar.rs",
+    feature: "toolbars",
+    story: "toolbars",
+    description: {
+      en: "Arrange related actions in a floating or docked toolbar.",
+      zh: "在悬浮或停靠的工具栏中排列相关操作。",
+    },
+    usage: {
+      en: "Use ToolbarAction for labeled icon commands. Choose placement and orientation on the toolbar. Secondary actions can move to overflow when it collapses.",
+      zh: "用 ToolbarAction 构造带标签的图标命令，并设置工具栏的放置位置和方向。工具栏收起时，次要操作可以进入溢出菜单。",
+    },
+    code: `use gpui_material::{IconName, Toolbar, ToolbarAction};
+
+Toolbar::new("document-tools", "Document tools", [
+    ToolbarAction::new("edit", "Edit", IconName::Edit)
+        .on_activate(|_, _| println!("Edit")),
+])`,
+  },
+  {
+    slug: "search",
+    group: "optional",
+    title: "SearchBar / SearchView",
+    source: "crates/extras/src/search.rs",
+    feature: "search",
+    description: {
+      en: "Search from a collapsed trigger or an expanded surface.",
+      zh: "通过收起的入口或展开的界面进行搜索。",
+    },
+    usage: {
+      en: "Retain a SearchState entity. Use SearchBar for the collapsed trigger or SearchView for an expanded surface. Subscribe to SearchEvent on the state and supply results with stable IDs.",
+      zh: "持久化保留 SearchState 实体。用 SearchBar 作为收起时的入口，或用 SearchView 渲染展开的界面。订阅状态上的 SearchEvent，并提供带稳定 ID 的结果。",
+    },
+    code: `use gpui_material::{SearchBar, SearchState};
+
+// In the view constructor
+let search = cx.new(|cx| SearchState::new(window, cx));
+
+// In render
+SearchBar::new("search", "Search projects", &self.search)`,
+  },
+  {
+    slug: "date-picker",
+    group: "optional",
+    title: "DatePicker",
+    source: "crates/extras/src/date_time/date.rs",
+    feature: "date-time",
+    relatedStory: "date-range-picker",
+    description: {
+      en: "Choose a date or an inclusive date range.",
+      zh: "选择一个日期或包含起止两日的日期范围。",
+    },
+    usage: {
+      en: "Retain a DatePickerState entity for the picker interaction. Pass DateSelection::Single or DateSelection::Range from application state and commit the value in on_confirm.",
+      zh: "为选择器的交互保留 DatePickerState 实体。应用传入 DateSelection::Single 或 DateSelection::Range，并在 on_confirm 中保存结果。",
+    },
+    code: `use gpui_material::date_time::{DatePicker, DatePickerState, DateSelection};
+
+// In the view constructor
+let date = cx.new(|cx| DatePickerState::new(window, cx));
+
+// In render
+DatePicker::new("due-date", "Due date", &self.date, DateSelection::Single(None))
+    .on_confirm(|value, _, _| println!("Selected: {value:?}"))`,
+  },
+  {
+    slug: "time-picker",
+    group: "optional",
+    title: "TimePicker",
+    source: "crates/extras/src/date_time/time.rs",
+    feature: "date-time",
+    description: {
+      en: "Choose a time using a dial or text input.",
+      zh: "通过表盘或文本输入选择时间。",
+    },
+    usage: {
+      en: "Retain a TimePickerState entity and pass the current time from the application. Apply the value received by on_confirm.",
+      zh: "保留一个 TimePickerState 实体，由应用传入当前时间，并在 on_confirm 中应用确认后的值。",
+    },
+    code: `use gpui_material::date_time::{TimePicker, TimePickerState};
+
+// In the view constructor
+let picker = cx.new(|cx| TimePickerState::new(window, cx));
+
+// In render
+TimePicker::new("reminder", "Reminder time", &self.picker, self.time)
+    .on_confirm(|time, _, _| println!("Reminder: {time}"))`,
+  },
+  {
+    slug: "carousel",
+    group: "optional",
+    title: "Carousel",
+    source: "crates/extras/src/carousel/mod.rs",
+    feature: "carousel",
+    description: {
+      en: "Browse a collection using one of six Material layouts.",
+      zh: "用六种 Material 布局之一浏览集合。",
+    },
+    usage: {
+      en: "Give each CarouselItem a stable ID, label, and content. Choose the variant to control how much adjacent content is visible.",
+      zh: "给每个 CarouselItem 提供稳定 ID、标签和内容。通过 variant 调整相邻内容的可见范围。",
+    },
+    code: `use gpui_material::{Carousel, CarouselItem, CarouselVariant, Text};
+
+Carousel::new("featured", "Featured projects", [
+    CarouselItem::new("orion", "Orion", Text::new("Project Orion")),
+    CarouselItem::new("lyra", "Lyra", Text::new("Project Lyra")),
+])
+.variant(CarouselVariant::MultiBrowse)`,
+  },
+].map((guide) => ({ story: guide.slug, ...guide }));

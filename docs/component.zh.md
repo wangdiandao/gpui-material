@@ -31,10 +31,16 @@
 | `Surface` | 为应用内容提供主题背景和色调层级。 | [层级](https://m3.material.io/styles/elevation/overview) |
 | `Card` | Elevated、Filled、Outlined，支持静态或可操作的卡片。 | [卡片](https://m3.material.io/components/cards/overview) |
 | `List`、`ListItem` | Standard 和 Segmented 列表，支持前置、辅助及尾部内容。 | [列表](https://m3.material.io/components/lists/overview) |
-| `Divider`、`Badge` | 横向与纵向分隔线。徽标支持圆点、内容及计数。 | [分隔线](https://m3.material.io/components/divider/overview) · [徽标](https://m3.material.io/components/badges/overview) |
+| `Divider`、`Badge` | 横向与纵向分隔线支持逻辑内缩、粗细和单独配色。徽标支持圆点、内容及计数。 | [分隔线](https://m3.material.io/components/divider/overview) · [徽标](https://m3.material.io/components/badges/overview) |
 | `LinearProgress`、`CircularProgress` | 确定和不确定进度，支持直线和波浪样式。 | [进度指示器](https://m3.material.io/components/progress-indicators/overview) |
 | `LoadingIndicator` | 默认样式和带容器的加载指示器。 | [加载指示器](https://m3.material.io/components/loading-indicator/overview) |
 | `Snackbar`、`SnackbarHost` | 消息排队、可选操作、定时或持续显示以及关闭。 | [消息条](https://m3.material.io/components/snackbar/overview) |
+
+### 分隔线
+
+`Divider::horizontal()` 和 `Divider::vertical()` 默认使用窗口主题的 `OutlineVariant` 颜色，厚度为一个逻辑像素。通过 `.thickness(px(2.))` 设置逻辑像素厚度，通过 `.thickness(px(0.))` 绘制一个物理像素的细线。无效的厚度值回退到默认值。纵向分隔线填满父布局的可用高度。
+
+使用 `.color(ColorRole::Primary)` 按窗口主题解析颜色角色，或使用 `.color_override(hsla)` 指定固定颜色。颜色设置以最后一次调用为准。`.inset(start, end)` 在横向布局中随窗口文字方向调整左右内缩，在纵向布局中分别设置顶部和底部内缩。分隔线是装饰元素，不增加键盘焦点。
 
 <a id="input-and-overlays"></a>
 

@@ -31,10 +31,16 @@ The [pinned Material 3 specification](design-sources.md#material-specification) 
 | `Surface` | Themed background and tonal elevation for application content. | [Elevation](https://m3.material.io/styles/elevation/overview) |
 | `Card` | Elevated, Filled, and Outlined, with static and actionable forms. | [Cards](https://m3.material.io/components/cards/overview) |
 | `List`, `ListItem` | Standard and Segmented lists with leading, supporting, and trailing content. | [Lists](https://m3.material.io/components/lists/overview) |
-| `Divider`, `Badge` | Horizontal and vertical dividers. Dot, content, and count badges. | [Divider](https://m3.material.io/components/divider/overview) · [Badges](https://m3.material.io/components/badges/overview) |
+| `Divider`, `Badge` | Horizontal and vertical dividers with logical insets, configurable thickness, and per-divider color. Dot, content, and count badges. | [Divider](https://m3.material.io/components/divider/overview) · [Badges](https://m3.material.io/components/badges/overview) |
 | `LinearProgress`, `CircularProgress` | Determinate and indeterminate progress with straight and wavy styling. | [Progress indicators](https://m3.material.io/components/progress-indicators/overview) |
 | `LoadingIndicator` | Default and contained loading indicators. | [Loading indicator](https://m3.material.io/components/loading-indicator/overview) |
 | `Snackbar`, `SnackbarHost` | Queued messages with optional actions, timed or persistent display, and dismissal. | [Snackbars](https://m3.material.io/components/snackbar/overview) |
+
+### Divider
+
+`Divider::horizontal()` and `Divider::vertical()` default to one logical pixel in the window theme's `OutlineVariant` color. Use `.thickness(px(2.))` to set a different logical width or `.thickness(px(0.))` for a one-device-pixel hairline. Invalid thickness values fall back to the default. A vertical divider fills the available height of its parent.
+
+Use `.color(ColorRole::Primary)` to resolve a role against the window theme or `.color_override(hsla)` to use a literal color. The last color setter takes precedence. `.inset(start, end)` follows the window's text direction for horizontal dividers and applies to the top and bottom for vertical dividers. The divider is decorative and adds no focus stop.
 
 <a id="输入与浮层"></a>
 

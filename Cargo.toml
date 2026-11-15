@@ -43,8 +43,3 @@ rustybuzz = { opt-level = 3 }
 smol = { opt-level = 3 }
 taffy = { opt-level = 3 }
 ttf-parser = { opt-level = 3 }
-
-# GPUI's Windows backend embeds its DirectX shaders with debug assertions off.
-[profile.gallery-artifact]
-inherits = "dev"
-debug-assertions = false

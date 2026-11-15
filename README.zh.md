@@ -6,7 +6,7 @@
 
 ## 体验 Gallery
 
-在 [GitHub Releases](https://github.com/wangdiandao/gpui-material/releases) 下载并解压 Windows x64 ZIP。你可以在侧栏搜索组件、操作示例，并切换浅色和深色主题。在 Adaptive layout 页面调整窗口大小，可以观察导航和内容窗格如何随可用空间变化。如需从源码运行 Gallery，先克隆仓库。
+从源码运行 Gallery。你可以在侧栏搜索组件、操作示例，并切换浅色和深色主题。在 Adaptive layout 页面调整窗口大小，可以观察导航和内容窗格如何随可用空间变化。
 
 ```sh
 git clone https://github.com/wangdiandao/gpui-material.git

@@ -125,35 +125,6 @@ cargo xtask timings target/timings/gallery-baseline
 
 Rust 构建缓存按平台隔离，由 `main` 的成功 push 更新，PR 可复用。
 
-Windows 作业演练 ZIP 打包，并上传 `gallery-windows-x64-msvc` 工程制品，包含可执行文件、构建计时和许可材料。发布验收使用 [Windows 实窗检查](verification.zh.md#windows-gallery-acceptance)。
+发布验收按 [Windows 实窗检查](verification.zh.md#windows-gallery-acceptance)执行。
 
 GitHub 规则集要求通过 PR 更新 `main`。PR 必须基于最新主线、解决评审对话，并通过 GitHub Actions 的 `CI required` 检查。
-
-<a id="windows-distribution"></a>
-
-## Windows 分发
-
-在发版提交的干净检出中使用 PowerShell 7 打包。优先使用该提交的 CI 制品 `gallery-windows-x64-msvc` 中的可执行文件。本地构建时，将 `GPUI_FXC_PATH` 指向 Windows SDK 的 x64 `fxc.exe`，并使用嵌入 DirectX 着色器的构建配置。
-
-```powershell
-cargo build --locked -p gpui-material-gallery --profile gallery-artifact
-```
-
-使用 CI 可执行文件或自定义 `CARGO_TARGET_DIR` 时，替换下面的示例 `$exe` 路径。离线打包需要锁定的 Windows 依赖，以及由 `rust-docs` 提供的 Rust 标准库许可证。
-
-```powershell
-rustup component add rust-docs
-cargo fetch --locked --target x86_64-pc-windows-msvc
-$exe = 'target/gallery-artifact/gpui-material-gallery.exe'
-$output = Join-Path ([IO.Path]::GetTempPath()) ('gpui-material-gallery-' + [guid]::NewGuid())
-./scripts/package-windows-gallery.ps1 -Executable $exe -OutputDirectory $output
-
-$name = 'gpui-material-gallery-windows-x64.zip'
-$zip = Join-Path $output $name
-$sha = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-$expected = (Get-Content -LiteralPath (Join-Path $output 'SHA256SUMS.txt') -Raw).Trim()
-if ($expected -cne "$sha  $name") { throw 'Gallery ZIP checksum mismatch' }
-Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $output 'extracted')
-```
-
-核对 `BUILD.txt` 中的提交、`DEPENDENCIES.txt` 中的依赖清单及随附许可证。启动解包后的程序并完成 [Windows Gallery 验收](verification.zh.md#windows-gallery-acceptance)。同时上传通过验收的 ZIP 和 `SHA256SUMS.txt`，用完后清理临时构建与解包产物。[发布流程](release.zh.md#prepare-and-publish)

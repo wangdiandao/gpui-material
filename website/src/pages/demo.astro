@@ -1,0 +1,103 @@
+---
+import { pagePath } from '../site.mjs';
+
+const bindings = pagePath('', 'en') + 'wasm/material-gallery.js';
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Material Gallery</title>
+  </head>
+  <body data-bindings={bindings} data-state="loading">
+    <p id="status" role="status">Loading the Rust Gallery…</p>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const zh = params.get('lang') === 'zh';
+      const story = params.get('story') || undefined;
+      const status = document.querySelector<HTMLParagraphElement>('#status')!;
+      const preference = matchMedia('(prefers-color-scheme: dark)');
+      const embedded = window.parent !== window;
+      let hostTheme = document.documentElement;
+      if (embedded) {
+        try { hostTheme = window.parent.document.documentElement; } catch {}
+      }
+      const isDark = () => hostTheme.classList.contains('mdui-theme-dark')
+        || (!hostTheme.classList.contains('mdui-theme-light') && preference.matches);
+
+      document.documentElement.lang = zh ? 'zh-CN' : 'en';
+      status.textContent = zh ? '正在加载 Rust Gallery…' : 'Loading the Rust Gallery…';
+      document.documentElement.classList.toggle('dark', isDark());
+
+      let usedPointer = false;
+      window.addEventListener('pointerdown', () => { usedPointer = true; }, { capture: true, once: true });
+
+      const showFailure = (error: unknown) => {
+        console.error('Material Gallery failed to start', error);
+        document.body.dataset.state = 'failed';
+        status.textContent = zh
+          ? '无法启动 Rust Gallery。请使用支持 WebGPU 或 WebGL2 的浏览器。'
+          : 'The Rust Gallery could not start. Use a browser with WebGPU or WebGL2.';
+      };
+
+      async function start() {
+        try {
+          const wasm = await import(/* @vite-ignore */ document.body.dataset.bindings!);
+          await wasm.default();
+          let dark = isDark();
+          const syncTheme = () => {
+            const next = isDark();
+            if (next === dark) return;
+            dark = next;
+            document.documentElement.classList.toggle('dark', dark);
+            wasm.set_theme(dark);
+          };
+          const timeout = window.setTimeout(() => showFailure('No frame started'), 20_000);
+          try {
+            wasm.run(story, dark, (error?: string) => queueMicrotask(() => {
+              window.clearTimeout(timeout);
+              if (error) {
+                showFailure(error);
+                return;
+              }
+              document.body.dataset.state = 'ready';
+              // Opening an iframe must not move focus away from the guide.
+              if (embedded && !usedPointer && document.activeElement instanceof HTMLElement) {
+                document.activeElement.blur();
+              }
+              new MutationObserver(syncTheme).observe(hostTheme, { attributes: true, attributeFilter: ['class'] });
+              preference.addEventListener('change', syncTheme);
+              syncTheme();
+            }));
+          } catch (error) {
+            window.clearTimeout(timeout);
+            throw error;
+          }
+        } catch (error) {
+          showFailure(error);
+        }
+      }
+      void start();
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  html { color-scheme: light; }
+  html.dark { color-scheme: dark; }
+  body { margin: 0; background: Canvas; color: CanvasText; font: 1rem/1.5 system-ui, sans-serif; }
+  #status {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: 1rem;
+    background: Canvas;
+    text-align: center;
+  }
+  [data-state="ready"] #status { display: none; }
+</style>

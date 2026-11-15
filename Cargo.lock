@@ -2243,6 +2243,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpui-material-gallery-web"
+version = "0.1.0"
+dependencies = [
+ "gpui-base",
+ "gpui-material",
+ "gpui-material-gallery",
+ "gpui-pre",
+ "gpui-pre-web",
+ "js-sys",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "gpui-material-theme"
 version = "0.1.0"
 dependencies = [

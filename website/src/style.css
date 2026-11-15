@@ -145,18 +145,16 @@ a { color: var(--accent); text-underline-offset: .2em; }
 .hero-card-preview { background: var(--accent-soft); color: var(--accent-soft-ink); }
 .hero-card-preview h2 { margin: 0; font-size: 1.08rem; }
 .hero-card-preview p { margin: .35rem 0 .85rem; font-size: .9rem; }
-.demo-controls { max-width: 30rem; }
-.demo-form { display: grid; gap: .7rem; }
-.demo-action, .demo-option, .demo-progress {
-  display: flex;
-  align-items: center;
-  gap: .75rem;
+.gallery-preview iframe {
+  display: block;
+  width: 100%;
+  height: clamp(18rem, 52vh, 29rem);
+  border: 1px solid var(--line);
+  border-radius: .85rem;
+  background: var(--page);
 }
-.demo-action { flex-wrap: wrap; }
-.demo-action output { font-size: .88rem; }
-.demo-progress mdui-linear-progress { flex: 1; }
-.demo-controls mdui-text-field, .demo-controls mdui-slider { display: block; width: 100%; }
-.demo-controls mdui-radio-group { display: flex; flex-wrap: wrap; gap: 1.2rem; }
+.hero-card-preview .gallery-preview iframe { height: 15rem; }
+.gallery-preview-actions { display: flex; justify-content: flex-end; margin-top: .35rem; }
 
 .home-section { padding-block: .25rem 1.25rem; margin-top: 2.2rem; }
 .section-heading {

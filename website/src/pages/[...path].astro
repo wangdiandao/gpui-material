@@ -33,7 +33,7 @@ const Content = guide?.module.Content;
 const isHome = route === '';
 const isCatalog = route === 'component';
 const isGallery = route === 'gallery';
-const hasPreview = ['button', 'checkbox', 'dialog', 'progress', 'radio', 'slider', 'switch', 'text-field'].includes(component?.slug);
+const hasPreview = Boolean(component?.story);
 const catalogAnchors = { basic: ['actions', 'content'], form: ['input'], layout: ['navigation'] };
 const componentSections = component ? [
   { slug: 'import', text: t.imports },
@@ -107,7 +107,7 @@ const introCode = 'git clone https://github.com/wangdiandao/gpui-material.git\nc
             <h3 id="browser-preview">{t.preview}</h3>
             <mdui-card class="preview-card" variant="filled">
               <p>{t.previewNote}</p>
-              <Preview {lang} kind={component.slug} />
+              <Preview {lang} story={component.story} title={title} />
             </mdui-card>
           </>}
           {component.story && <>
@@ -128,6 +128,7 @@ const introCode = 'git clone https://github.com/wangdiandao/gpui-material.git\nc
           <p>{t.galleryOpen}</p>
           <Code code="cargo gallery text-field" lang="sh" themes={codeThemes} />
           <div class="article-links">
+            <mdui-button variant="filled" href={pagePath('demo', 'en') + `?lang=${lang}`}>{t.openPreview}</mdui-button>
             <mdui-button variant="tonal" href={pagePath('component', lang)}>{t.overview}</mdui-button>
             <mdui-button variant="outlined" href={`${repository}/tree/main/apps/gallery`}>{t.source}</mdui-button>
           </div>

@@ -117,9 +117,19 @@ npm --prefix website run preview
 
 共用指南在 `docs/` 编辑，控件示例在 `website/component/` 编辑。同时补充英文和中文说明，同一个控件页面的中英文共用一份 Rust 示例。
 
-网站组件目录按基础、表单、布局和高级组件分组。侧栏按控件的 Rust 名称排序。导入语句和用法代码分开编写，浏览器预览和 Gallery 命令放在「示例」下。
+网站组件目录和侧栏共用基础、表单、布局和高级组件四组，侧栏在各组内按 Rust 名称排序。导入语句和用法代码分开编写，浏览器预览和 Gallery 命令放在「示例」下。
 
-网站控件和浏览器预览使用 MDUI。预览需标明使用 MDUI 网页示例，GPUI 的渲染与交互通过原生 Gallery 验证。
+网站导航和界面控件使用 MDUI。浏览器预览把 Rust Gallery 编译为 WebAssembly，每个组件页在一个 GPUI 画布中打开对应演示。浏览器需支持 WebGPU 或 WebGL2。桌面平台专属行为通过原生 Gallery 验证。
+
+在本地使用预览时，先安装网页工具链和匹配的绑定生成器，然后在启动 Astro 前构建 WASM 资源。
+
+```sh
+rustup toolchain install nightly-2026-10-31 --profile minimal --target wasm32-unknown-unknown
+cargo install wasm-bindgen-cli --version 0.2.130 --locked
+npm --prefix website run build:wasm
+```
+
+本地构建使用 Cargo dev profile。Pages 工作流会构建并随网站发布优化后的 WASM。
 
 在 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**。网站工作流会在 PR 上构建，并在 `main` 更新后部署。需要重新部署时，在 Actions 页面选择 `main` 运行 **Documentation website**。
 

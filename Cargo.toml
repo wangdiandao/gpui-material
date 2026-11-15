@@ -1,5 +1,5 @@
 [workspace]
-members = ["apps/gallery", "crates/components", "crates/extras", "crates/foundation", "crates/material", "crates/theme", "xtask"]
+members = ["apps/gallery", "apps/gallery-web", "crates/components", "crates/extras", "crates/foundation", "crates/material", "crates/theme", "xtask"]
 default-members = ["crates/theme", "xtask"]
 exclude = ["experiments/gpui-host"]
 resolver = "3"

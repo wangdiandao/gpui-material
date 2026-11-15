@@ -56,7 +56,7 @@ a { color: var(--accent); text-underline-offset: .2em; }
   margin: 0 auto;
   padding-inline: clamp(.75rem, 3vw, 3rem);
 }
-.topbar mdui-top-app-bar-title { flex: none; margin: 0; }
+.topbar mdui-top-app-bar-title { flex: none; min-width: 2.1rem; margin: 0; container-type: inline-size; }
 .brand {
   display: inline-flex;
   align-items: center;
@@ -68,14 +68,12 @@ a { color: var(--accent); text-underline-offset: .2em; }
   letter-spacing: -.015em;
 }
 .brand-mark {
-  display: grid;
-  place-items: center;
+  display: block;
   width: 2.1rem;
   height: 2.1rem;
-  border-radius: .8rem;
-  background: var(--accent-soft);
-  color: var(--accent-soft-ink);
-  font-weight: 800;
+}
+@container (max-width: 9rem) {
+  .brand > span { display: none; }
 }
 .primary-nav, .tools { display: flex; align-items: center; gap: .2rem; }
 .tools { margin-inline-start: auto; }
@@ -285,6 +283,7 @@ pre {
 }
 @media (max-width: 36rem) {
   .topbar { padding-inline: .38rem; }
+  .topbar mdui-top-app-bar-title { min-width: 1.7rem; }
   .brand { gap: .35rem; font-size: .92rem; }
   .brand-mark { width: 1.7rem; height: 1.7rem; }
   #open-search { min-width: 2.7rem; }
@@ -301,4 +300,5 @@ pre {
   .tools mdui-button.locale::part(button) { padding-inline: .55rem; }
   #open-nav { min-width: auto; }
   #open-nav::part(button) { padding-inline: .55rem; }
+  #open-nav::part(label), #open-search::part(label), .tools mdui-button.locale::part(label) { padding-inline: 0; }
 }

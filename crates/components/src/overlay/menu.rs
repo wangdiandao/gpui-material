@@ -1,21 +1,23 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
+mod appearance;
+pub use appearance::{MenuColor, MenuItemStyle, MenuSurfaceStyle};
+use appearance::{Paint, Palette, axis_padding};
+
 use crate::motion::{OverlayMotion, ScaledOverlay, menu_pivot};
 use crate::{Icon, IconName};
 use gpui::{
     Anchor, AnyElement, App, Axis, Bounds, ElementId, FocusHandle, Focusable, InteractiveElement,
-    IntoElement, MouseButton, ParentElement, RenderOnce, Role, ScrollHandle, SharedString,
-    StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
+    IntoElement, MouseButton, ParentElement, Pixels, Point, RenderOnce, Role, ScrollHandle,
+    SharedString, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{
-    Popover, PopoverState, TestSupportExt,
+    Popover, PopoverState, Positioner, TestSupportExt,
     actions::{Cancel, Confirm},
 };
-use gpui_material_foundation::{
-    Surface, color, logical_anchor, move_roving_focus, window_material_theme,
-};
-use gpui_material_theme::{ColorRole, Direction, Elevation};
+use gpui_material_foundation::{logical_anchor, move_roving_focus, window_material_theme};
+use gpui_material_theme::{CornerRole, CornerShape, Direction, StateLayer, TypeRole};
 
 type Action = Rc<dyn Fn(&mut Window, &mut App)>;
 type Change = Rc<dyn Fn(bool, &mut Window, &mut App)>;
@@ -30,13 +32,19 @@ pub struct MenuItem {
     kind: Kind,
     slots: ItemSlots,
     on_checked_change: Option<Change>,
+    style: MenuItemStyle,
 }
 
 enum Kind {
     Action(Option<Action>),
     Check(bool, Option<Action>),
     Select(bool, Option<Action>),
-    Group,
+    Heading,
+    Section {
+        rows: Vec<MenuItem>,
+        style: MenuSurfaceStyle,
+        inactive_shape: Option<CornerShape>,
+    },
     Submenu(Vec<MenuItem>),
 }
 
@@ -62,6 +70,7 @@ impl ItemSlots {
         marked: bool,
         submenu: bool,
         motion: OverlayMotion,
+        supporting_color: gpui::Hsla,
     ) -> Vec<AnyElement> {
         let icon_size = motion.px(18.);
         let leading = if marked {
@@ -85,6 +94,7 @@ impl ItemSlots {
                 div()
                     .text_size(motion.px(12.))
                     .line_height(motion.px(16.))
+                    .text_color(supporting_color)
                     .child(supporting())
             }));
         let mut children = vec![
@@ -109,10 +119,12 @@ impl ItemSlots {
 struct MenuExitRow {
     label: SharedString,
     disabled: bool,
-    group: bool,
+    heading: bool,
+    section: Option<(MenuSurfaceStyle, Vec<MenuExitRow>)>,
     selected: bool,
     submenu: bool,
     slots: ItemSlots,
+    style: MenuItemStyle,
 }
 
 impl From<&MenuItem> for MenuExitRow {
@@ -120,10 +132,17 @@ impl From<&MenuItem> for MenuExitRow {
         Self {
             label: item.label.clone(),
             disabled: item.disabled,
-            group: matches!(item.kind, Kind::Group),
+            heading: matches!(item.kind, Kind::Heading),
+            section: match &item.kind {
+                Kind::Section { rows, style, .. } => {
+                    Some((*style, rows.iter().map(Self::from).collect()))
+                }
+                _ => None,
+            },
             selected: matches!(item.kind, Kind::Check(true, _) | Kind::Select(true, _)),
             submenu: matches!(item.kind, Kind::Submenu(_)),
             slots: item.slots.clone(),
+            style: item.style,
         }
     }
 }
@@ -137,14 +156,53 @@ impl MenuItem {
             kind: Kind::Action(None),
             slots: ItemSlots::default(),
             on_checked_change: None,
+            style: MenuItemStyle::default(),
         }
     }
 
     pub fn group(id: impl Into<ElementId>, title: impl Into<SharedString>) -> Self {
         Self {
-            kind: Kind::Group,
+            kind: Kind::Heading,
             ..Self::new(id, title)
         }
+    }
+
+    /// Creates a surfaced group with rows in the owning menu's navigation order.
+    pub fn section(
+        id: impl Into<ElementId>,
+        name: impl Into<SharedString>,
+        rows: impl IntoIterator<Item = MenuItem>,
+    ) -> Self {
+        Self {
+            kind: Kind::Section {
+                rows: rows.into_iter().collect(),
+                style: MenuSurfaceStyle::default(),
+                inactive_shape: None,
+            },
+            ..Self::new(id, name)
+        }
+    }
+
+    /// Sets the styled section's surface appearance.
+    pub fn group_appearance(mut self, appearance: MenuSurfaceStyle) -> Self {
+        if let Kind::Section { style, .. } = &mut self.kind {
+            *style = appearance;
+        }
+        self
+    }
+
+    /// Sets the section shape used after the pointer leaves the section.
+    pub fn inactive_shape(mut self, shape: CornerShape) -> Self {
+        if let Kind::Section { inactive_shape, .. } = &mut self.kind {
+            *inactive_shape = Some(shape);
+        }
+        self
+    }
+
+    /// Configures the appearance of an action, checked or selected row.
+    pub fn appearance(mut self, style: MenuItemStyle) -> Self {
+        self.style = style;
+        self
     }
 
     pub fn submenu(mut self, items: impl IntoIterator<Item = MenuItem>) -> Self {
@@ -254,6 +312,12 @@ pub struct Menu {
     open: Option<bool>,
     on_open_change: Option<Change>,
     on_dismiss: Option<Action>,
+    color: MenuColor,
+    appearance: MenuSurfaceStyle,
+    decoration: Option<ItemContent>,
+    scroll: Option<ScrollHandle>,
+    offset: Pixels,
+    position: Option<Point<Pixels>>,
 }
 
 #[derive(Default)]
@@ -261,10 +325,23 @@ struct PopupBounds {
     trigger: Cell<Bounds<gpui::Pixels>>,
     popup: Cell<Bounds<gpui::Pixels>>,
     child: RefCell<Option<Rc<PopupBounds>>>,
-    items: RefCell<Vec<MenuExitRow>>,
+    presented: RefCell<Option<PresentedMenu>>,
     scroll: ScrollHandle,
     motion: Cell<Option<OverlayMotion>>,
     open: Rc<Cell<bool>>,
+}
+
+#[derive(Clone)]
+struct MenuPresentation {
+    color: MenuColor,
+    appearance: MenuSurfaceStyle,
+    decoration: Option<ItemContent>,
+    scroll: ScrollHandle,
+}
+
+struct PresentedMenu {
+    items: Vec<MenuExitRow>,
+    presentation: MenuPresentation,
 }
 
 impl PopupBounds {
@@ -298,6 +375,12 @@ impl Menu {
             open: None,
             on_open_change: None,
             on_dismiss: None,
+            color: MenuColor::default(),
+            appearance: MenuSurfaceStyle::default(),
+            decoration: None,
+            scroll: None,
+            offset: px(4.),
+            position: None,
         }
     }
 
@@ -309,6 +392,46 @@ impl Menu {
 
     pub fn anchor(mut self, anchor: Anchor) -> Self {
         self.anchor = anchor;
+        self
+    }
+
+    /// Sets the outward gap between the trigger and popup.
+    pub fn offset(mut self, offset: Pixels) -> Self {
+        if f32::from(offset).is_finite() {
+            self.offset = offset;
+        }
+        self
+    }
+
+    /// Anchors the popup at a window-local point. It remains clamped to the viewport.
+    pub fn position(mut self, position: Point<Pixels>) -> Self {
+        self.position = (f32::from(position.x).is_finite() && f32::from(position.y).is_finite())
+            .then_some(position);
+        self
+    }
+
+    /// Applies a semantic color preset to the menu and its submenus.
+    pub fn color(mut self, color: MenuColor) -> Self {
+        self.color = color;
+        self
+    }
+
+    /// Applies overrides to this popup's surface.
+    pub fn appearance(mut self, appearance: MenuSurfaceStyle) -> Self {
+        self.appearance = appearance;
+        self
+    }
+
+    /// Renders arbitrary content before the menu rows. Use a repeatable factory
+    /// for content that also needs to appear during exit.
+    pub fn content<E: IntoElement>(mut self, build: impl Fn() -> E + 'static) -> Self {
+        self.decoration = Some(Rc::new(move || build().into_any_element()));
+        self
+    }
+
+    /// Tracks the popup's scrolling through a caller-owned handle.
+    pub fn track_scroll(mut self, scroll: &ScrollHandle) -> Self {
+        self.scroll = Some(scroll.clone());
         self
     }
 
@@ -404,10 +527,19 @@ impl RenderOnce for Menu {
         let motion = OverlayMotion::sample(&self.id, open, window, cx);
         let position = bounds.clone();
         let ancestor = self.ancestor.clone();
+        let anchor = logical_anchor(self.anchor, direction);
+        let explicit_position = self.position;
+        let presentation = MenuPresentation {
+            color: self.color,
+            appearance: self.appearance,
+            decoration: self.decoration,
+            scroll: self.scroll.unwrap_or_else(|| bounds.scroll.clone()),
+        };
         if open {
-            let mut rows = bounds.items.borrow_mut();
-            rows.clear();
-            rows.extend(self.items.iter().map(MenuExitRow::from));
+            *bounds.presented.borrow_mut() = Some(PresentedMenu {
+                items: self.items.iter().map(MenuExitRow::from).collect(),
+                presentation: presentation.clone(),
+            });
         }
         bounds.motion.set(motion);
         let forward = if direction == Direction::Rtl {
@@ -447,19 +579,22 @@ impl RenderOnce for Menu {
             exits
         });
         if !open && motion.is_none() {
-            bounds.items.borrow_mut().clear();
+            bounds.presented.borrow_mut().take();
             bounds.child.borrow_mut().take();
         }
+        let menu_id = self.id.clone();
         let menu = Popover::new(self.id)
             .open(open)
             .on_open_change(move |open, window, cx| popover_request(*open, window, cx))
-            .anchor(logical_anchor(self.anchor, direction))
-            .offset(px(4.))
+            .anchor(anchor)
+            .offset(self.offset)
             .mouse_button(self.mouse_button)
             .overlay_closable(false)
             .on_position(move |resolved, trigger| {
                 position.trigger.set(trigger);
-                position.popup.set(resolved.bounds);
+                if explicit_position.is_none() {
+                    position.popup.set(resolved.bounds);
+                }
                 if let Some(ancestor) = &ancestor {
                     *ancestor.child.borrow_mut() = Some(position.clone());
                 }
@@ -516,15 +651,17 @@ impl RenderOnce for Menu {
                 let dismissal = close_level.clone();
                 let escape = close_level.clone();
                 let item_bounds = bounds.clone();
-                let content = menu_content(
-                    self.items,
-                    close,
-                    submenu.then_some(close_level),
-                    state.focus_handle(cx),
-                    (direction, bounds.clone(), bounds.scroll.clone(), motion),
-                    window,
-                    cx,
-                );
+                let content = window.with_id(menu_id, |window| {
+                    menu_content(
+                        self.items,
+                        close,
+                        submenu.then_some(close_level),
+                        state.focus_handle(cx),
+                        (direction, bounds.clone(), presentation, motion),
+                        window,
+                        cx,
+                    )
+                });
                 let popup = div()
                     .id("dismiss-menu")
                     .opacity(motion.alpha)
@@ -539,10 +676,19 @@ impl RenderOnce for Menu {
                         dismissal(window, cx);
                     })
                     .child(content);
-                ScaledOverlay::new(popup, motion, move |menu| {
-                    menu_pivot(menu, item_bounds.trigger.get())
-                })
-                .into_any_element()
+                let pivot = item_bounds.clone();
+                let overlay = ScaledOverlay::new(popup, motion, move |menu| {
+                    menu_pivot(menu, pivot.trigger.get())
+                });
+                if let Some(position) = explicit_position {
+                    Positioner::corner(anchor, position)
+                        .on_position(move |resolved| item_bounds.popup.set(resolved.bounds))
+                        .occlude()
+                        .child(overlay)
+                        .into_any_element()
+                } else {
+                    overlay.into_any_element()
+                }
             });
         div()
             .relative()
@@ -564,50 +710,20 @@ fn menu_exit(
     if exit.size.width <= px(0.) {
         return None;
     }
+    let presented = bounds.presented.borrow();
+    let PresentedMenu {
+        items,
+        presentation,
+    } = presented.as_ref()?;
     let trigger = bounds.trigger.get();
-    let theme = window_material_theme(window, cx);
-    let exit_ink = color(theme.colors.color(ColorRole::OnSurface));
-    let exit_muted = color(theme.colors.color(ColorRole::OnSurfaceVariant));
-    let exit_selected = color(theme.colors.color(ColorRole::SecondaryContainer));
-    let exit_selected_ink = color(theme.colors.color(ColorRole::OnSecondaryContainer));
-    let dp = |value| motion.px(value);
-    let spacing = motion.px(16.);
-    let items = bounds.items.borrow();
-    let rows = items
-        .iter()
-        .map(|item| {
-            let label = item.label.clone();
-            let tint = if item.group {
-                exit_muted
-            } else if item.disabled {
-                exit_ink.opacity(0.38)
-            } else if item.selected {
-                exit_selected_ink
-            } else {
-                exit_ink
-            };
-            div().px(spacing * 0.75).text_color(tint).when_else(
-                item.group,
-                |row| row.py(spacing * 0.5).child(item.slots.label(label.clone())),
-                |row| {
-                    row.min_h(dp(48.))
-                        .flex()
-                        .items_center()
-                        .line_height(dp(20.))
-                        .gap(spacing * 0.5)
-                        .justify_start()
-                        .when(direction == Direction::Rtl, Styled::flex_row_reverse)
-                        .when(item.selected, |row| row.bg(exit_selected))
-                        .children(item.slots.children(
-                            label.clone(),
-                            item.selected,
-                            item.submenu,
-                            motion,
-                        ))
-                },
-            )
-        })
-        .collect::<Vec<_>>();
+    let paint = Paint {
+        theme: window_material_theme(window, cx),
+        motion,
+        direction,
+    };
+    let palette = presentation
+        .color
+        .palette(false, presentation.appearance.container);
     let surface = div()
         .id(if depth == 0 {
             ElementId::from((id.clone(), "menu-exit"))
@@ -619,35 +735,159 @@ fn menu_exit(
         .w(exit.size.width * motion.scale)
         .opacity(motion.alpha)
         .overflow_y_scroll()
-        .track_scroll(&bounds.scroll)
+        .track_scroll(&presentation.scroll)
         .child(
-            Surface::new(ColorRole::SurfaceContainer)
-                .shadow_elevation(Elevation::Level2)
-                .shadow_scale(motion.scale)
+            paint
+                .surface(presentation.appearance, palette, false)
                 .w_full()
-                .rounded(spacing * 0.25)
-                .py(spacing * 0.5)
-                .children(rows),
+                .children(presentation.decoration.as_ref().map(|build| build()))
+                .children(exit_rows(items, paint, presentation.color, palette, false)),
         )
         .child(div().absolute().inset_0().occlude());
     Some(
         gpui::deferred(
-            gpui_base::Positioner::corner(gpui::Anchor::TopLeft, exit.origin).child(
-                ScaledOverlay::new(
-                    super::text_style(
-                        surface,
-                        gpui_material_theme::TypeRole::LabelLarge,
-                        motion.scale,
-                        window,
-                        cx,
-                    ),
-                    motion,
-                    move |bounds| menu_pivot(bounds, trigger),
-                ),
-            ),
+            Positioner::corner(Anchor::TopLeft, exit.origin).child(ScaledOverlay::new(
+                super::text_style(surface, TypeRole::LabelLarge, motion.scale, window, cx),
+                motion,
+                move |bounds| menu_pivot(bounds, trigger),
+            )),
         )
         .with_priority(100 + depth)
         .into_any_element(),
+    )
+}
+
+fn exit_rows(
+    items: &[MenuExitRow],
+    paint: Paint<'_>,
+    preset: MenuColor,
+    palette: Palette,
+    grouped: bool,
+) -> Vec<AnyElement> {
+    items
+        .iter()
+        .enumerate()
+        .map(|(index, item)| {
+            if let Some((style, children)) = &item.section {
+                let palette = preset.palette(true, style.container);
+                return paint
+                    .surface(*style, palette, true)
+                    .child(menu_heading(
+                        item.slots.label(item.label.clone()),
+                        paint,
+                        palette,
+                    ))
+                    .children(exit_rows(children, paint, preset, palette, true))
+                    .into_any_element();
+            }
+            if item.heading {
+                return menu_heading(item.slots.label(item.label.clone()), paint, palette)
+                    .into_any_element();
+            }
+            let style = row_shape(item.style, grouped, index, items.len(), item.selected);
+            let (background, ink, supporting) =
+                row_colors(item.style, paint, palette, item.selected, !item.disabled);
+            row_layout(div().flex().items_center(), item.style, style, paint)
+                .text_color(ink)
+                .when(item.selected || item.style.container.is_some(), |row| {
+                    row.bg(background)
+                })
+                .children(item.slots.children(
+                    item.label.clone(),
+                    item.selected,
+                    item.submenu,
+                    paint.motion,
+                    supporting,
+                ))
+                .into_any_element()
+        })
+        .collect()
+}
+
+fn menu_heading(label: AnyElement, paint: Paint<'_>, palette: Palette) -> gpui::Div {
+    div()
+        .px(paint.motion.px(12.))
+        .py(paint.motion.px(8.))
+        .text_color(paint.color(palette.muted))
+        .child(label)
+}
+
+fn row_shape(
+    style: MenuItemStyle,
+    grouped: bool,
+    index: usize,
+    count: usize,
+    selected: bool,
+) -> CornerShape {
+    if selected {
+        if let Some(shape) = style.selected_shape {
+            return shape;
+        }
+        if grouped {
+            return CornerRole::Medium.shape();
+        }
+    }
+    if let Some(shape) = style.shape {
+        return shape;
+    }
+    if !grouped {
+        return CornerRole::None.shape();
+    }
+    match (index, count) {
+        (0, 2..) => CornerShape::Radii([12., 12., 4., 4.]),
+        (index, 2..) if index + 1 == count => CornerShape::Radii([4., 4., 12., 12.]),
+        _ => CornerRole::ExtraSmall.shape(),
+    }
+}
+
+fn row_layout<E: Styled + FluentBuilder>(
+    element: E,
+    style: MenuItemStyle,
+    shape: CornerShape,
+    paint: Paint<'_>,
+) -> E {
+    let element = element
+        .justify_start()
+        .w_full()
+        .min_h(paint.motion.px(48.))
+        .line_height(paint.motion.px(20.))
+        .gap(paint.length(style.spacing.unwrap_or(px(8.))))
+        .when(paint.direction == Direction::Rtl, Styled::flex_row_reverse);
+    let element = paint.padding(
+        element,
+        style
+            .padding
+            .unwrap_or_else(|| axis_padding(px(12.), px(0.))),
+    );
+    paint.shape(element, shape)
+}
+
+fn row_colors(
+    style: MenuItemStyle,
+    paint: Paint<'_>,
+    palette: Palette,
+    marked: bool,
+    enabled: bool,
+) -> (gpui::Hsla, gpui::Hsla, gpui::Hsla) {
+    let (background, foreground, muted) = if marked {
+        let ink = style.selected_content.unwrap_or(palette.selected_ink);
+        (
+            style.selected_container.unwrap_or(palette.selected),
+            ink,
+            ink,
+        )
+    } else {
+        (
+            style.container.unwrap_or(palette.container),
+            style.content.unwrap_or(palette.ink),
+            style.supporting.unwrap_or(palette.muted),
+        )
+    };
+    let factor = if enabled { 1. } else { 0.38 };
+    (
+        paint.color(background),
+        paint.color(foreground).opacity(factor),
+        paint.color(muted).opacity(factor),
     )
 }
 
@@ -656,27 +896,35 @@ fn menu_content(
     close: Action,
     close_level: Option<Action>,
     popup_focus: FocusHandle,
-    (direction, bounds, scroll, motion): (Direction, Rc<PopupBounds>, ScrollHandle, OverlayMotion),
+    (direction, bounds, presentation, motion): (
+        Direction,
+        Rc<PopupBounds>,
+        MenuPresentation,
+        OverlayMotion,
+    ),
     window: &mut Window,
     cx: &mut App,
 ) -> AnyElement {
-    let theme = window_material_theme(window, cx);
-    let ink = color(theme.colors.color(ColorRole::OnSurface));
-    let muted = color(theme.colors.color(ColorRole::OnSurfaceVariant));
-    let selected_color = color(theme.colors.color(ColorRole::SecondaryContainer));
-    let selected_ink = color(theme.colors.color(ColorRole::OnSecondaryContainer));
-    let container = color(theme.colors.color(ColorRole::SurfaceContainer));
-    let focus = items
-        .iter()
-        .map(|item| {
-            let handle =
-                window.use_keyed_state((item.id.clone(), "focus"), cx, |_, cx| cx.focus_handle());
-            (
-                handle.read(cx).clone(),
-                !item.disabled && !matches!(item.kind, Kind::Group),
-            )
-        })
-        .collect::<Vec<_>>();
+    fn collect_focus(
+        items: &[MenuItem],
+        focus: &mut Vec<(FocusHandle, bool)>,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        for item in items {
+            match &item.kind {
+                Kind::Heading => {}
+                Kind::Section { rows, .. } => collect_focus(rows, focus, window, cx),
+                _ => {
+                    let handle = window
+                        .use_keyed_state((item.id.clone(), "focus"), cx, |_, cx| cx.focus_handle());
+                    focus.push((handle.read(cx).clone(), !item.disabled));
+                }
+            }
+        }
+    }
+    let mut focus = Vec::new();
+    collect_focus(&items, &mut focus, window, cx);
     let handles = focus.clone();
     if popup_focus.is_focused(window)
         && let Some((first, _)) = handles.iter().find(|(_, enabled)| *enabled)
@@ -691,8 +939,22 @@ fn menu_content(
     let viewport = window.viewport_size();
     let limit = (viewport.height * 0.7).min(px(420.)) * motion.scale;
     let available_width = (viewport.width - px(16.)).max(px(0.)) * motion.scale;
-    let dp = |value| motion.px(value);
-    let spacing = motion.px(16.);
+    let theme = window_material_theme(window, cx).clone();
+    let paint = Paint {
+        theme: &theme,
+        motion,
+        direction,
+    };
+    let palette = presentation
+        .color
+        .palette(false, presentation.appearance.container);
+    let mut rows = ActiveRows {
+        paint,
+        focus: focus.into_iter(),
+        close,
+        bounds,
+        preset: presentation.color,
+    };
     let menu = div()
         .id(if close_level.is_some() {
             "submenu-content"
@@ -702,7 +964,7 @@ fn menu_content(
         .test_support()
         .role(Role::Menu)
         .overflow_y_scroll()
-        .track_scroll(&scroll)
+        .track_scroll(&presentation.scroll)
         .max_h(limit)
         .on_key_down(move |event, window, cx| {
             let backward = if direction == Direction::Rtl {
@@ -735,133 +997,184 @@ fn menu_content(
             }
         })
         .child(
-            Surface::new(ColorRole::SurfaceContainer)
-                .shadow_elevation(Elevation::Level2)
-                .shadow_scale(motion.scale)
-                .rounded(spacing * 0.25)
-                .min_w(dp(112.).min(available_width))
-                .max_w(dp(280.).min(available_width))
-                .py(spacing * 0.5)
-                .children(
-                    items
-                        .into_iter()
-                        .zip(focus)
-                        .map(|(item, (focus, enabled))| {
-                            if matches!(item.kind, Kind::Group) {
-                                return div()
-                                    .id(item.id)
-                                    .role(Role::Label)
-                                    .px(spacing * 0.75)
-                                    .py(spacing * 0.5)
-                                    .text_color(muted)
-                                    .child(item.slots.label(item.label))
-                                    .into_any_element();
-                            }
-                            let action = item.activation();
-                            let (role, marked) = match item.kind {
-                                Kind::Check(checked, _) => (Role::MenuItemCheckBox, checked),
-                                Kind::Select(selected, _) => (Role::MenuItem, selected),
-                                _ => (Role::MenuItem, false),
-                            };
-                            let submenu = matches!(&item.kind, Kind::Submenu(_));
-                            let row = gpui_base::Button::new(item.id.clone())
-                                .role(role)
-                                .track_focus(&focus)
-                                .disabled(!enabled)
-                                .accessibility_label(item.label.clone())
-                                .flex()
-                                .justify_start()
-                                .gap(spacing * 0.5)
-                                .w_full()
-                                .min_h(dp(48.))
-                                .line_height(dp(20.))
-                                .px(spacing * 0.75)
-                                .text_color(if !enabled {
-                                    ink.opacity(0.38)
-                                } else if marked {
-                                    selected_ink
-                                } else {
-                                    ink
-                                })
-                                .when(marked, |row| row.bg(selected_color))
-                                .when(direction == Direction::Rtl, Styled::flex_row_reverse)
-                                .when(enabled, |row| {
-                                    let background =
-                                        if marked { selected_color } else { container };
-                                    let foreground = if marked { selected_ink } else { ink };
-                                    row.hover(move |style| {
-                                        style.bg(background.blend(foreground.opacity(
-                                            gpui_material_theme::StateLayer::Hover.opacity(),
-                                        )))
-                                    })
-                                    .focus_visible(move |style| {
-                                        style.bg(background.blend(foreground.opacity(
-                                            gpui_material_theme::StateLayer::Focus.opacity(),
-                                        )))
-                                    })
-                                    .active(move |style| {
-                                        style.bg(background.blend(foreground.opacity(
-                                            gpui_material_theme::StateLayer::Pressed.opacity(),
-                                        )))
-                                    })
-                                })
-                                .when(role == Role::MenuItemCheckBox, |row| {
-                                    row.aria_toggled(if marked {
-                                        gpui::accesskit::Toggled::True
-                                    } else {
-                                        gpui::accesskit::Toggled::False
-                                    })
-                                })
-                                .when(matches!(item.kind, Kind::Select(..)), |row| {
-                                    row.aria_selected(marked)
-                                })
-                                .when(enabled && !submenu, |row| {
-                                    let activate: Action = {
-                                        let close = close.clone();
-                                        Rc::new(move |window, cx| {
-                                            close(window, cx);
-                                            if let Some(action) = &action {
-                                                action(window, cx);
-                                            }
-                                        })
-                                    };
-                                    let keyboard = activate.clone();
-                                    let accessibility = activate.clone();
-                                    row.capture_key_down(move |event, window, cx| {
-                                        if matches!(event.keystroke.key.as_str(), "enter" | "space")
-                                        {
-                                            keyboard(window, cx);
-                                            cx.stop_propagation();
-                                        }
-                                    })
-                                    .on_a11y_action(
-                                        gpui::AccessibleAction::Click,
-                                        move |_, window, cx| accessibility(window, cx),
-                                    )
-                                    .on_click(move |_, window, cx| activate(window, cx))
-                                })
-                                .children(item.slots.children(item.label, marked, submenu, motion));
-                            if let Kind::Submenu(children) = item.kind {
-                                Menu {
-                                    close_parent: Some(close.clone()),
-                                    enabled,
-                                    ancestor: Some(bounds.clone()),
-                                    ..Menu::new((item.id, "submenu"), row, children)
-                                        .anchor(Anchor::LeftCenter)
-                                }
-                                .into_any_element()
-                            } else {
-                                row.into_any_element()
-                            }
-                        }),
-                ),
+            paint
+                .surface(presentation.appearance, palette, false)
+                .min_w(motion.px(112.).min(available_width))
+                .max_w(motion.px(280.).min(available_width))
+                .children(presentation.decoration.as_ref().map(|build| build()))
+                .children(rows.render(items, palette, false, window, cx)),
         );
-    super::text_style(
-        menu,
-        gpui_material_theme::TypeRole::LabelLarge,
-        motion.scale,
-        window,
-        cx,
-    )
-    .into_any_element()
+    super::text_style(menu, TypeRole::LabelLarge, motion.scale, window, cx).into_any_element()
+}
+
+struct ActiveRows<'a> {
+    paint: Paint<'a>,
+    focus: std::vec::IntoIter<(FocusHandle, bool)>,
+    close: Action,
+    bounds: Rc<PopupBounds>,
+    preset: MenuColor,
+}
+
+impl ActiveRows<'_> {
+    fn render(
+        &mut self,
+        items: Vec<MenuItem>,
+        palette: Palette,
+        grouped: bool,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Vec<AnyElement> {
+        let count = items.len();
+        items
+            .into_iter()
+            .enumerate()
+            .map(|(index, item)| {
+                if let Kind::Section {
+                    rows,
+                    mut style,
+                    inactive_shape,
+                } = item.kind
+                {
+                    let palette = self.preset.palette(true, style.container);
+                    let state = inactive_shape.map(|shape| {
+                        let state = window.use_keyed_state(
+                            (item.id.clone(), "section-hover"),
+                            cx,
+                            |_, _| Cell::new(false),
+                        );
+                        if state.read(cx).get() {
+                            style.shape = Some(shape);
+                        }
+                        state
+                    });
+                    let children = self.render(rows, palette, true, window, cx);
+                    return self
+                        .paint
+                        .surface(style, palette, true)
+                        .id(item.id)
+                        .test_support()
+                        .role(Role::Group)
+                        .aria_label(item.label.clone())
+                        .when_some(state, |section, state| {
+                            section.on_hover(move |hovered, window, cx| {
+                                let state = state.read(cx);
+                                if state.replace(!hovered) != !hovered {
+                                    window.refresh();
+                                }
+                            })
+                        })
+                        .child(menu_heading(
+                            item.slots.label(item.label),
+                            self.paint,
+                            palette,
+                        ))
+                        .children(children)
+                        .into_any_element();
+                }
+                if matches!(item.kind, Kind::Heading) {
+                    return menu_heading(item.slots.label(item.label), self.paint, palette)
+                        .id(item.id)
+                        .role(Role::Label)
+                        .into_any_element();
+                }
+                let shape = row_shape(
+                    item.style,
+                    grouped,
+                    index,
+                    count,
+                    matches!(item.kind, Kind::Check(true, _) | Kind::Select(true, _)),
+                );
+                self.row(item, palette, shape)
+            })
+            .collect()
+    }
+
+    fn row(&mut self, item: MenuItem, palette: Palette, shape: CornerShape) -> AnyElement {
+        let (focus, enabled) = self
+            .focus
+            .next()
+            .expect("each menu command has a focus entry");
+        let action = item.activation();
+        let (role, marked) = match item.kind {
+            Kind::Check(checked, _) => (Role::MenuItemCheckBox, checked),
+            Kind::Select(selected, _) => (Role::MenuItem, selected),
+            _ => (Role::MenuItem, false),
+        };
+        let submenu = matches!(item.kind, Kind::Submenu(_));
+        let (background, ink, supporting) =
+            row_colors(item.style, self.paint, palette, marked, enabled);
+        let row = gpui_base::Button::new(item.id.clone())
+            .role(role)
+            .track_focus(&focus)
+            .disabled(!enabled)
+            .accessibility_label(item.label.clone())
+            .flex()
+            .text_color(ink);
+        let row = row_layout(row, item.style, shape, self.paint)
+            .when(marked || item.style.container.is_some(), |row| {
+                row.bg(background)
+            })
+            .when(enabled, |row| {
+                row.hover(move |style| {
+                    style.bg(background.blend(ink.opacity(StateLayer::Hover.opacity())))
+                })
+                .focus_visible(move |style| {
+                    style.bg(background.blend(ink.opacity(StateLayer::Focus.opacity())))
+                })
+                .active(move |style| {
+                    style.bg(background.blend(ink.opacity(StateLayer::Pressed.opacity())))
+                })
+            })
+            .when(role == Role::MenuItemCheckBox, |row| {
+                row.aria_toggled(if marked {
+                    gpui::accesskit::Toggled::True
+                } else {
+                    gpui::accesskit::Toggled::False
+                })
+            })
+            .when(matches!(item.kind, Kind::Select(..)), |row| {
+                row.aria_selected(marked)
+            })
+            .when(enabled && !submenu, |row| {
+                let close = self.close.clone();
+                let activate: Action = Rc::new(move |window, cx| {
+                    close(window, cx);
+                    if let Some(action) = &action {
+                        action(window, cx);
+                    }
+                });
+                let keyboard = activate.clone();
+                let accessibility = activate.clone();
+                row.capture_key_down(move |event, window, cx| {
+                    if matches!(event.keystroke.key.as_str(), "enter" | "space") {
+                        keyboard(window, cx);
+                        cx.stop_propagation();
+                    }
+                })
+                .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
+                    accessibility(window, cx)
+                })
+                .on_click(move |_, window, cx| activate(window, cx))
+            })
+            .children(item.slots.children(
+                item.label,
+                marked,
+                submenu,
+                self.paint.motion,
+                supporting,
+            ));
+        if let Kind::Submenu(children) = item.kind {
+            Menu {
+                close_parent: Some(self.close.clone()),
+                enabled,
+                ancestor: Some(self.bounds.clone()),
+                ..Menu::new((item.id, "submenu"), row, children)
+                    .anchor(Anchor::LeftCenter)
+                    .color(self.preset)
+            }
+            .into_any_element()
+        } else {
+            row.into_any_element()
+        }
+    }
 }

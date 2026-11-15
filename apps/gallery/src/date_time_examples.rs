@@ -146,21 +146,23 @@ impl DateTimeExamples {
                 ),
             )
             .child(
-                section("Date entry").child(
-                    DatePicker::new(
-                        "input-picker",
-                        if range {
-                            "Enter travel dates"
-                        } else {
-                            "Enter a date"
-                        },
-                        &states[1],
-                        self.second_date,
-                    )
-                    .variant(DatePickerVariant::ModalInput)
-                    .locale(locale)
-                    .on_confirm(Self::on_date(1, cx)),
-                ),
+                section("Date entry")
+                    .description("Enter dates in day/month/year format.")
+                    .child(
+                        DatePicker::new(
+                            "input-picker",
+                            if range {
+                                "Enter travel dates"
+                            } else {
+                                "Enter a date"
+                            },
+                            &states[1],
+                            self.second_date,
+                        )
+                        .variant(DatePickerVariant::ModalInput)
+                        .locale(locale)
+                        .on_confirm(Self::on_date(1, cx)),
+                    ),
             )
             .into_any_element()
     }
@@ -175,18 +177,20 @@ impl DateTimeExamples {
                 ),
             )
             .child(
-                section("12-hour input").child(
-                    TimePicker::new(
-                        "time-input-picker",
-                        "Enter a time",
-                        &states[1],
-                        self.second_time,
-                    )
-                    .format(TimeFormat::TwelveHour)
-                    .variant(TimePickerVariant::Input)
-                    .layout(TimePickerLayout::Vertical)
-                    .on_confirm(Self::on_time(1, cx)),
-                ),
+                section("12-hour input")
+                    .description("Enter the hour and minutes, then choose AM or PM.")
+                    .child(
+                        TimePicker::new(
+                            "time-input-picker",
+                            "Enter a time",
+                            &states[1],
+                            self.second_time,
+                        )
+                        .format(TimeFormat::TwelveHour)
+                        .variant(TimePickerVariant::Input)
+                        .layout(TimePickerLayout::Vertical)
+                        .on_confirm(Self::on_time(1, cx)),
+                    ),
             )
             .into_any_element()
     }

@@ -56,32 +56,34 @@ impl Render for GroupExamples {
                 )),
             );
             body = body.child(
-                section("Connected required selection").child(
-                    ButtonGroup::new(
-                        "period",
-                        "Period",
-                        [
-                            ButtonGroupItem::new("day", "Day"),
-                            ButtonGroupItem::new("week", "Week"),
-                            ButtonGroupItem::new("month", "Month"),
-                            ButtonGroupItem::new("quarter", "Quarter"),
-                            ButtonGroupItem::new("year", "Year"),
-                        ],
-                    )
-                    .variant(ButtonGroupVariant::Connected)
-                    .appearance(ButtonVariant::FilledTonal)
-                    .selection(ButtonGroupSelection::SingleRequired, self.selected.clone())
-                    .on_change({
-                        let view = cx.weak_entity();
-                        move |next, _, cx| {
-                            let _ = view.update(cx, |this, cx| {
-                                this.message = format!("Period: {}", next[0]).into();
-                                this.selected = next;
-                                cx.notify();
-                            });
-                        }
-                    }),
-                ),
+                section("Connected single selection")
+                    .description("Select a time period. The group keeps one option selected.")
+                    .child(
+                        ButtonGroup::new(
+                            "period",
+                            "Period",
+                            [
+                                ButtonGroupItem::new("day", "Day"),
+                                ButtonGroupItem::new("week", "Week"),
+                                ButtonGroupItem::new("month", "Month"),
+                                ButtonGroupItem::new("quarter", "Quarter"),
+                                ButtonGroupItem::new("year", "Year"),
+                            ],
+                        )
+                        .variant(ButtonGroupVariant::Connected)
+                        .appearance(ButtonVariant::FilledTonal)
+                        .selection(ButtonGroupSelection::SingleRequired, self.selected.clone())
+                        .on_change({
+                            let view = cx.weak_entity();
+                            move |next, _, cx| {
+                                let _ = view.update(cx, |this, cx| {
+                                    this.message = format!("Period: {}", next[0]).into();
+                                    this.selected = next;
+                                    cx.notify();
+                                });
+                            }
+                        }),
+                    ),
             );
         } else {
             let sizes = [

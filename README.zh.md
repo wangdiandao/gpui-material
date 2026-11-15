@@ -2,30 +2,61 @@
 
 [English](README.md) | 中文
 
-基于 Rust 和 GPUI 的原生桌面 Material 3 Expressive 组件库。gpui-base 提供行为、输入、焦点和基础设施，gpui-material 定义主题、绘制、组件状态呈现和桌面自适应组合。
+为基于 GPUI 的 Rust 原生桌面应用提供 Material 3 Expressive 组件。组件库负责 Material 配色、排版、形状和动效，GPUI Base 提供输入、焦点和窗口服务。
 
-首版目标包括浅色与深色主题、品牌色和动态色、键盘与原生辅助技术、中文输入、RTL、窗口缩放和高 DPI。Windows 是主要验收平台，macOS 与 Linux 从 P1 起参与能力验证。见 [P2 工程基线](docs/phases/P02.zh.md)和[平台与质量要求](docs/verification.zh.md)。
+## 体验 Gallery
 
-在 Windows 11 x64/MSVC 环境运行 `cargo gallery` 可打开 Gallery。组件示例通过 `gpui-material` 门面运行。工具链、测试和 CI 制品见[开发与验证](docs/development.zh.md)。
+克隆仓库后，从检出目录启动 Gallery。你可以在侧栏搜索组件、操作示例，并切换浅色和深色主题。在 Adaptive layout 页面调整窗口大小，可以观察导航和内容窗格如何随可用空间变化。
 
-使用检出目录下的 `crates/material` 作为路径依赖。打开窗口前，用 `MaterialTheme` 初始化 `MaterialRoot`。`gpui_material::Button::new("save", "Save").on_activate(handler)` 创建带标签的操作按钮。选择控件通过调用方回调请求变更，滑块使用由 Base 支持的 `SliderState`。门面转发主题的可选功能 `dynamic-color` 和 `serde`。
+```sh
+git clone https://github.com/wangdiandao/gpui-material.git
+cd gpui-material
+cargo gallery
+```
 
-在门面按需启用可选组件族。
+Windows 11 x64/MSVC 是主要支持环境。macOS ARM64 和 Linux x64 纳入 CI 构建和自动化测试。各平台的构建条件见[开发与验证](docs/development.zh.md)。
 
-| 特性 | 组件 |
+## 在应用中使用
+
+使用 Rust 1.99.1 或更高版本及 2024 Edition。从固定提交的检出目录将 `crates/material` 添加为路径依赖。[集成指南](docs/integration.zh.md)列出了匹配的 GPUI 包，并提供完整的窗口示例。
+
+先初始化 `MaterialRoot` 并调用 `gpui_material::init_components`，再用 `MaterialRoot::open_window` 打开窗口。通过 `gpui_material` 门面组合界面，在应用中管理受控值和命令结果。
+
+```rust
+use gpui_material::Button;
+
+let save = Button::new("save", "Save")
+    .on_activate(|_, _| println!("Save requested"));
+```
+
+## 组件与特性
+
+- **操作和选择。** 按钮、悬浮操作按钮、复选框、单选组、开关、芯片和滑块。
+- **内容和反馈。** 卡片、列表、徽标、进度指示器、加载指示器和 Snackbar。
+- **输入和浮层。** 填充、描边、多行和安全文本字段，以及下拉选择、菜单、提示、对话框和 Sheet。
+- **导航和布局。** 应用栏、标签页、导航栏、导航轨道、Scaffold、列表详情、辅助窗格和 Feed。
+
+在 `gpui-material` 上按需启用可选特性，以使用更多组件和主题功能。
+
+| 特性 | 提供能力 |
 | --- | --- |
 | `expressive-groups` | 按钮组和分割按钮 |
-| `toolbars` | FAB 菜单、悬浮和停靠工具栏 |
+| `toolbars` | FAB 菜单、悬浮工具栏和停靠工具栏 |
 | `search` | 搜索栏和搜索视图 |
-| `date-time` | 日期选择器、日期范围选择和时间选择器 |
+| `date-time` | 日期、日期范围和时间选择器 |
 | `carousel` | 六种轮播布局 |
+| `dynamic-color` | 从种子色生成配色方案 |
+| `serde` | 主题数据序列化 |
 
-- [P5 基础组件](docs/phases/P05.zh.md)
-- [P8 复合与扩展组件](docs/phases/P08.zh.md)
-- [下游集成与迁移](docs/integration.zh.md)
+各组件的变体、状态和平台覆盖见[组件覆盖矩阵](docs/component-coverage.zh.md)。
+
+## 项目文档
+
+- [下游集成](docs/integration.zh.md)
+- [架构与依赖](docs/architecture.zh.md)
 - [文档索引](docs/index.zh.md)
 - [贡献指南](CONTRIBUTION.zh.md)
-- [组件覆盖矩阵](docs/component-coverage.zh.md)
-- [阶段状态](status.toml)
 
-项目代码和原创文档采用 [Apache-2.0](LICENSE)。第三方参考及资源见[第三方声明](THIRD_PARTY_NOTICES.zh.md)。
+## 许可证
+
+项目原创代码和文档采用 [Apache-2.0](LICENSE)。随包资源和依赖的许可见[第三方声明](THIRD_PARTY_NOTICES.zh.md)。

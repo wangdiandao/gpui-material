@@ -1,10 +1,11 @@
 use gpui::{
     AnyElement, AnyView, App, AppContext, Div, InteractiveElement, IntoElement, ParentElement,
-    RenderOnce, Role, StatefulInteractiveElement, Styled, Window, div,
+    RenderOnce, Role, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_material::{
-    Card, CardVariant, Text,
-    theme::{ColorRole, TypeRole},
+    Text,
+    foundation::{Surface, color, window_material_theme},
+    theme::{ColorRole, CornerRole, Direction, TypeRole},
 };
 
 use crate::{
@@ -44,7 +45,6 @@ pub(crate) enum Story {
     ExtendedFab,
     Fab,
     FabMenu,
-    Foundation,
     Icon,
     IconButton,
     List,
@@ -90,7 +90,6 @@ impl Story {
         Self::ExtendedFab,
         Self::Fab,
         Self::FabMenu,
-        Self::Foundation,
         Self::Icon,
         Self::IconButton,
         Self::List,
@@ -135,7 +134,6 @@ impl Story {
             Self::ExtendedFab => "extended-fab",
             Self::Fab => "fab",
             Self::FabMenu => "fab-menu",
-            Self::Foundation => "foundation",
             Self::Icon => "icon",
             Self::IconButton => "icon-button",
             Self::List => "list",
@@ -181,7 +179,6 @@ impl Story {
             Self::ExtendedFab => "Extended FAB",
             Self::Fab => "FAB",
             Self::FabMenu => "FAB menu",
-            Self::Foundation => "Foundation",
             Self::Icon => "Icon",
             Self::IconButton => "Icon button",
             Self::List => "List",
@@ -216,7 +213,7 @@ impl Story {
                 "Interactive examples from the Material 3 Expressive library for GPUI."
             }
             Self::AdaptiveLayout => {
-                "Resize a scaffold to see navigation, panes, and feed columns adapt."
+                "Resize the window and switch between Inbox, Activity, and Feed to compare the layouts."
             }
             Self::AppBar => "Place navigation, titles, and commands above scrolling content.",
             Self::Badge => "Annotate icons with a dot, label, or count.",
@@ -237,7 +234,6 @@ impl Story {
             Self::ExtendedFab => "Give a prominent action a label that can expand or collapse.",
             Self::Fab => "Make the primary action easy to reach with a floating button.",
             Self::FabMenu => "Open a stack of related commands from a floating action button.",
-            Self::Foundation => "Inspect window scaling, typography, drawing, and input adapters.",
             Self::Icon => {
                 "Use official Material Symbols with shared sizing, color and right-to-left mirroring."
             }
@@ -287,7 +283,7 @@ impl Story {
 
     pub(crate) fn new_view(self, window: &mut Window, cx: &mut App) -> Option<AnyView> {
         let view = match self {
-            Self::Introduction | Self::Foundation => return None,
+            Self::Introduction => return None,
             Self::AdaptiveLayout => cx.new(AdaptiveExamples::new).into(),
             Self::DatePicker | Self::DateRangePicker | Self::TimePicker => {
                 cx.new(|cx| DateTimeExamples::new(self, window, cx)).into()
@@ -335,7 +331,15 @@ pub(crate) fn stack() -> Div {
 #[derive(IntoElement)]
 pub(crate) struct StorySection {
     title: &'static str,
-    examples: Card,
+    description: Option<&'static str>,
+    examples: Vec<AnyElement>,
+}
+
+impl StorySection {
+    pub(crate) fn description(mut self, description: &'static str) -> Self {
+        self.description = Some(description);
+        self
+    }
 }
 
 impl ParentElement for StorySection {
@@ -345,29 +349,54 @@ impl ParentElement for StorySection {
 }
 
 impl RenderOnce for StorySection {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let theme = window_material_theme(window, cx);
+        let radius = CornerRole::Medium
+            .shape()
+            .radii(100., 100., theme.layout.direction)[0];
         stack()
             .id(self.title)
             .w_full()
             .gap_2()
             .child(
-                div()
-                    .id("section-title")
-                    .role(Role::Heading)
-                    .aria_label(self.title)
+                stack()
+                    .gap_1()
+                    .when(theme.layout.direction == Direction::Rtl, Styled::items_end)
                     .child(
-                        Text::new(self.title)
-                            .role(TypeRole::TitleSmall)
-                            .color(ColorRole::OnSurfaceVariant),
-                    ),
+                        div()
+                            .id("section-title")
+                            .role(Role::Heading)
+                            .aria_label(self.title)
+                            .child(Text::new(self.title).role(TypeRole::TitleMedium).wrap()),
+                    )
+                    .children(self.description.map(|description| {
+                        Text::new(description)
+                            .id("section-description")
+                            .role(TypeRole::BodyMedium)
+                            .color(ColorRole::OnSurfaceVariant)
+                            .wrap()
+                    })),
             )
-            .child(self.examples)
+            .child(
+                Surface::new(ColorRole::SurfaceContainerLow)
+                    .w_full()
+                    .min_w_0()
+                    .rounded(px(radius))
+                    .border_1()
+                    .border_color(color(theme.colors.color(ColorRole::OutlineVariant)))
+                    .p_4()
+                    .flex()
+                    .flex_col()
+                    .gap_2()
+                    .children(self.examples),
+            )
     }
 }
 
 pub(crate) fn section(title: &'static str) -> StorySection {
     StorySection {
         title,
-        examples: Card::new("examples").variant(CardVariant::Outlined),
+        description: None,
+        examples: Vec::new(),
     }
 }

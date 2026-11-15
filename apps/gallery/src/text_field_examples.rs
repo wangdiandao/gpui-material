@@ -31,33 +31,41 @@ impl Render for DropdownExamples {
         stack()
             .max_w(px(440.))
             .child(
-                ExposedDropdown::new(
-                    "city",
-                    "Destination",
-                    &self.city,
-                    [
-                        DropdownOption::new("hk", "香港"),
-                        DropdownOption::new("bj", "北京"),
-                        DropdownOption::new("sh", "上海"),
-                    ],
-                )
-                .on_select(move |option, _, cx| {
-                    let _ = owner.update(cx, |view, cx| {
-                        view.destination = option.label.clone();
-                        cx.notify();
-                    });
-                }),
+                section("Editable")
+                    .description("Type 北京, 上海 or 香港 to filter the destinations.")
+                    .child(
+                        ExposedDropdown::new(
+                            "city",
+                            "Destination",
+                            &self.city,
+                            [
+                                DropdownOption::new("hk", "香港"),
+                                DropdownOption::new("bj", "北京"),
+                                DropdownOption::new("sh", "上海"),
+                            ],
+                        )
+                        .on_select(move |option, _, cx| {
+                            let _ = owner.update(cx, |view, cx| {
+                                view.destination = option.label.clone();
+                                cx.notify();
+                            });
+                        }),
+                    ),
             )
-            .child(ExposedDropdown::new(
-                "language",
-                "Display language",
-                &self.language,
-                [
-                    DropdownOption::new("en", "English"),
-                    DropdownOption::new("zh", "简体中文"),
-                    DropdownOption::new("ja", "日本語"),
-                ],
-            ))
+            .child(
+                section("Selection only")
+                    .description("Open the list to choose the display language.")
+                    .child(ExposedDropdown::new(
+                        "language",
+                        "Display language",
+                        &self.language,
+                        [
+                            DropdownOption::new("en", "English"),
+                            DropdownOption::new("zh", "简体中文"),
+                            DropdownOption::new("ja", "日本語"),
+                        ],
+                    )),
+            )
             .children(
                 (!self.destination.is_empty())
                     .then(|| Text::new(format!("Destination selected: {}", self.destination))),
@@ -91,10 +99,17 @@ fn dropdown_filters_cancels_and_commits_to_owner(cx: &mut gpui::TestAppContext) 
         if focus.is_none() {
             window.focus_next(cx);
         }
+        let field = find(
+            window,
+            &[],
+            &(gpui::ElementId::from("city"), "combobox").into(),
+        )
+        .unwrap()
+        .bounds();
         window.dispatch_event(
             gpui::MouseDownEvent {
                 button: gpui::MouseButton::Left,
-                position: gpui::point(px(60.), px(36.)),
+                position: field.origin + gpui::point(px(24.), field.size.height / 2.),
                 click_count: 1,
                 ..Default::default()
             }
@@ -219,7 +234,7 @@ impl Render for TextFieldExamples {
                     .child(TextField::new("status", "Account status", &self.disabled)),
             )
             .child(
-                section("Scaled label").child(
+                section("Label at 150% scale").child(
                     TextField::new(
                         "scaled-label",
                         "Preferred name for project correspondence",
@@ -582,8 +597,10 @@ fn fields_preserve_native_editing_and_secure_copy(cx: &mut gpui::TestAppContext)
 
 #[cfg(all(test, feature = "test-support"))]
 #[gpui::test]
-fn readonly_dropdown_opens_from_field_and_space(cx: &mut gpui::TestAppContext) {
-    use gpui::{InputEvent as _, MouseButton, MouseDownEvent, MouseUpEvent, WindowOptions};
+fn dropdown_modes_preserve_focus_and_show_caret_only_when_editable(cx: &mut gpui::TestAppContext) {
+    use gpui::{
+        ElementId, InputEvent as _, MouseButton, MouseDownEvent, MouseUpEvent, WindowOptions,
+    };
     use gpui_base::test_support::find;
     use gpui_material::MaterialRoot;
     let window = cx.update(|cx| {
@@ -594,41 +611,38 @@ fn readonly_dropdown_opens_from_field_and_space(cx: &mut gpui::TestAppContext) {
         })
         .unwrap()
     });
-    cx.update_window(window.into(), |_, window, cx| {
-        window.activate_window();
-        window.refresh();
-        window.draw(cx).clear(cx);
-        let trigger = find(
-            window,
-            &[],
-            &(gpui::ElementId::from("language"), "combobox").into(),
-        )
+    let click_field = |cx: &mut gpui::TestAppContext, id: &'static str| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.activate_window();
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let trigger = find(window, &[], &(ElementId::from(id), "combobox").into()).unwrap();
+            let position = trigger.bounds().center();
+            window.dispatch_event(
+                MouseDownEvent {
+                    button: MouseButton::Left,
+                    position,
+                    click_count: 1,
+                    ..Default::default()
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.refresh();
+            window.draw(cx).clear(cx);
+            window.dispatch_event(
+                MouseUpEvent {
+                    button: MouseButton::Left,
+                    position,
+                    click_count: 1,
+                    ..Default::default()
+                }
+                .to_platform_input(),
+                cx,
+            );
+        })
         .unwrap();
-        let position = trigger.bounds().center();
-        window.dispatch_event(
-            MouseDownEvent {
-                button: MouseButton::Left,
-                position,
-                click_count: 1,
-                ..Default::default()
-            }
-            .to_platform_input(),
-            cx,
-        );
-        window.refresh();
-        window.draw(cx).clear(cx);
-        window.dispatch_event(
-            MouseUpEvent {
-                button: MouseButton::Left,
-                position,
-                click_count: 1,
-                ..Default::default()
-            }
-            .to_platform_input(),
-            cx,
-        );
-    })
-    .unwrap();
+    };
     let is_open = |cx: &mut gpui::TestAppContext| {
         cx.update_window(window.into(), |_, window, cx| {
             window.refresh();
@@ -637,13 +651,52 @@ fn readonly_dropdown_opens_from_field_and_space(cx: &mut gpui::TestAppContext) {
         })
         .unwrap()
     };
+    let assert_paint = |cx: &mut gpui::TestAppContext, id: &'static str, caret_visible| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let trigger = find(window, &[], &(ElementId::from(id), "combobox").into()).unwrap();
+            let field = find(window, trigger.path(), &"value".into()).unwrap();
+            assert_eq!(field.focused(), Some(true), "{id} retains focus");
+            let factor = window.scale_factor();
+            let bounds = field.bounds().scale(factor);
+            let quads = window.painted_quads();
+            assert!(
+                quads.iter().any(|quad| {
+                    quad.border_widths.top == px(2.).scale(factor)
+                        && quad.bounds.top() == bounds.top().round()
+                        && quad.bounds.left() == bounds.left().round()
+                }),
+                "{id} paints the focused outline"
+            );
+            let visible = quads.iter().any(|quad| {
+                quad.background
+                    .as_solid()
+                    .is_some_and(|ink| ink.a >= 1. / 255.)
+                    && quad.bounds.size.width <= px(2.).scale(factor)
+                    && quad.bounds.size.height >= px(12.).scale(factor)
+                    && bounds.contains(&quad.bounds.center())
+            });
+            assert_eq!(visible, caret_visible, "{id} caret visibility");
+            field.value().unwrap_or_default().to_owned()
+        })
+        .unwrap()
+    };
+    click_field(cx, "language");
     assert!(is_open(cx), "the whole readonly field is the menu anchor");
+    assert_paint(cx, "language", false);
     cx.simulate_keystrokes(window.into(), "space");
     assert!(!is_open(cx));
     cx.simulate_keystrokes(window.into(), "space");
     assert!(is_open(cx));
+    cx.simulate_keystrokes(window.into(), "down down enter");
+    assert!(!is_open(cx));
+    assert_eq!(assert_paint(cx, "language", false), "简体中文");
+    cx.simulate_keystrokes(window.into(), "space");
     cx.simulate_keystrokes(window.into(), "escape");
     assert!(!is_open(cx));
+    click_field(cx, "city");
+    assert_paint(cx, "city", true);
 }
 
 #[cfg(all(test, feature = "test-support"))]

@@ -402,18 +402,24 @@ impl RenderOnce for ExposedDropdown {
                     ),
             );
         let height = (window.viewport_size().height * 0.55).min(px(280.));
-        let trigger = trigger.relative().child(
-            canvas(
-                move |bounds, window, _| {
-                    if measure.replace(bounds).size != bounds.size && open {
-                        window.refresh();
-                    }
-                },
-                |_, _, _, _| {},
+        let trigger = trigger
+            .relative()
+            .child(
+                canvas(
+                    move |bounds, window, _| {
+                        if measure.replace(bounds).size != bounds.size && open {
+                            window.refresh();
+                        }
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .inset_0(),
             )
-            .absolute()
-            .inset_0(),
-        );
+            // Register the arrow after the Base editor's I-beam without blocking clicks.
+            .when(!editable, |trigger| {
+                trigger.child(div().absolute().inset_0().cursor_default())
+            });
         let motion = OverlayMotion::sample(&self.id, open, window, cx);
 
         let placement = window
@@ -548,6 +554,7 @@ impl RenderOnce for ExposedDropdown {
                                                 })
                                             })
                                             .min_h(dp(48.))
+                                            .w_full()
                                             .px(spacing * 0.75)
                                             .flex()
                                             .items_center()

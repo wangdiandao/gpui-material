@@ -695,6 +695,20 @@ fn dropdown_modes_preserve_focus_and_show_caret_only_when_editable(cx: &mut gpui
     cx.simulate_keystrokes(window.into(), "space");
     cx.simulate_keystrokes(window.into(), "escape");
     assert!(!is_open(cx));
+    click_field(cx, "language");
+    let option_position = cx
+        .update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let menu = find(window, &[], &"options-scroll-region".into()).unwrap();
+            let option = find(window, menu.path(), &"ja".into()).unwrap();
+            gpui::point(menu.bounds().right() - px(16.), option.bounds().center().y)
+        })
+        .unwrap();
+    gpui::VisualTestContext::from_window(window.into(), cx)
+        .simulate_click(option_position, gpui::Modifiers::default());
+    assert!(!is_open(cx));
+    assert_eq!(assert_paint(cx, "language", false), "日本語");
     click_field(cx, "city");
     assert_paint(cx, "city", true);
 }
@@ -959,6 +973,8 @@ fn dropdown_keeps_multiline_row_measurements(cx: &mut gpui::TestAppContext) {
         let viewport = find(window, &[], &"options-scroll-region".into())
             .unwrap()
             .bounds();
+        assert_eq!(short.size.width, viewport.size.width);
+        assert_eq!(multiline.size.width, viewport.size.width);
         assert!(multiline.bottom() <= viewport.bottom());
     })
     .unwrap();

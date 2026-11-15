@@ -1003,6 +1003,60 @@ fn submenu_accepts_pointer_selection_before_dismissing_its_parent(cx: &mut gpui:
 
 #[cfg(all(test, feature = "test-support"))]
 #[gpui::test]
+fn composed_menu_toggles_live_visibility_before_redraw(cx: &mut gpui::TestAppContext) {
+    use gpui::{App, WindowOptions};
+    use gpui_material::MaterialRoot;
+    use std::{cell::RefCell, rc::Rc};
+
+    type Activate = Rc<dyn Fn(&mut Window, &mut App)>;
+    struct Example {
+        activate: Rc<RefCell<Option<Activate>>>,
+        requests: Rc<RefCell<Vec<bool>>>,
+    }
+
+    impl Render for Example {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let activate = self.activate.clone();
+            let requests = self.requests.clone();
+            Menu::composed(
+                "menu",
+                [MenuItem::new("entry", "Entry")],
+                move |_, toggle| {
+                    *activate.borrow_mut() = Some(toggle);
+                    gpui_base::Button::new("trigger")
+                        .child("Open menu")
+                        .into_any_element()
+                },
+            )
+            .on_open_change(move |open, _, _| requests.borrow_mut().push(open))
+        }
+    }
+
+    let activate = Rc::new(RefCell::new(None::<Activate>));
+    let requests = Rc::new(RefCell::new(Vec::new()));
+    let window = cx.update(|cx| {
+        crate::init_gallery(cx);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            cx.new(|_| Example {
+                activate: activate.clone(),
+                requests: requests.clone(),
+            })
+        })
+        .unwrap()
+    });
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let toggle = activate.borrow().as_ref().unwrap().clone();
+        toggle(window, cx);
+        toggle(window, cx);
+    })
+    .unwrap();
+    assert_eq!(*requests.borrow(), [true, false]);
+}
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
 fn controlled_menu_applies_only_accepted_requests_and_keeps_nested_escape_local(
     cx: &mut gpui::TestAppContext,
 ) {

@@ -369,6 +369,7 @@ impl RenderOnce for Menu {
         let open = self.open.unwrap_or_else(|| open_state.get());
         open_state.set(open);
         let key_state = open_state.clone();
+        let trigger_state = open_state.clone();
         let request: Change = {
             let on_open_change = self.on_open_change;
             let on_dismiss = self.on_dismiss;
@@ -387,7 +388,14 @@ impl RenderOnce for Menu {
         };
         let trigger: Action = {
             let request = request.clone();
-            Rc::new(move |window, cx| request(!open, window, cx))
+            Rc::new(move |window, cx| {
+                let displayed = if controlled {
+                    open
+                } else {
+                    trigger_state.get()
+                };
+                request(!displayed, window, cx);
+            })
         };
         let key_trigger = trigger.clone();
         let mouse_trigger = trigger.clone();

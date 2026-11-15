@@ -16,7 +16,7 @@
 
 ## 变更日志
 
-合并对用户或下游应用有影响的变更时，写入 [CHANGELOG.md](../CHANGELOG.md) 的 `Unreleased`。记录新功能、可感知的修复、无障碍和性能改进、影响集成的平台或依赖变化，以及迁移方式。按受影响的模块组织条目，说明实际影响，并附对应 PR 或 Issue，适用时注明贡献者。格式参考 [GPUI Kit v0.9.1 Release](https://github.com/longbridge/gpui-kit/releases/tag/v0.9.1)。
+Material 各 crate 和 Gallery 中影响用户或下游应用的变更合并时，写入 [CHANGELOG.md](../CHANGELOG.md) 的 `Unreleased`。记录新功能、可感知的修复、无障碍和性能改进、影响集成的平台或依赖变化，以及迁移方式。网站和文档变更均不写入变更日志，包括与 crate 或 Gallery 改动一起提交的情况。按受影响的模块组织条目，说明实际影响，并附对应 PR 或 Issue，适用时注明贡献者。格式参考 [GPUI Kit v0.9.1 Release](https://github.com/longbridge/gpui-kit/releases/tag/v0.9.1)。
 
 仓库所有者敲定版本号与发版范围后，核对上次发布 tag 到本次发版提交之间的全部变更。`0.1.0` 以最近的 Gallery 预发行版 `v0.0.4` 为基线。对照该范围补齐条目，将本次发布的变更移到带实际发布日期的版本标题下，并保留 `Unreleased` 收集后续变更。使用该版本条目作为 GitHub Release 正文，适用时列出贡献者，并附起止 tag 的 `Full Changelog` 比较链接。
 

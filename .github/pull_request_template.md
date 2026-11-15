@@ -22,4 +22,4 @@
 
 - [ ] I reviewed the change scope, file ownership, and affected dependencies.
 - [ ] I ran the relevant tests or Gallery scenarios and recorded the results.
-- [ ] I updated `CHANGELOG.md` under `Unreleased` if this change affects users or downstream applications.
+- [ ] I recorded applicable changes to the crates or Gallery under `Unreleased` in `CHANGELOG.md` and excluded website and documentation changes.

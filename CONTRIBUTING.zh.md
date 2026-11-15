@@ -17,7 +17,7 @@
 - 遵守仓库的[编码规范](docs/development.zh.md#编码规范)和[测试规范](docs/development.zh.md#测试规范)。贡献者对提交的代码负责，包括对 AI 辅助编写的代码进行审查和测试。
 - 按 crate 列出新增、修改或移除的公开 API，附签名和用途。破坏性变更须展示新旧用法，并在[变更日志](CHANGELOG.md)记录迁移方式。
 - 记录可复现的验证命令、环境和结果。界面改动注明 Gallery 场景和已验证的变体与状态。截图或录像有助于评审时一并附上。
-- 在[变更日志](CHANGELOG.md)的 `Unreleased` 下记录需要告知用户的变更。记录范围见[版本与发布](docs/release.zh.md)。
+- 在[变更日志](CHANGELOG.md)的 `Unreleased` 下记录 crate 和 Gallery 中需要告知用户的变更。记录范围见[版本与发布](docs/release.zh.md#changelog)。
 - 维护者审查改动范围、设计合规、API 兼容和验证结果。按评审意见更新 PR。在维护者批准、评审讨论解决且最新 PR 提交通过 `CI required` 后合并。
 
 ## 向上游提交 Issue 与贡献

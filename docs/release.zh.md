@@ -24,7 +24,8 @@
 
 ## 准备与发布
 
-1. 仓库所有者敲定版本、范围和发布时间。准备发布 PR，更新共享版本、`Cargo.lock` 和变更日志。核对破坏性变更，需要调用者调整时同步更新下游集成指南。
+1. 仓库所有者敲定版本、范围和发布时间。准备发布 PR，更新共享版本、内部依赖的精确版本、`Cargo.lock` 和变更日志。核对破坏性变更，需要调用者调整时同步更新下游集成指南。
 2. 使用最低支持的 Rust 工具链从下游 crate 验证门面，覆盖受影响的 feature 组合及公开的上游类型。发版提交合入 `main` 后须通过 `CI required`。按[实机验收标准](verification.zh.md)验证，在发布 Issue 或 PR 记录环境、场景及未覆盖范围。
 3. 从同一提交构建并演练 [Windows Gallery 分发](development.zh.md#windows-distribution)。核验 ZIP 校验和、随附许可，以及从干净目录解包后启动。记录打包所用的提交和 CI 运行。
-4. 仓库所有者明确批准发布后，为已验证的提交打 `vX.Y.Z` tag，使用该版本的日志发布对应的 GitHub Release。附上 Windows Gallery ZIP 和 `SHA256SUMS.txt`，核对附件、GitHub 生成的源码归档和比较链接。`0.1.0` 通过 GitHub Release 分发。向 crates.io 发布库须由仓库所有者另行决定。
+4. 对于获准发布至 crates.io 的版本，一起打包五个库，并在下游 crate 中验证打包后的门面默认配置与全 feature 配置。实机验收后，从已验证的检出按依赖顺序发布，依次为 `gpui-material-theme`、`gpui-material-foundation`、`gpui-material-components`、`gpui-material-extras` 和 `gpui-material`。每个库的版本出现在 registry 后，再发布依赖它的库。
+5. 仓库所有者明确批准发布后，为已验证的提交打 `vX.Y.Z` tag，使用该版本的日志发布对应的 GitHub Release。附上 Windows Gallery ZIP 和 `SHA256SUMS.txt`，核对附件、GitHub 生成的源码归档和比较链接。

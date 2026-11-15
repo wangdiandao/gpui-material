@@ -1,10 +1,10 @@
 # Section fingerprints for the English and Chinese pages.
 /downstream-integration:
-  en: "10af0024c0be155b"
-  zh: "c0ad4793dd4a1dd2"
+  en: "e4ce8dc3a978e78d"
+  zh: "4b4d5d5f44df6bc3"
 /downstream-integration/add-the-facade:
-  en: "fcca126c6b6852e2"
-  zh: "c32e122a28a4c5ba"
+  en: "26ea52877f5c5ad4"
+  zh: "f24274d238a06f2d"
 /downstream-integration/api-and-migration:
   en: "1d1bc49bc20177d2"
   zh: "dafe0553a78fba47"

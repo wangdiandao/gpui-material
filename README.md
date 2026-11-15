@@ -6,7 +6,7 @@ Build native Rust desktop applications with Material 3 Expressive components for
 
 ## Try the Gallery
 
-Clone the repository and run the Gallery from the checkout. Search for a component in the sidebar, try its interactive examples, and switch between light and dark themes. Resize the window on the Adaptive layout page to see navigation and content panes respond to the available space.
+Download and extract the Windows x64 ZIP from [GitHub Releases](https://github.com/wangdiandao/gpui-material/releases). Search for a component in the sidebar, try its interactive examples, and switch between light and dark themes. Resize the window on the Adaptive layout page to see navigation and content panes respond to the available space. To run the Gallery from source, clone the repository.
 
 ```sh
 git clone https://github.com/wangdiandao/gpui-material.git
@@ -18,7 +18,7 @@ Windows 11 x64 with the MSVC toolchain is the primary supported environment. mac
 
 ## Use in an application
 
-Use Rust 1.99.1 or later with the 2024 edition. Add `crates/material` from a pinned checkout as a path dependency. The [integration guide](docs/integration.md) lists the matching GPUI packages and shows a complete window example.
+Use Rust 1.99.1 or later with the 2024 edition. Add `gpui-material = "0.1.0"` to your dependencies. The [integration guide](docs/integration.md) lists the matching GPUI packages and shows a complete window example.
 
 Initialize `MaterialRoot` and call `gpui_material::init_components` before opening a window through `MaterialRoot::open_window`. Build views from the `gpui_material` facade and keep controlled values and command outcomes in your application.
 

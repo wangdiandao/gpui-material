@@ -2,20 +2,20 @@
 
 [English](integration.md) | 中文
 
-使用支持 2024 edition 的 Rust 1.99.1 或更新版本。已验证的最低工具链为 Rust 1.99.1。从检出目录使用门面，在应用中固定检出提交，并将应用的 Cargo 锁文件纳入版本控制。
+使用支持 2024 edition 的 Rust 1.99.1 或更新版本，并将应用的 Cargo 锁文件纳入版本控制。
 
 ## 添加门面
 
-下面假设 Material 检出目录与应用目录同级。精确匹配 GPUI 包身份，让门面和应用共享同一套 `App`、`Window` 和 `Entity` 类型。
+从 crates.io 添加门面。精确匹配 GPUI 包身份，让门面和应用共享同一套 `App`、`Window` 和 `Entity` 类型。
 
 ```toml
 [dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.12" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui-material = { path = "../gpui-material/crates/material" }
+gpui-material = "0.1.0"
 ```
 
-应用直接使用 Base 时也应固定 `gpui-base = "=0.9.1"`。更新检出提交时，运行 `cargo tree -d` 检查重复版本，并验证应用所依赖的平台和输入行为。
+应用直接使用 Base 时也应固定 `gpui-base = "=0.9.1"`。从源码集成时，使用 `{ path = "../gpui-material/crates/material" }` 并固定检出提交。升级后运行 `cargo tree -d` 检查重复版本，并验证应用所依赖的平台和输入行为。
 
 ```rust
 use gpui::{AppContext, Context, IntoElement, QuitMode, Render, Window, WindowOptions};

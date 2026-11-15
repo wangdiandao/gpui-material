@@ -6,7 +6,7 @@
 
 ## 体验 Gallery
 
-克隆仓库后，从检出目录启动 Gallery。你可以在侧栏搜索组件、操作示例，并切换浅色和深色主题。在 Adaptive layout 页面调整窗口大小，可以观察导航和内容窗格如何随可用空间变化。
+在 [GitHub Releases](https://github.com/wangdiandao/gpui-material/releases) 下载并解压 Windows x64 ZIP。你可以在侧栏搜索组件、操作示例，并切换浅色和深色主题。在 Adaptive layout 页面调整窗口大小，可以观察导航和内容窗格如何随可用空间变化。如需从源码运行 Gallery，先克隆仓库。
 
 ```sh
 git clone https://github.com/wangdiandao/gpui-material.git
@@ -18,7 +18,7 @@ Windows 11 x64/MSVC 是主要支持环境。macOS ARM64 和 Linux x64 纳入 CI 
 
 ## 在应用中使用
 
-使用 Rust 1.99.1 或更高版本及 2024 Edition。从固定提交的检出目录将 `crates/material` 添加为路径依赖。[集成指南](docs/integration.zh.md)列出了匹配的 GPUI 包，并提供完整的窗口示例。
+使用 Rust 1.99.1 或更高版本及 2024 Edition。添加依赖 `gpui-material = "0.1.0"`。[集成指南](docs/integration.zh.md)列出了匹配的 GPUI 包，并提供完整的窗口示例。
 
 先初始化 `MaterialRoot` 并调用 `gpui_material::init_components`，再用 `MaterialRoot::open_window` 打开窗口。通过 `gpui_material` 门面组合界面，在应用中管理受控值和命令结果。
 

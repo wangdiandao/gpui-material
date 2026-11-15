@@ -26,7 +26,7 @@ controls/display 可被 inputs、overlays、navigation 使用。TextField 的编
 
 ## 状态与主题
 
-Search 和 exposed dropdown 保留完整结果标识及滚动状态，由 GPUI 可变高度列表构建可见行和有限的预渲染行。Search 按结果 ID 保留焦点句柄；dropdown 将焦点留在 Base 编辑器，并保留活动选项 ID。内容、宽度、字体、rem 大小及下拉动画缩放变化时，相应测量缓存失效。键盘跳向尚未测量的行时使用逻辑行锚点，无需先布局全部前置行。轻量 `List` 继续适用于小集合；仅向它传入可见切片不能实现完整数据模型的键盘导航。
+Search 和 exposed dropdown 保留完整结果标识及滚动状态，由 GPUI 可变高度列表构建可见行和有限的预渲染行。Search 按结果 ID 保留焦点句柄；dropdown 将焦点留在 Base 编辑器，并保留活动选项 ID。内容、宽度、字体、已安装字体快照、rem 大小及下拉动画缩放变化时，相应测量缓存失效。键盘跳向尚未测量的行时使用逻辑行锚点，无需先布局全部前置行。轻量 `List` 继续适用于小集合；仅向它传入可见切片不能实现完整数据模型的键盘导航。
 
 Dropdown 在 Base Input 和 Popup 之上保留处理 IME 的窄键盘适配层。固定版本的 Base Select/Combobox 根节点会增加自己的语义和焦点所有者，且无法在输入法组合期间否决动作处理，直接包装现有可编辑 TextField 会改变契约。按钮和选择控件共享一个呈现事件适配器；Base 仍负责激活与受控值，Material 保留涟漪时间和形状过渡。
 

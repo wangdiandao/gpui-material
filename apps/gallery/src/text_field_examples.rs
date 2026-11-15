@@ -856,6 +856,16 @@ fn dropdown_virtualizes_full_model_navigation_and_preserves_identity(
     cx.simulate_keystrokes(handle.into(), "up");
     draw(cx);
     assert_row(cx, "option-1999");
+    // Identical theme values still refresh fonts and invalidate row measurements.
+    cx.update_window(handle.into(), |_, window, cx| {
+        let theme = gpui_material::foundation::window_material_theme(window, cx).clone();
+        let before = gpui_material::foundation::font_cache_revision(cx);
+        gpui_material::foundation::set_window_material_theme(Some(theme), window, cx);
+        assert_ne!(before, gpui_material::foundation::font_cache_revision(cx));
+    })
+    .unwrap();
+    draw(cx);
+    assert_row(cx, "option-1999");
     cx.update(|cx| {
         view.update(cx, |view, cx| {
             view.reversed = true;

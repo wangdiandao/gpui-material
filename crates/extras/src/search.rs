@@ -133,7 +133,7 @@ pub struct SearchState {
     restore: Option<FocusHandle>,
     scroll: ListState,
     result_focus: HashMap<ElementId, FocusHandle>,
-    result_layout: Option<(gpui_material_theme::Typography, gpui::Pixels)>,
+    result_layout: Option<(gpui_material_theme::Typography, gpui::Pixels, u64)>,
     query: SharedString,
     response: SearchResponse,
     open: bool,
@@ -490,6 +490,7 @@ impl RenderOnce for SearchView {
         let layout = (
             window_material_theme(window, cx).typography.clone(),
             window.rem_size(),
+            gpui_material_foundation::font_cache_revision(cx),
         );
         self.state.update(cx, |state, _| {
             if state.result_layout.as_ref() != Some(&layout) {

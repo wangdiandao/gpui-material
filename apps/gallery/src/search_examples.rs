@@ -342,6 +342,26 @@ fn large_search_virtualizes_variable_rows_and_navigates_by_stable_id(
         assert!(last.visible());
     })
     .unwrap();
+    // Refreshing the installed-font snapshot must retain the distant row anchor.
+    cx.update_window(handle.into(), |_, window, cx| {
+        let theme = gpui_material::foundation::window_material_theme(window, cx).clone();
+        let before = gpui_material::foundation::font_cache_revision(cx);
+        gpui_material::foundation::set_window_material_theme(Some(theme), window, cx);
+        assert_ne!(before, gpui_material::foundation::font_cache_revision(cx));
+    })
+    .unwrap();
+    frame(cx);
+    cx.update_window(handle.into(), |_, window, _| {
+        let last = find(
+            window,
+            &[],
+            &(gpui::ElementId::from("result-1999"), "activate").into(),
+        )
+        .unwrap();
+        assert!(last.visible());
+        assert_eq!(last.focused(), Some(true));
+    })
+    .unwrap();
     // Replace/reorder the model before the next frame. Focus remains attached
     // to the result's ID, not its old numeric position.
     cx.update_window(handle.into(), |_, window, cx| {

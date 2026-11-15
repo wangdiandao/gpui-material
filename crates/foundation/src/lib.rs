@@ -9,6 +9,8 @@ pub use root::{
     window_material_theme,
 };
 pub use surface::{Surface, color, elevation_shadows, scrim_color};
+#[doc(hidden)]
+pub use typography::font_cache_revision;
 pub use typography::{ShapedText, font_for_style, shape_text, text_style, wrapped_text};
 
 mod feedback;

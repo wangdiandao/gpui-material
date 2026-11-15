@@ -78,6 +78,7 @@ pub struct ExposedDropdownState {
         f32,
         gpui::Pixels,
         gpui_material_theme::Typography,
+        u64,
     )>,
     options: OptionSnapshot,
     _input: Subscription,
@@ -440,8 +441,15 @@ impl RenderOnce for ExposedDropdown {
             } else {
                 last_bounds.size.width
             };
+            let font_revision = gpui_material_foundation::font_cache_revision(cx);
             self.state.update(cx, |state, _| {
-                let metrics = (width, motion.scale, window.rem_size(), typography);
+                let metrics = (
+                    width,
+                    motion.scale,
+                    window.rem_size(),
+                    typography,
+                    font_revision,
+                );
                 if !Rc::ptr_eq(&state.presented, &options) {
                     state.scroll.reset(options.len());
                     if let Some(index) = active

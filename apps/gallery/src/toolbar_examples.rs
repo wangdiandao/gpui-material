@@ -56,37 +56,44 @@ impl ToolbarExamples {
             ("favorite", "Favourites", IconName::Favorite),
             ("alerts", "Notifications", IconName::Notifications),
         ];
-        section("Create actions").child(div().flex().flex_wrap().items_end().gap_4().children(
-            examples.into_iter().map(|(id, size, color, count)| {
-                let menu = FabMenu::new(
-                    id,
-                    "Create",
-                    IconName::Add,
-                    entries[..count].iter().map(|&(id, label, icon)| {
-                        FabMenuItem::new(id, label, icon)
-                            .disabled(id == "archive")
-                            .on_activate(Self::report(label, cx))
-                    }),
-                )
-                .size(size)
-                .color(color)
-                .when(size == FabSize::Small, |menu| {
-                    menu.track_focus(&self.menu_focus)
-                });
+        section("Create actions")
+            .description("Open a menu to compare the available actions at each size.")
+            .child(
                 div()
-                    .id(id)
                     .flex()
-                    .flex_col()
-                    .items_center()
-                    .gap_2()
-                    .child(Text::new(match size {
-                        FabSize::Small => "Small",
-                        FabSize::Medium => "Medium",
-                        FabSize::Large => "Large",
-                    }))
-                    .child(menu)
-            }),
-        ))
+                    .flex_wrap()
+                    .items_end()
+                    .gap_4()
+                    .children(examples.into_iter().map(|(id, size, color, count)| {
+                        let menu = FabMenu::new(
+                            id,
+                            "Create",
+                            IconName::Add,
+                            entries[..count].iter().map(|&(id, label, icon)| {
+                                FabMenuItem::new(id, label, icon)
+                                    .disabled(id == "archive")
+                                    .on_activate(Self::report(label, cx))
+                            }),
+                        )
+                        .size(size)
+                        .color(color)
+                        .when(size == FabSize::Small, |menu| {
+                            menu.track_focus(&self.menu_focus)
+                        });
+                        div()
+                            .id(id)
+                            .flex()
+                            .flex_col()
+                            .items_center()
+                            .gap_2()
+                            .child(Text::new(match size {
+                                FabSize::Small => "Small",
+                                FabSize::Medium => "Medium",
+                                FabSize::Large => "Large",
+                            }))
+                            .child(menu)
+                    })),
+            )
     }
 
     fn actions(&self, cx: &Context<Self>) -> Vec<ToolbarAction> {
@@ -178,6 +185,9 @@ impl ToolbarExamples {
             )
             .child(
                 section("Docked horizontal toolbar")
+                    .description(
+                        "Scroll the document to see the toolbar respond to content scrolling.",
+                    )
                     .child(
                         Switch::new(
                             "navigation-toggle",

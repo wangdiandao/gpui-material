@@ -12,6 +12,7 @@
 | [AndroidX](https://github.com/androidx/androidx)与 [Material Components Android](https://github.com/material-components/material-components-android) | Apache-2.0 源码参考。Android Developers 页面另按其[站点许可](https://developer.android.com/license)处理。 |
 | [Material Color Utilities](https://github.com/material-foundation/material-color-utilities)、[material-color-utils](https://github.com/RuurdBijlsma/material-color-utilities-rs) 与 [polymorpher](https://github.com/Aiving/polymorpher) | Apache-2.0 算法参考或候选依赖。移植时保留原有版权、许可证和适用的 NOTICE。 |
 | [Material Symbols](https://developers.google.com/fonts/docs/material_symbols) | 内嵌 Google 官方 Material Symbols Outlined SVG，固定提交 `10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7`，原文件未修改（字重 400、grade 0、光学尺寸 24、FILL 0/1）。[资源路径和 SHA-256](crates/components/assets/material-symbols/manifest.toml) · [Apache-2.0 许可副本](crates/components/assets/material-symbols/LICENSE)。 |
+| [GitHub Octicons v19.21.0](https://github.com/primer/octicons/blob/v19.21.0/icons/mark-github-24.svg) | Gallery 内嵌未修改的 GitHub 标志。[MIT 许可副本](apps/gallery/assets/Octicons-LICENSE)。 |
 
 主题的 `dynamic-color` 功能依赖 crates.io 的 [material-color-utils 0.1.3](https://crates.io/crates/material-color-utils/0.1.3)。该包的 LICENSE 为 Apache-2.0。[主题 Token 索引](docs/theme/token-index.zh.md)逐项记录取自 Compose 或固定设计页的数值与引用。
 
@@ -21,4 +22,4 @@ extras crate 的 `date-time` 特性使用 [chrono 0.4.45](https://crates.io/crat
 
 引入第三方源码、图标、字体或文档节选时，在其归属阶段记录精确来源、版本、修改与再分发条款。源版本和 Cargo 候选见[设计依据](docs/design-sources.zh.md)及[架构与依赖](docs/architecture.zh.md)。
 
-Windows Gallery ZIP 包含锁定的 Windows 运行时依赖许可材料、Rust 标准库声明和随包 Material Symbols 许可证。版本与许可位置见 ZIP 内的 `DEPENDENCIES.txt`。打包所用的补充许可证文本及署名见[补充许可来源](scripts/gallery-license-sources.txt)。
+Windows Gallery ZIP 包含锁定的 Windows 运行时依赖、Rust 标准库和随包图标的许可材料。版本与许可位置见 ZIP 内的 `DEPENDENCIES.txt`。打包所用的补充许可证文本及署名见[补充许可来源](scripts/gallery-license-sources.txt)。

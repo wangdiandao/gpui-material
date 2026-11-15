@@ -1,4 +1,19 @@
 # Section fingerprints for the English and Chinese pages.
 /gpui-material:
-  en: "1ab50365a9a34ebc"
-  zh: "e85e18128bc6fab3"
+  en: "e5a70f6d7c482f42"
+  zh: "5f432d35ff2f078e"
+/gpui-material/try-the-gallery:
+  en: "b38b958387a9d84b"
+  zh: "4bc5aae30599f666"
+/gpui-material/use-in-an-application:
+  en: "18bfd8e3a6c8a74f"
+  zh: "b6bf3b0a8832b313"
+/gpui-material/components-and-features:
+  en: "9c12dee4539b62e3"
+  zh: "fdb24c9e4a35b0e8"
+/gpui-material/project-documentation:
+  en: "1624c442b078ec4c"
+  zh: "8e43e47cf8666bad"
+/gpui-material/license:
+  en: "53bc15af58f3fcaf"
+  zh: "89b1acf4654924d9"

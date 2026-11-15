@@ -2,30 +2,61 @@
 
 English | [中文](README.zh.md)
 
-A native desktop Material 3 Expressive component library for Rust and GPUI. gpui-base provides behavior, input, focus, and infrastructure. gpui-material defines themes, drawing, component state presentation, and adaptive desktop composition.
+Build native Rust desktop applications with Material 3 Expressive components for GPUI. The library provides Material color, typography, shape, and motion, with GPUI Base handling input, focus, and window services.
 
-The initial release targets light and dark themes, brand and dynamic color, keyboard and native assistive technology, Chinese input, RTL, window resizing, and high DPI. Windows is the primary acceptance platform. macOS and Linux have participated in capability probes since P1. [P2 engineering baseline](docs/phases/P02.md) · [Platforms and quality requirements](docs/verification.md)
+## Try the Gallery
 
-Run `cargo gallery` on Windows 11 x64/MSVC to open the Gallery. The component examples use the `gpui-material` facade. [Toolchain, tests, and CI artifacts](docs/development.md)
+Clone the repository and run the Gallery from the checkout. Search for a component in the sidebar, try its interactive examples, and switch between light and dark themes. Resize the window on the Adaptive layout page to see navigation and content panes respond to the available space.
 
-Use `crates/material` as a path dependency from a checkout. Initialize `MaterialRoot` with a `MaterialTheme` before opening a window. `gpui_material::Button::new("save", "Save").on_activate(handler)` creates a labeled action. Selection controls request a change through the caller's callback, and sliders use a Base-backed `SliderState`. The facade forwards the optional `dynamic-color` and `serde` theme features.
+```sh
+git clone https://github.com/wangdiandao/gpui-material.git
+cd gpui-material
+cargo gallery
+```
 
-Enable optional component families on the facade as needed.
+Windows 11 x64 with the MSVC toolchain is the primary supported environment. macOS ARM64 and Linux x64 receive CI builds and automated tests. See [Development and verification](docs/development.md) for prerequisites on each platform.
 
-| Feature | Components |
+## Use in an application
+
+Use Rust 1.99.1 or later with the 2024 edition. Add `crates/material` from a pinned checkout as a path dependency. The [integration guide](docs/integration.md) lists the matching GPUI packages and shows a complete window example.
+
+Initialize `MaterialRoot` and call `gpui_material::init_components` before opening a window through `MaterialRoot::open_window`. Build views from the `gpui_material` facade and keep controlled values and command outcomes in your application.
+
+```rust
+use gpui_material::Button;
+
+let save = Button::new("save", "Save")
+    .on_activate(|_, _| println!("Save requested"));
+```
+
+## Components and features
+
+- **Actions and selection.** Buttons, floating actions, checkboxes, radio groups, switches, chips, and sliders.
+- **Content and feedback.** Cards, lists, badges, progress indicators, loading indicators, and snackbars.
+- **Input and overlays.** Filled, outlined, multiline, and secure text fields, exposed dropdowns, menus, tooltips, dialogs, and sheets.
+- **Navigation and layout.** App bars, tabs, navigation bars and rails, scaffolds, list-detail, supporting panes, and feeds.
+
+Enable optional features on `gpui-material` for additional components and theme capabilities.
+
+| Feature | Adds |
 | --- | --- |
-| `expressive-groups` | ButtonGroup and SplitButton |
-| `toolbars` | FAB Menu and Floating and Docked Toolbar |
-| `search` | SearchBar and SearchView |
-| `date-time` | DatePicker, date range selection, and TimePicker |
-| `carousel` | Six Carousel layouts |
+| `expressive-groups` | Button groups and split buttons |
+| `toolbars` | FAB menus, floating toolbars, and docked toolbars |
+| `search` | Search bars and search views |
+| `date-time` | Date, date range, and time pickers |
+| `carousel` | Six carousel layouts |
+| `dynamic-color` | Color schemes generated from a seed color |
+| `serde` | Serialization for theme data |
 
-- [P5 basic components](docs/phases/P05.md)
-- [P8 composite and extended components](docs/phases/P08.md)
-- [Downstream integration and migration](docs/integration.md)
+See the [component coverage matrix](docs/component-coverage.md) for variants, states, and platform coverage.
+
+## Project documentation
+
+- [Downstream integration](docs/integration.md)
+- [Architecture and dependencies](docs/architecture.md)
 - [Documentation index](docs/index.md)
-- [Contribution guide](CONTRIBUTION.md)
-- [Component coverage matrix](docs/component-coverage.md)
-- [Phase status](status.toml)
+- [Contributing](CONTRIBUTION.md)
 
-Project code and original documentation are licensed under [Apache-2.0](LICENSE). [Third-party notices](THIRD_PARTY_NOTICES.md)
+## License
+
+Original project code and documentation are licensed under [Apache-2.0](LICENSE). See [Third-party notices](THIRD_PARTY_NOTICES.md) for bundled assets and dependency notices.

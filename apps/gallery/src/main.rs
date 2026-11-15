@@ -3,9 +3,11 @@ mod adaptive_examples;
 mod carousel_examples;
 mod date_time_examples;
 mod display_examples;
+#[cfg(all(test, feature = "test-support"))]
 mod drawing;
 mod gallery;
 mod group_examples;
+#[cfg(all(test, feature = "test-support"))]
 mod input_examples;
 mod navigation_examples;
 mod overlay_examples;
@@ -74,14 +76,11 @@ fn main() {
 fn init_gallery(cx: &mut App) {
     MaterialRoot::init(MaterialTheme::default(), cx);
     gpui_material::init_components(cx);
-    cx.bind_keys([
-        gpui::KeyBinding::new(
-            "escape",
-            input_examples::CancelDrag,
-            Some("FoundationInput"),
-        ),
-        gpui::KeyBinding::new("escape", CloseCatalog, Some("GalleryCatalog")),
-    ]);
+    cx.bind_keys([gpui::KeyBinding::new(
+        "escape",
+        CloseCatalog,
+        Some("GalleryCatalog"),
+    )]);
 }
 
 fn open_gallery(
@@ -152,6 +151,27 @@ mod tests {
         })
         .unwrap();
         cx.run_until_parked();
+    }
+
+    #[gpui::test]
+    fn repository_button_opens_github_and_sits_before_motion_toggle(cx: &mut TestAppContext) {
+        let handle = cx.update(|cx| {
+            init_gallery(cx);
+            open_gallery(cx, false, Story::Introduction).unwrap()
+        });
+        let repository = ElementId::from("open-repository");
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let button = find(window, &[], &repository).unwrap();
+            let motion = find(window, &[], &"toggle-motion".into()).unwrap();
+            assert_eq!(button.role(), Some(Role::Button));
+            assert_eq!(button.label(), Some("Open GitHub repository"));
+            assert!(button.bounds().right() <= motion.bounds().left());
+        })
+        .unwrap();
+        click(cx, handle, repository);
+        assert_eq!(cx.opened_url().as_deref(), Some(gallery::REPOSITORY_URL));
     }
 
     #[gpui::test]

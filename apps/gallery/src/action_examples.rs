@@ -5,11 +5,12 @@ use gpui::{
 use gpui_base::TestSupportExt;
 use gpui_material::{
     Button, ButtonShape, ButtonVariant, ControlSize, ExtendedFab, Fab, FabColor, FabSize, Icon,
-    IconButton, IconButtonVariant, IconButtonWidth, IconName, IconToggleButton, ToggleButton,
+    IconButton, IconButtonVariant, IconButtonWidth, IconName, IconToggleButton, Text, ToggleButton,
     ToggleButtonVariant,
+    theme::{ColorRole, TypeRole},
 };
 
-use crate::story::{Story, section};
+use crate::story::{Story, section, stack};
 
 #[derive(Default)]
 pub(crate) struct ActionExamples {
@@ -36,11 +37,11 @@ impl ActionExamples {
 impl Render for ActionExamples {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let button_variants = [
-            ButtonVariant::Elevated,
-            ButtonVariant::Filled,
-            ButtonVariant::FilledTonal,
-            ButtonVariant::Outlined,
-            ButtonVariant::Text,
+            ("Elevated", ButtonVariant::Elevated),
+            ("Filled", ButtonVariant::Filled),
+            ("Filled tonal", ButtonVariant::FilledTonal),
+            ("Outlined", ButtonVariant::Outlined),
+            ("Text", ButtonVariant::Text),
         ];
         let sizes = [
             ControlSize::ExtraSmall,
@@ -50,16 +51,16 @@ impl Render for ActionExamples {
             ControlSize::ExtraLarge,
         ];
         let toggle_variants = [
-            ToggleButtonVariant::Elevated,
-            ToggleButtonVariant::Filled,
-            ToggleButtonVariant::FilledTonal,
-            ToggleButtonVariant::Outlined,
+            ("Elevated", ToggleButtonVariant::Elevated),
+            ("Filled", ToggleButtonVariant::Filled),
+            ("Filled tonal", ToggleButtonVariant::FilledTonal),
+            ("Outlined", ToggleButtonVariant::Outlined),
         ];
         let icon_variants = [
-            IconButtonVariant::Standard,
-            IconButtonVariant::Filled,
-            IconButtonVariant::FilledTonal,
-            IconButtonVariant::Outlined,
+            ("Standard", IconButtonVariant::Standard),
+            ("Filled", IconButtonVariant::Filled),
+            ("Filled tonal", IconButtonVariant::FilledTonal),
+            ("Outlined", IconButtonVariant::Outlined),
         ];
         let fab_sizes = [FabSize::Small, FabSize::Medium, FabSize::Large];
         let fab_colors = [
@@ -71,74 +72,85 @@ impl Render for ActionExamples {
             FabColor::TertiaryStrong,
         ];
 
-        div()
-            .flex()
-            .flex_col()
-            .gap_3()
+        let size_names = ["Extra small", "Small", "Medium", "Large", "Extra large"];
+
+        stack()
             .children(self.shows(Story::Button).then(|| {
-                section("Variants").child(
-                    row().children(
-                        button_variants
-                            .into_iter()
-                            .enumerate()
-                            .map(|(ix, variant)| {
-                                let view = cx.entity();
-                                Button::new(("action-variant", ix), format!("{variant:?}"))
-                                    .variant(variant)
-                                    .on_activate(move |_, cx| {
-                                        view.update(cx, |this, cx| {
-                                            this.count += 1;
-                                            cx.notify();
-                                        })
+                let count = format!("Activations: {}", self.count);
+                section("Variants")
+                    .description("Press any button to update the activation count.")
+                    .child(row().children(button_variants.into_iter().enumerate().map(
+                        |(ix, (label, variant))| {
+                            let view = cx.entity();
+                            Button::new(("action-variant", ix), label)
+                                .variant(variant)
+                                .on_activate(move |_, cx| {
+                                    view.update(cx, |this, cx| {
+                                        this.count += 1;
+                                        cx.notify();
                                     })
-                            }),
-                    ),
+                                })
+                        },
+                    )))
+                    .child(
+                        div()
+                            .id("action-count")
+                            .role(Role::Status)
+                            .aria_label(count.clone())
+                            .test_support()
+                            .child(Text::new(count).role(TypeRole::BodySmall)),
+                    )
+            }))
+            .children(self.shows(Story::Button).then(|| {
+                section("Sizes and icon slots").child(
+                    row().children(sizes.into_iter().zip(size_names).enumerate().map(
+                        |(ix, (size, label))| {
+                            labeled_sample(
+                                label,
+                                Button::new(("action-size", ix), "Add")
+                                    .size(size)
+                                    .shape(ButtonShape::Square)
+                                    .leading_icon(Icon::new(IconName::Add))
+                                    .trailing_icon(
+                                        Icon::new(IconName::ChevronRight).mirror_in_rtl(true),
+                                    ),
+                            )
+                        },
+                    )),
                 )
             }))
-            .children(self.shows(Story::Button).then(|| {
-                section("Sizes and icon slots").child(row().children(
+            .children(self.shows(Story::ToggleButton).then(|| {
+                section("Selectable buttons").child(row().children(
                     sizes.into_iter().enumerate().map(|(ix, size)| {
-                        Button::new(("action-size", ix), format!("{size:?}"))
-                            .size(size)
-                            .shape(ButtonShape::Square)
-                            .leading_icon(Icon::new(IconName::Add))
-                            .trailing_icon(Icon::new(IconName::ChevronRight).mirror_in_rtl(true))
+                        let view = cx.entity();
+                        let (variant_name, variant) = toggle_variants[ix % toggle_variants.len()];
+                        let button =
+                            ToggleButton::new(("toggle-variant", ix), "Pin", self.toggles[ix])
+                                .variant(variant)
+                                .size(size)
+                                .shape(if ix % 2 == 0 {
+                                    ButtonShape::Round
+                                } else {
+                                    ButtonShape::Square
+                                })
+                                .on_change(move |value, _, cx| {
+                                    view.update(cx, |this, cx| {
+                                        this.toggles[ix] = value;
+                                        cx.notify();
+                                    })
+                                });
+                        labeled_sample(format!("{variant_name} · {}", size_names[ix]), button)
                     }),
                 ))
-            }))
-            .children(self.shows(Story::ToggleButton).then(|| {
-                section("Toggle variants").child(row().children(sizes.into_iter().enumerate().map(
-                    |(ix, size)| {
-                        let view = cx.entity();
-                        let variant = toggle_variants[ix % toggle_variants.len()];
-                        ToggleButton::new(
-                            ("toggle-variant", ix),
-                            format!("{variant:?} {size:?}"),
-                            self.toggles[ix],
-                        )
-                        .variant(variant)
-                        .size(size)
-                        .shape(if ix % 2 == 0 {
-                            ButtonShape::Round
-                        } else {
-                            ButtonShape::Square
-                        })
-                        .on_change(move |value, _, cx| {
-                            view.update(cx, |this, cx| {
-                                this.toggles[ix] = value;
-                                cx.notify();
-                            })
-                        })
-                    },
-                )))
             }))
             .children(self.shows(Story::IconButton).then(|| {
                 section("Icon button variants").child(row().children(
                     sizes.into_iter().enumerate().map(|(ix, size)| {
-                        let variant = icon_variants[ix % icon_variants.len()];
-                        IconButton::new(
+                        let (variant_name, variant) = icon_variants[ix % icon_variants.len()];
+                        let label = size_names[ix];
+                        let button = IconButton::new(
                             ("icon-variant", ix),
-                            format!("{variant:?} {size:?} action"),
+                            format!("Add ({label})"),
                             Icon::new(IconName::Add),
                         )
                         .variant(variant)
@@ -156,7 +168,8 @@ impl Render for ActionExamples {
                                 IconButtonWidth::Uniform,
                                 IconButtonWidth::Narrow,
                             ][ix],
-                        )
+                        );
+                        labeled_sample(format!("{variant_name} · {label}"), button)
                     }),
                 ))
             }))
@@ -164,10 +177,11 @@ impl Render for ActionExamples {
                 section("Toggle and selected icons").child(row().children(
                     sizes.into_iter().enumerate().map(|(ix, size)| {
                         let view = cx.entity();
-                        let variant = icon_variants[ix % icon_variants.len()];
-                        IconToggleButton::new(
+                        let (variant_name, variant) = icon_variants[ix % icon_variants.len()];
+                        let label = size_names[ix];
+                        let button = IconToggleButton::new(
                             ("icon-toggle-variant", ix),
-                            format!("{variant:?} {size:?} favorite"),
+                            format!("Favorite ({label})"),
                             Icon::new(IconName::Favorite),
                             self.icon_toggles[ix],
                         )
@@ -191,57 +205,64 @@ impl Render for ActionExamples {
                                 this.icon_toggles[ix] = value;
                                 cx.notify();
                             })
-                        })
+                        });
+                        labeled_sample(format!("{variant_name} · {label}"), button)
                     }),
                 ))
             }))
             .children(self.shows(Story::Fab).then(|| {
-                section("Colors and sizes").child(row().children(
-                    fab_colors.into_iter().enumerate().map(|(ix, color)| {
-                        let size = fab_sizes[ix % fab_sizes.len()];
-                        Fab::new(
-                            ("fab-size", ix),
-                            format!("Create {color:?} ({size:?})"),
-                            Icon::new(IconName::Add),
-                        )
-                        .size(size)
-                        .color(color)
-                    }),
-                ))
+                section("Colors and sizes").child(
+                    row().children(
+                        fab_colors
+                            .into_iter()
+                            .zip([
+                                "Primary",
+                                "Secondary",
+                                "Tertiary",
+                                "Strong primary",
+                                "Strong secondary",
+                                "Strong tertiary",
+                            ])
+                            .enumerate()
+                            .map(|(ix, (color, label))| {
+                                let size = fab_sizes[ix % fab_sizes.len()];
+                                let button = Fab::new(
+                                    ("fab-size", ix),
+                                    format!("Create ({label})"),
+                                    Icon::new(IconName::Add),
+                                )
+                                .size(size)
+                                .color(color);
+                                labeled_sample(label, button)
+                            }),
+                    ),
+                )
             }))
             .children(self.shows(Story::ExtendedFab).then(|| {
-                section("Sizes and expansion").child(row().children(
-                    fab_sizes.into_iter().enumerate().map(|(ix, size)| {
-                        let view = cx.entity();
-                        ExtendedFab::new(
-                            ("extended-fab-size", ix),
-                            "Create a new document 新建文档",
-                            Icon::new(IconName::Add),
-                        )
-                        .size(size)
-                        .expanded(!self.collapsed)
-                        .on_activate(move |_, cx| {
-                            view.update(cx, |this, cx| {
-                                this.collapsed = !this.collapsed;
-                                cx.notify();
+                section("Sizes and expansion")
+                    .description("Activate any button to expand or collapse the labels.")
+                    .child(
+                        row().children(fab_sizes.into_iter().enumerate().map(|(ix, size)| {
+                            let view = cx.entity();
+                            ExtendedFab::new(
+                                ("extended-fab-size", ix),
+                                "New document",
+                                Icon::new(IconName::Add),
+                            )
+                            .size(size)
+                            .expanded(!self.collapsed)
+                            .on_activate(move |_, cx| {
+                                view.update(cx, |this, cx| {
+                                    this.collapsed = !this.collapsed;
+                                    cx.notify();
+                                })
                             })
-                        })
-                    }),
-                ))
+                        })),
+                    )
             }))
             .children(self.shows(Story::Button).then(|| {
-                let label = format!("Activations: {}", self.count);
-                section("Disabled and activation").child(
-                    row()
-                        .child(Button::new("action-disabled", "Unavailable").disabled(true))
-                        .child(
-                            div()
-                                .id("action-count")
-                                .role(Role::Status)
-                                .aria_label(label.clone())
-                                .test_support()
-                                .child(label),
-                        ),
+                section("Disabled").child(
+                    row().child(Button::new("action-disabled", "Unavailable").disabled(true)),
                 )
             }))
             .children(self.shows(Story::ToggleButton).then(|| {
@@ -275,7 +296,23 @@ impl Render for ActionExamples {
 }
 
 fn row() -> gpui::Div {
-    div().flex().flex_wrap().items_center().gap_2()
+    div().flex().flex_wrap().items_end().gap_3()
+}
+
+fn labeled_sample(label: impl Into<gpui::SharedString>, example: impl IntoElement) -> gpui::Div {
+    let label = label.into();
+    stack()
+        .items_start()
+        .gap_1()
+        .max_w_full()
+        .child(
+            Text::new(label.clone())
+                .id((gpui::ElementId::from("sample-label"), label))
+                .role(TypeRole::LabelMedium)
+                .color(ColorRole::OnSurfaceVariant)
+                .wrap(),
+        )
+        .child(example)
 }
 
 #[cfg(all(test, feature = "test-support"))]

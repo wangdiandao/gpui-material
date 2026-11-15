@@ -2,28 +2,32 @@ use gpui::{
     AnyView, App, AppContext, Context, ElementId, Entity, FocusHandle, Focusable,
     InteractiveElement, IntoElement, ParentElement, Pixels, Render, Role, ScrollHandle,
     StatefulInteractiveElement, Styled, Subscription, Window, div, point, prelude::FluentBuilder,
-    px,
+    px, svg,
 };
-use gpui_base::TestSupportExt;
+use gpui_base::{TestSupportExt, TextView, TextViewStyle};
 use gpui_material::{
     ControlSize, Fab, FabColor, FloatingAction, Icon, IconButton, IconName, List, ListDetail,
     ListDetailPane, ListItem, ListVariant, Text, TextField, TextFieldEvent, TextFieldState,
     TextFieldVariant, ToggleButton, ToggleButtonVariant, Tooltip,
     foundation::{
-        Surface, color, set_material_theme, set_window_material_theme, window_material_theme,
+        Surface, color, set_material_theme, set_window_material_theme, text_style,
+        window_material_theme,
     },
-    theme::{Appearance, ColorRole, CornerRole, Direction, Elevation, TypeRole, WidthClass},
+    theme::{
+        Appearance, ColorRole, CornerRole, Direction, TypeRole, TypographyEmphasis, WidthClass,
+    },
 };
 
-use crate::{
-    drawing, input_examples,
-    story::{Story, section, stack},
-};
+use crate::story::{Story, stack};
 
 gpui::actions!(gallery, [CloseCatalog]);
 
 const COMPACT_MARGIN: Pixels = px(16.);
 const PANE_SPACING: Pixels = px(24.);
+const STORY_MAX_WIDTH: Pixels = px(1120.);
+const README_MAX_WIDTH: Pixels = px(840.);
+pub(crate) const REPOSITORY_URL: &str = "https://github.com/wangdiandao/gpui-material";
+const README: &str = include_str!("../../../README.md");
 
 pub(crate) struct Gallery {
     local_theme: bool,
@@ -36,8 +40,6 @@ pub(crate) struct Gallery {
     content_scroll: ScrollHandle,
     content_focus: FocusHandle,
     stories: Vec<(Story, AnyView)>,
-    drawing: Entity<drawing::Drawing>,
-    input: Entity<input_examples::InputExamples>,
     _search: Subscription,
     _bounds: Subscription,
 }
@@ -97,8 +99,6 @@ impl Gallery {
             content_scroll: ScrollHandle::new(),
             content_focus: cx.focus_handle(),
             stories,
-            drawing: cx.new(drawing::Drawing::new),
-            input: cx.new(|cx| input_examples::InputExamples::new(window, cx)),
             _search: observe_search,
             _bounds: bounds,
         }
@@ -272,32 +272,42 @@ impl Gallery {
     }
 
     fn render_introduction(&self, window: &Window, cx: &App) -> impl IntoElement {
-        let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
-        stack()
-            .when(rtl, Styled::text_right)
-            .child(div().text_sm().child(
-                "Search or browse the component catalog, then select a story to try its variants and interactions.",
-            ))
-    }
-
-    fn render_foundation(&self) -> impl IntoElement {
-        stack()
-            .child(
-                section("Window and typography").child(
-                    Surface::new(ColorRole::Surface)
-                        .tonal_elevation(Elevation::Level3)
-                        .shadow_elevation(Elevation::Level2)
-                        .rounded_lg()
-                        .p_4()
-                        .child(
-                            Text::new("Material 3 · 中文排版")
-                                .id("typography")
-                                .role(TypeRole::HeadlineSmall),
-                        ),
-                ),
-            )
-            .child(section("Shape and interaction").child(self.drawing.clone()))
-            .child(section("Input and overlays").child(self.input.clone()))
+        let scheme = &window_material_theme(window, cx).colors;
+        let tone = |role| color(scheme.color(role));
+        let style = TextViewStyle::default()
+            .with_dark(scheme.appearance() == Appearance::Dark)
+            .with_foreground(tone(ColorRole::OnSurface))
+            .with_muted_foreground(tone(ColorRole::OnSurfaceVariant))
+            .with_link(tone(ColorRole::Primary))
+            .with_border(tone(ColorRole::OutlineVariant))
+            .with_code_background(tone(ColorRole::SurfaceContainer))
+            .with_inline_code(gpui::HighlightStyle {
+                background_color: Some(tone(ColorRole::SurfaceContainer)),
+                ..Default::default()
+            })
+            .with_selection(tone(ColorRole::SecondaryContainer));
+        text_style(
+            div().w_full().max_w(README_MAX_WIDTH).mx_auto(),
+            TypeRole::BodyLarge.style(TypographyEmphasis::Baseline),
+            1.,
+            window,
+            cx,
+        )
+        .child(
+            TextView::markdown("gallery-readme", README)
+                .style(style)
+                .selectable(true)
+                .on_link_click(|url, event, _, cx| {
+                    if event.is_right_click() {
+                        return;
+                    }
+                    if url.starts_with("https://") || url.starts_with("http://") {
+                        cx.open_url(url);
+                    } else {
+                        cx.open_url(&format!("{REPOSITORY_URL}/blob/main/{url}"));
+                    }
+                }),
+        )
     }
 
     fn render_story(
@@ -311,7 +321,6 @@ impl Gallery {
         let rtl = theme.layout.direction == Direction::Rtl;
         let content = match self.current {
             Story::Introduction => self.render_introduction(window, cx).into_any_element(),
-            Story::Foundation => self.render_foundation().into_any_element(),
             _ => self
                 .stories
                 .iter()
@@ -331,29 +340,41 @@ impl Gallery {
             .min_w_0()
             .rounded(radius)
             .bg(color(theme.colors.color(ColorRole::Surface)))
-            .child(
-                stack()
+            .children((self.current != Story::Introduction).then(|| {
+                div()
                     .flex_none()
-                    .gap_1()
-                    .px(inset)
-                    .py_4()
-                    .when(rtl, Styled::items_end)
+                    .border_b_1()
+                    .border_color(color(theme.colors.color(ColorRole::OutlineVariant)))
                     .child(
-                        div()
-                            .id("story-title")
-                            .role(Role::Heading)
-                            .aria_label(self.current.name())
-                            .test_support()
-                            .child(Text::new(self.current.name()).role(TypeRole::HeadlineSmall)),
+                        stack()
+                            .w_full()
+                            .max_w(STORY_MAX_WIDTH)
+                            .mx_auto()
+                            .gap_1()
+                            .px(inset)
+                            .py_4()
+                            .when(rtl, Styled::items_end)
+                            .child(
+                                div()
+                                    .id("story-title")
+                                    .role(Role::Heading)
+                                    .aria_label(self.current.name())
+                                    .test_support()
+                                    .child(
+                                        Text::new(self.current.name())
+                                            .role(TypeRole::HeadlineSmall)
+                                            .emphasized(true),
+                                    ),
+                            )
+                            .child(
+                                Text::new(self.current.description())
+                                    .id("story-description")
+                                    .role(TypeRole::BodyMedium)
+                                    .color(ColorRole::OnSurfaceVariant)
+                                    .wrap(),
+                            ),
                     )
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(color(theme.colors.color(ColorRole::OnSurfaceVariant)))
-                            .when(rtl, Styled::text_right)
-                            .child(self.current.description()),
-                    ),
-            )
+            }))
             .child(
                 div()
                     .id("gallery-scroll")
@@ -365,7 +386,14 @@ impl Gallery {
                     .child(if self.current == Story::AdaptiveLayout {
                         div().size_full().min_h_0().overflow_hidden().child(content)
                     } else {
-                        div().px(inset).pt_4().pb_24().child(content)
+                        div()
+                            .w_full()
+                            .max_w(STORY_MAX_WIDTH)
+                            .mx_auto()
+                            .px(inset)
+                            .pt_4()
+                            .pb_24()
+                            .child(content)
                     }),
             )
     }
@@ -378,7 +406,8 @@ impl Gallery {
         window: &Window,
         cx: &Context<Self>,
     ) -> impl IntoElement {
-        let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
+        let theme = window_material_theme(window, cx);
+        let rtl = theme.layout.direction == Direction::Rtl;
         let (label, icon) = if show_catalog {
             ("Hide components", IconName::LeftPanelClose)
         } else {
@@ -409,12 +438,32 @@ impl Gallery {
                 label,
             ))
             .child(
-                ToggleButton::new("toggle-motion", "Reduced motion", cx.reduce_motion())
-                    .variant(ToggleButtonVariant::Outlined)
-                    .size(ControlSize::ExtraSmall)
-                    .on_change(|next, _, cx| cx.set_reduce_motion(next)),
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .when(rtl, Styled::flex_row_reverse)
+                    .children(theme_in_app_bar.then(|| self.render_theme_toggle(false, window, cx)))
+                    .child(Tooltip::plain(
+                        "repository-tooltip",
+                        IconButton::new(
+                            "open-repository",
+                            "Open GitHub repository",
+                            svg()
+                                .data(include_bytes!("../assets/mark-github-24.svg"))
+                                .size_full()
+                                .text_color(color(theme.colors.color(ColorRole::OnSurfaceVariant))),
+                        )
+                        .on_activate(|_, cx| cx.open_url(REPOSITORY_URL)),
+                        "Open GitHub repository",
+                    ))
+                    .child(
+                        ToggleButton::new("toggle-motion", "Reduced motion", cx.reduce_motion())
+                            .variant(ToggleButtonVariant::Outlined)
+                            .size(ControlSize::ExtraSmall)
+                            .on_change(|next, _, cx| cx.set_reduce_motion(next)),
+                    ),
             )
-            .children(theme_in_app_bar.then(|| self.render_theme_toggle(false, window, cx)))
     }
 
     fn render_theme_toggle(&self, floating: bool, window: &Window, cx: &App) -> Tooltip {
@@ -522,8 +571,8 @@ impl Render for Gallery {
             !self.catalog_collapsed
         };
         let show_story = !single_pane || !show_catalog;
-        // Leave the adaptive example's own navigation and FAB unobstructed.
-        let theme_in_app_bar = self.current == Story::AdaptiveLayout;
+        // Keep the document and the adaptive example unobstructed.
+        let theme_in_app_bar = matches!(self.current, Story::Introduction | Story::AdaptiveLayout);
         let margin = if width_class == WidthClass::Compact {
             COMPACT_MARGIN
         } else {

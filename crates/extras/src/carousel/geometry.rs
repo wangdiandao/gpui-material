@@ -110,13 +110,22 @@ impl Layout {
         }
         let base = (position.floor() as usize).min(self.prefix.len() - 1);
         let progress = position.fract();
-        let base_offset = self.prefix[base] + (self.sizes[base] + self.gap) * progress;
-        let target = (base_offset + delta).clamp(0., self.maximum_offset());
+        let maximum = self.maximum_offset();
+        let start = self.prefix[base].min(maximum);
+        let next = self.prefix[(base + 1).min(self.prefix.len() - 1)].min(maximum);
+        // Painting interpolates clamped snap poses, including the shortened
+        // final stride. Scroll conversion must use the same physical offsets.
+        let base_offset = start + (next - start) * progress;
+        let target = (base_offset + delta).clamp(0., maximum);
+        if target == base_offset {
+            return 0.;
+        }
         let end = self
             .prefix
-            .partition_point(|&offset| offset <= target)
+            .partition_point(|&offset| offset < target)
             .saturating_sub(1);
-        let fraction = (target - self.prefix[end]) / (self.sizes[end] + self.gap);
+        let next = self.prefix[(end + 1).min(self.prefix.len() - 1)].min(maximum);
+        let fraction = (target - self.prefix[end]) / (next - self.prefix[end]);
         end as f32 + fraction - position
     }
 
@@ -241,9 +250,10 @@ impl Layout {
             ),
             _ => unreachable!(),
         };
+        let maximum = widths.iter().copied().fold(0., f32::max);
         let focal = widths
             .iter()
-            .position(|&width| width == widths.iter().copied().fold(0., f32::max))
+            .position(|&width| width == maximum)
             .unwrap_or(0);
         let first = index.saturating_sub(focal).min(count - widths.len());
         let actual_focal = index - first;
@@ -364,6 +374,33 @@ mod tests {
             .into_iter()
             .map(|(_, item)| item.size)
             .collect()
+    }
+
+    #[test]
+    fn precise_scroll_matches_painted_offsets_at_the_trailing_edge() {
+        for variant in [
+            CarouselVariant::Uncontained,
+            CarouselVariant::UncontainedMultiAspectRatio,
+        ] {
+            let geometry = layout(variant, 465., 6);
+            let offset = |position: f32| {
+                let (index, item) = geometry.visible(position, Direction::Ltr)[0];
+                geometry.leading + geometry.prefix[index] - item.start
+            };
+            for position in [0., 2.5, 3.5, 4., 5.] {
+                for delta in [-40., 0., 40.] {
+                    let next = position + geometry.scroll_delta(position, delta);
+                    let expected = (offset(position) + delta).clamp(0., geometry.maximum_offset());
+                    assert!(
+                        (offset(next) - expected).abs() < 0.001,
+                        "{variant:?}: position={position}, delta={delta}, next={next}"
+                    );
+                    if delta == 0. {
+                        assert_eq!(next, position);
+                    }
+                }
+            }
+        }
     }
 
     #[test]

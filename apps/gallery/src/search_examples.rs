@@ -77,18 +77,20 @@ fn matches(query: &str) -> SearchOutcome {
 impl Render for SearchExamples {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
         stack()
-            .child(section("Docked").child(SearchBar::new(
-                "docked",
-                "Search documents",
-                &self.docked,
-            )))
             .child(
-                section("Full-screen app bar").child(
-                    AppBar::new("search-app-bar", "Documents").search(
-                        SearchBar::new("fullscreen", "Search documents", &self.fullscreen)
-                            .variant(SearchViewVariant::FullScreen),
+                section("Docked")
+                    .description("Search for “design” or “meeting” to see matching documents.")
+                    .child(SearchBar::new("docked", "Search documents", &self.docked)),
+            )
+            .child(
+                section("Full-screen app bar")
+                    .description("Try “error” to preview a failed search.")
+                    .child(
+                        AppBar::new("search-app-bar", "Documents").search(
+                            SearchBar::new("fullscreen", "Search documents", &self.fullscreen)
+                                .variant(SearchViewVariant::FullScreen),
+                        ),
                     ),
-                ),
             )
             .child(Text::new(self.message.clone()).role(TypeRole::BodyMedium))
     }

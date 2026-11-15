@@ -6,7 +6,7 @@ use gpui_material::{
     LinearProgress, List, ListItem, ListVariant, LoadingIndicator, ProgressShape, Text,
 };
 
-use crate::story::{Story, section};
+use crate::story::{Story, section, stack};
 
 pub(crate) struct DisplayExamples {
     story: Option<Story>,
@@ -75,21 +75,21 @@ impl Render for DisplayExamples {
                 progress.value(self.progress)
             }
         };
-        div()
-            .flex()
-            .flex_col()
-            .gap_3()
+        stack()
             .children(self.shows(Story::Text).then(|| {
                 section("Typography and font scale")
+                    .description("Compare the same mixed-script text at the default scale and at 125%.")
+                    .child(
+                        Text::new("Material typography 中文混排").id("baseline-text").wrap(),
+                    )
                     .child(
                         Text::new("Material typography 中文混排")
                             .id("mixed-script-text")
                             .role(TypeRole::TitleMedium)
                             .emphasized(true)
                             .font_scale(1.25)
-                            .truncate(px(350.)),
+                            .wrap(),
                     )
-                    .child(Text::new("Material typography 中文混排").id("baseline-text"))
             }))
             .children(self.shows(Story::Icon).then(|| {
                 section("Outlined and filled symbols").child(
@@ -129,7 +129,9 @@ impl Render for DisplayExamples {
                 )
             }))
             .children(self.shows(Story::Icon).then(|| {
-                section("Directional and decorative SVGs").child(
+                section("Directional and decorative SVGs")
+                .description("The first arrow mirrors with right-to-left layout. The second retains its direction.")
+                .child(
                     div()
                         .flex()
                         .gap_3()
@@ -147,6 +149,7 @@ impl Render for DisplayExamples {
             }))
             .children(self.shows(Story::Card).then(|| {
                 section("Elevated, filled and outlined")
+                    .description("Open the project card or activate its Pin button independently.")
                     .child(
                         Card::new("elevated-card")
                             .variant(CardVariant::Elevated)
@@ -185,7 +188,9 @@ impl Render for DisplayExamples {
             }))
             .children(self.shows(Story::Divider).then(|| {
                 section("Horizontal and vertical dividers")
+                    .child(Text::new("Workspace").id("divider-from").role(TypeRole::LabelLarge))
                     .child(Divider::horizontal().inset(px(16.), px(0.)))
+                    .child(Text::new("Documents").id("divider-to").role(TypeRole::BodyMedium))
                     .child(
                         div()
                             .flex()
@@ -198,7 +203,9 @@ impl Render for DisplayExamples {
                     )
             }))
             .children(self.shows(Story::Badge).then(|| {
-                section("Dot, label and count badges").child(
+                section("Dot, label and count badges")
+                .description("The last badge caps the displayed count at 99+.")
+                .child(
                     div()
                         .flex()
                         .items_center()
@@ -233,7 +240,9 @@ impl Render for DisplayExamples {
                 )
             }))
             .children(self.shows(Story::List).then(|| {
-                section("Segmented list").child(
+                section("Segmented list")
+                .description("Select Documents to see the selected row treatment.")
+                .child(
                     List::new("segmented-list")
                         .variant(ListVariant::Segmented)
                         .items([
@@ -267,6 +276,7 @@ impl Render for DisplayExamples {
             }))
             .children(self.shows(Story::Progress).then(|| {
                 section("Linear and circular progress")
+                    .description("Toggle between a measured transfer and one with no known completion time.")
                     .child(linear(
                         "linear-progress",
                         "Transfer progress",
@@ -293,7 +303,9 @@ impl Render for DisplayExamples {
                                 "Wavy sync progress",
                                 ProgressShape::Wavy,
                             ))
-                            .child(Button::new("advance-progress", "Advance").on_activate(
+                            .child(Button::new("advance-progress", "Advance")
+                            .disabled(self.indeterminate)
+                            .on_activate(
                                 move |_, cx| {
                                     progress.update(cx, |this, cx| {
                                         this.progress = (this.progress + 0.25) % 1.;
@@ -355,7 +367,9 @@ impl Render for DisplayExamples {
                 )
             }))
             .children(self.shows(Story::List).then(|| {
-                section("Standard list").child(
+                section("Standard list")
+                .description("Scroll for more files. Pinning a file leaves the row selection as it was.")
+                .child(
                     isolated_scroll("files-scroll", &self.files_scroll)
                         .h_48()
                         .child(List::new("standard-list").items((1..=24).map(|file| {

@@ -11,6 +11,7 @@ See [versioning and releases](docs/release.md) for the release process.
 - Observe Button and ToggleButton interaction changes through an optional shared interaction source.
 - Set text-field colors, shape, content padding and input typography per instance, observe the Base editor's laid-out geometry, and share field interaction state.
 - Customize Button and ToggleButton content, shapes, colors, borders, padding, and elevations per instance.
+- Render standalone and anchored badges with custom content and per-instance colors.
 
 ### Gallery
 

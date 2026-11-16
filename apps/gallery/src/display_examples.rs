@@ -6,7 +6,8 @@ use gpui_material::theme::{ColorRole, CornerRole, CornerShape, Elevation, TypeRo
 use gpui_material::{
     Badge, Button, ButtonVariant, Card, CardBorder, CardColors, CardElevations, CardVariant,
     CircularProgress, Divider, Icon, IconName, LinearProgress, List, ListItem, ListVariant,
-    LoadingIndicator, LoadingIndicatorShape, LoadingIndicatorShapes, ProgressShape, Text,
+    LoadingIndicator, LoadingIndicatorShape, LoadingIndicatorShapes, ProgressCap, ProgressShape,
+    ProgressStroke, Text,
 };
 
 use crate::story::{Story, section, stack};
@@ -15,6 +16,8 @@ use crate::story::{Story, section, stack};
 mod card_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod loading_tests;
+#[cfg(all(test, feature = "test-support"))]
+mod progress_tests;
 
 pub(crate) struct DisplayExamples {
     story: Option<Story>,
@@ -72,8 +75,39 @@ impl Render for DisplayExamples {
         let progress = cx.entity();
         let loading = cx.entity();
         let mode = cx.entity();
+        let show_progress_customization = self.story == Some(Story::Progress);
         let linear = |id, name, shape| {
             let progress = LinearProgress::new(id, name).shape(shape);
+            let progress = if show_progress_customization && shape == ProgressShape::Wavy {
+                progress
+                    .active_stroke(ProgressStroke {
+                        width: Some(px(6.)),
+                        ..Default::default()
+                    })
+                    .track_stroke(ProgressStroke {
+                        width: Some(px(3.)),
+                        ..Default::default()
+                    })
+                    .gap(px(6.))
+                    .wavelength(px(32.))
+                    .wave_speed(px(20.))
+                    .stop_size(px(6.))
+                    .draw_stop_indicator(|stop, window, _| {
+                        let bounds = stop.bounds;
+                        let center = bounds.center();
+                        let mut diamond = gpui::PathBuilder::fill();
+                        diamond.move_to(point(center.x, bounds.top()));
+                        diamond.line_to(point(bounds.right(), center.y));
+                        diamond.line_to(point(center.x, bounds.bottom()));
+                        diamond.line_to(point(bounds.left(), center.y));
+                        diamond.close();
+                        if let Ok(path) = diamond.build() {
+                            window.paint_path(path, stop.color);
+                        }
+                    })
+            } else {
+                progress
+            };
             if self.indeterminate {
                 progress
             } else {
@@ -82,6 +116,23 @@ impl Render for DisplayExamples {
         };
         let circular = |id, name, shape| {
             let progress = CircularProgress::new(id, name).shape(shape);
+            let progress = if show_progress_customization && shape == ProgressShape::Wavy {
+                progress
+                    .active_stroke(ProgressStroke {
+                        width: Some(px(5.)),
+                        cap: ProgressCap::Square,
+                        ..Default::default()
+                    })
+                    .track_stroke(ProgressStroke {
+                        width: Some(px(2.)),
+                        ..Default::default()
+                    })
+                    .wave_amplitude(0.7)
+                    .wavelength(px(25.))
+                    .wave_speed(px(18.))
+            } else {
+                progress
+            };
             if self.indeterminate {
                 progress
             } else {

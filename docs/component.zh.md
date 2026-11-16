@@ -93,7 +93,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `List`、`ListItem` | Standard 和 Segmented 列表，支持前置、辅助及尾部内容。 | [列表](https://m3.material.io/components/lists/overview) |
 | `SwipeToDismiss` | 横向滑动关闭，内容、背景及操作由调用方提供。 | [列表](https://m3.material.io/components/lists/guidelines) · [Compose SwipeToDismissBox](https://developer.android.com/reference/kotlin/androidx/compose/material3/SwipeToDismissBox.composable) |
 | `Divider`、`Badge` | 横向与纵向分隔线支持逻辑内缩、粗细和单独配色。徽标支持独立或附着显示，可使用圆点、文本、计数、自定义内容和单独配色。 | [分隔线](https://m3.material.io/components/divider/overview) · [徽标](https://m3.material.io/components/badges/overview) |
-| `LinearProgress`、`CircularProgress` | 确定和不确定进度，支持直线和波浪样式。 | [进度指示器](https://m3.material.io/components/progress-indicators/overview) |
+| `LinearProgress`、`CircularProgress` | 确定和不确定进度，支持可配置的直线和波浪样式。 | [进度指示器](https://m3.material.io/components/progress-indicators/overview) |
 | `LoadingIndicator` | Default 和 Contained 样式，支持确定与不确定进度、自定义形状序列和实例配色。 | [加载指示器](https://m3.material.io/components/loading-indicator/overview) |
 | `Snackbar`、`SnackbarHost` | 消息排队、可选操作、定时或持续显示以及关闭。 | [消息条](https://m3.material.io/components/snackbar/overview) |
 
@@ -124,6 +124,16 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 默认启用两个逻辑方向和滑动手势。使用 `.enable_start_to_end(bool)`、`.enable_end_to_start(bool)` 和 `.gestures_enabled(bool)` 可分别设置。窗口的书写方向决定实际滑动方向。默认阈值为 56 个逻辑像素。使用 `SwipeToDismissState::positional_threshold(|width| ...)` 按布局宽度计算阈值。有限值限制在可滑动距离内，无效值使用默认阈值。纵向拖动和滚动仍交给周围布局处理。
 
 `dismiss(direction, window, cx)` 以动画滑至启用的方向，`reset(window, cx)` 以动画回到初始位置，`snap_to(value, window, cx)` 立即移动。减少动态效果时立即定位。移动停在新的关闭方向时，`.on_dismiss(|direction, window, cx| ...)` 执行一次，前景同时退出键盘遍历和无障碍树。数据变更由应用负责，例如移除条目。应用也可调用 `reset` 重新显示。为每个操作提供有名称且能获得键盘焦点的按钮或菜单项。激活时调用同一个 `dismiss` 方法，在手势禁用时也可以使用。
+
+### 进度指示器
+
+创建 `LinearProgress` 或 `CircularProgress` 时提供稳定的 ID 和无障碍名称。调用方持有确定进度值，通过 `.value(fraction)` 传入。有限值限制在 `0..=1`。省略数值或调用 `.indeterminate()` 可显示不确定进度，非有限值也会选用该模式。确定模式的无障碍进度条公开当前目标百分比，不确定模式无数值。
+
+通过 `.shape(ProgressShape::Wavy)` 选用波浪形进度线。各模式均支持 `.active_stroke(ProgressStroke)`、`.track_stroke(ProgressStroke)` 和 `.gap(size)`。两条线可分别设置线宽、颜色和 `ProgressCap` 端部样式（Round、Butt 或 Square）。默认使用 4 dp 圆端描边、4 dp 间隔，以及窗口主题的 `Primary` 和 `SecondaryContainer` 色。线宽为零时隐藏该描边。负值或非有限线宽及间隔采用默认值。绘制时将描边限制在可用边界内，间隔也不会超出轨道长度。线性指示器随窗口书写方向镜像，环形指示器从顶部顺时针绘制。
+
+使用 `.wave_amplitude(fraction)` 或 `.wave_amplitude_by(|progress| …)` 设置波浪在可用空间内的振幅。回调在确定模式下接收正在绘制的进度，在不确定模式下接收零。振幅限制在 `0..=1`，NaN 按零处理。确定模式默认在进度不超过 10% 或达到 95% 时采用平线，不确定模式的默认振幅为最大值。确定进度为零或 100% 时为平线。`.wavelength(length)` 以逻辑像素设置波峰间距，环形绘制会在一圈内排列整数个波形。`.wave_speed(length_per_second)` 的单位为逻辑像素每秒，默认每秒移动一个波长，速度为零时保持当前相位。无效的波长或速度采用默认值。减少动效时保持静态形状，并即时应用确定进度的变化。
+
+线性确定进度默认在轨道逻辑末端绘制 4 dp 的终点标记。用 `.stop_size(size)` 调整尺寸，零会隐藏标记，无效尺寸采用默认值。轨道与周围表面的对比度低于 3:1 时应保留可见标记。通过 `.draw_stop_indicator(|stop, window, cx| …)` 替换默认绘制。`ProgressStop` 提供标记边界、进度线颜色和端部样式，以及布局方向。仅在标记可见时调用绘制函数，按标记边界裁切，且不添加无障碍节点。
 
 ### 加载指示器
 

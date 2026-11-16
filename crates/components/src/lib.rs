@@ -43,7 +43,9 @@ pub use card::{Card, CardBorder, CardColors, CardElevations, CardVariant};
 pub use display::{Badge, Divider, List, ListItem, ListVariant};
 pub use drag_handle::{DragHandleColors, DragHandleShapes, DragHandleSizes, VerticalDragHandle};
 pub use loading_indicator::{LoadingIndicator, LoadingIndicatorShape, LoadingIndicatorShapes};
-pub use progress::{CircularProgress, LinearProgress, ProgressShape};
+pub use progress::{
+    CircularProgress, LinearProgress, ProgressCap, ProgressShape, ProgressStop, ProgressStroke,
+};
 pub use swipe_to_dismiss::{SwipeToDismiss, SwipeToDismissState, SwipeToDismissValue};
 pub use text::Text;
 mod icon;

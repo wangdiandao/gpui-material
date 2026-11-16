@@ -24,8 +24,8 @@
   en: "cec1ef65bc09216b"
   zh: "8935c390996df97a"
 /components/content-and-feedback:
-  en: "7cf5e961ec2960ad"
-  zh: "eb8412d894a38cbf"
+  en: "871545cc7a6c2fac"
+  zh: "eba96bba5f80ab54"
 /components/content-and-feedback/cards:
   en: "4d2f6789dacad3ba"
   zh: "072abf03f19a86b4"
@@ -38,6 +38,9 @@
 /components/content-and-feedback/swipe-to-dismiss:
   en: "9fe72312679c3039"
   zh: "0f1e8979db2e2a18"
+/components/content-and-feedback/progress-indicators:
+  en: "590a1189d2e904c8"
+  zh: "1209dca765dea1cd"
 /components/content-and-feedback/loading-indicator:
   en: "5e1d84fabb52dad5"
   zh: "6f85457e27afdae2"

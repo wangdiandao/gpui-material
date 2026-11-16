@@ -255,9 +255,11 @@ impl<const VIBRANT: bool> RenderOnce for TimeDialog<VIBRANT> {
                 .get_or_insert_with(|| color(theme.colors.color(ColorRole::SurfaceContainer)));
         }
         let state = self.state.clone();
+        let dismiss_state = self.state.clone();
         let close_state = self.state;
         let confirm = self.on_confirm;
         let close = self.on_close;
+        let dismiss_request = self.on_dismiss_request;
         let mut dialog = Dialog::new(self.id, &model.dialog, self.name)
             .show_title(!VIBRANT || self.title.is_some())
             .colors(self.colors)
@@ -274,6 +276,9 @@ impl<const VIBRANT: bool> RenderOnce for TimeDialog<VIBRANT> {
             )
             .confirm("OK", move |window, cx| {
                 state.update(cx, |state, cx| {
+                    if state.has_composition(window, cx) {
+                        return false;
+                    }
                     if state.mode != TimePickerVariant::Input {
                         return true;
                     }
@@ -284,11 +289,23 @@ impl<const VIBRANT: bool> RenderOnce for TimeDialog<VIBRANT> {
                         cx.notify();
                         return false;
                     }
+                    state.reconcile_input(cx);
                     true
                 })
             })
+            .on_dismiss_request(move |reason, window, cx| {
+                if reason == DialogCloseReason::Escape
+                    && dismiss_state.update(cx, |state, cx| state.finish_composition(window, cx))
+                {
+                    return false;
+                }
+                dismiss_request
+                    .as_ref()
+                    .is_none_or(|request| request(reason, window, cx))
+            })
             .on_close(move |reason, window, cx| {
                 let value = close_state.update(cx, |state, cx| {
+                    state.discard_composition(window, cx);
                     state.sync_wheels(cx);
                     state.value()
                 });
@@ -315,15 +332,10 @@ impl<const VIBRANT: bool> RenderOnce for TimeDialog<VIBRANT> {
         {
             dialog = dialog.dismiss_content(content);
         }
-        if let Some(request) = self.on_dismiss_request {
-            dialog =
-                dialog.on_dismiss_request(move |reason, window, cx| request(reason, window, cx));
-        }
         dialog
     }
 }
 
-#[derive(Clone)]
 struct TimeOptions {
     value: NaiveTime,
     format: TimeFormat,

@@ -170,7 +170,7 @@ impl RenderOnce for TimePickerPanel {
         let appearance = self.presentation;
         let controls = match mode {
             TimePickerVariant::Dial => time_selector(&self.id, &self.state, appearance, window, cx),
-            TimePickerVariant::Input => time_input(&self.id, model, appearance, window, cx),
+            TimePickerVariant::Input => time_input(&self.id, &self.state, appearance, window, cx),
             TimePickerVariant::Scroll => time_scroll(&self.id, model, appearance, window, cx),
         };
         let period = (model.format == TimeFormat::TwelveHour)
@@ -251,11 +251,13 @@ impl RenderOnce for TimeScroll {
 
 fn time_input(
     id: &ElementId,
-    model: &TimePickerState,
+    state: &Entity<TimePickerState>,
     appearance: Presentation,
     window: &Window,
     cx: &App,
 ) -> AnyElement {
+    let model = state.read(cx);
+    let state = state.clone();
     let theme = window_material_theme(window, cx);
     let colors = appearance.input_colors(theme);
     let field = |segment, label: &SharedString, part| {
@@ -278,6 +280,15 @@ fn time_input(
         div().flex_1().min_w_0().child(control)
     };
     div()
+        .capture_key_down(move |event, window, cx| {
+            let key = &event.keystroke;
+            if key.key == "escape"
+                && !key.modifiers.modified()
+                && state.update(cx, |state, cx| state.finish_composition(window, cx))
+            {
+                cx.stop_propagation();
+            }
+        })
         .flex()
         .flex_col()
         .gap(px(8.))

@@ -2,7 +2,8 @@ use std::rc::Rc;
 
 use chrono::Timelike;
 use gpui::{
-    App, AppContext as _, Context, Entity, FocusHandle, Focusable as _, SharedString, Window,
+    App, AppContext as _, Context, Entity, EntityInputHandler as _, FocusHandle, Focusable as _,
+    SharedString, Window,
 };
 use gpui_material_components::{DialogState, TextFieldEvent, TextFieldState};
 
@@ -183,8 +184,8 @@ impl TimePickerState {
             (TimePickerSegment::Hour, &hour, &hours),
             (TimePickerSegment::Minute, &minute, &minutes),
         ] {
-            cx.subscribe_in(editor, window, move |state, editor, event, _, cx| {
-                if matches!(event, TextFieldEvent::Change) {
+            cx.subscribe_in(editor, window, move |state, editor, event, window, cx| {
+                if matches!(event, TextFieldEvent::Change) && !has_marked_text(editor, window, cx) {
                     let text = editor.read(cx).value();
                     state.apply_input(segment, &text, cx);
                 }
@@ -350,7 +351,10 @@ impl TimePickerState {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if mode != self.mode {
+        if mode != self.mode && !self.has_composition(window, cx) {
+            if self.mode == TimePickerVariant::Input {
+                self.reconcile_input(cx);
+            }
             let restore_focus = self.panel.contains_focused(window, cx);
             self.mode = mode;
             self.mode_revision = self.mode_revision.wrapping_add(1);
@@ -406,6 +410,45 @@ impl TimePickerState {
             self.dialog
                 .update(cx, |dialog, cx| dialog.close(window, cx));
         }
+    }
+
+    fn has_composition(&self, window: &mut Window, cx: &mut App) -> bool {
+        [&self.hour, &self.minute]
+            .into_iter()
+            .any(|field| has_marked_text(field, window, cx))
+    }
+
+    fn finish_composition(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        let mut composed = false;
+        for editor in [&self.hour, &self.minute] {
+            composed |= editor.update(cx, |editor, cx| {
+                if editor.marked_text_range(window, cx).is_none() {
+                    return false;
+                }
+                editor.unmark_text(window, cx);
+                true
+            });
+        }
+        if composed {
+            self.reconcile_input(cx);
+        }
+        composed
+    }
+
+    fn discard_composition(&self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.has_composition(window, cx) {
+            self.sync_fields(window, cx);
+        }
+    }
+
+    fn reconcile_input(&mut self, cx: &mut Context<Self>) {
+        for segment in [TimePickerSegment::Hour, TimePickerSegment::Minute] {
+            let text = self.field(segment).read(cx).value();
+            if let Some(value) = self.parse_segment(segment, &text) {
+                self.update_draft(segment, value);
+            }
+        }
+        cx.notify();
     }
 
     fn parse_segment(&self, segment: TimePickerSegment, text: &str) -> Option<u32> {
@@ -474,7 +517,7 @@ impl TimePickerState {
         };
         let text = (self.locale.number)(number);
         let field = self.field(segment);
-        if field.read(cx).value() != text {
+        if field.read(cx).value() != text || has_marked_text(field, window, cx) {
             field.update(cx, |field, cx| field.set_value(text, window, cx));
         }
     }
@@ -568,6 +611,12 @@ impl TimePickerState {
     }
 }
 
+fn has_marked_text(field: &Entity<TextFieldState>, window: &mut Window, cx: &mut App) -> bool {
+    field.update(cx, |editor, cx| {
+        editor.marked_text_range(window, cx).is_some()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -608,5 +657,122 @@ mod tests {
             ),
             None
         );
+    }
+    #[gpui::test]
+    fn time_dialog_waits_for_ime_then_confirms_the_unmarked_value(cx: &mut gpui::TestAppContext) {
+        use std::cell::{Cell, RefCell};
+
+        use gpui::{IntoElement, Render, WindowOptions, div};
+        use gpui_material_components::DialogAction;
+        use gpui_material_foundation::MaterialRoot;
+        use gpui_material_theme::MaterialTheme;
+
+        struct Fixture {
+            state: Entity<TimePickerState>,
+            change_mode: Rc<RefCell<Option<TimePickerModeAction>>>,
+            confirm: Rc<RefCell<Option<DialogAction>>>,
+            accepted: Rc<Cell<Option<NaiveTime>>>,
+        }
+
+        impl Render for Fixture {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                let change_mode = self.change_mode.clone();
+                let confirm = self.confirm.clone();
+                let accepted = self.accepted.clone();
+                TimePickerDialog::new("ime-clock", "Input composition", &self.state)
+                    .mode_toggle_content(move |action| {
+                        change_mode.replace(Some(action));
+                        div()
+                    })
+                    .confirm_content(move |action| {
+                        confirm.replace(Some(action));
+                        div()
+                    })
+                    .on_confirm(move |time, _, _| accepted.set(Some(time)))
+            }
+        }
+
+        let mode = Rc::new(RefCell::new(None));
+        let confirm = Rc::new(RefCell::new(None));
+        let accepted = Rc::new(Cell::new(None));
+        let mut state = None;
+        let window = cx
+            .update(|cx| {
+                MaterialRoot::init(MaterialTheme::default(), cx);
+                gpui_material_components::init_components(cx);
+                cx.set_reduce_motion(true);
+                MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+                    let picker = cx.new(|cx| {
+                        let mut picker = TimePickerState::new(window, cx);
+                        picker.set_mode(TimePickerVariant::Input, window, cx);
+                        picker
+                    });
+                    state = Some(picker.clone());
+                    cx.new(|cx| {
+                        cx.observe(&picker, |_, _, cx| cx.notify()).detach();
+                        Fixture {
+                            state: picker,
+                            change_mode: mode.clone(),
+                            confirm: confirm.clone(),
+                            accepted: accepted.clone(),
+                        }
+                    })
+                })
+                .unwrap()
+            })
+            .into();
+        let state = state.unwrap();
+        let initial = NaiveTime::from_hms_opt(15, 25, 0).unwrap();
+        cx.update_window(window, |_, window, cx| {
+            state.update(cx, |state, cx| state.open(initial, window, cx));
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+        let change_mode = mode.borrow().clone().unwrap();
+        let apply = confirm.borrow().clone().unwrap();
+
+        cx.update_window(window, |_, window, cx| {
+            let editor = state.read(cx).hour.clone();
+            editor.update(cx, |editor, cx| {
+                editor.replace_and_mark_text_in_range(Some(0..2), "19", Some(1..1), window, cx);
+            });
+            change_mode.activate(window, cx);
+            apply.activate(window, cx);
+            let model = state.read(cx);
+            assert_eq!(model.mode(), TimePickerVariant::Input);
+            assert_eq!(model.value(), initial);
+            assert_eq!(model.hour_input(cx).as_ref(), "19");
+            assert!(model.is_open(cx));
+            assert!(accepted.get().is_none());
+        })
+        .unwrap();
+
+        cx.simulate_keystrokes(window, "escape");
+        cx.update_window(window, |_, window, cx| {
+            let model = state.read(cx);
+            let editor = model.hour.clone();
+            assert!(model.is_open(cx));
+            assert!(accepted.get().is_none());
+            editor.update(cx, |editor, cx| {
+                assert!(editor.marked_text_range(window, cx).is_none());
+                editor.replace_and_mark_text_in_range(Some(0..2), "21", Some(1..1), window, cx);
+                editor.unmark_text(window, cx);
+            });
+            apply.activate(window, cx);
+            assert_eq!(accepted.get(), NaiveTime::from_hms_opt(21, 25, 0));
+            assert!(!state.read(cx).is_open(cx));
+
+            state.update(cx, |state, cx| state.open(initial, window, cx));
+            let editor = state.read(cx).hour.clone();
+            editor.update(cx, |editor, cx| {
+                editor.replace_and_mark_text_in_range(Some(0..2), "22", Some(1..1), window, cx);
+            });
+            state.update(cx, |state, cx| state.close(window, cx));
+            assert!(!state.read(cx).is_open(cx));
+            assert_eq!(state.read(cx).value(), initial);
+            assert_eq!(state.read(cx).hour_input(cx).as_ref(), "15");
+        })
+        .unwrap();
     }
 }

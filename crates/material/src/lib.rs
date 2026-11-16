@@ -25,8 +25,8 @@ pub use gpui_material_extras::{
 };
 pub use gpui_material_foundation as foundation;
 pub use gpui_material_foundation::{
-    InteractionSource, InteractionState, InteractionUpdate, MaterialRoot, Surface, material_theme,
-    set_material_theme,
+    InteractionSource, InteractionState, InteractionUpdate, MaterialRoot, Scrim, Surface,
+    material_theme, set_material_theme,
 };
 pub use gpui_material_theme as theme;
 pub use gpui_material_theme::MaterialTheme;

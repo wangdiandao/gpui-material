@@ -12,11 +12,14 @@
   en: "fad1e63719cb272b"
   zh: "2c2f6b6b9d145c47"
 /components/input-and-overlays:
-  en: "e2454173102f7c4e"
-  zh: "c7a2172b1caffbba"
+  en: "013e52ce564f25df"
+  zh: "0beebeb1db52c5eb"
 /components/input-and-overlays/menu-controls-and-item-content:
-  en: "9ad84069e2bb48fb"
-  zh: "0cb2b8be6619ac5a"
+  en: "e3e914aecf69d3f3"
+  zh: "00f3613c4cab5143"
+/components/input-and-overlays/scrim:
+  en: "10e576b11f1c2adf"
+  zh: "8b514df686bbc572"
 /components/navigation-and-adaptive-layout:
   en: "3a58972da8ae8b54"
   zh: "3a53869c0dec4d43"

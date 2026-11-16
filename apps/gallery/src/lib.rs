@@ -17,6 +17,8 @@ mod group_examples;
 mod input_examples;
 mod navigation_examples;
 mod overlay_examples;
+#[cfg(all(test, feature = "test-support"))]
+mod scrim_tests;
 mod search_examples;
 mod selection_examples;
 mod slider_examples;

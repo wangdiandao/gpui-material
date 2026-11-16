@@ -104,6 +104,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `DisplayScrollbar` | 根据视口状态绘制任一方向的滚动位置，支持自定义尺寸、配色和淡出。 | [Compose 显示型滚动条](https://developer.android.com/reference/kotlin/androidx/compose/material3/nonInteractiveScrollbar.composable) |
 | `LinearProgress`、`CircularProgress` | 确定和不确定进度，支持可配置的直线和波浪样式。 | [进度指示器](https://m3.material.io/components/progress-indicators/overview) |
 | `LoadingIndicator` | Default 和 Contained 样式，支持确定与不确定进度、自定义形状序列和实例配色。 | [加载指示器](https://m3.material.io/components/loading-indicator/overview) |
+| `PullToRefresh` | 支持手势与无障碍操作的受控刷新，提供可配置的指示器和滚动接管状态。 | [加载指示器](https://m3.material.io/components/loading-indicator/guidelines) |
 | `Snackbar`、`SnackbarHost` | 定时或持续显示的排队消息，支持自定义内容和布局、可选操作与关闭，以及完成结果。 | [消息条](https://m3.material.io/components/snackbar/specs) |
 
 ### 表面
@@ -173,6 +174,16 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 确定进度由应用持有，每次渲染时用 `.value(fraction)` 传入。进度值限制在 `0..=1`，NaN 按零处理。默认序列在零时显示圆形，在一时显示 Soft Burst。用至少两个 `LoadingIndicatorShape` 构造可复用的 `LoadingIndicatorShapes`，再用 `.shapes(&shapes)` 传引用。使用 `LoadingIndicatorShape::circle()`，或用 `LoadingIndicatorShape::rounded_polygon(&vertices, radius)` 传入 GPUI 顶点和同单位的半径。多边形坐标或半径非有限、形状退化或自相交时返回 `None`。形状少于两个时，序列构造器返回 `None`。确定进度从序列首形状变换到末形状，不确定进度还会从末形状变回首形状。
 
 标签为进度指示器提供无障碍名称。确定模式公开数值百分比并直接绘制传入的进度。不确定模式提供礼貌播报的状态，无数值。减少动态效果时，不确定模式停留在首形状，确定模式继续响应进度变化。`.active(false)` 保留布局空间，同时隐藏图形和无障碍进度信息。只有活动窗口内处于活动状态的不确定指示器才会请求动画帧。
+
+### 下拉刷新
+
+每个视口创建一个 `Entity<PullToRefreshState>`，并在渲染组件的视图中观察它。使用 `PullToRefresh::new(id, &state, refreshing, on_refresh)`，再通过 GPUI 的 `ParentElement` API 添加子元素。容器创建垂直滚动视口，保留可通过 `scroll_handle()` 获取的滚动句柄。需要包装已有滚动控件时，用 `.track_scroll(&handle)` 连接滚动句柄，或用 `.scroll_position(|window, cx| ...)` 返回距滚动起点的正向距离，单位为逻辑像素。子元素保留滚动行为，外层在滚动到顶部时接管下拉。
+
+触屏向下拖动或带阶段的精确滚动到达顶部后可拉出指示器。反向拖动时先收回指示器，再恢复垂直滚动。水平移动和普通滚轮继续执行滚动。默认阈值为 80 逻辑像素，到达阈值前指示器以拖动速度的一半移动。用 `.threshold(pixels)` 设置阈值，用 `.indicator_distance(pixels)` 独立设置指示器移动距离，默认值为 80 逻辑像素。`.enabled(false)` 会取消当前下拉并禁用刷新操作。取消手势会舍弃尚未触发的释放操作。
+
+应用持有 `refreshing` 参数。超过阈值后释放，或激活具名刷新按钮，均只发出一次请求。按钮支持键盘与辅助技术，它的名称由 `.refresh_label(label)` 指定。在应用传入 `refreshing = true` 接受请求，或调用 `reject_refresh(cx)` 拒绝请求前，组件暂停发送后续请求。刷新期间无法再次刷新。操作完成后重新传入 `refreshing = false`。
+
+居中的 Contained 加载指示器跟随下拉进度，刷新期间切换为不确定进度。用 `.indicator(|progress, window, cx| ...)` 提供自定义装饰内容。`PullToRefreshProgress` 提供距离比例、请求等待或刷新状态、指示器偏移与动画状态。可通过保留状态读取 `distance_fraction()`、`is_animating()` 和 `is_refresh_pending()`。`snap_to(fraction, cx)`、`animate_to_threshold(cx)`、`animate_to_hidden(cx)` 与 `reset(cx)` 可以独立于应用刷新值控制呈现。减少动态效果时，指示器直接移动到目标位置，不确定进度保持为静态形状。
 
 ### 消息条
 

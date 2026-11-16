@@ -22,6 +22,9 @@ mod list_examples;
 mod loading_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod progress_tests;
+mod pull_to_refresh_demo;
+#[cfg(all(test, feature = "test-support"))]
+mod pull_to_refresh_tests;
 
 pub(crate) struct DisplayExamples {
     story: Option<Story>,
@@ -29,6 +32,7 @@ pub(crate) struct DisplayExamples {
     loading: bool,
     loading_progress: f32,
     loading_shapes: Option<LoadingIndicatorShapes>,
+    pull_to_refresh: Option<Entity<pull_to_refresh_demo::RefreshExample>>,
     selected: bool,
     opened: bool,
     child_count: usize,
@@ -48,6 +52,7 @@ impl Default for DisplayExamples {
             loading: false,
             loading_progress: 0.,
             loading_shapes: None,
+            pull_to_refresh: None,
             selected: false,
             opened: false,
             child_count: 0,
@@ -470,6 +475,12 @@ impl Render for DisplayExamples {
                             })
                         }),
                     )
+            }))
+            .children(self.story.eq(&Some(Story::LoadingIndicator)).then(|| {
+                let refresh = self.pull_to_refresh.get_or_insert_with(|| cx.new(pull_to_refresh_demo::RefreshExample::new));
+                section("Pull to refresh")
+                    .description("Pull down at the top of the list or use Refresh files.")
+                    .child(refresh.clone())
             }))
             .children(self.shows(Story::LoadingIndicator).then(|| {
                 section("Indeterminate").child(

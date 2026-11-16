@@ -6,6 +6,7 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ### Components
 
+- Add Pull to Refresh for scrollable content with a controlled refresh request, gesture thresholds, and a replaceable Material loading indicator.
 - Compose dialog slots or a custom modal shell, configure instance appearance and dismissal, observe close reasons, and open optional native dialog windows.
 - Center short navigation bar destinations, mix icon positions, add custom labels and badges, and customize colors and observe interactions per item.
 - Customize mixed Button Group members, Connected segment shapes, weighted layout and press expansion, and controlled overflow.

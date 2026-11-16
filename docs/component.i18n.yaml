@@ -89,6 +89,9 @@
 /components/optional-components:
   en: "f5ce066904fbe3ce"
   zh: "90c846193be2f9a7"
+/components/optional-components/button-groups:
+  en: "6cdd2b7bf5b2a013"
+  zh: "95837a482620b6cb"
 /components/optional-components/split-buttons:
   en: "925c4848924530f5"
   zh: "e9bac206204f6f05"

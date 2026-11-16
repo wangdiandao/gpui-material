@@ -238,6 +238,7 @@ struct Slots {
     trailing: Option<AnyElement>,
     content: Option<AnyElement>,
     padding: Option<ButtonPadding>,
+    width: Option<Pixels>,
 }
 
 impl Slots {
@@ -252,9 +253,11 @@ impl Slots {
     ) -> AnyElement {
         let direction = window_material_theme(window, cx).layout.direction;
         let typography = metrics.label.style(TypographyEmphasis::Baseline);
-        let horizontal = px(metrics
-            .padding
-            .min(f32::from(window.viewport_size().width) * 0.125));
+        let max_padding = self.width.map_or_else(
+            || f32::from(window.viewport_size().width) * 0.125,
+            |width| (f32::from(width) - 16.).max(0.) / 2.,
+        );
+        let horizontal = px(metrics.padding.min(max_padding));
         let ButtonPadding {
             top,
             end,
@@ -271,6 +274,14 @@ impl Slots {
         } else {
             (start, end)
         };
+        let icons = usize::from(self.leading.is_some()) + usize::from(self.trailing.is_some());
+        let label_width = self.width.map(|width| {
+            (width
+                - finite_length(left)
+                - finite_length(right)
+                - px((metrics.icon + metrics.gap) * icons as f32))
+            .max(px(0.))
+        });
         let mut row = div()
             .flex()
             .items_center()
@@ -287,13 +298,24 @@ impl Slots {
         if direction == Direction::Rtl {
             row = row.flex_row_reverse();
         }
+        if let Some(width) = self.width {
+            row = row.w(width).overflow_hidden();
+        }
         row.children(
             self.leading
                 .map(|icon| icon_slot(icon, metrics.icon * scale)),
         )
         .child(self.content.unwrap_or_else(|| {
-            crate::text::single_line(label, typography, scale, tint, (None, 1., 1.), window, cx)
-                .into_any_element()
+            crate::text::single_line(
+                label,
+                typography,
+                scale,
+                tint,
+                (label_width, 1., 1.),
+                window,
+                cx,
+            )
+            .into_any_element()
         }))
         .children(
             self.trailing
@@ -695,6 +717,7 @@ pub mod composition {
         width: Option<Pixels>,
         tab_stop: bool,
         semantic_only: bool,
+        icon_width: Option<IconButtonWidth>,
     }
 
     impl ButtonPart {
@@ -716,6 +739,7 @@ pub mod composition {
                 width: Some(width),
                 tab_stop: true,
                 semantic_only: false,
+                icon_width: None,
             }
         }
 
@@ -762,6 +786,11 @@ pub mod composition {
             self
         }
 
+        pub fn icon_width(mut self, width: IconButtonWidth) -> Self {
+            self.icon_width = Some(width);
+            self
+        }
+
         pub fn tab_stop(mut self, tab_stop: bool) -> Self {
             self.tab_stop = tab_stop;
             self
@@ -784,7 +813,10 @@ pub mod composition {
 
     impl RenderOnce for ButtonPart {
         fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-            let mut metrics = self.common.size.metrics();
+            let mut metrics = self.icon_width.map_or_else(
+                || self.common.size.metrics(),
+                |width| self.common.size.icon_metrics(width).0,
+            );
             let segment = self.segment.map(|segment| {
                 use CornerRole::*;
                 let (inner, pressed) = match segment {
@@ -805,6 +837,7 @@ pub mod composition {
                         segment,
                         Segment::Only | Segment::Trailing | Segment::SplitTrailing
                     ),
+                    outer: self.common.shape.corner(metrics.square, false),
                     inner,
                     pressed,
                 }
@@ -816,11 +849,11 @@ pub mod composition {
             let palette_selection = if split { None } else { self.selected };
             let mut style = button_appearance(self.variant, palette_selection).style(
                 metrics,
-                CornerRole::Full,
+                self.common.shape.corner(metrics.square, false),
                 0.,
             );
             if self.selected.is_some() || self.presentation_selected.is_some() {
-                style.selected_corner = Some(metrics.square);
+                style.selected_corner = Some(self.common.shape.corner(metrics.square, true));
             }
             if matches!(self.segment, Some(Segment::SplitTrailing)) {
                 metrics.icon = split_trailing_size(self.common.size).0;
@@ -840,7 +873,11 @@ pub mod composition {
                 .colors
                 .content(self.common.disabled, checked)
                 .unwrap_or_else(|| style.foreground(self.common.disabled, window, cx));
-            let content = if let Some(width) = self.width {
+            let has_slots = self.slots.content.is_some()
+                || self.slots.leading.is_some()
+                || self.slots.trailing.is_some()
+                || self.slots.padding.is_some();
+            let content = if let Some(width) = self.width.filter(|_| !has_slots) {
                 if let Some(icon) = self.icon {
                     icon_slot(icon, metrics.icon).into_any_element()
                 } else {
@@ -866,6 +903,7 @@ pub mod composition {
                         .into_any_element()
                 }
             } else {
+                self.slots.width = self.width;
                 if let Some(icon) = self.icon {
                     self.slots.content = Some(icon_slot(icon, metrics.icon).into_any_element());
                 }
@@ -946,6 +984,17 @@ pub mod composition {
         window: &Window,
         cx: &App,
     ) -> Pixels {
+        group_label_width(size, label, None, false, window, cx)
+    }
+
+    pub fn group_label_width(
+        size: ControlSize,
+        label: SharedString,
+        padding: Option<ButtonPadding>,
+        icon: bool,
+        window: &Window,
+        cx: &App,
+    ) -> Pixels {
         let metrics = size.metrics();
         let theme = window_material_theme(window, cx);
         let style = metrics.label.style(TypographyEmphasis::Baseline);
@@ -963,7 +1012,28 @@ pub mod composition {
             cx,
         )
         .map_or(px(0.), |text| text.line().width.ceil());
-        (width + px(metrics.padding * 2.)).max(px(theme.layout.density.interactive_size(1.)))
+        let padding = padding.map_or(px(metrics.padding * 2.), |padding| {
+            finite_length(padding.start) + finite_length(padding.end)
+        });
+        (width
+            + padding
+            + if icon {
+                px(metrics.icon + metrics.gap)
+            } else {
+                px(0.)
+            })
+        .max(px(theme.layout.density.interactive_size(1.)))
+    }
+
+    pub fn group_icon_width(
+        size: ControlSize,
+        width: IconButtonWidth,
+        padding: Option<ButtonPadding>,
+    ) -> Pixels {
+        let (metrics, width) = size.icon_metrics(width);
+        padding.map_or(px(width), |padding| {
+            px(metrics.icon) + finite_length(padding.start) + finite_length(padding.end)
+        })
     }
 
     pub fn split_trailing_size(size: ControlSize) -> (f32, f32) {

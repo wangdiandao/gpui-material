@@ -85,6 +85,7 @@ pub(crate) struct ActionLayout {
 pub(crate) struct SegmentShape {
     pub(crate) leading: bool,
     pub(crate) trailing: bool,
+    pub(crate) outer: CornerRole,
     pub(crate) inner: CornerRole,
     pub(crate) pressed: CornerRole,
 }
@@ -554,7 +555,7 @@ pub(crate) fn interpolated_corners(
     if let Some(segment) = layout.segment {
         let inner = radii(segment.inner.shape())[0];
         let inner_pressed = radii(segment.pressed.shape())[0];
-        let outer = width.min(height) * 0.5;
+        let outer = radii(segment.outer.shape())[0];
         let outside = [
             segment.leading,
             segment.trailing,
@@ -565,7 +566,7 @@ pub(crate) fn interpolated_corners(
             rest = outside.map(|outer_edge| if outer_edge { outer } else { inner });
         }
         if checked.is_none() {
-            selected = [outer; 4];
+            selected = radii(CornerRole::Full.shape());
         }
         if pressed_shape.is_none() {
             pressed = outside.map(|outer_edge| if outer_edge { outer } else { inner_pressed });

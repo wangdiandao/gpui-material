@@ -6,6 +6,7 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ### Components
 
+- Customize mixed Button Group members, Connected segment shapes, weighted layout and press expansion, and controlled overflow.
 - Use text-only and custom-content Extended FABs with controlled expansion, visibility motion, and per-instance appearance and interaction observation.
 - Attach Material Labels with custom content and caller-controlled persistent or shared interaction visibility.
 - Compose custom clickable, selectable and checked Surfaces with inherited content colors, explicit shape and border, and configurable interaction feedback.

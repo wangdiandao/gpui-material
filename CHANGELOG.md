@@ -6,6 +6,7 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ### Components
 
+- Compose date pickers with customizable anchors, panels, dialog actions and state colors. Control the displayed month, partial range, display mode, and year availability.
 - Compose Contained and Docked search with configurable editor slots, grouped virtual results, motion, appearance, and scroll behavior.
 - Compose tabs with leading icons, custom content and badges, configurable indicators and dividers, and external scroll handles.
 - Control Navigation Rail transitions and configure destination content, indicator padding, rail layout, and modal appearance and dismissal.

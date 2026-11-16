@@ -111,8 +111,8 @@
   en: "f749e65450d351e3"
   zh: "fdbeaa7d7dfdc868"
 /components/optional-components:
-  en: "af7d24ca56b712e5"
-  zh: "5c41867cfe62ea60"
+  en: "64c25902855c1886"
+  zh: "90e8b3a06c61214b"
 /components/optional-components/search:
   en: "b67194606d49b75f"
   zh: "3888b8816683cb39"
@@ -128,6 +128,9 @@
 /components/optional-components/toolbars:
   en: "be4f9791b41356d4"
   zh: "5ef25bbf22730ef0"
+/components/optional-components/date-pickers:
+  en: "2191eb74db1f7803"
+  zh: "fb5992e54b1d8ea1"
 /components/optional-components/scroll-fields:
   en: "5881f1d730e7138a"
   zh: "a30907506d331a76"

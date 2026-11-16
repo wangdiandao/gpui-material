@@ -391,7 +391,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `expressive-groups` | `ButtonGroup`、`SplitButton` | Standard 和 Connected 按钮组，以及内容、外观和激活行为各自独立的拆分按钮。 | [按钮组](https://m3.material.io/components/button-groups/overview) · [拆分按钮](https://m3.material.io/components/split-button/overview) |
 | `toolbars` | `FabMenu`、`Toolbar` | 悬浮操作菜单支持受控展开、触发器和操作项插槽及水平对齐。悬浮和停靠工具栏支持任意控件、外观和滚动行为配置。 | [悬浮操作菜单](https://m3.material.io/components/fab-menu/overview) · [工具栏](https://m3.material.io/components/toolbars/overview) |
 | `search` | `SearchBar`、`SearchView` | 收起的搜索栏及可自定义的 Docked、Full-screen 和 Contained 搜索视图。 | [搜索](https://m3.material.io/components/search/overview) |
-| `date-time` | `DatePicker`、`TimePicker`、`ScrollField` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input。时间选择支持 Dial、Input 和 12、24 小时制。支持独立的滚动选择字段。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
+| `date-time` | `DatePicker`、`TimePicker`、`ScrollField` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input 和自适应 FullScreen。可组合独立面板或对话框。时间选择支持 Dial、Input 和 12、24 小时制。支持独立的滚动选择字段。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
 | `carousel` | `Carousel`、`CarouselParallax` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。 任意 GPUI 内容可使用独立滚动视差效果。 | [轮播](https://m3.material.io/components/carousel/overview) |
 
 ### 搜索
@@ -453,6 +453,18 @@ Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供
 使用 `.track_scroll(&handle)` 读取滚动视图的纵向偏移，或通过 `.scroll_state(&state)` 接入保留的 `Entity<ToolbarScrollState>`，并调用 `set_content_offset(offset, cx)`。同时设置时由滚动句柄提供偏移。使用从内容顶部起算的非负逻辑像素距离。`.scroll_behavior(ToolbarScrollBehavior)` 设置展开和收起阈值，默认从最后一次换向起各累计 40 dp。设置 `exit_direction` 后，向前滚动将工具栏移向逻辑 Start、End、Top 或 Bottom，反向滚动使其返回。工具栏保留布局占位，到达隐藏端点时移除其中的控件，内部控件持有焦点时保持可见。相邻的悬浮操作按钮保持可用。省略退出方向时，滚动只改变展开状态。
 
 可从保留的状态读取 `content_offset()`、`offset()`、`offset_limit()` 和 `collapsed_fraction()`。`offset()` 是朝指定边缘移动的非负距离。`set_collapsed_fraction(fraction, cx)` 立即应用位置。应用管理的手势结束时可调用 `settle(velocity, cx)`。正速度朝退出方向移动。惯性配置在指定时间内投影速度，并归位到最近的端点。用 `snap_motion` 和 `ToolbarFling::motion` 设置归位动效。新的滚动输入从当前显示位置中断归位。`.transition_motion(MotionSpec)` 控制插槽展开与高度层级动效。启用减少动态效果时直接应用目标状态。
+
+### 日期选择器
+
+每个选择器保留一个 `Entity<DatePickerState>`。`DatePicker::new(id, label, &state, value)` 提供打开控件。应用持有已提交的 `DateSelection`，每次打开时用当前值初始化草稿。停靠式选择器在选择完整后立即提交，模态选择器在验证并确认后提交。`DatePickerVariant::FullScreen` 在紧凑窗口中填满内容区，在较宽窗口中使用基本对话框。`ModalInput` 打开时使用保留的文本编辑器。
+
+用 `DatePicker::panel(id, label, &state)` 将日历或编辑器嵌入其他布局，初始草稿与模式由保留状态控制。`DatePicker::dialog(id, label, &state, value)` 为调用方的触发控件提供模态对话框。用 `state.open(value, variant, &locale, window, cx)` 打开，用 `close(window, cx)` 主动关闭。`.focus_target(&focus)` 为内置打开控件指定初始焦点，默认聚焦日历或首个编辑器。调用方控制打开操作时，也可在打开后设置焦点。
+
+构建状态时用 `.initial_month(date)`、`.date_bounds(range)`、`.disabled_dates(predicate)` 和 `.disabled_years(predicate)` 配置日期约束。显示的月份归一到月首，并限制在日期范围内。日历可显示禁用年份，但这些日期无法选取，年份列表也会禁用对应项。用 `displayed_month()` 和 `set_displayed_month(date, cx)` 读写当前月份。用 `draft(cx)` 读取草稿，或用 `set_draft(DatePickerDraft, window, cx)` 更新。日期范围可暂时只有开始日期。对草稿调用 `selection()` 可获取完整的候选值。无效或禁用的端点会被拒绝。`display_mode()` 和 `set_display_mode(mode, window, cx)` 在 `Calendar` 与 `Input` 间切换。用 `.show_mode_toggle(false)` 隐藏切换控件。通过 `input_editors(cx)` 可获取开始日期的保留编辑器，以及范围选择时的结束日期编辑器。
+
+用 `.docked_anchor(|field| ...)` 自定义停靠式 `TextField`。保留传入的字段，以继续使用 Base 编辑器、无障碍语义与日历触发控件。末尾操作打开日历。输入法组合完成后，按 Enter 可接受有效的输入。日期范围输入用 “ – ” 分隔两个端点。`DatePickerLocale` 配置输入格式、解析、每周首日与日历标签。用 `.accessible_date_format(|date| ...)` 独立设置日期和选择状态的播报格式。
+
+用 `.title_content` 和 `.headline_content` 替换可见标题与选择摘要，打开控件与日历状态仍保留无障碍描述。用 `.confirm_content(|confirm| ...)` 和 `.dismiss_content(|dismiss| ...)` 提供模态操作，并将激活连接到传入的 `DialogAction`。确认会验证当前草稿，未完成或无效时保持打开。`.properties(DialogProperties)` 控制 Escape 和外部点击关闭。`.on_dismiss_request` 可拒绝 Escape 和外部点击关闭，`.on_close` 对一次接受的关闭操作报告一次原因。程序主动关闭会更新 `last_close_reason(cx)`。用 `.colors(DatePickerColors)` 配置容器、标题、摘要、导航、年份与日期状态以及输入编辑器。
 
 ### 滚动选择字段
 

@@ -43,13 +43,21 @@ A hiding FAB stops taking focus and input immediately. It occupies its layout sp
 | --- | --- | --- |
 | `Text`, `Icon` | Themed typography, replaceable icons, and bundled Material Symbols. | [Typography](https://m3.material.io/styles/typography/overview) · [Icons](https://m3.material.io/styles/icons/overview) |
 | `Surface` | Themed background and tonal elevation for application content. | [Elevation](https://m3.material.io/styles/elevation/overview) |
-| `Card` | Elevated, Filled, and Outlined, with static and actionable forms. | [Cards](https://m3.material.io/components/cards/overview) |
+| `Card` | Elevated, Filled, and Outlined, with static and actionable forms and per-instance appearance. | [Cards](https://m3.material.io/components/cards/specs) |
 | `List`, `ListItem` | Standard and Segmented lists with leading, supporting, and trailing content. | [Lists](https://m3.material.io/components/lists/overview) |
 | `SwipeToDismiss` | Horizontal swipes with caller-owned content, background, and action. | [Lists](https://m3.material.io/components/lists/guidelines) · [Compose SwipeToDismissBox](https://developer.android.com/reference/kotlin/androidx/compose/material3/SwipeToDismissBox.composable) |
 | `Divider`, `Badge` | Horizontal and vertical dividers with logical insets, configurable thickness, and per-divider color. Standalone and anchored badges with dot, text, count, or custom content and optional colors. | [Divider](https://m3.material.io/components/divider/overview) · [Badges](https://m3.material.io/components/badges/overview) |
 | `LinearProgress`, `CircularProgress` | Determinate and indeterminate progress with straight and wavy styling. | [Progress indicators](https://m3.material.io/components/progress-indicators/overview) |
 | `LoadingIndicator` | Default and Contained, with determinate and indeterminate modes, custom morph sequences and instance colors. | [Loading indicator](https://m3.material.io/components/loading-indicator/overview) |
 | `Snackbar`, `SnackbarHost` | Queued messages with optional actions, timed or persistent display, and dismissal. | [Snackbars](https://m3.material.io/components/snackbar/overview) |
+
+### Cards
+
+Use `Card::new(id).variant(CardVariant::Elevated)`, `Filled`, or `Outlined` for the current Material variants. Static cards group their content without taking keyboard focus. `.on_activate(name, callback)` gives the card a named action and keyboard focus. Child controls keep their own actions. `.disabled(true)` disables the card action and supplies disabled colors to the card and its inherited content.
+
+Set `.shape(CornerShape)` for the container, border, shadow, and feedback. It follows the window's writing direction. Use `.border(CardBorder { width, color })` for a custom stroke. A width of zero removes the stroke. `.colors(CardColors)` independently overrides enabled and disabled container and content colors. `.elevations(CardElevations)` independently overrides resting, pressed, focused, hovered, dragged, and disabled shadow levels. Omitted fields keep the variant defaults, including Medium corners, an outline on Outlined cards, and flat Outlined cards on hover. Disabled elevation takes priority, followed by drag, press, keyboard focus, hover, and rest.
+
+Set `.dragged(bool)` from the caller's drag lifecycle, including completion and cancellation. A drag interrupts a pending pointer activation. Pass `.interaction_source(&source)` to observe the card through a shared `Entity<InteractionSource>`. Give each observed card a distinct ID within its window.
 
 ### Divider
 

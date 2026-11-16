@@ -15,7 +15,7 @@ gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features =
 gpui-material = "0.1.0"
 ```
 
-应用直接使用 Base 时也应固定 `gpui-base = "=0.9.1"`。从源码集成时，使用 `{ path = "../gpui-material/crates/material" }` 并固定检出提交。升级后运行 `cargo tree -d` 检查重复版本，并验证应用所依赖的平台和输入行为。
+使用已发布的 0.1.0 门面时，直接使用 Base 的应用应固定 `gpui-base = "=0.9.1"`。从源码集成时，使用 `{ path = "../gpui-material/crates/material" }`，固定检出提交并匹配其 `gpui-base` 版本。当前源码工作区使用 `gpui-base = "=0.10.0"`。升级后运行 `cargo tree -d` 检查重复版本，并验证应用所依赖的平台和输入行为。
 
 ```rust
 use gpui::{AppContext, Context, IntoElement, QuitMode, Render, Window, WindowOptions};

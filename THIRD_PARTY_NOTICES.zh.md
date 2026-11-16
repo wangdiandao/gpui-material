@@ -6,7 +6,7 @@
 
 | 来源 | 用途与许可记录 |
 | --- | --- |
-| [GPUI Kit v0.9.1](https://github.com/longbridge/gpui-kit/tree/v0.9.1) | Base 代码为 Apache-2.0。指定网站文档另有 CC BY 4.0 授权，适用路径、归属和改编说明见[上游文档许可](https://github.com/longbridge/gpui-kit/blob/v0.9.1/LICENSE-DOCS.md)。 |
+| [GPUI Kit v0.10.0](https://github.com/longbridge/gpui-kit/tree/v0.10.0) | Base 代码为 Apache-2.0。指定网站文档另有 CC BY 4.0 授权，适用路径、归属和改编说明见[上游文档许可](https://github.com/longbridge/gpui-kit/blob/v0.10.0/LICENSE-DOCS.md)。 |
 | [Zed GPUI](https://github.com/zed-industries/zed/tree/d2a4fb6ded7c470be25d1541281da3882495b65b/crates/gpui) | 固定的 gpui-pre 软件包使用 Apache-2.0。 |
 | [Google Material Design 3](https://m3.material.io/) | 设计参考。站点文字、图片和品牌素材遵循各自权利声明。 |
 | [AndroidX](https://github.com/androidx/androidx)与 [Material Components Android](https://github.com/material-components/material-components-android) | Apache-2.0 源码参考。Android Developers 页面另按其[站点许可](https://developer.android.com/license)处理。 |

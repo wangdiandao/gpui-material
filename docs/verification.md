@@ -37,5 +37,5 @@ Summarize the applicable scenarios, reproduction steps, and results in the issue
 - Exercise the affected stories with the applicable Windows checks above. For input and overlays, include Microsoft Pinyin candidate positioning and commit, keyboard focus and restoration, and Narrator announcements.
 - Close the last Gallery window and confirm the process exits normally. Record the commit, CI run, scenarios, and the limits of the hardware coverage in the release issue or PR.
 
-[kit-test]: https://github.com/longbridge/gpui-kit/blob/39ab849a93b5f15507b969164d49891db8d5b470/website/docs/test.md
-[kit-a11y]: https://github.com/longbridge/gpui-kit/blob/39ab849a93b5f15507b969164d49891db8d5b470/website/docs/accessibility.md
+[kit-test]: https://github.com/longbridge/gpui-kit/blob/f697c3133d55c64fa8a5b67926147fb3dadd276d/website/docs/test.md
+[kit-a11y]: https://github.com/longbridge/gpui-kit/blob/f697c3133d55c64fa8a5b67926147fb3dadd276d/website/docs/accessibility.md

@@ -6,7 +6,7 @@ Original project code and documentation use the root [Apache-2.0 license](LICENS
 
 | Source | Use and licensing |
 | --- | --- |
-| [GPUI Kit v0.9.1](https://github.com/longbridge/gpui-kit/tree/v0.9.1) | Base code is Apache-2.0. Designated website documentation is CC BY 4.0. The [upstream documentation license](https://github.com/longbridge/gpui-kit/blob/v0.9.1/LICENSE-DOCS.md) lists covered paths and attribution and adaptation terms. |
+| [GPUI Kit v0.10.0](https://github.com/longbridge/gpui-kit/tree/v0.10.0) | Base code is Apache-2.0. Designated website documentation is CC BY 4.0. The [upstream documentation license](https://github.com/longbridge/gpui-kit/blob/v0.10.0/LICENSE-DOCS.md) lists covered paths and attribution and adaptation terms. |
 | [Zed GPUI](https://github.com/zed-industries/zed/tree/d2a4fb6ded7c470be25d1541281da3882495b65b/crates/gpui) | The pinned gpui-pre packages use Apache-2.0. |
 | [Google Material Design 3](https://m3.material.io/) | Design reference. Site text, images, and branding follow their respective rights notices. |
 | [AndroidX](https://github.com/androidx/androidx) and [Material Components Android](https://github.com/material-components/material-components-android) | Apache-2.0 source references. Android Developers pages follow the [site license](https://developer.android.com/license). |

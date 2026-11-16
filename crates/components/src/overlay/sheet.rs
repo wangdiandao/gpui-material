@@ -298,6 +298,7 @@ pub struct Sheet {
     tonal_elevation: Elevation,
     shadow_elevation: Option<Elevation>,
     scrim_opacity: f32,
+    presence: Option<gpui_base::motion::PresenceSample>,
 }
 
 impl Sheet {
@@ -337,6 +338,7 @@ impl Sheet {
             tonal_elevation: Elevation::Level0,
             shadow_elevation: None,
             scrim_opacity: 0.32,
+            presence: None,
         }
     }
 
@@ -501,6 +503,12 @@ impl Sheet {
         self
     }
 
+    /// Reuses the enclosing component's sampled presence.
+    pub(crate) fn sampled_presence(mut self, presence: gpui_base::motion::PresenceSample) -> Self {
+        self.presence = Some(presence);
+        self
+    }
+
     pub fn scrim_opacity(mut self, opacity: f32) -> Self {
         self.scrim_opacity = if opacity.is_nan() {
             0.32
@@ -515,7 +523,10 @@ impl RenderOnce for Sheet {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let modal = self.mode == SheetMode::Modal;
         let open = !modal || self.state.read(cx).is_open();
-        let presence = modal.then(|| crate::motion::presence(&self.id, open, 240, window, cx));
+        let presence = modal.then(|| {
+            self.presence
+                .unwrap_or_else(|| crate::motion::presence(&self.id, open, 240, window, cx))
+        });
         if presence.is_some_and(|presence| !presence.should_render()) {
             return div().into_any_element();
         }
@@ -908,7 +919,7 @@ impl RenderOnce for Sheet {
                         .h(viewport.height)
                         .overflow_hidden()
                         .child(scrim)
-                        .child(exiting_panel(panel, &self.id, &focus, window, cx)),
+                        .child(exiting_panel(panel, &self.id, &self.state, window, cx)),
                 ),
             )
             .with_priority(layer)

@@ -81,7 +81,8 @@ pub fn init_components(cx: &mut gpui::App) {
 }
 pub use overlay::{
     Dialog, DialogAction, DialogCloseReason, DialogColors, DialogProperties, DialogState,
-    DialogVariant, Sheet, SheetEdge, SheetMode,
+    DialogVariant, Sheet, SheetClose, SheetColors, SheetEdge, SheetMargins, SheetMode,
+    SheetPlacement,
 };
 pub use overlay::{
     Snackbar, SnackbarColors, SnackbarHost, SnackbarId, SnackbarParts, SnackbarResult,

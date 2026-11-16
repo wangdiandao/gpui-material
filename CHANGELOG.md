@@ -7,6 +7,7 @@ See [versioning and releases](docs/release.md) for the release process.
 ### Components
 
 - Compose tabs with leading icons, custom content and badges, configurable indicators and dividers, and external scroll handles.
+- Customize docked and detached side sheets with independent header and footer slots, typed dismissal, and per-instance appearance.
 - Compose docked and floating toolbars with editable content, independently expandable slots, instance appearance, and retained scroll and settling behavior.
 - Add Pull to Refresh for scrollable content with a controlled refresh request, gesture thresholds, and a replaceable Material loading indicator.
 - Control FAB menu expansion and configure trigger animation, item content, palettes, and logical alignment.

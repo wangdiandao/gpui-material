@@ -278,6 +278,18 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 在活动父窗口中调用 `Dialog::open_window(&state, parent, options, cx, |state, window, cx| ...)`，可请求独立的 GPUI 对话框窗口并在其中构造内容。`WindowOptions` 指定窗口边界、标题栏和是否可调整大小。父窗口的模态行为、窗口装饰及原生尺寸调整由系统处理。Windows 会停用当前活动父窗口，macOS 使用窗口附属表单，Linux 的模态行为由合成器决定。Escape 和系统关闭按钮沿用同样的关闭策略。外部点击关闭和遮罩用于窗口内对话框。需要跨平台一致的单窗口模态行为时，使用窗口内对话框。
 
+### 侧边栏
+
+使用 `Sheet::new(id, &state, name, content)` 创建侧边栏，并用 `.edge(SheetEdge::Start)` 或 `.edge(SheetEdge::End)` 选择逻辑侧边。侧边随窗口方向调整。标准侧边栏加入调用方布局，旁边的内容仍可交互。请把它放在主内容对应的逻辑侧边。模态侧边栏覆盖窗口，并在关闭前将焦点限制在其内部。保留一个 `DialogState`，调用 `open(window, cx)` 和 `close(window, cx)` 控制模态侧边栏的显示。嵌套模态侧边栏时，为内层指定更高的 `.layer(index)`。
+
+用 `.placement(SheetPlacement::Detached)` 使侧边栏与窗口或布局区域的边缘留出间距。分离布局默认使用 16 逻辑像素的边距，可用 `.margins(SheetMargins { top, bottom, start, end })` 覆盖。停靠布局贴合边缘。`.extent(width)` 设置侧边栏的宽度，上限为 400 逻辑像素，并受可用空间限制。默认宽度为 320 逻辑像素。用 `.edge_divider(true)` 分隔停靠的标准侧边栏与相邻主内容。
+
+用 `.header_content(element)` 替换可见标题。构造器中的名称继续用于无障碍。`.back(label, callback)` 提供具名的返回按钮，`.back_content(element)` 接收调用方自定义的控件。返回操作默认保留侧边栏，由回调决定是否关闭。模态侧边栏带有关闭操作，可用 `.close_label(label)` 设置名称，或用 `.show_close(false)` 隐藏。用 `.close_content(|close| ...)` 构建自定义具名控件，并在激活时调用 `close.activate(window, cx)`。标准侧边栏可通过 `.on_close` 启用默认关闭按钮，由调用方移除侧边栏。用 `.footer(element)` 在滚动正文下添加固定操作区，用 `.footer_divider(true)` 将其与正文分开。
+
+`.properties(DialogProperties)` 控制模态侧边栏是否响应 Escape 和外部点击。`.on_dismiss_request(|reason, window, cx| ...)` 可拒绝用户发起的关闭，包括关闭按钮。`.on_close(|reason, window, cx| ...)` 对已接受的模态关闭只回调一次，也可接收标准侧边栏的关闭操作。原因包括 `Cancel`、`Escape` 或 `OutsideClick`。程序主动关闭模态侧边栏后，`DialogState::last_close_reason()` 返回 `Programmatic`。关闭时若焦点仍在模态范围内，则恢复此前的焦点。遮罩即使透明或禁用外部点击关闭，也会拦截背景的指针和滚动输入。
+
+用 `.shape`、`.container_role`、`.content_role` 和 `.colors(SheetColors)` 配置表面、正文、标题、分隔线和遮罩。`.tonal_elevation`、`.shadow_elevation` 和 `.scrim_opacity` 均可独立设置。标准侧边栏使用 Surface 色，模态侧边栏使用 Surface Container Low 色。停靠的模态侧边栏在内侧使用圆角，分离布局在四角使用圆角。自定义插槽控件保留各自的样式和无障碍语义。
+
 <a id="navigation-and-adaptive-layout"></a>
 
 ## 导航与自适应布局

@@ -21,6 +21,7 @@ See [versioning and releases](docs/release.md) for the release process.
 - Customize FAB appearance and observe its interactions. Control FAB visibility with a logical scale pivot and independent scale and opacity motion.
 - Add SwipeToDismiss for caller-owned content with horizontal gestures, logical direction, and accessible dismissal commands.
 - Add the vertical drag handle with per-state appearance, shared interactions, and caller-controlled pane resizing.
+- Show persistent rich tooltips with caller-owned visibility and customizable focus, content, placement, caret and appearance.
 
 ### Gallery
 

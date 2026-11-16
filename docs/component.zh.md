@@ -96,7 +96,7 @@ FAB 开始隐藏时立即退出焦点导航并停止响应输入。淡出期间�
 | `TextField` | Filled、Outlined，支持单行、多行、安全输入、只读和禁用。支持标签位置、装饰和说明插槽、必填与无效状态以及字符计数。 | [文本字段](https://m3.material.io/components/text-fields/overview) |
 | `ExposedDropdown` | 锚定到文本字段的下拉列表，支持可编辑筛选和仅选择模式。 | [菜单](https://m3.material.io/components/menus/overview) · [文本字段](https://m3.material.io/components/text-fields/overview) |
 | `Menu` | 锚定菜单和上下文菜单，支持分组、勾选项及子菜单。 | [菜单](https://m3.material.io/components/menus/overview) |
-| `Tooltip` | 普通和富内容提示，通过鼠标悬停或键盘焦点触发。 | [提示](https://m3.material.io/components/tooltips/overview) |
+| `Tooltip` | 临时普通提示、临时富内容提示和持久富内容提示。调用方可持有显示状态并自定义内容、定位及外观。 | [提示](https://m3.material.io/components/tooltips/overview) |
 | `Scrim` | 独立遮罩，支持主题配色、自定义颜色、透明度和可选关闭操作。 | [遮罩](https://developer.android.com/reference/kotlin/androidx/compose/material3/Scrim.composable) |
 | `Dialog` | 基本对话框和全屏任务对话框。后者在紧凑布局中占用窗口内容区。 | [对话框](https://m3.material.io/components/dialogs/overview) |
 | `Sheet` | 标准和模态底部面板，以及在逻辑起始侧或末尾侧停靠或覆盖的侧面板。 | [底部面板](https://m3.material.io/components/bottom-sheets/overview) · [侧面板](https://m3.material.io/components/side-sheets/overview) |
@@ -112,6 +112,16 @@ FAB 开始隐藏时立即退出焦点导航并停止响应输入。淡出期间�
 使用 `.color(MenuColor::Vibrant)` 启用第三色菜单配色。`MenuItem::section(id, name, rows)` 绘制分组表面，方向键仍按菜单顺序遍历其中的项目。`Menu::content` 在菜单项前添加调用方提供的内容。分组的 `.content` 可以替换可见标题。
 
 使用 `MenuSurfaceStyle` 配合 `Menu::appearance` 或 `MenuItem::group_appearance` 设置表面形状、内边距、间距、边框和高度。`MenuItemStyle` 可覆盖菜单行的形状、间距、内边距和颜色角色。使用 `.anchor` 和 `.offset` 相对触发控件定位，或用 `.position` 指定窗口坐标。`.track_scroll` 接收调用方持有的滚动句柄。
+
+### 提示
+
+`Tooltip::plain` 和 `Tooltip::rich` 在指针悬停后显示，也可通过 `.track_focus(&focus)` 在触发控件获得键盘焦点时显示。对于持久富内容提示，用 `cx.new(|_| TooltipState::new())` 创建 `Entity<TooltipState>`，再调用 `.persistent(&state)`。点击或用键盘激活触发控件可以显示提示，调用方也可执行 `state.show(cx)`。触发按钮负责自己的无障碍 Invoke 操作，在其 `on_activate` 回调中执行 `state.update(cx, |state, cx| state.show(cx))` 即可让该操作显示提示。指针离开后，持久提示仍保持显示。调用 `state.dismiss(cx)` 可主动关闭，`is_visible()` 返回已请求的显示状态。
+
+`.enable_user_input(false)` 将激活操作交给调用方。焦点位于触发控件或提示内容时，可以按 Escape 关闭。点击持久提示外部也会关闭它。使用 `.on_dismiss_request(callback)` 时，持久提示的调用方通过 `dismiss(cx)` 接受关闭请求。临时提示在按 Escape 时关闭，并通过同一回调报告请求。`.focus_target(&focus)` 允许用 Tab 从触发控件进入调用方提供的控件。`.focusable(true)` 会在打开时将焦点移入提示，默认保留焦点。关闭时若焦点位于提示内，则返回触发控件或原来拥有焦点的控件。
+
+用 `.title_content`、`.body_content` 和 `.action_content` 提供 GPUI 元素。构造器的文本用作无障碍说明。`.link(label, callback)` 创建链接，由回调负责导航。`.placement(TooltipPlacement)` 选择物理方向或逻辑起始侧 `Start`、末尾侧 `End`，`.offset(pixels)` 设置间距。默认首选 `Above`、间隔 4 px，空间不足时会翻转。`.positioner(...)` 可以根据测得的触发控件边界、视口和文字方向返回 `TooltipPositioner`。
+
+使用 `.caret(TooltipCaret::default())` 显示 Material 默认的 16 × 8 px 指示尖角，也可以自定义尺寸和路径。默认不显示尖角。通过 `.max_width`、`.shape`、`.colors`、`.tonal_elevation` 和 `.shadow_elevation` 配置表面。普通提示和富内容提示默认最大宽度分别为 200 px 和 320 px，并受窗口可用空间限制。未指定的颜色和形状采用窗口的 Material 配色与圆角角色。默认色调层级为零，阴影层级为普通提示 Level 0、富内容提示 Level 2。
 
 ### 遮罩
 

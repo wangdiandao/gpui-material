@@ -8,9 +8,14 @@ use gpui_material::{
     Button, Dialog, DialogState, DialogVariant, Sheet, SheetEdge, SheetMode, Snackbar,
     SnackbarHost, TextField, TextFieldState, TextFieldVariant,
 };
-use gpui_material::{Menu, MenuColor, MenuItem, Text, Tooltip};
+use gpui_material::{
+    Menu, MenuColor, MenuItem, Text, Tooltip, TooltipCaret, TooltipPlacement, TooltipState,
+};
 
 use crate::story::{Story, section, stack};
+
+#[cfg(all(test, feature = "test-support"))]
+mod tooltip_tests;
 
 pub(crate) struct ModalExamples {
     story: Story,
@@ -669,6 +674,9 @@ pub(crate) struct MenuTooltipExamples {
     trigger: FocusHandle,
     rich_trigger: FocusHandle,
     rich_action: FocusHandle,
+    persistent: Entity<TooltipState>,
+    persistent_trigger: FocusHandle,
+    persistent_action: FocusHandle,
     menu_open: bool,
     labels: bool,
     output: SharedString,
@@ -681,6 +689,9 @@ impl MenuTooltipExamples {
             trigger: cx.focus_handle(),
             rich_trigger: cx.focus_handle(),
             rich_action: cx.focus_handle(),
+            persistent: cx.new(|_| TooltipState::new()),
+            persistent_trigger: cx.focus_handle(),
+            persistent_action: cx.focus_handle(),
             menu_open: false,
             labels: false,
             output: "Sort by name".into(),
@@ -859,6 +870,57 @@ impl Render for MenuTooltipExamples {
                 } else {
                     self.output.clone()
                 }))
+                .child({
+                    let show = self.persistent.clone();
+                    let owner_show = self.persistent.clone();
+                    let dismiss = self.persistent.clone();
+                    section("Persistent tooltip").child(
+                        div()
+                            .flex()
+                            .gap_3()
+                            .flex_wrap()
+                            .child(
+                                Tooltip::rich(
+                                    "sharing-tooltip",
+                                    Button::new("sharing-help", "Sharing help")
+                                        .track_focus(&self.persistent_trigger)
+                                        .on_activate(move |_, cx| {
+                                            show.update(cx, |state, cx| state.show(cx))
+                                        }),
+                                    "Sharing settings",
+                                    "Invite teammates from the Share menu.",
+                                )
+                                .persistent(&self.persistent)
+                                .track_focus(&self.persistent_trigger)
+                                .focus_target(&self.persistent_action)
+                                .focusable(true)
+                                .placement(TooltipPlacement::Below)
+                                .offset(px(12.))
+                                .caret(TooltipCaret::default())
+                                .body_content(
+                                    Text::new("Invite teammates from the Share menu.")
+                                        .id("sharing-tooltip-body")
+                                        .wrap(),
+                                )
+                                .action_content(
+                                    Button::new("dismiss-sharing-help", "Dismiss help")
+                                        .variant(gpui_material::ButtonVariant::Text)
+                                        .track_focus(&self.persistent_action)
+                                        .on_activate(move |_, cx| {
+                                            dismiss.update(cx, |state, cx| state.dismiss(cx))
+                                        }),
+                                )
+                                .link("Sharing guide", update("Sharing guide requested")),
+                            )
+                            .child(
+                                Button::new("show-sharing-help", "Show help")
+                                    .variant(gpui_material::ButtonVariant::Outlined)
+                                    .on_activate(move |_, cx| {
+                                        owner_show.update(cx, |state, cx| state.show(cx))
+                                    }),
+                            ),
+                    )
+                })
                 .into_any_element()
         }
     }

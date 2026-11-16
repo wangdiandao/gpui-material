@@ -27,11 +27,14 @@
   en: "5e1d84fabb52dad5"
   zh: "6f85457e27afdae2"
 /components/input-and-overlays:
-  en: "013e52ce564f25df"
-  zh: "0beebeb1db52c5eb"
+  en: "13367d3b0ca895aa"
+  zh: "5d3d6261f7f67aef"
 /components/input-and-overlays/menu-controls-and-item-content:
   en: "e3e914aecf69d3f3"
   zh: "00f3613c4cab5143"
+/components/input-and-overlays/tooltips:
+  en: "85950a9ab9088a76"
+  zh: "77aa4071c2d990b3"
 /components/input-and-overlays/scrim:
   en: "10e576b11f1c2adf"
   zh: "8b514df686bbc572"

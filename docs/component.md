@@ -16,7 +16,7 @@ The [pinned Material 3 specification](design-sources.md#material-specification) 
 | `IconButton`, `IconToggleButton` | Standard, Filled, Filled Tonal, and Outlined, with selectable sizes and widths, per-instance shapes, colors and stroke, and optional interaction observation. | [Icon buttons](https://m3.material.io/components/icon-buttons/overview) |
 | `Fab`, `ExtendedFab` | Small, Medium, and Large sizes with multiple color roles. `ExtendedFab` supports a text label and an icon. | [FAB](https://m3.material.io/components/floating-action-button/overview) · [Extended FAB](https://m3.material.io/components/extended-fab/overview) |
 | `Checkbox` | Unchecked, checked, mixed, error, and disabled states, with per-instance colors, strokes, and interaction observation. | [Checkbox](https://m3.material.io/components/checkbox/overview) |
-| `Radio`, `RadioGroup` | Mutually exclusive selection with keyboard navigation in a group. | [Radio button](https://m3.material.io/components/radio-button/overview) |
+| `Radio`, `RadioGroup` | Mutually exclusive selection, group keyboard navigation, per-option colors, and optional interaction observation. | [Radio button](https://m3.material.io/components/radio-button/specs) |
 | `Switch` | On and off states with optional thumb icons or custom content, per-state colors, and shared interaction observation. | [Switch](https://m3.material.io/components/switch/overview) |
 | `Chip` | Assist, Filter, Input, and Suggestion, with selection and removal where applicable. | [Chips](https://m3.material.io/components/chips/overview) |
 | `Slider` | Single-value, centered, and range sliders, with horizontal or vertical layouts and continuous or stepped values. | [Sliders](https://m3.material.io/components/sliders/overview) |
@@ -42,6 +42,12 @@ A hiding FAB stops taking focus and input immediately. It occupies its layout sp
 Use `.colors(CheckboxColors)` to set `CheckboxStateColors` for each unchecked, checked, or indeterminate state, including error and disabled states. Each state can override its `checkmark`, `box_color`, and `border` independently. Omitted fields keep the window theme's defaults. In the unchecked state, checkmark color applies while the mark retracts.
 
 Set `.checkmark_stroke(gpui::StrokeOptions)` for the uniform checkmark and mixed mark stroke, including width, caps, and joins. Use `.outline_stroke(width)` for the rounded box outline in logical pixels. Both widths default to two logical pixels. A zero width removes that stroke. Negative or non-finite widths use the default, and large widths are bounded by the indicator size. Use a caller-owned `Entity<InteractionSource>` with `.interaction_source(&source)` to observe hover, press, keyboard focus, and disabled state. The source can be shared with other controls using distinct IDs and leaves the value with the caller.
+
+### Radio buttons
+
+Use `Radio::colors(RadioColors)` to override the indicator's selected, unselected, disabled-selected, and disabled-unselected colors independently. Unspecified fields use the current window palette. Selected defaults to Primary, unselected defaults to On Surface Variant, and both disabled defaults use On Surface at 38% opacity.
+
+Pass `.interaction_source(&source)` to observe a standalone radio or individual options in a `RadioGroup`. Grouped snapshots use the rendered ID `ElementId::from((group_id, option_id.to_string()))`, so groups can share one `Entity<InteractionSource>`. Removing an option or replacing its source clears its snapshot in the old source. The caller owns selection and applies `.on_select(...)` requests. A group has one Tab stop, skips disabled options, and mirrors horizontal navigation in RTL.
 
 ### Switches
 

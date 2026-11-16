@@ -8,6 +8,7 @@ See [versioning and releases](docs/release.md) for the release process.
 
 - Customize Card shape, border, colors, and per-state elevation, and observe shared interactions.
 - Customize Checkbox state colors and the mark and outline strokes, and observe interaction through a shared source.
+- Customize selected, unselected, and disabled radio indicator colors and observe shared radio interactions.
 - Supply measured progress, custom morph shapes, and instance colors and container corners for Loading Indicators.
 - Position Scaffold FABs at the start, center, end, or over the bottom bar. Resolve content insets against measured bars and rail space.
 - Set divider thickness and color for each horizontal or vertical rule. A zero thickness selects a one-device-pixel hairline.

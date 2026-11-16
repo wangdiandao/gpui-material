@@ -3,14 +3,17 @@
   en: "04d1812e593709d7"
   zh: "f4acb7f93a6372a7"
 /components/actions-and-selection:
-  en: "0b23b0eb244bf19f"
-  zh: "808b250bc0a16273"
+  en: "b56180cfee937582"
+  zh: "c5f1a1333c40b83d"
 /components/actions-and-selection/floating-action-button:
   en: "c77a57b086907ad0"
   zh: "e5c132ba393b8843"
 /components/actions-and-selection/checkbox:
   en: "8594e62d81db3f89"
   zh: "f46ae69238fc835d"
+/components/actions-and-selection/radio-buttons:
+  en: "9680b8f7ca73c7fa"
+  zh: "0da9f89533393fbf"
 /components/actions-and-selection/switches:
   en: "206799c7d26c1995"
   zh: "f9d2c38f31b133ba"

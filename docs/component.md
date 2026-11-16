@@ -15,7 +15,7 @@ The [pinned Material 3 specification](design-sources.md#material-specification) 
 | `Button`, `ToggleButton` | Elevated, Filled, Filled Tonal, and Outlined. `Button` also has a Text variant. Both support XS–XL sizes, round or square shapes, custom content and appearance, and optional interaction observation. | [Buttons](https://m3.material.io/components/buttons/overview) |
 | `IconButton`, `IconToggleButton` | Standard, Filled, Filled Tonal, and Outlined, with selectable sizes and widths, per-instance shapes, colors and stroke, and optional interaction observation. | [Icon buttons](https://m3.material.io/components/icon-buttons/overview) |
 | `Fab`, `ExtendedFab` | Small, Medium, and Large sizes with multiple color roles. `ExtendedFab` supports a text label and an icon. | [FAB](https://m3.material.io/components/floating-action-button/overview) · [Extended FAB](https://m3.material.io/components/extended-fab/overview) |
-| `Checkbox` | Unchecked, checked, and mixed states. | [Checkbox](https://m3.material.io/components/checkbox/overview) |
+| `Checkbox` | Unchecked, checked, mixed, error, and disabled states, with per-instance colors, strokes, and interaction observation. | [Checkbox](https://m3.material.io/components/checkbox/overview) |
 | `Radio`, `RadioGroup` | Mutually exclusive selection with keyboard navigation in a group. | [Radio button](https://m3.material.io/components/radio-button/overview) |
 | `Switch` | On and off states with optional thumb icons. | [Switch](https://m3.material.io/components/switch/overview) |
 | `Chip` | Assist, Filter, Input, and Suggestion, with selection and removal where applicable. | [Chips](https://m3.material.io/components/chips/overview) |
@@ -34,6 +34,14 @@ Keep an `Entity<InteractionSource>` in the caller and attach it with `.interacti
 Keep the visibility flag in application state and pass it with `.visible(visible)` on each render. Use a stable element ID between updates so the two motion channels can reverse from their current progress. `FabVisibilityAnimation` defaults to center alignment, a hidden scale of `0.2`, and the theme's Fast Spatial and Fast Effects motion for scale and alpha. Use logical `FabAlignment` positions to scale about an edge or corner that mirrors in right-to-left windows. Set `target_scale` to a finite nonnegative value and set `scale_motion` and `alpha_motion` independently. Invalid scales, including values that overflow the scaled extent, fall back to `0.2`. Reduced motion applies the final state immediately.
 
 A hiding FAB stops taking focus and input immediately. It occupies its layout space while fading and gives up that space at zero opacity. An initially hidden FAB takes no space. Keep the icon decorative so the FAB owns activation and focus. Use inherited text sizing or relative dimensions for custom icons that should resize during the transition.
+
+### Checkbox
+
+`Checkbox::new(id, label, state)` renders the caller's state. Pointer, keyboard, and accessibility activation request the next value through `.on_change`. Activating a mixed checkbox requests `Checked`. Apply the request in the owner and pass the current state on the next render. `.error(true)` exposes the validation state and uses `Error` and `OnError` by default. Disabled appearance takes precedence over error appearance.
+
+Use `.colors(CheckboxColors)` to set `CheckboxStateColors` for each unchecked, checked, or indeterminate state, including error and disabled states. Each state can override its `checkmark`, `box_color`, and `border` independently. Omitted fields keep the window theme's defaults. In the unchecked state, checkmark color applies while the mark retracts.
+
+Set `.checkmark_stroke(gpui::StrokeOptions)` for the uniform checkmark and mixed mark stroke, including width, caps, and joins. Use `.outline_stroke(width)` for the rounded box outline in logical pixels. Both widths default to two logical pixels. A zero width removes that stroke. Negative or non-finite widths use the default, and large widths are bounded by the indicator size. Use a caller-owned `Entity<InteractionSource>` with `.interaction_source(&source)` to observe hover, press, keyboard focus, and disabled state. The source can be shared with other controls using distinct IDs and leaves the value with the caller.
 
 <a id="内容与反馈"></a>
 

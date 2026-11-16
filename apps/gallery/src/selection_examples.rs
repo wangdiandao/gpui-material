@@ -1,14 +1,18 @@
 use gpui::{
-    Axis, Context, ElementId, FocusHandle, IntoElement, ParentElement, Render, Styled, Window, div,
-    prelude::FluentBuilder,
+    AppContext, Axis, Context, ElementId, Entity, FocusHandle, IntoElement, ParentElement, Render,
+    StrokeOptions, Styled, Window, div, prelude::FluentBuilder, px, rgb,
 };
 use gpui_material::foundation::window_material_theme;
 use gpui_material::theme::Direction;
 use gpui_material::{
-    Checkbox, CheckboxState, Chip, ChipVariant, Icon, IconName, Radio, RadioGroup, Switch,
+    Checkbox, CheckboxColors, CheckboxState, CheckboxStateColors, Chip, ChipVariant, Icon,
+    IconName, InteractionSource, Radio, RadioGroup, Switch, Text,
 };
 
 use crate::story::{Story, section};
+
+#[cfg(all(test, feature = "test-support"))]
+mod checkbox_tests;
 
 pub(crate) struct SelectionExamples {
     story: Option<Story>,
@@ -21,6 +25,8 @@ pub(crate) struct SelectionExamples {
     chip_selected: bool,
     chip_visible: bool,
     restore: FocusHandle,
+    styled_checkbox: CheckboxState,
+    checkbox_source: Option<Entity<InteractionSource>>,
 }
 
 impl SelectionExamples {
@@ -36,6 +42,8 @@ impl SelectionExamples {
             chip_selected: false,
             chip_visible: true,
             restore: cx.focus_handle(),
+            styled_checkbox: CheckboxState::Indeterminate,
+            checkbox_source: None,
         }
     }
     pub(crate) fn for_story(story: Story, cx: &mut Context<Self>) -> Self {
@@ -47,6 +55,106 @@ impl SelectionExamples {
 
     fn shows(&self, story: Story) -> bool {
         self.story.is_none_or(|active| active == story)
+    }
+
+    fn custom_checkboxes(
+        &mut self,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> crate::story::StorySection {
+        let source = self.checkbox_source.get_or_insert_with(|| {
+            let source = cx.new(|_| InteractionSource::new());
+            cx.observe(&source, |_, _, cx| cx.notify()).detach();
+            source
+        });
+        let window_id = window.window_handle().window_id();
+        let interaction = source.read(cx).state(window_id, &"styled-mixed".into());
+        let status = match interaction {
+            Some(state) if state.pressed => "Pressed",
+            Some(state) if state.focus_visible => "Keyboard focus",
+            Some(state) if state.hovered => "Hovered",
+            _ => "Ready",
+        };
+        let colors = custom_checkbox_colors();
+        let stroke = StrokeOptions::default().with_line_width(3.5);
+        let owner = cx.entity();
+        let examples = [
+            (
+                "styled-unchecked",
+                "Unchecked",
+                CheckboxState::Unchecked,
+                false,
+                false,
+            ),
+            (
+                "styled-checked",
+                "Checked",
+                CheckboxState::Checked,
+                false,
+                false,
+            ),
+            (
+                "styled-mixed",
+                "Change selection",
+                self.styled_checkbox,
+                false,
+                false,
+            ),
+            (
+                "styled-error",
+                "Error",
+                CheckboxState::Indeterminate,
+                true,
+                false,
+            ),
+            (
+                "styled-disabled",
+                "Disabled",
+                CheckboxState::Checked,
+                false,
+                true,
+            ),
+        ];
+        section("Custom appearance")
+            .child(div().flex().flex_wrap().gap_2().children(examples.map(
+                |(id, label, state, error, disabled)| {
+                    let control = Checkbox::new(id, label, state)
+                        .colors(colors)
+                        .checkmark_stroke(stroke)
+                        .outline_stroke(px(1.))
+                        .error(error)
+                        .disabled(disabled)
+                        .interaction_source(source);
+                    if id == "styled-mixed" {
+                        let owner = owner.clone();
+                        control.on_change(move |next, _, cx| {
+                            owner.update(cx, |this, cx| {
+                                this.styled_checkbox = next;
+                                cx.notify();
+                            });
+                        })
+                    } else {
+                        control
+                    }
+                },
+            )))
+            .child(Text::new(format!("Change selection · {status}")))
+    }
+}
+
+fn custom_checkbox_colors() -> CheckboxColors {
+    let paint = |box_color, border, mark| CheckboxStateColors {
+        box_color: Some(rgb(box_color).into()),
+        border: Some(rgb(border).into()),
+        checkmark: Some(rgb(mark).into()),
+    };
+    CheckboxColors {
+        unchecked: paint(0xe8ecf6, 0x4b536b, 0x29364f),
+        checked: paint(0x285844, 0x182f29, 0xffeed6),
+        indeterminate: paint(0x415380, 0x29364f, 0xffeed6),
+        error_indeterminate: paint(0x8b3a31, 0x682c32, 0xffffff),
+        disabled_checked: paint(0xbbb7be, 0x76717a, 0xf6f1f5),
+        ..Default::default()
     }
 }
 
@@ -112,6 +220,9 @@ impl Render for SelectionExamples {
                             .disabled(true),
                     )
             }))
+            .children(
+                (self.story == Some(Story::Checkbox)).then(|| self.custom_checkboxes(window, cx)),
+            )
             .children(self.shows(Story::Radio).then(|| {
                 section("Horizontal group")
                     .description("Use the arrow keys to move between Start and End.")

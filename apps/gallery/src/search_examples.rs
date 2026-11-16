@@ -1,14 +1,18 @@
 use std::time::Duration;
 
 use gpui::{
-    AppContext, Context, Entity, ParentElement, Render, SharedString, Subscription, Window,
+    AppContext, Context, Entity, ParentElement, Render, SharedString, Subscription, Window, px,
 };
 use gpui_material::{
-    AppBar, SearchBar, SearchEvent, SearchOutcome, SearchResult, SearchState, SearchViewVariant,
-    Text, theme::TypeRole,
+    AppBar, Button, ButtonVariant, Icon, IconName, SearchBar, SearchEvent, SearchOutcome,
+    SearchPopupOptions, SearchResult, SearchScrim, SearchState, SearchViewVariant, Text,
+    theme::TypeRole,
 };
 
 use crate::story::{section, stack};
+
+#[cfg(all(test, feature = "test-support"))]
+mod customization_tests;
 
 pub(crate) struct SearchExamples {
     docked: Entity<SearchState>,
@@ -69,7 +73,11 @@ fn matches(query: &str) -> SearchOutcome {
         ]
         .into_iter()
         .filter(|(_, label, _)| label.to_lowercase().contains(&query))
-        .map(|(id, label, category)| SearchResult::new(id, label).supporting(category))
+        .map(|(id, label, category)| {
+            SearchResult::new(id, label)
+                .group(category)
+                .icon(IconName::Description)
+        })
         .collect(),
     )
 }
@@ -80,15 +88,48 @@ impl Render for SearchExamples {
             .child(
                 section("Docked")
                     .description("Search for “design” or “meeting” to see matching documents.")
-                    .child(SearchBar::new("docked", "Search documents", &self.docked)),
+                    .child(
+                        SearchBar::new("docked", "Search documents", &self.docked)
+                            .widths(px(250.), px(340.))
+                            .expanded_view(|view| {
+                                view.result_gap(px(8.))
+                                    .popup_options(SearchPopupOptions {
+                                        scrim: Some(SearchScrim {
+                                            opacity: 0.18,
+                                            ..Default::default()
+                                        }),
+                                        ..Default::default()
+                                    })
+                                    .input(|field| {
+                                        field
+                                            .leading(Icon::new(IconName::Search))
+                                            .suffix(Text::new("docs").id("search-suffix"))
+                                    })
+                            }),
+                    ),
             )
             .child(
-                section("Full-screen app bar")
+                section("Contained app bar")
                     .description("Try “error” to preview a failed search.")
                     .child(
                         AppBar::new("search-app-bar", "Documents").search(
                             SearchBar::new("fullscreen", "Search documents", &self.fullscreen)
-                                .variant(SearchViewVariant::FullScreen),
+                                .variant(SearchViewVariant::FullScreenContained)
+                                .expanded_view(|view| {
+                                    view.focused_width(px(580.)).filters(
+                                        Button::new("search-recent", "Search recent meetings")
+                                            .variant(ButtonVariant::Text)
+                                            .on_activate({
+                                                let state = self.fullscreen.clone();
+                                                move |window, cx| {
+                                                    state.update(cx, |state, cx| {
+                                                        state.set_query("meeting", window, cx);
+                                                        state.input_focus(cx).focus(window, cx);
+                                                    })
+                                                }
+                                            }),
+                                    )
+                                }),
                         ),
                     ),
             )

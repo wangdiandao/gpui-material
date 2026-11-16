@@ -6,6 +6,7 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ### Components
 
+- Compose Contained and Docked search with configurable editor slots, grouped virtual results, motion, appearance, and scroll behavior.
 - Compose tabs with leading icons, custom content and badges, configurable indicators and dividers, and external scroll handles.
 - Customize docked and detached side sheets with independent header and footer slots, typed dismissal, and per-instance appearance.
 - Compose docked and floating toolbars with editable content, independently expandable slots, instance appearance, and retained scroll and settling behavior.

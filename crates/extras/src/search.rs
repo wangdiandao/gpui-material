@@ -1,18 +1,20 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use gpui::{
-    Anchor, App, AppContext, Context, ElementId, Entity, EntityInputHandler, EventEmitter,
-    FocusHandle, Focusable, InteractiveElement, IntoElement, ListAlignment, ListState,
-    ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
-    Subscription, Window, div, prelude::FluentBuilder, px,
+    App, AppContext, Context, ElementId, Entity, EntityInputHandler, EventEmitter, FocusHandle,
+    Focusable, ListAlignment, ListState, SharedString, Subscription, Window, px,
 };
-use gpui_base::{Dialog, Popup, TestSupportExt};
-use gpui_material_components::{
-    Button, ButtonVariant, Icon, IconButton, IconName, ListItem, LoadingIndicator, Text, TextField,
-    TextFieldEvent, TextFieldState,
+use gpui_material_components::{IconName, TextFieldEvent, TextFieldState};
+use web_time::Instant;
+
+mod presentation;
+mod scroll;
+
+pub use presentation::{
+    SearchBar, SearchMotion, SearchPopupOptions, SearchScrim, SearchStyle, SearchView,
+    SearchViewVariant, SearchWindowOptions,
 };
-use gpui_material_foundation::{Surface, logical_anchor, scrim_color, window_material_theme};
-use gpui_material_theme::{ColorRole, Direction, Elevation, TypeRole};
+pub use scroll::SearchScrollState;
 
 /// Identifies one committed query. Complete requests through [SearchState::complete].
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -33,6 +35,8 @@ pub struct SearchResult {
     id: ElementId,
     label: SharedString,
     supporting: Option<SharedString>,
+    group: Option<SharedString>,
+    icon: Option<IconName>,
 }
 
 impl SearchResult {
@@ -41,12 +45,29 @@ impl SearchResult {
             id: id.into(),
             label: label.into(),
             supporting: None,
+            group: None,
+            icon: None,
         }
     }
 
     pub fn supporting(mut self, text: impl Into<SharedString>) -> Self {
         self.supporting = Some(text.into());
         self
+    }
+
+    /// Groups consecutive rows under this heading.
+    pub fn group(mut self, heading: impl Into<SharedString>) -> Self {
+        self.group = Some(heading.into());
+        self
+    }
+
+    pub fn icon(mut self, icon: IconName) -> Self {
+        self.icon = Some(icon);
+        self
+    }
+
+    pub fn group_label(&self) -> Option<&SharedString> {
+        self.group.as_ref()
     }
 
     pub fn id(&self) -> &ElementId {
@@ -124,6 +145,28 @@ impl SearchResponse {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum SearchValue {
+    #[default]
+    Collapsed,
+    Expanded,
+}
+
+impl SearchValue {
+    fn progress(self) -> f32 {
+        match self {
+            Self::Collapsed => 0.,
+            Self::Expanded => 1.,
+        }
+    }
+}
+
+struct SearchAnimation {
+    from: f32,
+    started: Instant,
+    duration: Duration,
+}
+
 /// Retains editing, IME, result and focus state while the search view expands.
 /// The application performs asynchronous work and owns resulting navigation.
 pub struct SearchState {
@@ -136,7 +179,9 @@ pub struct SearchState {
     result_layout: Option<(gpui_material_theme::Typography, gpui::Pixels, u64)>,
     query: SharedString,
     response: SearchResponse,
-    open: bool,
+    target: SearchValue,
+    progress: f32,
+    animation: Option<SearchAnimation>,
     _input: Subscription,
 }
 
@@ -145,8 +190,17 @@ impl EventEmitter<SearchEvent> for SearchState {}
 impl SearchState {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input = cx.new(|cx| TextFieldState::new(window, cx));
-        let subscription = cx.subscribe_in(&input, window, |state, input, event, window, cx| {
-            if !state.open
+        Self::with_editor(&input, window, cx)
+    }
+
+    /// Uses an editor created for this window while retaining the search provider contract.
+    pub fn with_editor(
+        input: &Entity<TextFieldState>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        let subscription = cx.subscribe_in(input, window, |state, input, event, window, cx| {
+            if !state.is_open()
                 || !matches!(
                     event,
                     TextFieldEvent::Change
@@ -170,7 +224,7 @@ impl SearchState {
             }
         });
         Self {
-            input,
+            input: input.clone(),
             trigger: cx.focus_handle(),
             scope: cx.focus_handle(),
             restore: None,
@@ -179,7 +233,9 @@ impl SearchState {
             result_layout: None,
             query: "".into(),
             response: SearchResponse::default(),
-            open: false,
+            target: SearchValue::Collapsed,
+            progress: 0.,
+            animation: None,
             _input: subscription,
         }
     }
@@ -189,7 +245,31 @@ impl SearchState {
     }
 
     pub fn is_open(&self) -> bool {
-        self.open
+        self.target == SearchValue::Expanded
+    }
+
+    pub fn current_value(&self) -> SearchValue {
+        if self.progress <= 0.02 {
+            SearchValue::Collapsed
+        } else {
+            SearchValue::Expanded
+        }
+    }
+
+    pub fn target_value(&self) -> SearchValue {
+        self.target
+    }
+
+    pub fn progress(&self) -> f32 {
+        self.progress
+    }
+
+    pub fn is_animating(&self) -> bool {
+        self.animation.is_some()
+    }
+
+    pub fn editor(&self) -> &Entity<TextFieldState> {
+        &self.input
     }
 
     /// Returns the stable focus handle of the expanded editor.
@@ -197,27 +277,162 @@ impl SearchState {
         self.input.read(cx).focus_handle(cx)
     }
 
-    /// Opens the view and focuses its editor.
+    /// Opens the view and focuses its editor immediately.
     pub fn open(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.open {
+        self.snap_to(1., window, cx);
+    }
+
+    /// Dismisses the view and restores its entry focus immediately.
+    pub fn close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.snap_to(0., window, cx);
+    }
+
+    /// Positions the presentation at a fraction from collapsed to expanded.
+    pub fn snap_to(&mut self, fraction: f32, window: &mut Window, cx: &mut Context<Self>) {
+        if !fraction.is_finite() {
             return;
         }
-        self.restore = window.focused(cx).or_else(|| Some(self.trigger.clone()));
-        self.open = true;
-        self.input_focus(cx).focus(window, cx);
+        let fraction = fraction.clamp(0., 1.);
+        if fraction == self.progress && self.animation.is_none() {
+            return;
+        }
+        if fraction > 0. {
+            self.prepare_open(window, cx);
+        } else {
+            self.target = SearchValue::Collapsed;
+            self.restore_focus(window, cx);
+        }
+        self.animation = None;
+        self.progress = fraction;
         cx.notify();
     }
 
-    /// Dismisses the view and restores its entry focus.
-    pub fn close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.open {
+    /// Animates to an endpoint. Retargeting uses the currently displayed fraction.
+    pub fn animate_to(
+        &mut self,
+        target: SearchValue,
+        duration: Duration,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if duration.is_zero() || cx.reduce_motion() {
+            self.snap_to(target.progress(), window, cx);
             return;
         }
-        self.open = false;
+        self.sample_animation(window, cx);
+        if target == self.target && (self.animation.is_some() || self.progress == target.progress())
+        {
+            return;
+        }
+        if target == SearchValue::Expanded {
+            self.prepare_open(window, cx);
+        }
+        self.target = target;
+        if self.progress == target.progress() {
+            self.animation = None;
+            if target == SearchValue::Collapsed {
+                self.restore_focus(window, cx);
+            }
+        } else {
+            self.animation = Some(SearchAnimation {
+                from: self.progress,
+                started: cx.background_executor().now(),
+                duration,
+            });
+        }
+        cx.notify();
+    }
+
+    pub fn results(&self) -> Option<&SearchOutcome> {
+        match &self.response.results {
+            Results::Ready(outcome) => Some(outcome),
+            _ => None,
+        }
+    }
+
+    /// Selects a caller-rendered result and dismisses using the retained focus path.
+    pub fn select_result(
+        &mut self,
+        result: SearchResult,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.select_with_motion(result, Duration::ZERO, window, cx);
+    }
+
+    fn select_with_motion(
+        &mut self,
+        result: SearchResult,
+        duration: Duration,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.animate_to(SearchValue::Collapsed, duration, window, cx);
+        cx.emit(SearchEvent::Select(result));
+    }
+
+    pub fn scroll_state(&self) -> &ListState {
+        &self.scroll
+    }
+
+    /// Uses a caller-owned virtual result viewport.
+    pub fn set_scroll_state(&mut self, scroll: &ListState, cx: &mut Context<Self>) {
+        self.scroll = scroll.clone();
+        self.invalidate_result_measurements();
+        cx.notify();
+    }
+
+    fn presented(&self) -> bool {
+        self.is_open() || self.animation.is_some()
+    }
+
+    fn prepare_open(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.is_open() {
+            return;
+        }
+        if self.restore.is_none() {
+            self.restore = window.focused(cx).or_else(|| Some(self.trigger.clone()));
+        }
+        self.target = SearchValue::Expanded;
+        self.input_focus(cx).focus(window, cx);
+        if self.input.update(cx, |input, cx| {
+            input.marked_text_range(window, cx).is_none()
+        }) {
+            let query = self.input.read(cx).value();
+            self.update_query(query, cx);
+        }
+    }
+
+    fn restore_focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(focus) = self.restore.take() {
             focus.focus(window, cx);
         }
-        cx.notify();
+    }
+
+    fn sample_animation(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        let Some(animation) = &self.animation else {
+            return false;
+        };
+        let elapsed = cx.background_executor().now() - animation.started;
+        let old = self.progress;
+        let endpoint = self.target.progress();
+        if elapsed >= animation.duration || cx.reduce_motion() {
+            self.progress = endpoint;
+            self.animation = None;
+            if self.target == SearchValue::Collapsed {
+                self.restore_focus(window, cx);
+            }
+            cx.notify();
+            false
+        } else {
+            let time = (elapsed.as_secs_f64() / animation.duration.as_secs_f64()) as f32;
+            let eased = time * time * (3. - 2. * time);
+            self.progress = animation.from + (endpoint - animation.from) * eased;
+            if old != self.progress {
+                cx.notify();
+            }
+            true
+        }
     }
 
     /// Synchronizes the query from the application. Query changes issue a
@@ -288,7 +503,8 @@ impl SearchState {
     }
 
     fn invalidate_result_measurements(&self) {
-        let anchor = self.scroll.logical_scroll_top();
+        let mut anchor = self.scroll.logical_scroll_top();
+        anchor.item_ix = anchor.item_ix.min(self.rows().len().saturating_sub(1));
         // Focus metadata keeps the focused row mounted when it scrolls out of
         // view; keyboard navigation still addresses the complete result model.
         self.scroll.splice_focusable(
@@ -299,388 +515,6 @@ impl SearchState {
         );
         self.scroll.scroll_to(anchor);
     }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum SearchViewVariant {
-    #[default]
-    Docked,
-    FullScreen,
-}
-
-/// Collapsed Material search trigger. It can occupy the [AppBar](gpui_material_components::AppBar)
-/// search slot or be placed directly in a desktop layout.
-#[derive(IntoElement)]
-pub struct SearchBar {
-    id: ElementId,
-    label: SharedString,
-    state: Entity<SearchState>,
-    variant: SearchViewVariant,
-    close_label: SharedString,
-    loading_label: SharedString,
-    empty_label: SharedString,
-    prompt: SharedString,
-}
-
-impl SearchBar {
-    pub fn new(
-        id: impl Into<ElementId>,
-        label: impl Into<SharedString>,
-        state: &Entity<SearchState>,
-    ) -> Self {
-        Self {
-            id: id.into(),
-            label: label.into(),
-            state: state.clone(),
-            variant: SearchViewVariant::default(),
-            close_label: "Close search".into(),
-            loading_label: "Searching".into(),
-            empty_label: "No results".into(),
-            prompt: "Enter a search term".into(),
-        }
-    }
-
-    pub fn variant(mut self, variant: SearchViewVariant) -> Self {
-        self.variant = variant;
-        self
-    }
-
-    /// Overrides the localized labels used inside the view.
-    pub fn labels(
-        mut self,
-        close: impl Into<SharedString>,
-        loading: impl Into<SharedString>,
-        empty: impl Into<SharedString>,
-        prompt: impl Into<SharedString>,
-    ) -> Self {
-        self.close_label = close.into();
-        self.loading_label = loading.into();
-        self.empty_label = empty.into();
-        self.prompt = prompt.into();
-        self
-    }
-}
-
-impl RenderOnce for SearchBar {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let collapsed = self.state.read(cx);
-        let trigger = collapsed.trigger.clone();
-        let scope = collapsed.scope.clone();
-        let open = collapsed.open;
-        let label = if collapsed.query.is_empty() {
-            self.label.clone()
-        } else {
-            collapsed.query.clone()
-        };
-        let state = self.state.clone();
-        let focus = trigger.clone();
-        let button = Button::new((self.id.clone(), "search-trigger"), label)
-            .track_focus(&trigger)
-            .size(gpui_material_components::ControlSize::Medium)
-            .variant(ButtonVariant::FilledTonal)
-            .leading_icon(Icon::new(IconName::Search))
-            .on_activate(move |window, cx| {
-                focus.focus(window, cx);
-                state.update(cx, |state, cx| state.open(window, cx));
-            });
-        if !open {
-            return button.into_any_element();
-        }
-        let theme = window_material_theme(window, cx);
-        let direction = theme.layout.direction;
-        let scrim = scrim_color(theme, 0.32);
-        let state = self.state.clone();
-        let view = SearchView::new((self.id.clone(), "search-view"), self.label.clone(), &state)
-            .variant(self.variant)
-            .labels(
-                self.close_label,
-                self.loading_label,
-                self.empty_label,
-                self.prompt,
-            );
-        match self.variant {
-            SearchViewVariant::Docked => Popup::new(self.id, button)
-                .anchor(logical_anchor(Anchor::TopLeft, direction))
-                .offset(px(4.))
-                .content(
-                    div()
-                        .id("docked-search")
-                        .role(Role::Dialog)
-                        .aria_label(self.label)
-                        .track_focus(&scope)
-                        .occlude()
-                        .on_mouse_down_out(move |_, window, cx| {
-                            state.update(cx, |state, cx| state.close(window, cx));
-                        })
-                        .child(view),
-                )
-                .into_any_element(),
-            SearchViewVariant::FullScreen => div()
-                .child(button)
-                .child(
-                    Dialog::new(cx)
-                        .accessibility_label(self.label)
-                        .focus_handle(scope)
-                        .backdrop(div().absolute().inset_0().bg(scrim))
-                        .on_ok(|_, _, _| false)
-                        .on_cancel(move |_, window, cx| {
-                            dismiss_search(&state, window, cx);
-                            false
-                        })
-                        .popup(view),
-                )
-                .into_any_element(),
-        }
-    }
-}
-
-/// Expanded Material search editor and scrollable result region.
-#[derive(IntoElement)]
-pub struct SearchView {
-    id: ElementId,
-    label: SharedString,
-    state: Entity<SearchState>,
-    variant: SearchViewVariant,
-    close_label: SharedString,
-    loading_label: SharedString,
-    empty_label: SharedString,
-    prompt: SharedString,
-}
-
-impl SearchView {
-    pub fn new(
-        id: impl Into<ElementId>,
-        label: impl Into<SharedString>,
-        state: &Entity<SearchState>,
-    ) -> Self {
-        Self {
-            id: id.into(),
-            label: label.into(),
-            state: state.clone(),
-            variant: SearchViewVariant::default(),
-            close_label: "Close search".into(),
-            loading_label: "Searching".into(),
-            empty_label: "No results".into(),
-            prompt: "Enter a search term".into(),
-        }
-    }
-
-    pub fn variant(mut self, variant: SearchViewVariant) -> Self {
-        self.variant = variant;
-        self
-    }
-
-    pub fn labels(
-        mut self,
-        close: SharedString,
-        loading: SharedString,
-        empty: SharedString,
-        prompt: SharedString,
-    ) -> Self {
-        self.close_label = close;
-        self.loading_label = loading;
-        self.empty_label = empty;
-        self.prompt = prompt;
-        self
-    }
-}
-
-impl RenderOnce for SearchView {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let layout = (
-            window_material_theme(window, cx).typography.clone(),
-            window.rem_size(),
-            gpui_material_foundation::font_cache_revision(cx),
-        );
-        self.state.update(cx, |state, _| {
-            if state.result_layout.as_ref() != Some(&layout) {
-                state.result_layout = Some(layout);
-                state.invalidate_result_measurements();
-            }
-        });
-        let model = self.state.read(cx);
-        let input = model.input.clone();
-        let status = match &model.response.results {
-            Results::Idle => Some((self.prompt, false, false)),
-            Results::Loading => Some((self.loading_label, true, false)),
-            Results::Ready(SearchOutcome::Error(error)) => Some((error.clone(), false, true)),
-            Results::Ready(SearchOutcome::Results(results)) if results.is_empty() => {
-                Some((self.empty_label, false, false))
-            }
-            Results::Ready(SearchOutcome::Results(_)) => None,
-        };
-        let size = window.viewport_size();
-        let direction = window_material_theme(window, cx).layout.direction;
-        let fullscreen = self.variant == SearchViewVariant::FullScreen;
-        let close = self.state.clone();
-        let dismiss = self.state.clone();
-        let mut results = div()
-            .id((self.id.clone(), "results"))
-            .occlude()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .min_h_0()
-            .overflow_hidden();
-        if let Some((message, loading, error)) = status {
-            results = results.child(
-                div()
-                    .id((self.id.clone(), "search-status"))
-                    .test_support()
-                    .role(if error { Role::Alert } else { Role::Status })
-                    .aria_label(message.clone())
-                    .a11y_synthetic_children(move |tree| {
-                        let node = tree.parent_node();
-                        node.set_live(if error {
-                            gpui::accesskit::Live::Assertive
-                        } else {
-                            gpui::accesskit::Live::Polite
-                        });
-                        node.set_live_atomic();
-                    })
-                    .p_4()
-                    .flex()
-                    .items_center()
-                    .gap_3()
-                    .when(loading, |status| {
-                        status.child(LoadingIndicator::new("search-loading", message.clone()))
-                    })
-                    .child(Text::new(message).role(TypeRole::BodyMedium)),
-            );
-        }
-        let scroll = model.scroll.clone();
-        let entry = scroll.logical_scroll_top().item_ix;
-        let row_state = self.state.clone();
-        let keys = self.state.clone();
-        if !model.rows().is_empty() {
-            results = results.child(
-                div()
-                    .id((self.id.clone(), "result-list"))
-                    .role(Role::List)
-                    .flex_1()
-                    .min_h_0()
-                    .overflow_hidden()
-                    .on_key_down(move |event, window, cx| {
-                        let model = keys.read(cx);
-                        let rows = model.rows();
-                        let Some(current) = rows
-                            .iter()
-                            .position(|row| model.result_focus[&row.id].is_focused(window))
-                        else {
-                            return;
-                        };
-                        let next = match event.keystroke.key.as_str() {
-                            "up" => (current + rows.len() - 1) % rows.len(),
-                            "down" => (current + 1) % rows.len(),
-                            _ => return,
-                        };
-                        let focus = model.result_focus[&rows[next].id].clone();
-                        if model.scroll.bounds_for_item(next).is_some() {
-                            model.scroll.scroll_to_reveal_item(next);
-                        } else {
-                            // Unmeasured rows have no physical offset yet. A
-                            // logical anchor reveals them without measuring the
-                            // entire prefix merely to navigate to the last row.
-                            model.scroll.scroll_to(gpui::ListOffset {
-                                item_ix: next,
-                                offset_in_item: px(0.),
-                            });
-                        }
-                        focus.focus(window, cx);
-                        window.refresh();
-                        cx.stop_propagation();
-                    })
-                    .child(
-                        gpui::list(scroll, move |ix, window, cx| {
-                            let model = row_state.read(cx);
-                            let result = model.rows()[ix].clone();
-                            let focus = model.result_focus[&result.id].clone();
-                            let tab_stop = focus.is_focused(window)
-                                || ix == entry
-                                    && !model
-                                        .result_focus
-                                        .values()
-                                        .any(|handle| handle.is_focused(window));
-                            let state = row_state.clone();
-                            ListItem::new(result.id.clone(), result.label.clone())
-                                .track_focus(&focus, tab_stop)
-                                .when_some(result.supporting.clone(), ListItem::supporting_text)
-                                .on_activate(move |window, cx| {
-                                    state.update(cx, |state, cx| {
-                                        state.close(window, cx);
-                                        cx.emit(SearchEvent::Select(result.clone()));
-                                    });
-                                })
-                                .into_any_element()
-                        })
-                        .size_full(),
-                    ),
-            );
-        }
-        div()
-            .id(self.id.clone())
-            .test_support()
-            .capture_key_down(move |event, window, cx| {
-                if event.keystroke.key == "escape" && dismiss_search(&dismiss, window, cx) {
-                    cx.stop_propagation();
-                }
-            })
-            .child(
-                Surface::new(ColorRole::SurfaceContainerHigh)
-                    .flex()
-                    .flex_col()
-                    .w(if fullscreen {
-                        size.width
-                    } else {
-                        px(440.).min(size.width - px(16.))
-                    })
-                    .h(if fullscreen {
-                        size.height
-                    } else {
-                        px(424.).min(size.height * 0.65)
-                    })
-                    .when(!fullscreen, |surface| {
-                        surface.rounded(px(28.)).shadow_elevation(Elevation::Level3)
-                    })
-                    .child(
-                        div()
-                            .flex()
-                            .flex_none()
-                            .items_center()
-                            .p_2()
-                            .gap_2()
-                            .when(direction == Direction::Rtl, Styled::flex_row_reverse)
-                            .child(
-                                IconButton::new(
-                                    (self.id.clone(), "close-search"),
-                                    self.close_label,
-                                    Icon::new(IconName::Close),
-                                )
-                                .on_activate(move |window, cx| {
-                                    close.update(cx, |state, cx| state.close(window, cx));
-                                }),
-                            )
-                            .child(div().flex_1().min_w_0().child(TextField::new(
-                                (self.id.clone(), "editor"),
-                                self.label,
-                                &input,
-                            ))),
-                    )
-                    .child(results),
-            )
-    }
-}
-
-fn dismiss_search(state: &Entity<SearchState>, window: &mut Window, cx: &mut App) -> bool {
-    state.update(cx, |state, cx| {
-        let composing = state.input.update(cx, |input, cx| {
-            input.marked_text_range(window, cx).is_some()
-        });
-        if !composing {
-            state.close(window, cx);
-        }
-        !composing
-    })
 }
 
 #[cfg(test)]

@@ -378,9 +378,23 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | --- | --- | --- | --- |
 | `expressive-groups` | `ButtonGroup`、`SplitButton` | Standard 和 Connected 按钮组，以及内容、外观和激活行为各自独立的拆分按钮。 | [按钮组](https://m3.material.io/components/button-groups/overview) · [拆分按钮](https://m3.material.io/components/split-button/overview) |
 | `toolbars` | `FabMenu`、`Toolbar` | 悬浮操作菜单支持受控展开、触发器和操作项插槽及水平对齐。悬浮和停靠工具栏支持任意控件、外观和滚动行为配置。 | [悬浮操作菜单](https://m3.material.io/components/fab-menu/overview) · [工具栏](https://m3.material.io/components/toolbars/overview) |
-| `search` | `SearchBar`、`SearchView` | 收起的搜索栏，以及停靠或全屏的搜索视图。 | [搜索](https://m3.material.io/components/search/overview) |
+| `search` | `SearchBar`、`SearchView` | 收起的搜索栏及可自定义的 Docked、Full-screen 和 Contained 搜索视图。 | [搜索](https://m3.material.io/components/search/overview) |
 | `date-time` | `DatePicker`、`TimePicker`、`ScrollField` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input。时间选择支持 Dial、Input 和 12、24 小时制。支持独立的滚动选择字段。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
 | `carousel` | `Carousel`、`CarouselParallax` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。 任意 GPUI 内容可使用独立滚动视差效果。 | [轮播](https://m3.material.io/components/carousel/overview) |
+
+### 搜索
+
+启用 `search` feature，并为每个搜索入口保留一个 `Entity<SearchState>`。可将 `SearchBar::new(id, label, &state)` 直接放在布局中，或放入 `AppBar::search(...)`。默认使用 Docked。全窗口编辑器使用 `SearchViewVariant::FullScreen`，带内嵌编辑器的全窗口视图使用 `FullScreenContained`。`.widths(collapsed, focused)` 以逻辑像素设置触发器和聚焦编辑器宽度。未覆盖时触发器根据内容确定宽度。`.trigger_content(element)` 替换触发器的可见标签。`.leading(element)`、`.trailing(element)` 可在触发器两侧添加独立控件或头像。
+
+`.expanded_view(|view| ...)` 配置也可单独组合的 `SearchView`。`.input(|field| ...)` 提供保留编辑器的 `TextField`，可配置前后操作、自定义提示、前后缀、配色和交互源。返回的元素应包含该字段，以保留编辑、焦点、输入法和搜索提供方。用 `SearchState::with_editor(...)` 接入调用方持有的 `TextFieldState`，也可用 `editor()` 获取默认实体。
+
+`.docked_size(width, height)` 默认使用 440 × 424 逻辑像素，尺寸受视口约束。`.result_gap(px(...))` 设置 Docked 编辑器和结果表面之间的间距。`.popup_options(SearchPopupOptions)` 配置停靠弹出层的逻辑锚点、触发器下方的间距、关闭行为和可选遮罩。`.window_options(SearchWindowOptions)` 为全窗口模式配置逻辑内边距、关闭行为和遮罩。这些选项配置编辑器所在 GPUI 窗口的弹出层或覆盖层。`.style(SearchStyle)` 分别覆盖触发器、容器、内容、分隔线、输入、形状和高程。省略的选项沿用窗口默认值。
+
+提供方的请求包含版本。通过 `complete(&request, outcome, cx)` 返回结果，由状态筛选有效请求。搜索分别发出提交或选择事件，应用管理导航。用 `SearchResult` 的 `.group(label)` 和 `.icon(IconName)` 为连续分组添加标题和前置图标。`.result_row(|row, result, window, cx| ...)` 自定义可见的 Material 行。生成的列表保持虚拟化，并按稳定 ID 在完整模型中导航。用 `scroll_state()` 访问当前视口，或用 `set_scroll_state(&scroll, cx)` 接入保留的 GPUI `ListState`。`.filters(element)` 在提供方结果上方添加内容。用 `.result_content(|state, window, cx| ...)` 自行渲染结果区域，用 `results()` 读取已接受的结果，用 `select_result(...)` 选择自定义结果。
+
+`open`、`close` 立即到达目标。用 `animate_to(SearchValue, duration, window, cx)` 或 `snap_to(fraction, window, cx)` 控制过渡。`progress()`、`current_value()`、`target_value()`、`is_animating()` 返回呈现和请求状态。用 `.motion(SearchMotion)` 让触发和关闭采用动画。减少动态效果时直接应用目标。关闭后恢复入口焦点。Escape 优先处理输入法组合输入。
+
+放入应用栏的搜索可沿用应用栏的滚动状态和行为。独立搜索栏通过 `.scroll_behavior(&state)` 使用保留的 `SearchScrollState`。可用 `set_content_offset` 提供内容偏移，或用 `.track_scroll(&handle)` 关联视口。向前滚动时收起的搜索栏随之隐藏，反向滚动即显示。活动搜索不受内容滚动影响。
 
 ### 按钮组
 

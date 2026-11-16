@@ -26,13 +26,15 @@ pub use chip::{Chip, ChipVariant};
 mod slider;
 pub use slider::{Slider, SliderEvent, SliderKind, SliderScale, SliderState, SliderValue};
 
+mod card;
 mod display;
 mod drag_handle;
 mod loading_indicator;
 mod progress;
 mod swipe_to_dismiss;
 mod text;
-pub use display::{Badge, Card, CardVariant, Divider, List, ListItem, ListVariant};
+pub use card::{Card, CardBorder, CardColors, CardElevations, CardVariant};
+pub use display::{Badge, Divider, List, ListItem, ListVariant};
 pub use drag_handle::{DragHandleColors, DragHandleShapes, DragHandleSizes, VerticalDragHandle};
 pub use loading_indicator::{LoadingIndicator, LoadingIndicatorShape, LoadingIndicatorShapes};
 pub use progress::{CircularProgress, LinearProgress, ProgressShape};

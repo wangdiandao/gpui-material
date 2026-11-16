@@ -1,0 +1,321 @@
+use std::{cell::Cell, rc::Rc};
+
+use gpui::{
+    App, AppContext as _, Context, Entity, Hsla, InteractiveElement as _, IntoElement,
+    KeyDownEvent, KeyUpEvent, Keystroke, Modifiers, MouseButton, ParentElement as _, Render,
+    RenderOnce, Role, StatefulInteractiveElement as _, Styled as _, TestAppContext,
+    VisualTestContext, Window, div, point, px, rgb,
+};
+use gpui_base::test_support::find;
+use gpui_material::foundation::set_window_material_theme;
+use gpui_material::theme::{CornerShape, Direction, Elevation};
+use gpui_material::{
+    Card, CardBorder, CardColors, CardElevations, CardVariant, InteractionSource, InteractionState,
+    MaterialRoot, MaterialTheme,
+};
+
+#[derive(IntoElement)]
+struct InheritedColor(Rc<Cell<Hsla>>);
+
+impl RenderOnce for InheritedColor {
+    fn render(self, window: &mut Window, _: &mut App) -> impl IntoElement {
+        self.0.set(window.text_style().color);
+        div().h(px(36.))
+    }
+}
+
+struct CardDrag;
+
+impl Render for CardDrag {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        div()
+    }
+}
+
+struct Preview {
+    source: Entity<InteractionSource>,
+    colors: [Rc<Cell<Hsla>>; 3],
+    dragged: bool,
+    disabled: bool,
+    activated: usize,
+}
+
+impl Render for Preview {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let caller = cx.weak_entity();
+        let cancel = caller.clone();
+        let activate = cx.listener(|this, _: &(), _, _| this.activated += 1);
+        div()
+            .w(px(320.))
+            .flex()
+            .flex_col()
+            .gap_4()
+            .child(
+                Card::new("elevated")
+                    .variant(CardVariant::Elevated)
+                    .shape(CornerShape::Radii([9.; 4]))
+                    .border(CardBorder {
+                        width: px(2.),
+                        color: rgb(0x273352).into(),
+                    })
+                    .colors(CardColors {
+                        container: Some(rgb(0xffeabb).into()),
+                        content: Some(rgb(0x3b2500).into()),
+                        ..Default::default()
+                    })
+                    .elevations(CardElevations {
+                        resting: Some(Elevation::Level2),
+                        ..Default::default()
+                    })
+                    .interaction_source(&self.source)
+                    .child(InheritedColor(self.colors[0].clone())),
+            )
+            .child(
+                div()
+                    .id("drag-owner")
+                    .on_drag(CardDrag, move |_, _, _, cx| {
+                        let _ = caller.update(cx, |this, cx| {
+                            this.dragged = true;
+                            cx.notify();
+                        });
+                        cx.new(|_| CardDrag)
+                    })
+                    .capture_key_down(move |event, window, cx| {
+                        if event.keystroke.key == "escape" && cx.stop_active_drag(window) {
+                            let _ = cancel.update(cx, |this, cx| {
+                                this.dragged = false;
+                                cx.notify();
+                            });
+                            cx.stop_propagation();
+                        }
+                    })
+                    .child(
+                        Card::new("filled")
+                            .variant(CardVariant::Filled)
+                            .shape(CornerShape::Radii([3., 6., 9., 12.]))
+                            .colors(CardColors {
+                                container: Some(rgb(0xe0c6f6).into()),
+                                content: Some(rgb(0x2d153f).into()),
+                                disabled_container: Some(rgb(0xe0d8e5).into()),
+                                disabled_content: Some(rgb(0x615b69).into()),
+                            })
+                            .elevations(CardElevations {
+                                resting: Some(Elevation::Level1),
+                                pressed: Some(Elevation::Level2),
+                                focused: Some(Elevation::Level3),
+                                hovered: Some(Elevation::Level4),
+                                dragged: Some(Elevation::Level5),
+                                disabled: Some(Elevation::Level0),
+                            })
+                            .interaction_source(&self.source)
+                            .dragged(self.dragged)
+                            .disabled(self.disabled)
+                            .on_activate("Open project", move |window, cx| {
+                                activate(&(), window, cx);
+                            })
+                            .child(InheritedColor(self.colors[1].clone())),
+                    ),
+            )
+            .child(
+                Card::new("outlined")
+                    .variant(CardVariant::Outlined)
+                    .shape(CornerShape::Radii([5.; 4]))
+                    .border(CardBorder {
+                        width: px(0.),
+                        color: rgb(0x7d1934).into(),
+                    })
+                    .colors(CardColors {
+                        disabled_container: Some(rgb(0xdbe6ff).into()),
+                        disabled_content: Some(rgb(0x4a5263).into()),
+                        ..Default::default()
+                    })
+                    .elevations(CardElevations {
+                        disabled: Some(Elevation::Level1),
+                        ..Default::default()
+                    })
+                    .disabled(true)
+                    .on_activate("Unavailable project", |_, _| {
+                        panic!("disabled card activated")
+                    })
+                    .interaction_source(&self.source)
+                    .child(InheritedColor(self.colors[2].clone())),
+            )
+    }
+}
+
+fn open(cx: &mut TestAppContext) -> (Entity<Preview>, &mut VisualTestContext) {
+    cx.update(|cx| {
+        MaterialRoot::init(MaterialTheme::default(), cx);
+        cx.set_reduce_motion(true);
+    });
+    let (preview, cx) = cx.add_window_view(|window, cx| {
+        window.activate_window();
+        Preview {
+            source: cx.new(|_| InteractionSource::new()),
+            colors: std::array::from_fn(|_| Rc::new(Cell::new(gpui::transparent_black()))),
+            dragged: false,
+            disabled: false,
+            activated: 0,
+        }
+    });
+    draw(cx);
+    (preview, cx)
+}
+
+fn draw(cx: &mut VisualTestContext) {
+    cx.update(|window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+    });
+    cx.run_until_parked();
+}
+
+fn snapshot(
+    cx: &mut VisualTestContext,
+    preview: &Entity<Preview>,
+    id: &'static str,
+) -> InteractionState {
+    cx.update(|window, cx| {
+        preview
+            .read(cx)
+            .source
+            .read(cx)
+            .state(window.window_handle().window_id(), &id.into())
+            .unwrap()
+    })
+}
+
+#[gpui::test]
+fn cards_paint_independent_variants_and_keep_semantics(cx: &mut TestAppContext) {
+    let (preview, cx) = open(cx);
+    let variants = [
+        ("elevated", 0xffeabb, 2., Some(0x273352), [9.; 4], 0x3b2500),
+        ("filled", 0xe0c6f6, 1., None, [3., 6., 9., 12.], 0x2d153f),
+        ("outlined", 0xdbe6ff, 0., None, [5.; 4], 0x4a5263),
+    ];
+    cx.update(|window, cx| {
+        let quads = window.painted_quads();
+        let scale = window.scale_factor();
+        for (index, (id, background, border, stroke, corners, foreground)) in
+            variants.into_iter().enumerate()
+        {
+            let card = find(window, &[], &id.into()).unwrap();
+            let expected_role = if index == 0 {
+                Role::Group
+            } else {
+                Role::Button
+            };
+            assert_eq!(card.role(), Some(expected_role));
+            let quad = quads
+                .iter()
+                .find(|quad| quad.background == Hsla::from(rgb(background)).into())
+                .expect("variant's custom container pigment");
+            assert_eq!(quad.border_widths.top, px(border).scale(scale));
+            assert_eq!(
+                quad.border_color,
+                stroke.map_or_else(gpui::transparent_black, |stroke| rgb(stroke).into())
+            );
+            assert_eq!(
+                [
+                    quad.corner_radii.top_left,
+                    quad.corner_radii.top_right,
+                    quad.corner_radii.bottom_right,
+                    quad.corner_radii.bottom_left,
+                ],
+                corners.map(|radius| px(radius).scale(scale)),
+            );
+            assert_eq!(preview.read(cx).colors[index].get(), rgb(foreground).into());
+        }
+        let filled = find(window, &[], &"filled".into()).unwrap();
+        assert_eq!(filled.label(), Some("Open project"));
+        assert_ne!(filled.disabled(), Some(true));
+        let outlined = find(window, &[], &"outlined".into()).unwrap();
+        assert_eq!(outlined.label(), Some("Unavailable project"));
+        assert_eq!(outlined.disabled(), Some(true));
+        let mut theme = MaterialTheme::default();
+        theme.layout.direction = Direction::Rtl;
+        set_window_material_theme(Some(theme), window, cx);
+    });
+    draw(cx);
+    cx.update(|window, _| {
+        let quads = window.painted_quads();
+        let fill = quads
+            .iter()
+            .find(|quad| quad.background == Hsla::from(rgb(0xe0c6f6)).into())
+            .unwrap();
+        let scale = window.scale_factor();
+        assert_eq!(fill.corner_radii.top_left, px(6.).scale(scale));
+        assert_eq!(fill.corner_radii.top_right, px(3.).scale(scale));
+    });
+}
+
+#[gpui::test]
+fn actionable_card_keeps_base_activation_and_cancels_drag_click(cx: &mut TestAppContext) {
+    let (preview, cx) = open(cx);
+    let position = cx.update(|window, cx| {
+        window.focus_next(cx);
+        find(window, &[], &"filled".into())
+            .unwrap()
+            .bounds()
+            .center()
+    });
+    draw(cx);
+    let keystroke =
+        cx.update(|_, cx| Keystroke::parse_with_os("enter", cx.platform_info().os).unwrap());
+    cx.simulate_event(KeyDownEvent {
+        keystroke: keystroke.clone(),
+        is_held: false,
+        prefer_character_input: false,
+    });
+    draw(cx);
+    let interaction = snapshot(cx, &preview, "filled");
+    assert!(interaction.focus_visible && interaction.pressed);
+    cx.simulate_event(KeyUpEvent { keystroke });
+    draw(cx);
+    cx.update(|_, cx| assert_eq!(preview.read(cx).activated, 1));
+
+    cx.simulate_mouse_move(position, None, Modifiers::default());
+    draw(cx);
+    assert!(snapshot(cx, &preview, "filled").hovered);
+    assert!(!snapshot(cx, &preview, "elevated").hovered);
+    cx.simulate_mouse_down(position, MouseButton::Left, Modifiers::default());
+    draw(cx);
+    assert!(snapshot(cx, &preview, "filled").pressed);
+    let moved = position + point(px(20.), px(0.));
+    cx.simulate_mouse_move(moved, MouseButton::Left, Modifiers::default());
+    draw(cx);
+    let interaction = snapshot(cx, &preview, "filled");
+    assert!(interaction.dragged && !interaction.pressed);
+    cx.simulate_keystrokes("escape");
+    draw(cx);
+    assert!(!snapshot(cx, &preview, "filled").dragged);
+    cx.simulate_mouse_up(moved, MouseButton::Left, Modifiers::default());
+    draw(cx);
+    cx.update(|_, cx| assert_eq!(preview.read(cx).activated, 1));
+
+    cx.simulate_click(position, Modifiers::default());
+    draw(cx);
+    cx.update(|_, cx| assert_eq!(preview.read(cx).activated, 2));
+    cx.update(|_, cx| {
+        preview.update(cx, |this, cx| {
+            this.dragged = true;
+            this.disabled = true;
+            cx.notify();
+        });
+    });
+    draw(cx);
+    let interaction = snapshot(cx, &preview, "filled");
+    assert!(interaction.disabled && !interaction.dragged && !interaction.pressed);
+    cx.simulate_click(position, Modifiers::default());
+    draw(cx);
+    cx.update(|window, cx| {
+        assert_eq!(preview.read(cx).activated, 2);
+        assert_eq!(preview.read(cx).colors[1].get(), rgb(0x615b69).into());
+        assert!(
+            window
+                .painted_quads()
+                .iter()
+                .any(|quad| { quad.background == Hsla::from(rgb(0xe0d8e5)).into() })
+        );
+    });
+}

@@ -1,16 +1,18 @@
 use gpui::{
     Context, IntoElement, ParentElement, Render, ScrollHandle, Styled, Window, div, point, px,
 };
-use gpui_material::foundation::isolated_scroll;
-use gpui_material::theme::{ColorRole, CornerShape, TypeRole};
+use gpui_material::foundation::{color, isolated_scroll, window_material_theme};
+use gpui_material::theme::{ColorRole, CornerRole, CornerShape, Elevation, TypeRole};
 use gpui_material::{
-    Badge, Button, ButtonVariant, Card, CardVariant, CircularProgress, Divider, Icon, IconName,
-    LinearProgress, List, ListItem, ListVariant, LoadingIndicator, LoadingIndicatorShape,
-    LoadingIndicatorShapes, ProgressShape, Text,
+    Badge, Button, ButtonVariant, Card, CardBorder, CardColors, CardElevations, CardVariant,
+    CircularProgress, Divider, Icon, IconName, LinearProgress, List, ListItem, ListVariant,
+    LoadingIndicator, LoadingIndicatorShape, LoadingIndicatorShapes, ProgressShape, Text,
 };
 
 use crate::story::{Story, section, stack};
 
+#[cfg(all(test, feature = "test-support"))]
+mod card_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod loading_tests;
 
@@ -63,7 +65,7 @@ impl DisplayExamples {
 }
 
 impl Render for DisplayExamples {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let card = cx.entity();
         let child = cx.entity();
         let list = cx.entity();
@@ -159,15 +161,28 @@ impl Render for DisplayExamples {
                 )
             }))
             .children(self.shows(Story::Card).then(|| {
+                let theme = window_material_theme(window, cx);
+                let tone = |role| color(theme.colors.color(role));
                 section("Elevated, filled and outlined")
                     .description("Open the project card or activate its Pin button independently.")
                     .child(
                         Card::new("elevated-card")
                             .variant(CardVariant::Elevated)
+                            .shape(CornerRole::Large.shape())
                             .child(Text::new("Elevated card")),
                     )
                     .child(
                         Card::new("filled-card")
+                            .colors(CardColors {
+                                container: Some(tone(ColorRole::SecondaryContainer)),
+                                content: Some(tone(ColorRole::OnSecondaryContainer)),
+                                ..Default::default()
+                            })
+                            .elevations(CardElevations {
+                                hovered: Some(Elevation::Level2),
+                                focused: Some(Elevation::Level1),
+                                ..Default::default()
+                            })
                             .on_activate("Open project", move |_, cx| {
                                 card.update(cx, |this, cx| {
                                     this.opened = !this.opened;
@@ -193,7 +208,12 @@ impl Render for DisplayExamples {
                     .child(
                         Card::new("outlined-card")
                             .variant(CardVariant::Outlined)
+                            .border(CardBorder {
+                                width: px(2.),
+                                color: tone(ColorRole::OutlineVariant),
+                            })
                             .disabled(true)
+                            .on_activate("Unavailable card", |_, _| {})
                             .child(Text::new("Unavailable card")),
                     )
             }))

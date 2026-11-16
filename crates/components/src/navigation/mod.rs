@@ -5,7 +5,10 @@ mod rail;
 mod scaffold;
 
 pub use adaptive::{AdaptiveNavigation, Feed, ListDetail, ListDetailPane, SupportingPane};
-pub use app_bar::{AppBar, AppBarVariant};
+pub use app_bar::{
+    AppBar, AppBarAlignment, AppBarColors, AppBarColumn, AppBarItem, AppBarMenuState,
+    AppBarPadding, AppBarRow, AppBarScrollBehavior, AppBarScrollState, AppBarVariant,
+};
 pub use items::{
     NavigationBar, NavigationBarLayout, NavigationItem, NavigationItems, TabVariant, Tabs,
 };

@@ -213,13 +213,25 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 | 组件 | 支持的变体与行为 | Material 3 |
 | --- | --- | --- |
-| `AppBar` | Small、Centered、Medium Flexible 和 Large Flexible 顶部应用栏。Flexible 变体可随滚动收起。 | [应用栏](https://m3.material.io/components/app-bars/overview) |
+| `AppBar`、`AppBarRow`、`AppBarColumn` | Small、Centered、Medium Flexible、Large Flexible 及可自定义的 TwoRows 顶部应用栏，操作可随可用空间移入溢出菜单。 | [应用栏](https://m3.material.io/components/app-bars/overview) |
 | `Tabs` | Primary、Secondary，可固定或滚动。 | [标签页](https://m3.material.io/components/tabs/overview) |
 | `NavigationBar`、`NavigationRail` | 短导航栏支持纵向或横向排列选项。导航轨道支持折叠、展开、隐藏和模态呈现。 | [导航栏](https://m3.material.io/components/navigation-bar/overview) · [导航轨道](https://m3.material.io/components/navigation-rail/overview) |
 | `AdaptiveNavigation` | 根据可用宽度在导航栏和导航轨道之间切换。 | [断点](https://m3.material.io/foundations/layout/breakpoints/overview) |
 | `Scaffold` | 组合导航、应用栏、内容、可定位的悬浮操作按钮和消息条，并根据已占空间计算内容内边距。 | [Scaffold](https://m3.material.io/foundations/layout/scaffold/overview) |
 | `ListDetail`、`SupportingPane`、`Feed` | 列表与详情、辅助窗格及响应式信息流布局。 | [典型布局](https://m3.material.io/foundations/layout/canonical-examples/overview) |
 | `VerticalDragHandle` | 用于横向调整窗格尺寸的纵向把手，可分别设置静止、按下和拖动外观。 | [布局要素](https://m3.material.io/foundations/layout/understanding-layout/parts-of-layout#314a4c32-be52-414c-8da7-31f059f1776d) · [Compose VerticalDragHandle](https://developer.android.com/reference/kotlin/androidx/compose/material3/VerticalDragHandle.composable) |
+
+### 应用栏
+
+`AppBar::new(id, title)` 默认创建 Small 应用栏，标题同时是工具栏的无障碍名称。`.title_alignment(AppBarAlignment)` 和 `.subtitle_alignment(AppBarAlignment)` 分别设置逻辑 Start、Center 或 End 对齐。Centered 变体的两项默认值都是 Center。用 `.title_max_lines(lines)` 和 `.subtitle_max_lines(lines)` 设置文本换行上限，默认单行。通过 `.title_content(element)` 或 `.subtitle_content(element)` 提供富内容标题。导航、操作和搜索插槽各自布局，搜索取代首行标题。
+
+`.logo(element)` 可在 Small 或 Centered 中替换文本，在 Flexible 中置于展开标题上方，在搜索布局中置于搜索之前。`AppBarVariant::TwoRows` 将展开标题放在导航与操作的下方。`.title_for_rows(|expanded| ...)` 和 `.subtitle_for_rows(|expanded| ...)` 为当前显示的行构造标题。`.second_row(element)` 为展开标题添加补充内容。标题、标志及补充内容用于呈现信息，命令应放在导航或操作插槽中。
+
+`.colors(AppBarColors)` 分别覆盖容器、滚动后容器、导航、标题、副标题和操作的配色。插槽内容继承对应颜色，独立设色的控件沿用自身颜色。`.content_padding(AppBarPadding)` 设置每行的逻辑内边距。以逻辑像素设置 `.collapsed_height(height)` 和 `.expanded_height(height)`。展开高度包含两行，且至少等于收起高度。首行可增高以容纳插槽。默认收起高度为 64 dp，Flexible 变体采用 Material 的展开尺寸。无效尺寸回退到默认值。
+
+通过 `.track_scroll(&handle)` 接入 GPUI 内容滚动句柄，或通过 `.scroll_state(&state)` 接入保留的 `Entity<AppBarScrollState>`。调用方也可用 `set_content_offset(offset, cx)` 设置内容离顶部的非负距离。接入滚动句柄时由句柄提供该距离。可从状态读取 `content_offset()`、`height_offset()`、`height_offset_limit()`、`collapsed_fraction()` 和 `overlapped_fraction()`。未指定策略时，Flexible 栏按内容离顶部的距离收起。用 `.scroll_behavior(AppBarScrollBehavior::Pinned)` 固定高度并按滚动切换容器色，`EnterAlways` 在滚动反向时立即展开，`ExitUntilCollapsed` 在内容回到顶部之前保持收起。内容区继续持有滚动及其输入。用 `.scroll_enabled(false)` 暂停滚动驱动的更新。用 `set_collapsed_fraction(fraction, cx)` 设置位置，或在滚动结束时调用 `settle(velocity, cx)`。正速度选择收起，负速度在策略允许时选择展开，零选择最近端点。`.scroll_motion(MotionSpec)` 覆盖归位动效，减少动效时即时归位。
+
+`AppBarRow::new(id, items)` 和 `AppBarColumn::new(id, items)` 水平或垂直排列操作，将放不下的项移入 Material 菜单。用 `AppBarItem::clickable(id, label, icon_factory)` 创建行内和溢出共用的命令，并通过 `.on_activate(...)` 和 `.disabled(bool)` 设置行为。通过 `AppBarItem::custom(id, inline, |menu| ...)` 提供自定义行内元素和对应的 `MenuItem`。为各项提供稳定的 ID。`.overflow_indicator(|menu| ...)` 可自定义内置键盘按钮的图形，用 `.overflow_label(label)` 设置按钮名称。`AppBarMenuState` 提供 `is_showing()`、`show(window, cx)` 和 `dismiss(window, cx)`。`.max_item_count(count)` 限制包括触发按钮在内的可见项数。横排在 RTL 中镜像，溢出操作在菜单打开后可访问。
 
 ### 纵向拖动把手
 

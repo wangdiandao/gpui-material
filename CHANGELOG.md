@@ -4,6 +4,16 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+## 0.1.1 - 2026-11-16
+
+Changes since [v0.1.0](https://github.com/wangdiandao/gpui-material/releases/tag/v0.1.0).
+
+### API and dependency migration
+
+- Match direct Base imports to 0.10.0 and retain GPUI 0.3.12.
+- Add exhaustive-match arms for `AppBarVariant::TwoRows`, `DatePickerVariant::FullScreen`, `SearchViewVariant::FullScreenContained`, and `TimePickerVariant::Scroll`.
+- Changed keyboard and accessibility slider adjustments now emit `Change` followed by `Release`. Update subscribers that interpreted `Release` as pointer-only.
+
 ### Components
 
 - Use retained bottom-sheet stops, configurable drag and keyboard actions, and a measured Standard sheet slot in Scaffold.
@@ -54,10 +64,6 @@ See [versioning and releases](docs/release.md) for the release process.
 - Show persistent rich tooltips with caller-owned visibility and customizable focus, content, placement, caret and appearance.
 - Customize switch thumb content and individual state colors, and observe switch interactions through a shared source.
 
-### Slider event migration
-
-- Keyboard and accessibility adjustments that change the slider value now emit `Change` followed by `Release`. Update subscribers that used `Release` as a pointer-only signal.
-
 ### Gallery
 
 - The GPUI Material Gallery uses the project logo as its Windows application icon.
@@ -71,6 +77,12 @@ See [versioning and releases](docs/release.md) for the release process.
 
 - The Gallery now ships as source. Run `cargo gallery` from a checkout.
 - Use GPUI Kit's Base 0.10.0 with its paired GPUI 0.3.12 snapshot. Downstream apps that import Base directly must match the new Base pin. The Base slider handles Windows UI Automation RangeValue SetValue.
+
+### Contributors
+
+- [@wangdiandao](https://github.com/wangdiandao)
+
+**Full Changelog** [`v0.1.0...v0.1.1`](https://github.com/wangdiandao/gpui-material/compare/v0.1.0...v0.1.1)
 
 ## 0.1.0 - 2026-11-15
 

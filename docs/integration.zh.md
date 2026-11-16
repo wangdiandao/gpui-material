@@ -12,10 +12,10 @@
 [dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.12" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui-material = "0.1.0"
+gpui-material = "0.1.1"
 ```
 
-使用已发布的 0.1.0 门面时，直接使用 Base 的应用应固定 `gpui-base = "=0.9.1"`。从源码集成时，使用 `{ path = "../gpui-material/crates/material" }`，固定检出提交并匹配其 `gpui-base` 版本。当前源码工作区使用 `gpui-base = "=0.10.0"`。升级后运行 `cargo tree -d` 检查重复版本，并验证应用所依赖的平台和输入行为。
+应用直接使用 Base 时也应固定 `gpui-base = "=0.10.0"`。从源码集成时，使用 `{ path = "../gpui-material/crates/material" }` 并固定检出提交。升级后运行 `cargo tree -d` 检查重复版本，并验证应用所依赖的平台和输入行为。
 
 ```rust
 use gpui::{AppContext, Context, IntoElement, QuitMode, Render, Window, WindowOptions};
@@ -50,6 +50,8 @@ Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID �
 `foundation::set_window_material_theme` 覆盖 Material 呈现，包括显式传入 Base 编辑器的颜色和 Material 浮层表面。独立 Base 控件、滚动条、resize handle 及光标闪烁策略仍使用应用级 Base 全局主题；这些集成需要显式局部样式。窗口渲染不会切换 Base 全局主题。
 
 应用通过[公开门面](../crates/material/src/lib.rs)集成，包括已记录的 `foundation` 和 `theme` 路径。按 [README 中的特性名](../README.zh.md)启用可选组件系列。`date-time` 的 API 位于 `gpui_material::date_time` 下。`dynamic-color` 和 `serde` 转发到纯主题 crate。公开签名中的 GPUI 和 Base 类型遵循固定的上游版本。Gallery 模块和工作区 crate 的内部组织可能调整。
+
+升级至 0.1.1 时，将直接使用的 Base 同步到 0.10.0，并将配套 GPUI 固定在 0.3.12。对 `AppBarVariant::TwoRows`、`DatePickerVariant::FullScreen`、`SearchViewVariant::FullScreenContained` 和 `TimePickerVariant::Scroll` 补充穷尽匹配分支。键盘和无障碍操作改变滑块数值时，先发出 `Change`，再发出 `Release`。原先只把 `Release` 当作指针事件的订阅方应调整逻辑。
 
 使用 0.0.4 门面的应用升级至 0.1.0 时可沿用导入、feature 名称和状态初始化方式。若对 `IconName` 使用穷尽匹配，为四个新增变体添加分支，或用一个兜底分支处理行为相同的变体。变体名称和其他变更见[变更日志](../CHANGELOG.md)。
 

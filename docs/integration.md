@@ -12,10 +12,10 @@ Add the facade from crates.io. Match GPUI package identities exactly so the faca
 [dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.12" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui-material = "0.1.0"
+gpui-material = "0.1.1"
 ```
 
-An application that uses Base directly should pin `gpui-base = "=0.9.1"` with the published 0.1.0 facade. For a source integration, use `{ path = "../gpui-material/crates/material" }`, pin the checkout commit, and match its `gpui-base` version. The current source workspace uses `gpui-base = "=0.10.0"`. After an upgrade, run `cargo tree -d` to check for multiple versions and verify the platform and input behavior that the application relies on.
+An application that uses Base directly should also pin `gpui-base = "=0.10.0"`. For a source integration, use `{ path = "../gpui-material/crates/material" }` and pin the checkout commit. After an upgrade, run `cargo tree -d` to check for multiple versions and verify the platform and input behavior that the application relies on.
 
 ```rust
 use gpui::{AppContext, Context, IntoElement, QuitMode, Render, Window, WindowOptions};
@@ -50,6 +50,8 @@ Search and dropdown virtualization require no caller migration. Result and optio
 `foundation::set_window_material_theme` overrides Material presentation, including explicit Base editor colors and Material overlay surfaces. It does not replace the application-global Base theme used by standalone Base controls, scrollbars, resize handles, or caret-blink policy. Use explicit local styles for those integrations. Rendering a window never swaps the Base global theme.
 
 The supported application entry point is the [public facade](../crates/material/src/lib.rs), including its documented `foundation` and `theme` paths. Enable optional families at the facade with the [feature names in the README](../README.md). `date-time` exposes its API under `gpui_material::date_time`. `dynamic-color` and `serde` forward to the pure theme crate. GPUI and Base types in public signatures follow the pinned upstream versions. Gallery modules and the internal organization of the workspace crates may change.
+
+When upgrading to 0.1.1, align direct Base imports with 0.10.0 and keep the paired GPUI packages at 0.3.12. Update exhaustive matches for `AppBarVariant::TwoRows`, `DatePickerVariant::FullScreen`, `SearchViewVariant::FullScreenContained`, and `TimePickerVariant::Scroll`. Changed keyboard and accessibility slider adjustments now emit `Release` after `Change`. Update subscribers that interpreted `Release` as pointer-only.
 
 Applications updating the 0.0.4 facade to 0.1.0 can keep their imports, feature names, and state initialization. Add arms for the four new `IconName` variants when matching the enum exhaustively, or use a fallback for variants that share behavior. See the [changelog](../CHANGELOG.md) for the variant names and other changes.
 

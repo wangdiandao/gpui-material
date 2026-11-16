@@ -328,7 +328,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | Feature | 组件 | 支持的变体与行为 | Material 3 |
 | --- | --- | --- | --- |
 | `expressive-groups` | `ButtonGroup`、`SplitButton` | Standard 和 Connected 按钮组，以及内容、外观和激活行为各自独立的拆分按钮。 | [按钮组](https://m3.material.io/components/button-groups/overview) · [拆分按钮](https://m3.material.io/components/split-button/overview) |
-| `toolbars` | `FabMenu`、`Toolbar` | 可展开的悬浮操作菜单。工具栏支持悬浮或停靠，以及横向或纵向布局。 | [悬浮操作菜单](https://m3.material.io/components/fab-menu/overview) · [工具栏](https://m3.material.io/components/toolbars/overview) |
+| `toolbars` | `FabMenu`、`Toolbar` | 悬浮操作菜单支持受控展开、触发器和操作项插槽及水平对齐。工具栏支持悬浮或停靠，以及横向或纵向布局。 | [悬浮操作菜单](https://m3.material.io/components/fab-menu/overview) · [工具栏](https://m3.material.io/components/toolbars/overview) |
 | `search` | `SearchBar`、`SearchView` | 收起的搜索栏，以及停靠或全屏的搜索视图。 | [搜索](https://m3.material.io/components/search/overview) |
 | `date-time` | `DatePicker`、`TimePicker`、`ScrollField` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input。时间选择支持 Dial、Input 和 12、24 小时制。支持独立的滚动选择字段。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
 | `carousel` | `Carousel`、`CarouselParallax` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。 任意 GPUI 内容可使用独立滚动视差效果。 | [轮播](https://m3.material.io/components/carousel/overview) |
@@ -354,6 +354,18 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供基础外观。`.spacing(width)` 设置段间距，默认 2 dp。用 `.leading_style(SplitButtonSegmentStyle)` 和 `.trailing_style(SplitButtonSegmentStyle)` 单独配置每段。可通过 `ButtonShapes` 设置静止、按下、选中时的逻辑圆角，通过 `ButtonColors` 设置各状态配色，用 `ButtonBorder` 设置描边、`ButtonElevations` 设置阴影及 `ButtonPadding` 设置逻辑内边距。省略的字段沿用该段默认值。已选中的尾段切换和已打开的菜单使用选中外观，菜单触发器保留按钮语义。选中外观默认增大尾段内侧圆角。未设置选中颜色时沿用启用配色，禁用配色优先。减少动效时立即应用目标形状。
 
 使用 `.leading_interaction_source(&source)` 和 `.trailing_interaction_source(&source)` 传入调用方持有的交互源，可分别用 `ElementId::from((id, "primary"))` 和 `ElementId::from((id, "secondary"))` 读取快照。同一个实体可以观察两个标识。更换交互源时，对应段的快照会从原交互源清除。
+
+### 悬浮操作菜单
+
+`FabMenu::new(id, open_name, icon, items)` 默认保留自己的展开状态。应用持有状态时，通过 `.expanded(expanded)` 传入当前值，并通过 `.on_expanded_change(|requested, window, cx| ...)` 接收请求。触发器请求切换展开状态。按 Escape、在菜单外按下指针或激活操作项都会请求 `false`。即使应用保持菜单展开，操作项也会执行一次自身命令。展开生效后，焦点移至首个可用项。关闭生效时，如果焦点仍属于菜单，则回到触发器。`.track_focus(&handle)` 接收调用方持有的触发器焦点句柄。
+
+用 `.alignment(FabMenuAlignment)` 将弹出层和胶囊操作项对齐到逻辑 Start、Center 或 End，默认是 End。Start 和 End 随窗口文本方向镜像。可用 `.open_icon(element)` 和 `.close_icon(element)` 设置自定义图标，或用 `.open_content(element)` 和 `.close_content(element)` 设置任意装饰内容。同一状态下最后一次内容设置生效。构造器提供收起状态的无障碍名称，`.close_label(name)` 设置展开状态的名称，两种状态使用同一个触发器。
+
+用 `.trigger_style(FabMenuTriggerStyle)` 分别为 `collapsed` 和 `expanded` 提供 `FabMenuTriggerAppearance`。每个端点可设置尺寸、逻辑形状、图标尺寸、容器色、内容色和高度层级。省略的字段沿用所选 FAB 尺寸和配色。触发器在端点之间插值，正的有限尺寸受可用空间约束，无效尺寸使用默认值。启用减少动态效果时直接应用目标端点。触发器插槽只用于呈现，由按钮管理焦点和激活。
+
+`FabMenuItem::new(id, name, icon)` 创建带图标和标签的操作项，`FabMenuItem::custom(id, name, content)` 接收任意呈现内容。`.icon(element)` 替换图标，`.content(element)` 替换可见标签。操作项继续使用构造器提供的无障碍名称。`.colors(FabMenuItemColors)` 设置启用和禁用的容器色和内容色。`.disabled(true)` 保留操作项的显示状态，并在激活和键盘移动时跳过该项。
+
+通过 `.visible(visible)` 独立控制触发器是否显示，通过 `.visibility_animation(FabVisibilityAnimation)` 设置缩放、透明度和逻辑缩放原点。开始隐藏时，触发器和菜单操作立即退出焦点导航和无障碍树，淡出完成后释放触发器的布局空间。触发器再次显示时，受控的 `.expanded(true)` 会重新生效。
 
 ### 滚动选择字段
 

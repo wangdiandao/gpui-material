@@ -352,6 +352,18 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 使用 `.interaction_source(&source)` 让导航项接入由调用方持有的 `Entity<InteractionSource>`。通过 `ElementId::from((collection_id, destination_id))` 读取该项状态，集合 ID 为 `ElementId`，导航项 ID 为 `SharedString`。导航项移除后释放其状态。整栏只有一个 Tab 停靠点，方向键跳过禁用项，在从右到左的窗口中反转左右键行为。Home 和 End 分别移至首个和末个可用项。使用指针、键盘或辅助技术激活时，`NavigationItems::on_select` 报告目标项，由调用方通过 `.selected(id)` 提交选中状态。
 
+### 侧边导航栏
+
+使用 `NavigationRail::new(id, items)` 和受控的 `NavigationItems`。收起时默认宽 96 个逻辑像素。`.mode(RailMode::Expanded)` 默认宽 240，`.expanded_width(width)` 接收 220–360 个逻辑像素。`RailMode::Hidden` 释放布局空间。宽度受窗口约束，逻辑起始侧和 Start 图标位置随 RTL 镜像。
+
+用初始 `RailMode` 创建并保留一个 `Entity<NavigationRailState>`，通过 `.state(&state)` 接入。可读取 `current_value()`、`target_value()`、`is_animating()` 和 `progress()`。用 `expand(cx)`、`collapse(cx)`、`toggle(cx)`、`hide(cx)` 或 `animate_to(mode, cx)` 设置目标。改变目标时从当前显示宽度接续。`snap_to(mode, cx)` 和减少动态效果模式立即到达目标。可在状态上用 `.transition_duration(...)` 配置默认的 240 毫秒过渡。
+
+用 `.header(element)`、`.fab(element)` 或 `.destination_content(|mode| ...)` 传入自定义内容。自定义导航区域负责名称、选中状态和键盘行为。标准集合可用 `.divider_after(destination_id, element)`、`NavigationItem::label_content` 和 `NavigationItem::badge` 添加内容和具名徽标描述。方向键在启用的导航项间移动焦点。`.icon_position(...)` 覆盖 Top 或 Start 图标位置。`.indicator_padding(collapsed, expanded)` 用逻辑 `NavigationRailPadding` 调整指示器内边距，保留导航项的交互目标。
+
+`.arrangement(NavigationRailArrangement)` 分配标准导航项的剩余纵向空间。用 `.destination_spacing(...)`、`.content_padding(...)`、`.header_spacing(...)` 和 `.expanded_header_top_padding(...)` 配置逻辑内边距和间距。`.shapes(NavigationRailShapes)` 覆盖收起、展开和模态形状。`.colors(NavigationRailColors)` 配置普通和模态容器及内容色，以及遮罩颜色和不透明度。
+
+用 `.modal(&dialog)` 接入保留的 `DialogState`，通过侧边面板会话叠加展开导航栏。关闭后回到停靠模式。`.modal_options(RailModalOptions)` 配置 Escape、点击外部关闭、层级、放置方式、悬浮边距以及收起时隐藏。`.on_dismiss_request(...)` 可拒绝用户关闭请求。`.on_modal_close(...)` 对已接受的用户关闭报告一次原因。模态区域限制焦点并阻止背景指针和滚动输入。关闭时若焦点仍由模态区域持有，则恢复入口焦点。
+
 ### 纵向拖动把手
 
 将 `VerticalDragHandle::new(id)` 放在两个窗格之间。用 `.sizes(DragHandleSizes)`、`.colors(DragHandleColors)` 和 `.shapes(DragHandleShapes)` 分别覆盖静止、按下和拖动状态的值。默认静止标记为 4 × 48 的胶囊，使用当前窗口主题的 Outline 角色。按下和拖动标记为 12 × 52，使用 On Surface 角色与 Medium 圆角。视觉尺寸以逻辑像素计。交互目标始终至少为 48 × 48，并能容纳所有状态中尺寸最大的标记。悬停和键盘焦点提供各自的反馈，且保留独立的交互状态。

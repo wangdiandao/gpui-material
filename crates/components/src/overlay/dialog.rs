@@ -19,10 +19,11 @@ use crate::{Button, ButtonVariant, IconButton};
 pub(super) fn exiting_panel<E: StatefulInteractiveElement + ParentElement>(
     panel: E,
     id: &ElementId,
-    focus: &FocusHandle,
+    state: &Entity<DialogState>,
     window: &mut Window,
     cx: &mut App,
 ) -> E {
+    let focus = state.read(cx).focus.clone();
     // The body can contain caller-owned controls. Keep their layout through
     // exit, but send focus back outside the panel and cover its hit targets.
     let guard = window.use_keyed_state((id.clone(), "exiting-focus"), cx, |_, _| {
@@ -38,7 +39,15 @@ pub(super) fn exiting_panel<E: StatefulInteractiveElement + ParentElement>(
         }
         if guard.is_none() {
             let previous = previous.clone();
-            *guard = Some(window.on_focus_in(focus, cx, move |window, cx| {
+            let state = state.downgrade();
+            *guard = Some(window.on_focus_in(&focus, cx, move |window, cx| {
+                // A new session can focus the container before the exit tree is redrawn.
+                if state
+                    .upgrade()
+                    .is_some_and(|state| state.read(cx).is_open())
+                {
+                    return;
+                }
                 if let Some(handle) = previous
                     .borrow()
                     .as_ref()
@@ -53,7 +62,7 @@ pub(super) fn exiting_panel<E: StatefulInteractiveElement + ParentElement>(
     });
     panel
         .role(Role::Group)
-        .track_focus(focus)
+        .track_focus(&focus)
         .capture_key_down(|_, _, cx| cx.stop_propagation())
         .a11y_synthetic_children(|tree| tree.parent_node().set_hidden())
         .child(div().absolute().inset_0().occlude())
@@ -909,7 +918,7 @@ impl RenderOnce for Dialog {
                         .items_center()
                         .justify_center()
                         .child(backdrop)
-                        .child(exiting_panel(panel, &self.id, &focus, window, cx)),
+                        .child(exiting_panel(panel, &self.id, &self.state, window, cx)),
                 ),
             )
             .with_priority(10 + self.layer)

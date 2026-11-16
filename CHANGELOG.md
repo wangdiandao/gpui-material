@@ -9,6 +9,7 @@ See [versioning and releases](docs/release.md) for the release process.
 - Compose date pickers with customizable anchors, panels, dialog actions and state colors. Control the displayed month, partial range, display mode, and year availability.
 - Compose Contained and Docked search with configurable editor slots, grouped virtual results, motion, appearance, and scroll behavior.
 - Compose tabs with leading icons, custom content and badges, configurable indicators and dividers, and external scroll handles.
+- Control Navigation Rail transitions and configure destination content, indicator padding, rail layout, and modal appearance and dismissal.
 - Customize docked and detached side sheets with independent header and footer slots, typed dismissal, and per-instance appearance.
 - Compose docked and floating toolbars with editable content, independently expandable slots, instance appearance, and retained scroll and settling behavior.
 - Add Pull to Refresh for scrollable content with a controlled refresh request, gesture thresholds, and a replaceable Material loading indicator.

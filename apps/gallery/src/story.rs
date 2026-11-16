@@ -14,6 +14,7 @@ use crate::{
     carousel_examples::CarouselExamples,
     date_time_examples::DateTimeExamples,
     display_examples::DisplayExamples,
+    drag_handle_examples::DragHandleExamples,
     group_examples::GroupExamples,
     navigation_examples::NavigationExamples,
     overlay_examples::{MenuTooltipExamples, ModalExamples, SnackbarExamples},
@@ -69,6 +70,7 @@ pub enum Story {
     ToggleButton,
     Toolbars,
     Tooltip,
+    VerticalDragHandle,
 }
 
 impl Story {
@@ -114,6 +116,7 @@ impl Story {
         Self::ToggleButton,
         Self::Toolbars,
         Self::Tooltip,
+        Self::VerticalDragHandle,
     ];
 
     /// Returns the stable identifier used for routes and command-line arguments.
@@ -159,6 +162,7 @@ impl Story {
             Self::ToggleButton => "toggle-button",
             Self::Toolbars => "toolbars",
             Self::Tooltip => "tooltip",
+            Self::VerticalDragHandle => "vertical-drag-handle",
         }
     }
 
@@ -205,6 +209,7 @@ impl Story {
             Self::ToggleButton => "Toggle button",
             Self::Toolbars => "Toolbars",
             Self::Tooltip => "Tooltip",
+            Self::VerticalDragHandle => "Vertical drag handle",
         }
     }
 
@@ -271,6 +276,7 @@ impl Story {
             Self::ToggleButton => "Keep the on or off state of an action visible.",
             Self::Toolbars => "Group editing commands in floating and docked toolbars.",
             Self::Tooltip => "Provide contextual help for a control on hover or focus.",
+            Self::VerticalDragHandle => "Resize two panes with a pointer or the keyboard.",
         }
     }
 
@@ -311,6 +317,7 @@ impl Story {
                 cx.new(|cx| SelectionExamples::for_story(self, cx)).into()
             }
             Self::Slider => cx.new(SliderExamples::new).into(),
+            Self::VerticalDragHandle => cx.new(DragHandleExamples::new).into(),
             Self::Search => cx.new(|cx| SearchExamples::new(window, cx)).into(),
             Self::AppBar | Self::NavigationBar | Self::NavigationRail | Self::Tabs => {
                 cx.new(|cx| NavigationExamples::new(self, cx)).into()

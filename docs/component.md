@@ -123,6 +123,15 @@ By default the scrim is decorative. It dims the content while leaving pointer in
 | `AdaptiveNavigation` | Switches between the navigation bar and rail by available width. | [Breakpoints](https://m3.material.io/foundations/layout/breakpoints/overview) |
 | `Scaffold` | Combines navigation, app bars, content, a FAB, and snackbars. | [Scaffold](https://m3.material.io/foundations/layout/scaffold/overview) |
 | `ListDetail`, `SupportingPane`, `Feed` | Canonical layouts for list and detail views, supporting content, and responsive feeds. | [Canonical layouts](https://m3.material.io/foundations/layout/canonical-examples/overview) |
+| `VerticalDragHandle` | A vertical handle for horizontal pane resizing with separate resting, pressed, and dragged appearances. | [Parts of layout](https://m3.material.io/foundations/layout/understanding-layout/parts-of-layout#314a4c32-be52-414c-8da7-31f059f1776d) · [Compose VerticalDragHandle](https://developer.android.com/reference/kotlin/androidx/compose/material3/VerticalDragHandle.composable) |
+
+### Vertical drag handle
+
+Place `VerticalDragHandle::new(id)` on the boundary between two panes. Use `.sizes(DragHandleSizes)`, `.colors(DragHandleColors)`, and `.shapes(DragHandleShapes)` to override individual resting, pressed, and dragged values. The window theme supplies the Outline role for the 4 × 48 resting capsule and On Surface for the 12 × 52 pressed and dragged marks with Medium corners. Visual dimensions use logical pixels. The input target stays at least 48 × 48 and accommodates the largest configured mark in every state. Hover and keyboard focus add feedback while keeping their own interaction states.
+
+Use `.on_resize(label, width, min..=max, callback)` to give the boundary a name, the current logical start pane width, bounds, and a handler for requested widths. The caller applies or rejects each request and determines the layout. Arrow keys move the focused splitter left or right, Home and End request the minimum and maximum widths, and `.keyboard_step(px(...))` changes the default 8-pixel step. Accessibility exposes the vertical divider as a named, writable range control with the role description “splitter,” because the current bridge treats its native Splitter role as read-only. The numeric value is the start pane width. The window theme maps physical mouse and touch motion to logical widths in both LTR and RTL. Escape, focus loss, and pointer cancellation end the drag. The caller keeps the last accepted width.
+
+Pass `.interaction_source(&source)` to observe hover, press, drag, and visible keyboard focus with a shared `Entity<InteractionSource>`. Use distinct IDs when observing multiple handles. Run `cargo gallery vertical-drag-handle` to try the split-pane example.
 
 <a id="可选组件"></a>
 

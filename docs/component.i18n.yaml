@@ -33,8 +33,11 @@
   en: "10e576b11f1c2adf"
   zh: "8b514df686bbc572"
 /components/navigation-and-adaptive-layout:
-  en: "3a58972da8ae8b54"
-  zh: "3a53869c0dec4d43"
+  en: "44c360cf0e78c23f"
+  zh: "901217bd86d50036"
+/components/navigation-and-adaptive-layout/vertical-drag-handle:
+  en: "c9ff7448ab446636"
+  zh: "7bd2f097e386fe5d"
 /components/optional-components:
   en: "afa0f713a9507dcd"
   zh: "90708c1861bba663"

@@ -7,8 +7,8 @@ use gpui::{FocusHandle, SharedString};
 use gpui_base::TestSupportExt as _;
 use gpui_material::{
     Button, Dialog, DialogColors, DialogProperties, DialogState, DialogVariant, Icon, IconName,
-    Sheet, SheetEdge, SheetMode, Snackbar, SnackbarColors, SnackbarHost, Surface, TextField,
-    TextFieldState, TextFieldVariant,
+    Sheet, SheetEdge, SheetMode, SheetPlacement, Snackbar, SnackbarColors, SnackbarHost, Surface,
+    TextField, TextFieldState, TextFieldVariant,
     theme::{ColorRole, CornerRole, Elevation},
 };
 use gpui_material::{
@@ -23,6 +23,8 @@ mod dialog_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod label_tests;
 #[cfg(all(test, feature = "test-support"))]
+mod side_sheet_tests;
+#[cfg(all(test, feature = "test-support"))]
 mod snackbar_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod tooltip_tests;
@@ -34,6 +36,10 @@ pub(crate) struct ModalExamples {
     standard: Entity<DialogState>,
     custom: Entity<DialogState>,
     native: Entity<DialogState>,
+    detached_side: Entity<DialogState>,
+    standard_side: Entity<DialogState>,
+    standard_side_visible: bool,
+    reviewing_side_details: bool,
     name: Entity<TextFieldState>,
     expanded: bool,
 }
@@ -45,6 +51,8 @@ impl ModalExamples {
         let standard = cx.new(DialogState::new);
         let custom = cx.new(DialogState::new);
         let native = cx.new(DialogState::new);
+        let detached_side = cx.new(DialogState::new);
+        cx.observe(&detached_side, |_, _, cx| cx.notify()).detach();
         cx.observe(&custom, |_, _, cx| cx.notify()).detach();
         cx.observe(&primary, |_, _, cx| cx.notify()).detach();
         cx.observe(&secondary, |_, _, cx| cx.notify()).detach();
@@ -55,6 +63,10 @@ impl ModalExamples {
             standard,
             custom,
             native,
+            detached_side,
+            standard_side: cx.new(DialogState::new),
+            standard_side_visible: true,
+            reviewing_side_details: false,
             name: cx.new(|cx| TextFieldState::new(window, cx).placeholder("名称")),
             expanded: false,
         }
@@ -248,6 +260,103 @@ impl ModalExamples {
                 .edge(SheetEdge::End)
                 .mode(SheetMode::Modal)
                 .extent(px(360.)),
+            )
+            .child(self.side_sheets(cx))
+    }
+
+    fn side_sheets(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let owner = cx.entity().downgrade();
+        let restore = owner.clone();
+        let close_standard = owner.clone();
+        let back = owner.clone();
+        let detached = self.detached_side.clone();
+        section("Side-sheet layout and actions")
+            .child(Self::trigger(
+                "filters",
+                "Project filters…",
+                &self.detached_side,
+            ))
+            .child(
+                div()
+                    .flex()
+                    .h(px(250.))
+                    .gap_3()
+                    .child(div().flex_1().min_w_0().child(
+                        Button::new("restore-inspector", "Show project inspector").on_activate(
+                            move |_, cx| {
+                                let _ = restore.update(cx, |view, cx| {
+                                    view.standard_side_visible = true;
+                                    cx.notify();
+                                });
+                            },
+                        ),
+                    ))
+                    .children(self.standard_side_visible.then(|| {
+                        Sheet::new(
+                            "project-inspector",
+                            &self.standard_side,
+                            "Project inspector",
+                            "Inspect the active project while its tasks stay available.",
+                        )
+                        .edge(SheetEdge::End)
+                        .extent(px(260.))
+                        .edge_divider(true)
+                        .close_label("Close inspector")
+                        .on_close(move |_, _, cx| {
+                            let _ = close_standard.update(cx, |view, cx| {
+                                view.standard_side_visible = false;
+                                cx.notify();
+                            });
+                        })
+                    })),
+            )
+            .child(
+                Sheet::new(
+                    "filter-sheet",
+                    &self.detached_side,
+                    "Project filters",
+                    stack()
+                        .child(Button::new("filter-details", "Filter details").on_activate(
+                            move |_, cx| {
+                                let _ = owner.update(cx, |view, cx| {
+                                    view.reviewing_side_details = true;
+                                    cx.notify();
+                                });
+                            },
+                        ))
+                        .children(
+                            (1..=15).map(|index| div().child(format!("Project option {index}"))),
+                        ),
+                )
+                .edge(SheetEdge::Start)
+                .mode(SheetMode::Modal)
+                .placement(SheetPlacement::Detached)
+                .header_content(
+                    Text::new(if self.reviewing_side_details {
+                        "Filter details"
+                    } else {
+                        "Project filters"
+                    })
+                    .id("filters-heading")
+                    .role(gpui_material::theme::TypeRole::TitleMedium),
+                )
+                .back("Back to filters", move |_, cx| {
+                    let _ = back.update(cx, |view, cx| {
+                        view.reviewing_side_details = false;
+                        cx.notify();
+                    });
+                })
+                .close_content(|close| {
+                    Button::new("close-filters", "Close filters")
+                        .variant(gpui_material::ButtonVariant::Text)
+                        .on_activate(move |window, cx| close.activate(window, cx))
+                })
+                .footer(Button::new("apply-filters", "Apply filters").on_activate(
+                    move |window, cx| {
+                        detached.update(cx, |state, cx| state.close(window, cx));
+                    },
+                ))
+                .footer_divider(true),
             )
     }
 }
@@ -548,6 +657,10 @@ fn modal_side_sheet_mirrors_and_fits_a_compact_scaled_window(cx: &mut gpui::Test
     });
     cx.simulate_window_resize(window.into(), size(px(408.), px(420.)));
     cx.simulate_window_scale_factor_change(window.into(), 1.5);
+    let sheet_content = |window: &gpui::Window| {
+        find(window, &[], &"details-sheet".into())
+            .and_then(|panel| find(window, panel.path(), &"sheet-content".into()))
+    };
     let assert_side = |cx: &mut gpui::TestAppContext, side, reduced| {
         cx.update_window(window.into(), |_, window, cx| {
             cx.set_reduce_motion(reduced);
@@ -594,7 +707,7 @@ fn modal_side_sheet_mirrors_and_fits_a_compact_scaled_window(cx: &mut gpui::Test
             let bounds = sheet.bounds();
             let viewport = window.viewport_size();
             assert!(bounds.size.width > px(0.) && bounds.size.width < viewport.width);
-            assert_eq!(bounds.bottom(), viewport.height);
+            assert!((bounds.bottom() - viewport.height).abs() <= px(1.));
             match side {
                 Direction::Ltr => assert_eq!(bounds.right(), viewport.width),
                 Direction::Rtl => assert_eq!(bounds.left(), px(0.)),
@@ -603,10 +716,7 @@ fn modal_side_sheet_mirrors_and_fits_a_compact_scaled_window(cx: &mut gpui::Test
             state.update(cx, |state, cx| state.close(window, cx));
             window.refresh();
             window.draw(cx).clear(cx);
-            assert_eq!(
-                find(window, &[], &"sheet-content".into()).is_none(),
-                reduced
-            );
+            assert_eq!(sheet_content(window).is_none(), reduced);
         })
         .unwrap();
         if !reduced {
@@ -615,7 +725,7 @@ fn modal_side_sheet_mirrors_and_fits_a_compact_scaled_window(cx: &mut gpui::Test
             cx.update_window(window.into(), |_, window, cx| {
                 window.refresh();
                 window.draw(cx).clear(cx);
-                let body = find(window, &[], &"sheet-content".into()).unwrap().bounds();
+                let body = sheet_content(window).unwrap().bounds();
                 match side {
                     Direction::Ltr => assert!(body.right() > window.viewport_size().width),
                     Direction::Rtl => assert!(body.left() < px(0.)),

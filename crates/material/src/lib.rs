@@ -20,7 +20,8 @@ pub use gpui_material_extras::{
 };
 #[cfg(feature = "toolbars")]
 pub use gpui_material_extras::{
-    FabMenu, FabMenuItem, Toolbar, ToolbarAction, ToolbarColor, ToolbarFabPosition,
+    FabMenu, FabMenuAlignment, FabMenuItem, FabMenuItemColors, FabMenuTriggerAppearance,
+    FabMenuTriggerStyle, Toolbar, ToolbarAction, ToolbarColor, ToolbarFabPosition,
     ToolbarOrientation, ToolbarPlacement,
 };
 #[cfg(feature = "search")]

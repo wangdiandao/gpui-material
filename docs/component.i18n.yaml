@@ -99,14 +99,17 @@
   en: "f749e65450d351e3"
   zh: "fdbeaa7d7dfdc868"
 /components/optional-components:
-  en: "f5ce066904fbe3ce"
-  zh: "90c846193be2f9a7"
+  en: "124d0a3b0acc640b"
+  zh: "5d28ade9f980f6a9"
 /components/optional-components/button-groups:
   en: "6cdd2b7bf5b2a013"
   zh: "95837a482620b6cb"
 /components/optional-components/split-buttons:
   en: "925c4848924530f5"
   zh: "e9bac206204f6f05"
+/components/optional-components/fab-menus:
+  en: "a5d840d969ad243a"
+  zh: "8e22b7c51755c7fa"
 /components/optional-components/scroll-fields:
   en: "5881f1d730e7138a"
   zh: "a30907506d331a76"

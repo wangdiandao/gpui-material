@@ -93,6 +93,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `List`、`ListItem` | Standard 和 Segmented 列表，支持前置、辅助及尾部内容。 | [列表](https://m3.material.io/components/lists/overview) |
 | `SwipeToDismiss` | 横向滑动关闭，内容、背景及操作由调用方提供。 | [列表](https://m3.material.io/components/lists/guidelines) · [Compose SwipeToDismissBox](https://developer.android.com/reference/kotlin/androidx/compose/material3/SwipeToDismissBox.composable) |
 | `Divider`、`Badge` | 横向与纵向分隔线支持逻辑内缩、粗细和单独配色。徽标支持独立或附着显示，可使用圆点、文本、计数、自定义内容和单独配色。 | [分隔线](https://m3.material.io/components/divider/overview) · [徽标](https://m3.material.io/components/badges/overview) |
+| `DisplayScrollbar` | 根据视口状态绘制任一方向的滚动位置，支持自定义尺寸、配色和淡出。 | [Compose 显示型滚动条](https://developer.android.com/reference/kotlin/androidx/compose/material3/nonInteractiveScrollbar.composable) |
 | `LinearProgress`、`CircularProgress` | 确定和不确定进度，支持可配置的直线和波浪样式。 | [进度指示器](https://m3.material.io/components/progress-indicators/overview) |
 | `LoadingIndicator` | Default 和 Contained 样式，支持确定与不确定进度、自定义形状序列和实例配色。 | [加载指示器](https://m3.material.io/components/loading-indicator/overview) |
 | `Snackbar`、`SnackbarHost` | 定时或持续显示的排队消息，支持自定义内容和布局、可选操作与关闭，以及完成结果。 | [消息条](https://m3.material.io/components/snackbar/specs) |
@@ -154,6 +155,14 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 需要 `SnackbarId` 时用 `enqueue`。`current()` 返回当前项的标识和消息，`dismiss()` 关闭当前项。`dismiss_message(id, window, cx)` 和 `perform_action(id, window, cx)` 只对当前项生效，且 `perform_action` 要求存在操作。通过 `.on_result(|result, window, cx| ...)` 观察 `SnackbarResult::ActionPerformed` 或 `SnackbarResult::Dismissed`。超时、显式关闭和程序关闭均报告 `Dismissed`，并在提供 `.on_dismiss(...)` 时调用它。每条消息只交付一次结果。队列先推进，再执行回调，因此回调可以继续操作同一个宿主的队列。释放宿主会取消计时并丢弃剩余消息。
 
 使用 `SnackbarHost::renderer(|message, parts, window, cx| ...)` 可在自定义容器中布局 `SnackbarParts`。放置 `parts.message` 可保留实时状态，放置 `parts.action` 和 `parts.dismiss` 可保留具名控件。计时、完成、动效和退场内容仍由宿主管理。退场期间，插槽以静态内容显示。渲染器可读取 `scale` 让自定义尺寸随动效缩放。
+
+### 显示型滚动条
+
+将已绑定视口的 `ScrollHandle`、`UniformListScrollHandle` 或 `ListState` 传给 `DisplayScrollbar::new(id, axis, &handle)`。这些类型均实现 Base 的 `ScrollbarHandle`。将滚动条放在视口之后，作为同一相对定位父元素的叠加子元素。滚动状态、焦点和输入由视口管理，指示器只负责绘制。横向进度从逻辑起始侧移动到尾侧，纵向轨道位于逻辑尾侧，两者随窗口的 RTL 方向镜像。
+
+通过 `.style(DisplayScrollbarStyle)` 设置 `thumb_color`、`track_color`、`thickness`、`thumb_min_length`、`thumb_max_length_fraction`、`main_axis_track_inset` 和 `cross_axis_track_inset`。滑块默认使用不透明度为 70% 的窗口 Outline，轨道默认透明。默认厚度为 4 个逻辑像素，滑块最短为 24 个逻辑像素，最长为扣除内缩后的轨道长度的 90%。主轴两端各内缩 2 个逻辑像素，交叉轴默认无内缩。内容可完全显示或轨道无法容纳最短滑块时隐藏。通过 `.offset(point(dx, dy))` 按物理方向和逻辑像素移动绘制位置，视口仍负责裁剪。
+
+`.fade(DisplayScrollbarFade { enabled, delay, duration })` 控制滚动位置变化后的显示。默认启用淡出，静止后等待 400 毫秒，再用 250 毫秒淡出。设置 `enabled: false` 可在内容溢出时持续显示。减少动态效果模式保留等待时间，等待结束后立即隐藏。视口在偏移或范围变化时发起常规重绘。指示器在等待结束时唤醒一次，并在淡出期间请求帧。
 
 <a id="input-and-overlays"></a>
 

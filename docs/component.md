@@ -128,12 +128,20 @@ By default the scrim is decorative. It dims the content while leaving pointer in
 
 ## Optional components
 
-Enable features on the `gpui-material` dependency. Import `DatePicker` and `TimePicker` from `gpui_material::date_time`.
+Enable features on the `gpui-material` dependency. Import date pickers, time pickers and scroll fields from `gpui_material::date_time`.
 
 | Feature | Component | Supported variants and behavior | Material 3 |
 | --- | --- | --- | --- |
 | `expressive-groups` | `ButtonGroup`, `SplitButton` | Standard and Connected button groups, and a split button with separate primary and secondary actions. | [Button groups](https://m3.material.io/components/button-groups/overview) · [Split button](https://m3.material.io/components/split-button/overview) |
 | `toolbars` | `FabMenu`, `Toolbar` | Expandable FAB menus and floating or docked toolbars with horizontal and vertical layouts. | [FAB menu](https://m3.material.io/components/fab-menu/overview) · [Toolbars](https://m3.material.io/components/toolbars/overview) |
 | `search` | `SearchBar`, `SearchView` | Collapsed search bars and docked or full-screen search views. | [Search](https://m3.material.io/components/search/overview) |
-| `date-time` | `DatePicker`, `TimePicker` | Single dates and date ranges in Docked, Modal, or Modal Input pickers. Dial and Input time pickers with 12- and 24-hour formats. | [Date pickers](https://m3.material.io/components/date-pickers/overview) · [Time pickers](https://m3.material.io/components/time-pickers/overview) |
+| `date-time` | `DatePicker`, `TimePicker`, `ScrollField` | Single dates and date ranges in Docked, Modal, or Modal Input pickers. Dial and Input time pickers with 12- and 24-hour formats. Standalone scrolling selection. | [Date pickers](https://m3.material.io/components/date-pickers/overview) · [Time pickers](https://m3.material.io/components/time-pickers/overview) |
+
+### Scroll fields
+
+Create one `Entity<ScrollFieldState>` per field with `cx.new(|cx| ScrollFieldState::new(item_count, index, cx))` and pass it to `ScrollField::new(id, name, &state)`. Call `selected_option()` to read the option closest to the center, `target_option()` for the destination, and `is_scroll_in_progress()` while scrolling or settling. Observe the entity to update other views. `scroll_to_option(index, cx)` moves immediately and `animate_scroll_to_option(index, cx)` follows the window's motion scheme and system reduced motion. Both clamp an out-of-range index. `set_item_count(count, cx)` adjusts the available options and clamps the destination. A count of zero leaves the field empty with no selected or target option.
+
+The field centers the current option within a three-row viewport. Click a row or use the wheel, touchpad, Up and Down keys, or accessibility actions to change the selection. The wheel wraps from the last item to the first and back. Pass `.item_content(|index, selected, enabled| ...)` to render a decorative GPUI element for a row. The default content pads the index to at least two digits. The constructor's name labels the field, and `.value_description(|index| ...)` describes the destination for assistive technology while the field scrolls and the centered option at rest. Give the field a name that describes its purpose and bounds where useful.
+
+Use `.colors(ScrollFieldColors)` to override the container, option, and selected option colors for enabled and disabled states. The default palette uses `SurfaceContainerLowest`, `Outline`, and `OnSurface`. `.disabled(true)` settles an active user scroll and prevents further user changes. The caller can still position the field through its state. Attach a caller-owned `InteractionSource` with `.interaction_source(&source)` to observe the field's interaction presentation independently of its selection.
 | `carousel` | `Carousel` | Multi-browse, Uncontained, Uncontained Multi-aspect Ratio, Hero, Centered Hero, and Full-screen. | [Carousel](https://m3.material.io/components/carousel/overview) |

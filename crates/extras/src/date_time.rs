@@ -2,6 +2,7 @@
 //! values from the application. Picker states retain the draft and focus.
 
 mod date;
+mod scroll_field;
 mod time;
 
 use gpui::{
@@ -15,6 +16,7 @@ use std::rc::Rc;
 
 pub use chrono::{NaiveDate, NaiveTime, Weekday};
 pub use date::{DatePicker, DatePickerLocale, DatePickerState, DatePickerVariant, DateSelection};
+pub use scroll_field::{ScrollField, ScrollFieldColors, ScrollFieldState};
 pub use time::{
     TimeFormat, TimePicker, TimePickerLayout, TimePickerLocale, TimePickerState, TimePickerVariant,
 };

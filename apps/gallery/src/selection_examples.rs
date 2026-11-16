@@ -6,7 +6,7 @@ use gpui_material::foundation::window_material_theme;
 use gpui_material::theme::Direction;
 use gpui_material::{
     Checkbox, CheckboxColors, CheckboxState, CheckboxStateColors, Chip, ChipVariant, Icon,
-    IconName, InteractionSource, Radio, RadioGroup, Switch, Text,
+    IconName, InteractionSource, Radio, RadioGroup, Switch, SwitchColors, SwitchStateColors, Text,
 };
 
 use crate::story::{Story, section};
@@ -14,12 +14,32 @@ use crate::story::{Story, section};
 #[cfg(all(test, feature = "test-support"))]
 mod checkbox_tests;
 
+#[cfg(all(test, feature = "test-support"))]
+mod switch_tests;
+
+#[derive(IntoElement)]
+struct SwitchThumbMarker(bool);
+
+impl gpui::RenderOnce for SwitchThumbMarker {
+    fn render(self, window: &mut Window, _: &mut gpui::App) -> impl IntoElement {
+        let ink = window.text_style().color;
+        div()
+            .size(px(10.))
+            .rounded_full()
+            .border_1()
+            .border_color(ink)
+            .when(self.0, |marker| marker.bg(ink))
+    }
+}
+
 pub(crate) struct SelectionExamples {
     story: Option<Story>,
     colors: [CheckboxState; 2],
     alignment: ElementId,
     notifications: bool,
     plain_switch: bool,
+    custom_switch: bool,
+    switch_interactions: Entity<InteractionSource>,
     filter: bool,
     filter_removed: bool,
     chip_selected: bool,
@@ -37,6 +57,8 @@ impl SelectionExamples {
             alignment: "start".into(),
             notifications: false,
             plain_switch: false,
+            custom_switch: false,
+            switch_interactions: cx.new(|_| InteractionSource::new()),
             filter: false,
             filter_removed: false,
             chip_selected: false,
@@ -269,6 +291,52 @@ impl Render for SelectionExamples {
                             })
                     })
                     .child(Switch::new("disabled-switch", "Sync locked on", true).disabled(true))
+            }))
+            .children((self.story == Some(Story::Switch)).then(|| {
+                let owner = cx.entity();
+                let colors = SwitchColors {
+                    checked: SwitchStateColors {
+                        track: Some(rgb(0x236449).into()),
+                        thumb: Some(rgb(0xe9f6ed).into()),
+                        content: Some(rgb(0x24523d).into()),
+                        ..Default::default()
+                    },
+                    unchecked: SwitchStateColors {
+                        track: Some(rgb(0xece5f7).into()),
+                        border: Some(rgb(0x665084).into()),
+                        thumb: Some(rgb(0x665084).into()),
+                        content: Some(rgb(0xffffff).into()),
+                    },
+                    ..Default::default()
+                };
+                section("Custom thumb and colors")
+                    .child(
+                        Switch::new(
+                            "custom-switch",
+                            "Save drafts automatically",
+                            self.custom_switch,
+                        )
+                        .colors(colors)
+                        .thumb_content(SwitchThumbMarker(self.custom_switch))
+                        .interaction_source(&self.switch_interactions)
+                        .on_change(move |next, _, cx| {
+                            owner.update(cx, |selection, cx| {
+                                selection.custom_switch = next;
+                                cx.notify();
+                            })
+                        }),
+                    )
+                    .child(
+                        Switch::new(
+                            "locked-custom-switch",
+                            "Managed by your organization",
+                            false,
+                        )
+                        .disabled(true)
+                        .colors(colors)
+                        .thumb_content(SwitchThumbMarker(false))
+                        .interaction_source(&self.switch_interactions),
+                    )
             }))
             .children(self.shows(Story::Chip).then(|| {
                 section("Assist, filter, input and suggestion")

@@ -777,7 +777,104 @@ impl RenderOnce for RadioGroup {
     }
 }
 
-/// Material switch. The caller owns the checked state and optional thumb icons.
+/// Optional pigments for one switch state. Omitted fields use the window theme.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct SwitchStateColors {
+    pub track: Option<Hsla>,
+    pub border: Option<Hsla>,
+    pub thumb: Option<Hsla>,
+    pub content: Option<Hsla>,
+}
+
+/// Per-instance colors for enabled and disabled switches in either checked state.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct SwitchColors {
+    pub unchecked: SwitchStateColors,
+    pub checked: SwitchStateColors,
+    pub disabled_unchecked: SwitchStateColors,
+    pub disabled_checked: SwitchStateColors,
+}
+
+struct SwitchPalette {
+    track: Hsla,
+    border: Hsla,
+    thumb: Hsla,
+    content: Hsla,
+}
+
+impl SwitchStateColors {
+    fn resolve(self, defaults: SwitchPalette) -> SwitchPalette {
+        SwitchPalette {
+            track: self.track.unwrap_or(defaults.track),
+            border: self.border.unwrap_or(defaults.border),
+            thumb: self.thumb.unwrap_or(defaults.thumb),
+            content: self.content.unwrap_or(defaults.content),
+        }
+    }
+}
+
+impl SwitchColors {
+    fn resolve(
+        self,
+        checked: bool,
+        disabled: bool,
+        tint: f32,
+        window: &Window,
+        cx: &App,
+    ) -> SwitchPalette {
+        use ColorRole::*;
+        let color = |role| tone(role, window, cx);
+        if disabled {
+            // Compose precomposites disabled pigments over the surface color.
+            let muted = |role, opacity| color(Surface).blend(color(role).opacity(opacity));
+            return if checked {
+                self.disabled_checked.resolve(SwitchPalette {
+                    track: muted(OnSurface, 0.12),
+                    border: gpui::transparent_black(),
+                    thumb: color(Surface),
+                    content: muted(OnSurface, 0.38),
+                })
+            } else {
+                self.disabled_unchecked.resolve(SwitchPalette {
+                    track: muted(SurfaceContainerHighest, 0.12),
+                    border: muted(OnSurface, 0.12),
+                    thumb: muted(OnSurface, 0.38),
+                    content: muted(SurfaceContainerHighest, 0.38),
+                })
+            };
+        }
+
+        let unchecked = self.unchecked.resolve(SwitchPalette {
+            track: color(SurfaceContainerHighest),
+            border: color(Outline),
+            thumb: color(Outline),
+            content: color(SurfaceContainerHighest),
+        });
+        let on = self.checked.resolve(SwitchPalette {
+            track: color(Primary),
+            border: unchecked.border.opacity(0.),
+            thumb: color(OnPrimary),
+            content: color(OnPrimaryContainer),
+        });
+        let mix = |off, on| match tint {
+            0. => off,
+            1. => on,
+            _ => crate::motion::mix(off, on, tint),
+        };
+        SwitchPalette {
+            track: mix(unchecked.track, on.track),
+            border: mix(unchecked.border, on.border),
+            thumb: mix(unchecked.thumb, on.thumb),
+            content: if checked {
+                on.content
+            } else {
+                unchecked.content
+            },
+        }
+    }
+}
+
+/// Material switch. The caller owns the checked state and optional thumb content.
 #[derive(IntoElement)]
 pub struct Switch {
     id: ElementId,
@@ -786,6 +883,9 @@ pub struct Switch {
     disabled: bool,
     checked_icon: Option<AnyElement>,
     unchecked_icon: Option<AnyElement>,
+    thumb_content: Option<AnyElement>,
+    colors: SwitchColors,
+    interaction_source: Option<Entity<InteractionSource>>,
     on_change: Option<Change>,
 }
 
@@ -798,6 +898,9 @@ impl Switch {
             disabled: false,
             checked_icon: None,
             unchecked_icon: None,
+            thumb_content: None,
+            colors: SwitchColors::default(),
+            interaction_source: None,
             on_change: None,
         }
     }
@@ -814,6 +917,24 @@ impl Switch {
 
     pub fn unchecked_icon(mut self, icon: impl IntoElement) -> Self {
         self.unchecked_icon = Some(icon.into_any_element());
+        self
+    }
+
+    /// Supplies decorative content in the centered 16 px thumb slot. The
+    /// element takes precedence over the icon preset for this render.
+    pub fn thumb_content(mut self, content: impl IntoElement) -> Self {
+        self.thumb_content = Some(content.into_any_element());
+        self
+    }
+
+    pub fn colors(mut self, colors: SwitchColors) -> Self {
+        self.colors = colors;
+        self
+    }
+
+    /// Reports presentation state to a caller-owned source.
+    pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
+        self.interaction_source = Some(source.clone());
         self
     }
 
@@ -845,75 +966,53 @@ impl RenderOnce for Switch {
             cx,
         )
         .clamp(0., 1.);
-        let outline = tone(Outline, window, cx);
-        // Compose precomposites disabled switch pigments over surface. Keeping
-        // these translucent lets the track bleed through the handle and icon.
-        let disabled_tone = |role, opacity| {
-            tone(Surface, window, cx).blend(tone(role, window, cx).opacity(opacity))
-        };
-        let (track, thumb, outline) = if self.disabled {
-            (
-                disabled_tone(
-                    if self.checked {
-                        OnSurface
-                    } else {
-                        SurfaceContainerHighest
-                    },
-                    0.12,
-                ),
-                if self.checked {
-                    tone(Surface, window, cx)
-                } else {
-                    disabled_tone(OnSurface, 0.38)
-                },
-                if self.checked {
-                    gpui::transparent_black()
-                } else {
-                    disabled_tone(OnSurface, 0.12)
-                },
-            )
-        } else {
-            (
-                crate::motion::mix(
-                    tone(SurfaceContainerHighest, window, cx),
-                    tone(Primary, window, cx),
-                    tint,
-                ),
-                crate::motion::mix(outline, tone(OnPrimary, window, cx), tint),
-                outline.opacity(1. - tint),
-            )
-        };
-        let icon_color = if self.disabled {
-            disabled_tone(
-                if self.checked {
-                    OnSurface
-                } else {
-                    SurfaceContainerHighest
-                },
-                0.38,
-            )
-        } else {
-            tone(
-                if self.checked {
-                    OnPrimaryContainer
-                } else {
-                    SurfaceContainerHighest
-                },
-                window,
-                cx,
-            )
-        };
+        let SwitchPalette {
+            track,
+            thumb,
+            border,
+            content,
+        } = self
+            .colors
+            .resolve(self.checked, self.disabled, tint, window, cx);
         let icon = if self.checked {
             self.checked_icon
         } else {
             self.unchecked_icon
         };
-        let normal_size = if self.checked || icon.is_some() {
+        let decoration = self
+            .thumb_content
+            .map(|content| {
+                div()
+                    .id("switch-thumb-content")
+                    .role(gpui::Role::Group)
+                    .a11y_synthetic_children(|tree| tree.parent_node().set_hidden())
+                    .size(px(16.))
+                    .overflow_hidden()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .child(content)
+                    .into_any_element()
+            })
+            .or(icon);
+        let normal_size = if self.checked || decoration.is_some() {
             24.
         } else {
             16.
         };
         let ripple = ripple_state(&self.id, !self.disabled, window, cx);
+        let focus = window
+            .use_keyed_state(self.id.clone(), cx, |_, cx| cx.focus_handle())
+            .read(cx)
+            .clone();
+        let tracker = self
+            .interaction_source
+            .as_ref()
+            .map(|source| InteractionSource::track(source, &self.id, window, cx));
+        let observes_input = tracker.is_some();
+        ripple
+            .borrow_mut()
+            .track(!self.disabled, &focus, tracker, window, cx);
         let active = ripple.borrow().pressed();
         let diameter = animate(
             (self.id.clone(), "thumb-diameter"),
@@ -957,7 +1056,7 @@ impl RenderOnce for Switch {
                     .size(px(diameter))
                     .rounded_full()
                     .bg(thumb)
-                    .text_color(icon_color)
+                    .text_color(content)
                     .text_size(px(16.))
                     .flex()
                     .items_center()
@@ -999,7 +1098,7 @@ impl RenderOnce for Switch {
                                 direction,
                             )),
                     )
-                    .children(icon),
+                    .children(decoration),
             );
         let track = div()
             .id((self.id.clone(), "switch-track"))
@@ -1009,23 +1108,31 @@ impl RenderOnce for Switch {
             .h(px(32.))
             .rounded_full()
             .bg(track)
-            .when(outline.a > 0., |track| {
+            .when(border.a > 0., |track| {
                 track.child(
                     div()
                         .absolute()
                         .inset_0()
                         .rounded_full()
                         .border_2()
-                        .border_color(outline),
+                        .border_color(border),
                 )
             })
             .child(handle);
         let control = BaseSwitch::new(self.id)
             .checked(self.checked)
             .disabled(self.disabled)
+            .track_focus(&focus)
             .group(group)
             .accessibility_label(self.label.clone())
-            .when(!self.disabled, |control| ripple_target(control, ripple))
+            .when(!self.disabled, |control| {
+                feedback_target(
+                    control,
+                    ripple,
+                    observes_input,
+                    observes_input.then_some(focus),
+                )
+            })
             .border_2()
             .border_color(gpui::transparent_black())
             .rounded_md()

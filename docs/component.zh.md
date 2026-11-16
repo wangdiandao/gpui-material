@@ -17,7 +17,7 @@
 | `Fab`、`ExtendedFab` | Small、Medium、Large 尺寸和多种颜色角色。`ExtendedFab` 支持文字标签和图标。 | [悬浮操作按钮](https://m3.material.io/components/floating-action-button/overview) · [扩展悬浮操作按钮](https://m3.material.io/components/extended-fab/overview) |
 | `Checkbox` | 未选中、选中、混合、错误和禁用状态，可配置实例颜色和描边并观察交互。 | [复选框](https://m3.material.io/components/checkbox/overview) |
 | `Radio`、`RadioGroup` | 互斥选择，支持组内键盘导航。 | [单选按钮](https://m3.material.io/components/radio-button/overview) |
-| `Switch` | 开启和关闭状态，可选滑块图标。 | [开关](https://m3.material.io/components/switch/overview) |
+| `Switch` | 开启和关闭状态，支持可选滑块图标或自定义内容、各状态配色和共享交互观察。 | [开关](https://m3.material.io/components/switch/overview) |
 | `Chip` | Assist、Filter、Input、Suggestion，适用的变体可选中或移除。 | [标签组件](https://m3.material.io/components/chips/overview) |
 | `Slider` | 单值、居中和范围滑块，支持横向或纵向布局，以及连续值或步进值。 | [滑块](https://m3.material.io/components/sliders/overview) |
 
@@ -42,6 +42,14 @@ FAB 开始隐藏时立即退出焦点导航并停止响应输入。淡出期间�
 通过 `.colors(CheckboxColors)` 为未选中、选中和混合状态分别提供 `CheckboxStateColors`，也可配置对应的错误和禁用状态。每种状态的 `checkmark`、`box_color` 和 `border` 可独立覆盖。省略的字段沿用窗口主题默认值。未选中状态的标记颜色用于标记收回的动效。
 
 `.checkmark_stroke(gpui::StrokeOptions)` 设置勾选和混合标记的等宽描边，包括宽度、端点和连接样式。用 `.outline_stroke(width)` 设置圆角方框轮廓的逻辑像素宽度。两者默认均为两个逻辑像素。零宽度移除对应描边，负数或非有限宽度恢复默认值，过大的宽度以指示图形尺寸为限。使用调用方持有的 `Entity<InteractionSource>` 和 `.interaction_source(&source)` 观察悬停、按下、键盘焦点和禁用状态。各控件使用不同的 ID 即可共享交互源，选中值仍由调用方持有。
+
+### 开关
+
+将应用的当前值传给 `Switch::new(id, label, checked)`，并通过 `.on_change(...)` 处理请求的新值。指针、键盘和无障碍激活都会发出相同的变更请求。`.disabled(true)` 阻止用户更改。构造器提供的标签同时用于显示和无障碍名称。
+
+用 `.checked_icon` 和 `.unchecked_icon` 提供可选图标，也可通过 `.thumb_content(element)` 传入装饰性 GPUI 元素。在本次渲染中，自定义元素优先。调用方可使用自己的选中值决定各状态渲染的内容。自定义内容位于居中的 16 px 插槽内，并继承该状态的内容颜色。请将标签和独立控件放在滑块之外。
+
+通过 `.colors(SwitchColors)` 设置选中、未选中、禁用且选中、禁用且未选中四种状态的 `SwitchStateColors` 配色。每种配色可分别覆盖 `track`、`border`、`thumb` 和 `content`。省略的字段沿用主题默认值。使用 `.interaction_source(&source)` 接入调用方持有的 `Entity<InteractionSource>`，观察悬停、焦点、按下和禁用变化，选中值仍由应用持有。
 
 <a id="content-and-feedback"></a>
 

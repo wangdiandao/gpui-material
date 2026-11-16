@@ -23,6 +23,7 @@ See [versioning and releases](docs/release.md) for the release process.
 - Add SwipeToDismiss for caller-owned content with horizontal gestures, logical direction, and accessible dismissal commands.
 - Add the vertical drag handle with per-state appearance, shared interactions, and caller-controlled pane resizing.
 - Show persistent rich tooltips with caller-owned visibility and customizable focus, content, placement, caret and appearance.
+- Customize switch thumb content and individual state colors, and observe switch interactions through a shared source.
 
 ### Gallery
 

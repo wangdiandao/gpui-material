@@ -9,11 +9,14 @@ use gpui_material::{
     Snackbar, SnackbarColors, SnackbarHost, TextField, TextFieldState, TextFieldVariant,
 };
 use gpui_material::{
-    Menu, MenuColor, MenuItem, Text, Tooltip, TooltipCaret, TooltipPlacement, TooltipState,
+    InteractionSource, Label, Menu, MenuColor, MenuItem, Switch, Text, Tooltip, TooltipCaret,
+    TooltipPlacement, TooltipState,
 };
 
 use crate::story::{Story, section, stack};
 
+#[cfg(all(test, feature = "test-support"))]
+mod label_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod snackbar_tests;
 #[cfg(all(test, feature = "test-support"))]
@@ -701,6 +704,8 @@ pub(crate) struct MenuTooltipExamples {
     persistent: Entity<TooltipState>,
     persistent_trigger: FocusHandle,
     persistent_action: FocusHandle,
+    label_source: Entity<InteractionSource>,
+    keep_label: bool,
     menu_open: bool,
     labels: bool,
     output: SharedString,
@@ -716,6 +721,8 @@ impl MenuTooltipExamples {
             persistent: cx.new(|_| TooltipState::new()),
             persistent_trigger: cx.focus_handle(),
             persistent_action: cx.focus_handle(),
+            label_source: cx.new(|_| InteractionSource::new()),
+            keep_label: true,
             menu_open: false,
             labels: false,
             output: "Sort by name".into(),
@@ -727,6 +734,7 @@ impl Render for MenuTooltipExamples {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let owner = cx.entity().downgrade();
         let tooltip_owner = owner.clone();
+        let persistent_label_owner = owner.clone();
         let update = move |value: &'static str| {
             let owner = owner.clone();
             move |_: &mut Window, cx: &mut gpui::App| {
@@ -945,6 +953,53 @@ impl Render for MenuTooltipExamples {
                             ),
                     )
                 })
+                .child(
+                    section("Control labels")
+                        .child(
+                            div().flex().child(
+                                Label::new(
+                                    "retained-label",
+                                    Text::new("UTC").id("label-reference-value"),
+                                    "Coordinated Universal Time",
+                                )
+                                .content(
+                                    Text::new("Coordinated Universal Time")
+                                        .id("utc-label-content")
+                                        .role(gpui_material::theme::TypeRole::BodySmall),
+                                )
+                                .persistent(self.keep_label)
+                                .placement(TooltipPlacement::End)
+                                .offset(px(10.))
+                                .caret(TooltipCaret::default()),
+                            ),
+                        )
+                        .child(
+                            div().flex().child(
+                                Label::new(
+                                    "measure-label",
+                                    Button::new("measure", "Measure")
+                                        .interaction_source(&self.label_source)
+                                        .on_activate(update("Measurement requested")),
+                                    "Measurement uses local time",
+                                )
+                                .interaction_source(&self.label_source, "measure")
+                                .content(
+                                    Text::new("Measurement uses local time")
+                                        .id("measurement-label-content")
+                                        .wrap(),
+                                ),
+                            ),
+                        )
+                        .child(
+                            Switch::new("keep-label", "Keep label visible", self.keep_label)
+                                .on_change(move |keep, _, cx| {
+                                    let _ = persistent_label_owner.update(cx, |view, cx| {
+                                        view.keep_label = keep;
+                                        cx.notify();
+                                    });
+                                }),
+                        ),
+                )
                 .into_any_element()
         }
     }

@@ -192,6 +192,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `ExposedDropdown` | 锚定到文本字段的下拉列表，支持可编辑筛选和仅选择模式。 | [菜单](https://m3.material.io/components/menus/overview) · [文本字段](https://m3.material.io/components/text-fields/overview) |
 | `Menu` | 锚定菜单和上下文菜单，支持分组、勾选项及子菜单。 | [菜单](https://m3.material.io/components/menus/overview) |
 | `Tooltip` | 临时普通提示、临时富内容提示和持久富内容提示。调用方可持有显示状态并自定义内容、定位及外观。 | [提示](https://m3.material.io/components/tooltips/overview) |
+| `Label` | 锚定控件的静态标签，支持共享交互状态和持续显示。 | [Compose Label](https://developer.android.com/reference/kotlin/androidx/compose/material3/Label.composable) |
 | `Scrim` | 独立遮罩，支持主题配色、自定义颜色、透明度和可选关闭操作。 | [遮罩](https://developer.android.com/reference/kotlin/androidx/compose/material3/Scrim.composable) |
 | `Dialog` | 基本对话框和全屏任务对话框。后者在紧凑布局中占用窗口内容区。 | [对话框](https://m3.material.io/components/dialogs/overview) |
 | `Sheet` | 标准和模态底部面板，以及在逻辑起始侧或末尾侧停靠或覆盖的侧面板。 | [底部面板](https://m3.material.io/components/bottom-sheets/overview) · [侧面板](https://m3.material.io/components/side-sheets/overview) |
@@ -227,6 +228,14 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 用 `.title_content`、`.body_content` 和 `.action_content` 提供 GPUI 元素。构造器的文本用作无障碍说明。`.link(label, callback)` 创建链接，由回调负责导航。`.placement(TooltipPlacement)` 选择物理方向或逻辑起始侧 `Start`、末尾侧 `End`，`.offset(pixels)` 设置间距。默认首选 `Above`、间隔 4 px，空间不足时会翻转。`.positioner(...)` 可以根据测得的触发控件边界、视口和文字方向返回 `TooltipPositioner`。
 
 使用 `.caret(TooltipCaret::default())` 显示 Material 默认的 16 × 8 px 指示尖角，也可以自定义尺寸和路径。默认不显示尖角。通过 `.max_width`、`.shape`、`.colors`、`.tonal_elevation` 和 `.shadow_elevation` 配置表面。普通提示和富内容提示默认最大宽度分别为 200 px 和 320 px，并受窗口可用空间限制。未指定的颜色和形状采用窗口的 Material 配色与圆角角色。默认色调层级为零，阴影层级为普通提示 Level 0、富内容提示 Level 2。
+
+### 标签
+
+使用 `Label::new(id, anchor, description)` 为控件或其他 GPUI 元素附加浮层标签。`description` 提供无障碍文本，`.content(element)` 可为标签表面提供自定义装饰内容。锚点保留自身角色、焦点和激活行为，标签表面下方的控件仍可接收指针输入。
+
+通过 `.interaction_source(&source, control_id)` 指定控件使用的交互源和对应的 ID。非持续标签在控件悬停、按下、拖动或获得键盘可见焦点时显示。控件禁用或移除时，交互触发的标签会隐藏。未指定交互源时标签保持隐藏。传入 `.persistent(true)` 可在锚点可见时持续显示标签，后续渲染更改该值即可恢复由交互驱动的显示行为。Escape 和外部输入仍由周围控件处理。
+
+标签使用普通 Tooltip 的表面和定位方式，默认优先在锚点上方，间隔 4 px，并根据窗口可用空间调整。通过 `.placement(TooltipPlacement)`、`.offset(pixels)`、`.max_width(pixels)` 或 `.caret(TooltipCaret)` 配置定位和表面。可选的指示尖角会跟随最终位置。
 
 ### 遮罩
 

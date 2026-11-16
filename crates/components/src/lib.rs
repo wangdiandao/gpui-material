@@ -45,7 +45,10 @@ pub use text::Text;
 mod icon;
 pub use icon::{Icon, IconName};
 
-pub use overlay::{Menu, MenuColor, MenuItem, MenuItemStyle, MenuSurfaceStyle, Tooltip};
+pub use overlay::{
+    Menu, MenuColor, MenuItem, MenuItemStyle, MenuSurfaceStyle, Tooltip, TooltipCaret,
+    TooltipColors, TooltipPlacement, TooltipPositioner, TooltipState,
+};
 mod input;
 pub use input::{DropdownOption, ExposedDropdown, ExposedDropdownState};
 pub use input::{

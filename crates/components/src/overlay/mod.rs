@@ -2,8 +2,10 @@ mod menu;
 mod tooltip;
 
 pub use menu::{Menu, MenuColor, MenuItem, MenuItemStyle, MenuSurfaceStyle};
-pub use tooltip::Tooltip;
 pub(crate) use tooltip::init as init_tooltip;
+pub use tooltip::{
+    Tooltip, TooltipCaret, TooltipColors, TooltipPlacement, TooltipPositioner, TooltipState,
+};
 mod dialog;
 mod sheet;
 

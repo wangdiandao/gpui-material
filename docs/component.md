@@ -104,7 +104,7 @@ The label names a progress indicator. Determinate mode exposes a numeric percent
 | `TextField` | Filled and Outlined, with single-line, multiline, secure, read-only, and disabled modes. Supports label placement, adornment and description slots, required and invalid states, and character counts. | [Text fields](https://m3.material.io/components/text-fields/overview) |
 | `ExposedDropdown` | Editable filtering and selection-only lists anchored to a text field. | [Menus](https://m3.material.io/components/menus/overview) · [Text fields](https://m3.material.io/components/text-fields/overview) |
 | `Menu` | Anchored menus and context menus, with groups, checked items, and submenus. | [Menus](https://m3.material.io/components/menus/overview) |
-| `Tooltip` | Plain and rich tooltips with hover and keyboard focus activation. | [Tooltips](https://m3.material.io/components/tooltips/overview) |
+| `Tooltip` | Transient plain and rich tooltips, and persistent rich tooltips with caller-owned visibility and customizable content, placement and appearance. | [Tooltips](https://m3.material.io/components/tooltips/overview) |
 | `Scrim` | Standalone backdrop with themed or custom color, adjustable opacity, and optional dismissal. | [Scrim](https://developer.android.com/reference/kotlin/androidx/compose/material3/Scrim.composable) |
 | `Dialog` | Basic dialogs and full-screen task dialogs that use the window content area on compact layouts. | [Dialogs](https://m3.material.io/components/dialogs/overview) |
 | `Sheet` | Standard and modal bottom sheets, and side sheets docked or overlaid at the logical start or end. | [Bottom sheets](https://m3.material.io/components/bottom-sheets/overview) · [Side sheets](https://m3.material.io/components/side-sheets/overview) |
@@ -120,6 +120,16 @@ Keep each `MenuItem` ID stable and provide a label for accessibility. Its `.cont
 Use `.color(MenuColor::Vibrant)` for the tertiary menu palette. A `MenuItem::section(id, name, rows)` draws a grouped surface and keeps its rows in the menu's arrow-key order. `Menu::content` adds caller-authored content before the rows. A section's `.content` replaces its visible heading.
 
 Use `MenuSurfaceStyle` with `Menu::appearance` or `MenuItem::group_appearance` to configure the surface shape, padding, spacing, border and elevations. `MenuItemStyle` overrides menu-row shapes, spacing, padding, and color roles. Use `.anchor` and `.offset` for logical trigger placement or `.position` with a window-local point. `.track_scroll` accepts a caller-owned scroll handle.
+
+### Tooltips
+
+`Tooltip::plain` and `Tooltip::rich` show after pointer hover or when the trigger receives keyboard focus via `.track_focus(&focus)`. For a persistent rich tooltip, create an `Entity<TooltipState>` with `cx.new(|_| TooltipState::new())` and attach it with `.persistent(&state)`. Click or activate the trigger with the keyboard, or call `state.show(cx)` from the owner. A trigger button owns its accessible Invoke action. Call `state.update(cx, |state, cx| state.show(cx))` in its `on_activate` callback so that action opens the tooltip as well. Persistent tooltips stay open when the pointer leaves. Call `state.dismiss(cx)` to close one programmatically and `is_visible()` to read its requested visibility.
+
+`.enable_user_input(false)` leaves activation to the caller. Open tooltips can be dismissed with Escape from their trigger or content. Persistent tooltips also dismiss when a pointer presses outside. With `.on_dismiss_request(callback)`, the owner of a persistent tooltip accepts the request by calling `dismiss(cx)`. A transient tooltip closes on Escape and reports the request through the same callback. `.focus_target(&focus)` lets Tab move from the trigger to a caller-supplied control. `.focusable(true)` moves focus into the tooltip on opening. The default preserves focus. If focus is inside when the tooltip closes, it returns to the trigger or previously focused control.
+
+Use `.title_content`, `.body_content` and `.action_content` for GPUI elements. The constructor's text provides the accessible description. `.link(label, callback)` creates a link whose callback owns navigation. `.placement(TooltipPlacement)` selects a physical side or the logical `Start` or `End`, and `.offset(pixels)` sets the gap. The default prefers `Above` with a 4 px gap and flips when the surface needs room. `.positioner(...)` can return a `TooltipPositioner` using the measured trigger bounds, viewport and text direction.
+
+Use `.caret(TooltipCaret::default())` for the Material 16 × 8 px caret, or supply custom dimensions and a path. The caret is off by default. `.max_width`, `.shape`, `.colors`, `.tonal_elevation`, and `.shadow_elevation` configure the surface. Plain and rich tooltips default to a maximum width of 200 px and 320 px respectively within the available window. Unset colors and shape use the window's Material palette and corner roles. Tonal elevation defaults to zero and shadow elevation defaults to Level 0 for plain and Level 2 for rich.
 
 ### Scrim
 

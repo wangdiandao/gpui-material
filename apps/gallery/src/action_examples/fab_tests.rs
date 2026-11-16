@@ -13,12 +13,12 @@ use gpui_material::{
     theme::{ColorRole, CornerShape, CubicBezier, Direction, Elevation, MotionSpec},
 };
 
-fn draw(window: &mut Window, cx: &mut App) {
+pub(super) fn draw(window: &mut Window, cx: &mut App) {
     window.refresh();
     window.draw(cx).clear(cx);
 }
 
-fn pointer(position: Point<Pixels>, window: &mut Window, cx: &mut App) {
+pub(super) fn pointer(position: Point<Pixels>, window: &mut Window, cx: &mut App) {
     window.dispatch_event(
         MouseDownEvent {
             button: MouseButton::Left,
@@ -41,7 +41,7 @@ fn pointer(position: Point<Pixels>, window: &mut Window, cx: &mut App) {
     );
 }
 
-fn space(window: &mut Window, cx: &mut App) {
+pub(super) fn space(window: &mut Window, cx: &mut App) {
     let keystroke = Keystroke::parse_with_os("space", cx.platform_info().os).unwrap();
     window.dispatch_event(
         KeyDownEvent {

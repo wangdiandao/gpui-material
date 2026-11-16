@@ -14,7 +14,7 @@ The [pinned Material 3 specification](design-sources.md#material-specification) 
 | --- | --- | --- |
 | `Button`, `ToggleButton` | Elevated, Filled, Filled Tonal, and Outlined. `Button` also has a Text variant. Both support XS–XL sizes, round or square shapes, custom content and appearance, and optional interaction observation. | [Buttons](https://m3.material.io/components/buttons/overview) |
 | `IconButton`, `IconToggleButton` | Standard, Filled, Filled Tonal, and Outlined, with selectable sizes and widths, per-instance shapes, colors and stroke, and optional interaction observation. | [Icon buttons](https://m3.material.io/components/icon-buttons/overview) |
-| `Fab`, `ExtendedFab` | Small, Medium, and Large sizes with multiple color roles. `ExtendedFab` supports a text label and an icon. | [FAB](https://m3.material.io/components/floating-action-button/overview) · [Extended FAB](https://m3.material.io/components/extended-fab/overview) |
+| `Fab`, `ExtendedFab` | Small, Medium, and Large sizes with per-instance appearance and controlled visibility. `ExtendedFab` supports a text label, an optional icon, and custom content. | [FAB](https://m3.material.io/components/floating-action-button/overview) · [Extended FAB](https://m3.material.io/components/extended-fab/overview) |
 | `Checkbox` | Unchecked, checked, mixed, error, and disabled states, with per-instance colors, strokes, and interaction observation. | [Checkbox](https://m3.material.io/components/checkbox/overview) |
 | `Radio`, `RadioGroup` | Mutually exclusive selection, group keyboard navigation, per-option colors, and optional interaction observation. | [Radio button](https://m3.material.io/components/radio-button/specs) |
 | `Switch` | On and off states with optional thumb icons or custom content, per-state colors, and shared interaction observation. | [Switch](https://m3.material.io/components/switch/overview) |
@@ -34,6 +34,14 @@ Keep an `Entity<InteractionSource>` in the caller and attach it with `.interacti
 Keep the visibility flag in application state and pass it with `.visible(visible)` on each render. Use a stable element ID between updates so the two motion channels can reverse from their current progress. `FabVisibilityAnimation` defaults to center alignment, a hidden scale of `0.2`, and the theme's Fast Spatial and Fast Effects motion for scale and alpha. Use logical `FabAlignment` positions to scale about an edge or corner that mirrors in right-to-left windows. Set `target_scale` to a finite nonnegative value and set `scale_motion` and `alpha_motion` independently. Invalid scales, including values that overflow the scaled extent, fall back to `0.2`. Reduced motion applies the final state immediately.
 
 A hiding FAB stops taking focus and input immediately. It occupies its layout space while fading and gives up that space at zero opacity. An initially hidden FAB takes no space. Keep the icon decorative so the FAB owns activation and focus. Use inherited text sizing or relative dimensions for custom icons that should resize during the transition.
+
+### Extended floating action button
+
+Use `ExtendedFab::new(id, label, icon)` for an icon and label or `ExtendedFab::text(id, label)` for a text-only action. `.content(element)` replaces the rendered label and retains the constructor's accessible name and optional icon. Keep the icon and custom content decorative so the action owns activation and focus. Long built-in labels are constrained by the available width and ellipsize once fully expanded. Custom content receives the available label space and is clipped to it.
+
+Small, Medium, and Large default to heights of 56, 80, and 96 dp respectively. Use `.expanded(expanded)` to render the caller's expansion state. Icon-bearing actions animate to a square with only the icon when collapsed. Iconless actions keep their text or custom content in either state. Both presentations use one action and focus handle. The leading icon mirrors in right-to-left windows. Reduced motion applies the requested presentation immediately.
+
+The same `.shape`, `.colors`, `.elevations`, `.interaction_source`, `.visible`, and `.visibility_animation` builders are available as on `Fab`. Expansion and visibility can change independently when rendered with a stable ID. The full-size layout footprint stays in place during visibility scaling, then is removed at zero opacity. The action leaves focus navigation and accessibility as soon as hiding begins. The built-in label and icon slot scale with the button. Custom label content is laid out within the scaled slot, which clips any fixed-size content that extends beyond it.
 
 ### Checkbox
 

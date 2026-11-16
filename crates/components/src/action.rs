@@ -133,10 +133,6 @@ impl ActionControl {
         }
     }
 
-    pub(crate) fn render(self, window: &mut Window, cx: &mut App) -> AnyElement {
-        self.render_scaled(1., None, ButtonStyle::default(), window, cx)
-    }
-
     pub(crate) fn render_scaled(
         self,
         scale: f32,

@@ -16,6 +16,9 @@ use crate::story::{Story, section, stack};
 #[cfg(all(test, feature = "test-support"))]
 mod fab_tests;
 
+#[cfg(all(test, feature = "test-support"))]
+mod extended_fab_tests;
+
 #[derive(Default)]
 pub(crate) struct ActionExamples {
     story: Option<Story>,
@@ -427,6 +430,63 @@ impl Render for ActionExamples {
                             })
                         })),
                     )
+            }))
+            .children((self.story == Some(Story::ExtendedFab)).then(|| {
+                let view = cx.entity();
+                section("Custom content and visibility").child(
+                    row()
+                        .child(
+                            ExtendedFab::text("extended-text", "Compose email")
+                                .expanded(false)
+                                .color(FabColor::Secondary),
+                        )
+                        .child(
+                            ExtendedFab::new(
+                                "extended-custom",
+                                "Print document",
+                                Icon::new(IconName::Add),
+                            )
+                            .content(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .child("Print")
+                                    .child("A4"),
+                            )
+                            .color(FabColor::Tertiary)
+                            .shape(CornerShape::Radii([12., 24., 24., 12.]))
+                            .elevations(ButtonElevations {
+                                resting: Some(Elevation::Level2),
+                                ..Default::default()
+                            })
+                            .visible(!self.fab_hidden)
+                            .visibility_animation(FabVisibilityAnimation {
+                                alignment: FabAlignment::BottomEnd,
+                                ..Default::default()
+                            })
+                            .on_activate(move |_, cx| {
+                                view.update(cx, |this, cx| {
+                                    this.fab_hidden = true;
+                                    cx.notify();
+                                })
+                            }),
+                        )
+                        .child({
+                            let view = cx.entity();
+                            ToggleButton::new(
+                                "extended-shown",
+                                "Show print action",
+                                !self.fab_hidden,
+                            )
+                            .on_change(move |shown, _, cx| {
+                                view.update(cx, |this, cx| {
+                                    this.fab_hidden = !shown;
+                                    cx.notify();
+                                })
+                            })
+                        }),
+                )
             }))
             .children(self.shows(Story::Button).then(|| {
                 section("Disabled").child(

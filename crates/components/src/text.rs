@@ -113,6 +113,37 @@ impl RenderOnce for Text {
     }
 }
 
+fn clean_line(value: SharedString) -> SharedString {
+    if value.contains(['\r', '\n']) {
+        value.replace(['\r', '\n'], " ").into()
+    } else {
+        value
+    }
+}
+
+pub(crate) fn single_line_width(
+    value: &SharedString,
+    style: TypeStyle,
+    tint: Hsla,
+    window: &Window,
+    cx: &App,
+) -> Pixels {
+    let theme = window_material_theme(window, cx);
+    shape_text(
+        clean_line(value.clone()),
+        style,
+        &theme.typography,
+        1.,
+        tint,
+        window,
+        cx,
+    )
+    .expect("single-line text")
+    .line()
+    .width
+    .ceil()
+}
+
 pub(crate) fn single_line(
     value: SharedString,
     style: TypeStyle,
@@ -122,11 +153,7 @@ pub(crate) fn single_line(
     window: &Window,
     cx: &App,
 ) -> gpui::Div {
-    let clean = if value.contains(['\r', '\n']) {
-        SharedString::from(value.replace(['\r', '\n'], " "))
-    } else {
-        value
-    };
+    let clean = clean_line(value);
     let theme = window_material_theme(window, cx);
     let typography = theme.typography.clone();
     let align = if theme.layout.direction == Direction::Rtl {

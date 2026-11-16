@@ -3,11 +3,14 @@
   en: "04d1812e593709d7"
   zh: "f4acb7f93a6372a7"
 /components/actions-and-selection:
-  en: "80f36fe8c1157a7f"
-  zh: "7e939491729d70ec"
+  en: "cb56338267c86ac9"
+  zh: "6c47af955f97856b"
 /components/actions-and-selection/floating-action-button:
   en: "c77a57b086907ad0"
   zh: "e5c132ba393b8843"
+/components/actions-and-selection/extended-floating-action-button:
+  en: "41d061e6fce042a9"
+  zh: "b508e9b159c2bec7"
 /components/actions-and-selection/checkbox:
   en: "8594e62d81db3f89"
   zh: "f46ae69238fc835d"

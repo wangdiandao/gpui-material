@@ -1,14 +1,17 @@
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{
-    AccessibleAction, AnyElement, App, Axis, ElementId, FocusHandle, InteractiveElement,
+    AccessibleAction, AnyElement, App, Axis, ElementId, FocusHandle, Hsla, InteractiveElement,
     IntoElement, MouseButton, ParentElement, RenderOnce, Role, SharedString,
     StatefulInteractiveElement, Styled, Window, canvas, div, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
-use gpui_material_foundation::{animate, color, move_roving_focus, window_material_theme};
+use gpui_material_foundation::{
+    animate, color, move_roving_focus, text_style, window_material_theme,
+};
 use gpui_material_theme::{
     ColorRole, CornerRole, Direction, Elevation, MotionKind, MotionSpeed, StateLayer, TypeRole,
+    TypographyEmphasis,
 };
 
 use crate::{
@@ -696,26 +699,47 @@ impl RenderOnce for Divider {
     }
 }
 
-/// An anchored badge. Pass its accessible name to the host control so the host
-/// announces the count once and keeps a single focus stop.
+/// A standalone or anchored Material badge. For anchored badges, include the
+/// badge's information in the host's accessible name.
 #[derive(IntoElement)]
 pub struct Badge {
-    host: AnyElement,
-    text: Option<SharedString>,
+    host: Option<AnyElement>,
+    content: BadgeContent,
+    container_color: Option<Hsla>,
+    content_color: Option<Hsla>,
+    accessible_label: Option<(ElementId, SharedString)>,
+}
+
+enum BadgeContent {
+    Dot,
+    Text(SharedString),
+    Custom(ElementId, AnyElement),
 }
 
 impl Badge {
+    /// A small badge that participates in the surrounding layout.
+    pub fn standalone() -> Self {
+        Self {
+            host: None,
+            content: BadgeContent::Dot,
+            container_color: None,
+            content_color: None,
+            accessible_label: None,
+        }
+    }
+
+    /// Anchors a small badge to the host's upper trailing edge.
     pub fn dot(host: impl IntoElement) -> Self {
         Self {
-            host: host.into_any_element(),
-            text: None,
+            host: Some(host.into_any_element()),
+            ..Self::standalone()
         }
     }
 
     pub fn label(host: impl IntoElement, text: impl Into<SharedString>) -> Self {
         Self {
-            host: host.into_any_element(),
-            text: Some(text.into()),
+            content: BadgeContent::Text(text.into()),
+            ..Self::dot(host)
         }
     }
 
@@ -729,42 +753,105 @@ impl Badge {
             },
         )
     }
+
+    /// Uses large badge styling with caller-supplied visual content.
+    ///
+    /// Use a stable ID within the parent and keep the content noninteractive.
+    /// The badge or its host supplies the accessible name.
+    pub fn content(mut self, id: impl Into<ElementId>, content: impl IntoElement) -> Self {
+        self.content = BadgeContent::Custom(id.into(), content.into_any_element());
+        self
+    }
+
+    /// Sets the background color, which defaults to the window theme's `Error` role.
+    pub fn container_color(mut self, color: impl Into<Hsla>) -> Self {
+        self.container_color = Some(color.into());
+        self
+    }
+
+    /// Sets the inherited content color, which defaults to the window theme's `OnError` role.
+    pub fn content_color(mut self, color: impl Into<Hsla>) -> Self {
+        self.content_color = Some(color.into());
+        self
+    }
+
+    /// Names a badge for assistive technology without adding a focus stop.
+    /// Anchored badges normally use their host's accessible name instead.
+    pub fn accessible_label(
+        mut self,
+        id: impl Into<ElementId>,
+        label: impl Into<SharedString>,
+    ) -> Self {
+        self.accessible_label = Some((id.into(), label.into()));
+        self
+    }
 }
 
 impl RenderOnce for Badge {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let large = self.text.is_some();
+        let large = !matches!(self.content, BadgeContent::Dot);
         let side = px(if large { 16. } else { 6. });
-        let overlap = if large { px(12.) } else { px(6.) };
+        let container_color = self
+            .container_color
+            .unwrap_or_else(|| tone(ColorRole::Error, window, cx));
+        let content_color = self
+            .content_color
+            .unwrap_or_else(|| tone(ColorRole::OnError, window, cx));
+        let typography = TypeRole::LabelSmall.style(TypographyEmphasis::Baseline);
+        let overlap = px(if large { 12. } else { 6. });
         let mark = div()
-            .absolute()
-            .top(if large { px(-2.) } else { px(0.) })
             .min_w(side)
-            .h(side)
             .rounded_full()
-            .when_else(
-                window_material_theme(window, cx).layout.direction == Direction::Rtl,
-                |badge| badge.right(gpui::relative(1.)).mr(-overlap),
-                |badge| badge.left(gpui::relative(1.)).ml(-overlap),
-            )
             .when(large, |badge| badge.px(px(4.)))
-            .bg(tone(ColorRole::Error, window, cx))
-            .text_color(tone(ColorRole::OnError, window, cx))
+            .when(self.host.is_some(), |badge| {
+                badge
+                    .absolute()
+                    .top(if large { px(-2.) } else { px(0.) })
+                    .when_else(
+                        window_material_theme(window, cx).layout.direction == Direction::Rtl,
+                        |badge| badge.right(gpui::relative(1.)).mr(-overlap),
+                        |badge| badge.left(gpui::relative(1.)).ml(-overlap),
+                    )
+            })
+            .bg(container_color)
+            .text_color(content_color)
             .flex()
             .items_center()
-            .justify_center()
-            .children(self.text.map(|text| {
-                crate::text::single_line(
-                    text,
-                    TypeRole::LabelSmall.style(gpui_material_theme::TypographyEmphasis::Baseline),
-                    1.,
-                    tone(ColorRole::OnError, window, cx),
-                    (None, 1., 1.),
-                    window,
-                    cx,
+            .justify_center();
+        let mark = match self.content {
+            BadgeContent::Dot => mark.h(side).w(side),
+            BadgeContent::Text(text) => mark.h(side).child(crate::text::single_line(
+                text,
+                typography,
+                1.,
+                content_color,
+                (None, 1., 1.),
+                window,
+                cx,
+            )),
+            BadgeContent::Custom(id, content) => {
+                text_style(mark.min_h(side), typography, 1., window, cx).child(
+                    div()
+                        .id(id)
+                        .role(Role::Group)
+                        .a11y_synthetic_children(|tree| tree.parent_node().set_hidden())
+                        .child(content),
                 )
-            }));
-        div().relative().child(self.host).child(mark)
+            }
+        };
+        let mark = if let Some((id, label)) = self.accessible_label {
+            mark.id(id)
+                .role(Role::Label)
+                .aria_label(label)
+                .into_any_element()
+        } else {
+            mark.into_any_element()
+        };
+        if let Some(host) = self.host {
+            div().relative().child(host).child(mark)
+        } else {
+            div().flex().items_center().child(mark)
+        }
     }
 }
 

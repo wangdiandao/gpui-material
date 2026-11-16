@@ -62,6 +62,7 @@ Container and content colors default to the window theme's `Error` and `OnError`
 | `ExposedDropdown` | Editable filtering and selection-only lists anchored to a text field. | [Menus](https://m3.material.io/components/menus/overview) · [Text fields](https://m3.material.io/components/text-fields/overview) |
 | `Menu` | Anchored menus and context menus, with groups, checked items, and submenus. | [Menus](https://m3.material.io/components/menus/overview) |
 | `Tooltip` | Plain and rich tooltips with hover and keyboard focus activation. | [Tooltips](https://m3.material.io/components/tooltips/overview) |
+| `Scrim` | Standalone backdrop with themed or custom color, adjustable opacity, and optional dismissal. | [Scrim](https://developer.android.com/reference/kotlin/androidx/compose/material3/Scrim.composable) |
 | `Dialog` | Basic dialogs and full-screen task dialogs that use the window content area on compact layouts. | [Dialogs](https://m3.material.io/components/dialogs/overview) |
 | `Sheet` | Standard and modal bottom sheets, and side sheets docked or overlaid at the logical start or end. | [Bottom sheets](https://m3.material.io/components/bottom-sheets/overview) · [Side sheets](https://m3.material.io/components/side-sheets/overview) |
 
@@ -76,6 +77,12 @@ Keep each `MenuItem` ID stable and provide a label for accessibility. Its `.cont
 Use `.color(MenuColor::Vibrant)` for the tertiary menu palette. A `MenuItem::section(id, name, rows)` draws a grouped surface and keeps its rows in the menu's arrow-key order. `Menu::content` adds caller-authored content before the rows. A section's `.content` replaces its visible heading.
 
 Use `MenuSurfaceStyle` with `Menu::appearance` or `MenuItem::group_appearance` to configure the surface shape, padding, spacing, border and elevations. `MenuItemStyle` overrides menu-row shapes, spacing, padding, and color roles. Use `.anchor` and `.offset` for logical trigger placement or `.position` with a window-local point. `.track_scroll` accepts a caller-owned scroll handle.
+
+### Scrim
+
+Place `Scrim::new(id)` in a positioned container, after the background content and before the foreground surface. It fills the container and uses the current window theme's Scrim role at 32% opacity. Use `.color(color)` to supply a custom tint and `.opacity(value)` to multiply the tint's alpha. Values clamp to 0–1 and NaN uses the default.
+
+By default the scrim is decorative. It dims the content while leaving pointer input and accessibility traversal available. Add `.on_click(|window, cx| ...)` to block pointer input behind the scrim and handle pointer or accessibility activation. The scrim has no keyboard tab stop. Use `.accessibility_label(label)` to name the action for assistive technology. The default label is “Dismiss overlay.” The caller owns visibility, dismissal, and the modal focus and accessibility scope. Give modal content its own keyboard dismissal action.
 
 <a id="导航与自适应布局"></a>
 

@@ -4,6 +4,7 @@ mod items;
 mod multi_pane;
 mod rail;
 mod scaffold;
+mod tabs;
 
 pub use adaptive::{AdaptiveNavigation, Feed, ListDetail, ListDetailPane, SupportingPane};
 pub use app_bar::{
@@ -12,8 +13,7 @@ pub use app_bar::{
 };
 pub use items::{
     NavigationBar, NavigationBarArrangement, NavigationBarColors, NavigationBarLayout,
-    NavigationItem, NavigationItemColors, NavigationItemIconPosition, NavigationItems, TabVariant,
-    Tabs,
+    NavigationItem, NavigationItemColors, NavigationItemIconPosition, NavigationItems,
 };
 pub use multi_pane::{
     AdaptivePane, AdaptivePaneLayout, AdaptivePaneState, PaneAdaptStrategy, PaneBackBehavior,
@@ -22,3 +22,6 @@ pub use multi_pane::{
 };
 pub use rail::{NavigationRail, RailMode};
 pub use scaffold::{Scaffold, ScaffoldContentLayout, ScaffoldFabPosition, ScaffoldInsets};
+pub use tabs::{
+    TabIndicatorLayout, TabIndicatorStyle, TabIndicatorWidth, TabVariant, Tabs, TabsColors,
+};

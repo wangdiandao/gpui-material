@@ -285,7 +285,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | 组件 | 支持的变体与行为 | Material 3 |
 | --- | --- | --- |
 | `AppBar`、`AppBarRow`、`AppBarColumn` | Small、Centered、Medium Flexible、Large Flexible 及可自定义的 TwoRows 顶部应用栏，操作可随可用空间移入溢出菜单。 | [应用栏](https://m3.material.io/components/app-bars/overview) |
-| `Tabs` | Primary、Secondary，可固定或滚动。 | [标签页](https://m3.material.io/components/tabs/overview) |
+| `Tabs` | Primary、Secondary，可固定或滚动，支持前置图标、自定义内容与徽标、指示器配置和保留的滚动状态。 | [标签页](https://m3.material.io/components/tabs/overview) |
 | `NavigationBar`、`NavigationRail` | 短导航栏支持等宽或居中排列、纵向或横向图标、自定义标签和徽标。导航轨道支持折叠、展开、隐藏和模态呈现。 | [导航栏](https://m3.material.io/components/navigation-bar/overview) · [导航轨道](https://m3.material.io/components/navigation-rail/overview) |
 | `AdaptiveNavigation` | 根据可用宽度在导航栏和导航轨道之间切换。 | [断点](https://m3.material.io/foundations/layout/breakpoints/overview) |
 | `Scaffold` | 组合导航、应用栏、内容、可定位的悬浮操作按钮和消息条，并根据已占空间计算内容内边距。 | [Scaffold](https://m3.material.io/foundations/layout/scaffold/overview) |
@@ -317,6 +317,18 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 通过 `.track_scroll(&handle)` 接入 GPUI 内容滚动句柄，或通过 `.scroll_state(&state)` 接入保留的 `Entity<AppBarScrollState>`。调用方也可用 `set_content_offset(offset, cx)` 设置内容离顶部的非负距离。接入滚动句柄时由句柄提供该距离。可从状态读取 `content_offset()`、`height_offset()`、`height_offset_limit()`、`collapsed_fraction()` 和 `overlapped_fraction()`。未指定策略时，Flexible 栏按内容离顶部的距离收起。用 `.scroll_behavior(AppBarScrollBehavior::Pinned)` 固定高度并按滚动切换容器色，`EnterAlways` 在滚动反向时立即展开，`ExitUntilCollapsed` 在内容回到顶部之前保持收起。内容区继续持有滚动及其输入。用 `.scroll_enabled(false)` 暂停滚动驱动的更新。用 `set_collapsed_fraction(fraction, cx)` 设置位置，或在滚动结束时调用 `settle(velocity, cx)`。正速度选择收起，负速度在策略允许时选择展开，零选择最近端点。`.scroll_motion(MotionSpec)` 覆盖归位动效，减少动效时即时归位。
 
 `AppBarRow::new(id, items)` 和 `AppBarColumn::new(id, items)` 水平或垂直排列操作，将放不下的项移入 Material 菜单。用 `AppBarItem::clickable(id, label, icon_factory)` 创建行内和溢出共用的命令，并通过 `.on_activate(...)` 和 `.disabled(bool)` 设置行为。通过 `AppBarItem::custom(id, inline, |menu| ...)` 提供自定义行内元素和对应的 `MenuItem`。为各项提供稳定的 ID。`.overflow_indicator(|menu| ...)` 可自定义内置键盘按钮的图形，用 `.overflow_label(label)` 设置按钮名称。`AppBarMenuState` 提供 `is_showing()`、`show(window, cx)` 和 `dismiss(window, cx)`。`.max_item_count(count)` 限制包括触发按钮在内的可见项数。横排在 RTL 中镜像，溢出操作在菜单打开后可访问。
+
+### 标签页
+
+`Tabs::new(NavigationItems::new(id, name, items))` 默认创建固定的 Primary 标签页。用 `.variant(TabVariant::Secondary)` 选择 Secondary 样式，用 `.scrollable(true)` 启用横向滚动。为每个 `NavigationItem` 提供稳定 ID。应用通过 `.on_select(...)` 接收请求并通过 `NavigationItems::selected(id)` 提交选中状态。左右方向键按逻辑顺序移动焦点，Home 和 End 移到首个和末个可用标签，激活时请求选中。键盘导航跳过禁用标签。
+
+通过 `NavigationItem::icon_position(NavigationItemIconPosition::Start)` 将图标放在逻辑起始侧，在 RTL 窗口中镜像。默认 `Top` 将图标放在标签上方。`.label_content(element)` 可替换可见标签，无图标时可提供整项内容。构造器仍提供标签页的无障碍名称。`.badge(Badge::standalone())` 将徽标贴在图标或标签上方的逻辑末尾侧。徽标设有 `.accessible_label(...)` 时，其内容用作该标签项的无障碍描述。插槽仅用于呈现，焦点和激活由标签项处理。
+
+通过 `.colors(TabsColors)` 设置行容器、共用内容色和内置分隔线色。使用 `NavigationItem::colors(NavigationItemColors)` 为单项设置选中、未选中和禁用时的图标和标签色。选中标签可按 Top 与 Start 分别配色，也可设置单项选中指示器色。用 `NavigationItem::interaction_source(&source)` 接入由调用方持有的 `Entity<InteractionSource>`，通过 `ElementId::from((collection_id, destination_id))` 读取状态。标签重新排序或移除时，ID 和交互监听随标签项更新。
+
+用 `.indicator_style(TabIndicatorStyle)` 设置高度、逻辑形状、颜色和动效。`TabIndicatorWidth::Default` 保留预设宽度，`Tab` 覆盖所选标签，`Content` 使用测得的图标与标签宽度，`Fixed(width)` 使用不超过标签宽度的逻辑像素值。可用空间允许时，内容宽度至少为 24 dp。切换选中项时，可配置指示器的位置和宽度会过渡到目标。启用减少动态效果时直接应用目标状态。`.indicator_content(|layout: TabIndicatorLayout| ...)` 替换可见指示器，可读取选中 ID、计算后的边界、内容宽度和颜色。内容会裁剪到指示器边界和行视口内。`.divider(element)` 替换横跨视口的底部分隔线。向任一自定义插槽传入 `gpui::Empty` 可省略对应装饰。
+
+滚动行可通过 `.edge_padding(pixels)` 设置逻辑两端留白，通过 `.min_tab_width(pixels)` 设置最小标签宽度，默认分别为 52 和 90 dp。无效长度沿用默认值，较大的自定义值受窗口宽度约束。用 `.scroll_handle(&handle)` 接入外部滚动句柄，也可由标签行保留自己的句柄。选中项或焦点项变化时，标签行将对应项滚入视口，并处理重新排序和视口或标签尺寸变化。普通重绘保留调用方或用户当前的滚动偏移。
 
 ### 短导航栏
 

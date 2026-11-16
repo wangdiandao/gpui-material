@@ -5,7 +5,7 @@ use gpui::{
 };
 use gpui_base::TestSupportExt as _;
 use gpui_material::{
-    Switch, Text,
+    Button, ButtonVariant, Switch, Text,
     date_time::{
         DatePicker, DatePickerLocale, DatePickerState, DatePickerVariant, DateSelection, NaiveDate,
         NaiveTime, ScrollField, ScrollFieldState, TimeFormat, TimePicker, TimePickerLayout,
@@ -15,6 +15,9 @@ use gpui_material::{
 };
 
 use crate::story::{Story, section, stack};
+
+#[cfg(all(test, feature = "test-support"))]
+mod date_picker_tests;
 
 pub(crate) struct DateTimeExamples {
     story: Story,
@@ -28,7 +31,7 @@ pub(crate) struct DateTimeExamples {
 }
 
 enum PickerStates {
-    Dates([Entity<DatePickerState>; 2]),
+    Dates([Entity<DatePickerState>; 3]),
     Times {
         dialogs: [Entity<TimePickerState>; 2],
         hours: Entity<ScrollFieldState>,
@@ -129,7 +132,7 @@ impl DateTimeExamples {
         }
     }
 
-    fn dates(&self, states: &[Entity<DatePickerState>; 2], cx: &Context<Self>) -> AnyElement {
+    fn dates(&self, states: &[Entity<DatePickerState>; 3], cx: &Context<Self>) -> AnyElement {
         let range = self.story == Story::DateRangePicker;
         let locale = DatePickerLocale::default()
             .first_day(Weekday::Mon)
@@ -137,6 +140,28 @@ impl DateTimeExamples {
                 |date| date.format("%d/%m/%Y").to_string().into(),
                 |text| NaiveDate::parse_from_str(text, "%d/%m/%Y").ok(),
             );
+        let calendar = DatePicker::new(
+            "calendar-picker",
+            if range {
+                "Choose travel dates"
+            } else {
+                "Choose a date"
+            },
+            &states[0],
+            self.first_date,
+        )
+        .variant(if range {
+            DatePickerVariant::Modal
+        } else {
+            DatePickerVariant::Docked
+        })
+        .on_confirm(Self::on_date(0, cx));
+        let calendar = if range {
+            calendar
+        } else {
+            calendar
+                .docked_anchor(|field| div().w(px(260.)).child(field.label_always_minimized(true)))
+        };
         stack()
             .child(
                 section(if range {
@@ -144,24 +169,7 @@ impl DateTimeExamples {
                 } else {
                     "Docked calendar"
                 })
-                .child(
-                    DatePicker::new(
-                        "calendar-picker",
-                        if range {
-                            "Choose travel dates"
-                        } else {
-                            "Choose a date"
-                        },
-                        &states[0],
-                        self.first_date,
-                    )
-                    .variant(if range {
-                        DatePickerVariant::Modal
-                    } else {
-                        DatePickerVariant::Docked
-                    })
-                    .on_confirm(Self::on_date(0, cx)),
-                ),
+                .child(calendar),
             )
             .child(
                 section("Date entry")
@@ -179,6 +187,32 @@ impl DateTimeExamples {
                         )
                         .variant(DatePickerVariant::ModalInput)
                         .locale(locale)
+                        .on_confirm(Self::on_date(1, cx)),
+                    ),
+            )
+            .child(
+                section("Full-screen date picker")
+                    .description(
+                        "The calendar fills compact windows and uses a dialog at wider sizes.",
+                    )
+                    .child(
+                        DatePicker::new(
+                            "full-date-picker",
+                            "Choose dates full screen",
+                            &states[2],
+                            self.second_date,
+                        )
+                        .variant(DatePickerVariant::FullScreen)
+                        .title_content(
+                            Text::new("Plan your dates")
+                                .id("plan-date-title")
+                                .role(TypeRole::TitleMedium),
+                        )
+                        .confirm_content(|confirm| {
+                            Button::new("apply-dates", "Apply dates")
+                                .variant(ButtonVariant::Text)
+                                .on_activate(move |window, cx| confirm.activate(window, cx))
+                        })
                         .on_confirm(Self::on_date(1, cx)),
                     ),
             )

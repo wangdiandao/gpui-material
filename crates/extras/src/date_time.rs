@@ -15,7 +15,10 @@ use gpui_material_theme::{ColorRole, TypeRole};
 use std::rc::Rc;
 
 pub use chrono::{NaiveDate, NaiveTime, Weekday};
-pub use date::{DatePicker, DatePickerLocale, DatePickerState, DatePickerVariant, DateSelection};
+pub use date::{
+    DatePicker, DatePickerColors, DatePickerDisplayMode, DatePickerDraft, DatePickerLocale,
+    DatePickerState, DatePickerVariant, DateSelection,
+};
 pub use scroll_field::{ScrollField, ScrollFieldColors, ScrollFieldState};
 pub use time::{
     TimeFormat, TimePicker, TimePickerLayout, TimePickerLocale, TimePickerState, TimePickerVariant,

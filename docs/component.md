@@ -95,7 +95,7 @@ Retain the `SliderState` entity in the owner. Base manages the range and step gr
 | `Divider`, `Badge` | Horizontal and vertical dividers with logical insets, configurable thickness, and per-divider color. Standalone and anchored badges with dot, text, count, or custom content and optional colors. | [Divider](https://m3.material.io/components/divider/overview) · [Badges](https://m3.material.io/components/badges/overview) |
 | `LinearProgress`, `CircularProgress` | Determinate and indeterminate progress with configurable straight and wavy styles. | [Progress indicators](https://m3.material.io/components/progress-indicators/overview) |
 | `LoadingIndicator` | Default and Contained, with determinate and indeterminate modes, custom morph sequences and instance colors. | [Loading indicator](https://m3.material.io/components/loading-indicator/overview) |
-| `Snackbar`, `SnackbarHost` | Queued messages with optional actions, timed or persistent display, and dismissal. | [Snackbars](https://m3.material.io/components/snackbar/overview) |
+| `Snackbar`, `SnackbarHost` | Queued timed or persistent messages with custom content and layout, optional actions and dismissal, and a completion result. | [Snackbars](https://m3.material.io/components/snackbar/specs) |
 
 ### Cards
 
@@ -142,6 +142,18 @@ Linear determinate progress has a 4 dp stop marker at the logical track end. Use
 The application owns determinate progress. Pass it as `.value(fraction)` on each render. The fraction is clamped to `0..=1`, and NaN becomes zero. With the default sequence, zero shows a circle and one shows the Soft Burst shape. Create a reusable `LoadingIndicatorShapes` with at least two `LoadingIndicatorShape` values and pass it by reference with `.shapes(&shapes)`. Use `LoadingIndicatorShape::circle()` or `LoadingIndicatorShape::rounded_polygon(&vertices, radius)` with GPUI points and a radius in the same units. Polygon construction returns `None` for non-finite, degenerate or self-intersecting geometry. The sequence constructor returns `None` if given fewer than two shapes. A determinate sequence goes from first to last, and an indeterminate sequence also morphs from last to first.
 
 The label names a progress indicator. Determinate mode exposes a numeric percentage and draws the supplied value directly. Indeterminate mode exposes no numeric value and uses a polite live status. Reduced motion holds the first indeterminate shape and keeps determinate progress responsive. `.active(false)` retains the footprint and suppresses visuals and progress semantics. Only an active indeterminate indicator in an active window requests animation frames.
+
+### Snackbars
+
+Retain a window's `Entity<SnackbarHost>` and mount it in the layout or pass it to `Scaffold::snackbar`. Call `push` to append a `Snackbar::new(message)` to the FIFO. A plain message lasts four seconds. `.action(label, callback)` makes it persistent by default. Set `.timeout(Some(duration))` after `.action(...)` to override that duration, or `.timeout(None)` to wait for a dismissal. Each timer starts when its message becomes current.
+
+Set `.message_content(|window, cx| ...)` to replace the visible message. `Snackbar::new` still supplies the accessible status text. Use `.action_content(...)` with `.action(...)` to replace the named action's visible content. `.dismiss_content(label, |window, cx| ...)` replaces the named close control's content. The close icon is shown by default, and `.show_dismiss(false)` hides the affordance. Keep slot content decorative so the host owns focus, activation, and the completion path. `.action_on_new_line(true)` puts the action and optional close control on a trailing-aligned row below the message.
+
+Use `.shape(CornerShape)` for the container and `.colors(SnackbarColors)` to set the container, message content, action, and dismiss colors independently. The default corner radius is 4 dp. The window defaults use Inverse Surface for the container, Inverse On Surface for message and dismissal content, and Inverse Primary for the action. The host renders the message as a polite live status without moving keyboard focus. The named controls use normal Tab traversal and activation. Escape dismisses the snackbar when one of its controls has focus. Completing a focused snackbar restores the prior focus target when it is available.
+
+Use `enqueue` when the caller needs a `SnackbarId`. `current()` returns the active ID and message, and `dismiss()` dismisses the current message. `dismiss_message(id, window, cx)` and `perform_action(id, window, cx)` apply only to the active entry. `perform_action` also requires an action. Use `.on_result(|result, window, cx| ...)` to observe `SnackbarResult::ActionPerformed` or `SnackbarResult::Dismissed`. Timeout and explicit or programmatic dismissal report `Dismissed` and call `.on_dismiss(...)` when supplied. Each result is delivered once. The queue advances before callbacks run, so callbacks can enqueue or dismiss messages from the same host. Dropping the host cancels its timer and discards remaining messages.
+
+`SnackbarHost::renderer(|message, parts, window, cx| ...)` can lay out the provided `SnackbarParts` within a custom container. Place `parts.message` to retain the live status and `parts.action` and `parts.dismiss` to retain the named controls. The host still owns timing, completion, motion, and outgoing content. During exit, the parts render as passive content. The `scale` field lets the renderer scale its own dimensions to match the animation.
 
 <a id="输入与浮层"></a>
 

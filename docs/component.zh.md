@@ -95,7 +95,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `Divider`、`Badge` | 横向与纵向分隔线支持逻辑内缩、粗细和单独配色。徽标支持独立或附着显示，可使用圆点、文本、计数、自定义内容和单独配色。 | [分隔线](https://m3.material.io/components/divider/overview) · [徽标](https://m3.material.io/components/badges/overview) |
 | `LinearProgress`、`CircularProgress` | 确定和不确定进度，支持可配置的直线和波浪样式。 | [进度指示器](https://m3.material.io/components/progress-indicators/overview) |
 | `LoadingIndicator` | Default 和 Contained 样式，支持确定与不确定进度、自定义形状序列和实例配色。 | [加载指示器](https://m3.material.io/components/loading-indicator/overview) |
-| `Snackbar`、`SnackbarHost` | 消息排队、可选操作、定时或持续显示以及关闭。 | [消息条](https://m3.material.io/components/snackbar/overview) |
+| `Snackbar`、`SnackbarHost` | 定时或持续显示的排队消息，支持自定义内容和布局、可选操作与关闭，以及完成结果。 | [消息条](https://m3.material.io/components/snackbar/specs) |
 
 ### 卡片
 
@@ -142,6 +142,18 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 确定进度由应用持有，每次渲染时用 `.value(fraction)` 传入。进度值限制在 `0..=1`，NaN 按零处理。默认序列在零时显示圆形，在一时显示 Soft Burst。用至少两个 `LoadingIndicatorShape` 构造可复用的 `LoadingIndicatorShapes`，再用 `.shapes(&shapes)` 传引用。使用 `LoadingIndicatorShape::circle()`，或用 `LoadingIndicatorShape::rounded_polygon(&vertices, radius)` 传入 GPUI 顶点和同单位的半径。多边形坐标或半径非有限、形状退化或自相交时返回 `None`。形状少于两个时，序列构造器返回 `None`。确定进度从序列首形状变换到末形状，不确定进度还会从末形状变回首形状。
 
 标签为进度指示器提供无障碍名称。确定模式公开数值百分比并直接绘制传入的进度。不确定模式提供礼貌播报的状态，无数值。减少动态效果时，不确定模式停留在首形状，确定模式继续响应进度变化。`.active(false)` 保留布局空间，同时隐藏图形和无障碍进度信息。只有活动窗口内处于活动状态的不确定指示器才会请求动画帧。
+
+### 消息条
+
+为窗口保留一个 `Entity<SnackbarHost>`，将其挂载到布局或传给 `Scaffold::snackbar`。通过 `push` 将 `Snackbar::new(message)` 添加到先进先出的队列。普通消息默认显示四秒。设置 `.action(label, callback)` 后，消息默认持续显示。可在 `.action(...)` 之后通过 `.timeout(Some(duration))` 覆盖时长，或使用 `.timeout(None)` 等待关闭。每条消息成为当前项时开始计时。
+
+使用 `.message_content(|window, cx| ...)` 替换可见消息，`Snackbar::new` 仍提供无障碍状态文本。将 `.action_content(...)` 与 `.action(...)` 一同使用，可替换有名称的操作内容。`.dismiss_content(label, |window, cx| ...)` 替换有名称的关闭控件内容。默认显示关闭图标，设置 `.show_dismiss(false)` 可隐藏该控件。插槽内容应为装饰元素，由宿主负责焦点、激活和完成流程。`.action_on_new_line(true)` 将操作和可选的关闭控件放在消息下方，并将这一行对齐到逻辑尾侧。
+
+使用 `.shape(CornerShape)` 设置容器形状，通过 `.colors(SnackbarColors)` 分别设置容器、消息、操作和关闭内容的颜色。默认圆角为 4 dp。窗口默认使用 Inverse Surface 作为容器色，使用 Inverse On Surface 作为消息和关闭内容色，使用 Inverse Primary 作为操作色。宿主以礼貌模式的实时状态播报消息，保留当前键盘焦点。具名控件可以正常通过 Tab 遍历并激活。消息条的控件获得焦点时，可以按 Escape 关闭消息条。消息条持有焦点时完成操作，焦点将回到仍可用的原目标。
+
+需要 `SnackbarId` 时用 `enqueue`。`current()` 返回当前项的标识和消息，`dismiss()` 关闭当前项。`dismiss_message(id, window, cx)` 和 `perform_action(id, window, cx)` 只对当前项生效，且 `perform_action` 要求存在操作。通过 `.on_result(|result, window, cx| ...)` 观察 `SnackbarResult::ActionPerformed` 或 `SnackbarResult::Dismissed`。超时、显式关闭和程序关闭均报告 `Dismissed`，并在提供 `.on_dismiss(...)` 时调用它。每条消息只交付一次结果。队列先推进，再执行回调，因此回调可以继续操作同一个宿主的队列。释放宿主会取消计时并丢弃剩余消息。
+
+使用 `SnackbarHost::renderer(|message, parts, window, cx| ...)` 可在自定义容器中布局 `SnackbarParts`。放置 `parts.message` 可保留实时状态，放置 `parts.action` 和 `parts.dismiss` 可保留具名控件。计时、完成、动效和退场内容仍由宿主管理。退场期间，插槽以静态内容显示。渲染器可读取 `scale` 让自定义尺寸随动效缩放。
 
 <a id="input-and-overlays"></a>
 

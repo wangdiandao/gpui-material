@@ -9,6 +9,8 @@ use gpui_base::TestSupportExt;
 use gpui_material_foundation::window_material_theme;
 use gpui_material_theme::Direction;
 
+use crate::Sheet;
+
 /// Positions a scaffold's floating action within the usable content width.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ScaffoldFabPosition {
@@ -44,7 +46,7 @@ impl ScaffoldInsets {
         }
     }
 
-    fn normalized(self) -> Self {
+    pub(crate) fn normalized(self) -> Self {
         let finite = |edge: Pixels| {
             if f32::from(edge).is_finite() {
                 edge.max(px(0.))
@@ -91,6 +93,7 @@ pub struct Scaffold {
     app_bar: Option<AnyElement>,
     rail: Option<AnyElement>,
     bottom_bar: Option<AnyElement>,
+    bottom_sheet: Option<Sheet>,
     fab: Option<AnyElement>,
     snackbar: Option<AnyElement>,
     fab_position: ScaffoldFabPosition,
@@ -123,6 +126,7 @@ impl Scaffold {
             app_bar: None,
             rail: None,
             bottom_bar: None,
+            bottom_sheet: None,
             fab: None,
             snackbar: None,
             fab_position: ScaffoldFabPosition::default(),
@@ -142,6 +146,12 @@ impl Scaffold {
 
     pub fn bottom_bar(mut self, element: impl IntoElement) -> Self {
         self.bottom_bar = Some(element.into_any_element());
+        self
+    }
+
+    /// Places a Standard bottom sheet beneath the measured content column.
+    pub fn bottom_sheet(mut self, sheet: Sheet) -> Self {
+        self.bottom_sheet = Some(sheet);
         self
     }
 
@@ -179,7 +189,8 @@ impl RenderOnce for Scaffold {
             }
             (_, fab) => (fab, self.snackbar, None),
         };
-        let needs_layout = overlay.is_some()
+        let needs_layout = self.bottom_sheet.is_some()
+            || overlay.is_some()
             || insets != ScaffoldInsets::default()
             || matches!(self.content, Content::Builder(_));
         let geometry = Rc::new(ScaffoldGeometry::default());
@@ -226,6 +237,24 @@ impl RenderOnce for Scaffold {
                     .size_full(),
                 ),
             };
+        let column = match self.bottom_sheet {
+            Some(sheet) => div()
+                .flex_1()
+                .min_w_0()
+                .min_h_0()
+                .child(
+                    laid_out_slot(move |bounds, _, _| {
+                        div()
+                            .flex()
+                            .flex_col()
+                            .child(body)
+                            .child(div().flex_none().child(sheet.in_scaffold(bounds.size)))
+                    })
+                    .size_full(),
+                )
+                .into_any_element(),
+            None => body.into_any_element(),
+        };
         let root_geometry = geometry.clone();
         div()
             .id(self.id)
@@ -253,7 +282,7 @@ impl RenderOnce for Scaffold {
                     .flex()
                     .when(direction == Direction::Rtl, Styled::flex_row_reverse)
                     .children(self.rail.map(|rail| div().flex_none().h_full().child(rail)))
-                    .child(body),
+                    .child(column),
             )
             .children(self.bottom_bar.map(|bar| div().flex_none().child(bar)))
             .children(overlay.map(move |(fab, snackbar)| {

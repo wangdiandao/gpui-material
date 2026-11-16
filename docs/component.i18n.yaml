@@ -83,6 +83,9 @@
 /components/input-and-overlays/dialogs:
   en: "3249394f2e40714e"
   zh: "33b01d2124b535f7"
+/components/input-and-overlays/bottom-sheets:
+  en: "5f3e91fc4e5d7bd7"
+  zh: "08ad0c6ddb32e7cc"
 /components/input-and-overlays/side-sheets:
   en: "88d7f9f958c88e33"
   zh: "800322be47d3d24b"

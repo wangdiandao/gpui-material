@@ -278,6 +278,18 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 在活动父窗口中调用 `Dialog::open_window(&state, parent, options, cx, |state, window, cx| ...)`，可请求独立的 GPUI 对话框窗口并在其中构造内容。`WindowOptions` 指定窗口边界、标题栏和是否可调整大小。父窗口的模态行为、窗口装饰及原生尺寸调整由系统处理。Windows 会停用当前活动父窗口，macOS 使用窗口附属表单，Linux 的模态行为由合成器决定。Escape 和系统关闭按钮沿用同样的关闭策略。外部点击关闭和遮罩用于窗口内对话框。需要跨平台一致的单窗口模态行为时，使用窗口内对话框。
 
+### 底部面板
+
+使用 `BottomSheetState::new(initial_value, cx)` 创建一个 `Entity<BottomSheetState>`，再用 `Sheet::bottom(id, &state, name, content)` 渲染。`BottomSheetValue` 提供 `Hidden`、`PartiallyExpanded` 和 `Expanded`。构建状态时可用 `.enabled_values(values)` 和 `.confirm_value_change(|target| ...)` 配置停靠点和切换校验。目标不可用或切换被拒绝时，面板停留在当前停靠点。
+
+调用 `show(window, cx)` 打开面板，有可用的部分展开停靠点时优先使用该位置。使用 `partial_expand(window, cx)`、`expand(window, cx)` 和 `hide(window, cx)` 动画切换到指定位置，也可用 `animate_to(value, window, cx)` 传入停靠点。用 `snap_to(value, window, cx)` 直接切换。通过 `available_values()`、`current_value()`、`target_value()`、`is_animating()`、`visible_height()` 和 `offset()` 读取状态。偏移量是距完全展开位置的向下距离，单位为逻辑像素。减少动态效果时会直接停靠。
+
+标准底部面板加入调用方布局。`Scaffold::bottom_sheet(sheet)` 将标准面板放在主内容下方和底部导航上方。面板适应实测的内容列尺寸，其可见高度计入 Scaffold 底部已占空间。其余正文内边距继续使用 `ScaffoldInsets` 的最小值规则。模态底部面板覆盖窗口，关闭前将焦点限制在内部。用户关闭受 `.properties(DialogProperties)`、`.on_dismiss_request` 和状态切换校验控制。`.on_close` 对一次已接受的用户关闭报告一次。程序主动隐藏时会恢复打开控件的焦点。
+
+用 `.extent(height)` 设置完全展开的高度，用 `.peek_height(height)` 设置部分展开的可见高度。标准面板默认露出 56 逻辑像素。模态面板默认将部分展开高度限制在视口的一半以内。默认宽度上限为 640 逻辑像素，可用 `.max_width(width)` 调整。通过 `.content_insets(ScaffoldInsets)` 为可滚动的面板正文添加逻辑内边距。形状、颜色、遮罩和海拔沿用 Sheet 的构建方法。
+
+具名调整手柄支持指针拖动，也可由键盘或辅助技术激活，循环切换可用停靠点。上键和下键在停靠点之间移动，Home 和 End 选择最低或最高的可用位置。用 `.handle_label(label)` 指定无障碍名称，用 `.handle_content(element)` 替换手柄装饰，或用 `.show_handle(false)` 改用文本操作。`.drag_enabled(false)` 保留显式调整操作。`.drag_thresholds(BottomSheetThresholds)` 配置位置阈值和释放速度阈值，默认为 56 逻辑像素和每秒 125 逻辑像素。拖拽中按 Escape、失去指针捕获或窗口调整大小时，面板回到可用的停靠点。正文滚动与手柄拖动相互独立。
+
 ### 侧边栏
 
 使用 `Sheet::new(id, &state, name, content)` 创建侧边栏，并用 `.edge(SheetEdge::Start)` 或 `.edge(SheetEdge::End)` 选择逻辑侧边。侧边随窗口方向调整。标准侧边栏加入调用方布局，旁边的内容仍可交互。请把它放在主内容对应的逻辑侧边。模态侧边栏覆盖窗口，并在关闭前将焦点限制在其内部。保留一个 `DialogState`，调用 `open(window, cx)` 和 `close(window, cx)` 控制模态侧边栏的显示。嵌套模态侧边栏时，为内层指定更高的 `.layer(index)`。

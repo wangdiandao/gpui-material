@@ -6,6 +6,7 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ### Components
 
+- Use retained bottom-sheet stops, configurable drag and keyboard actions, and a measured Standard sheet slot in Scaffold.
 - Compose standalone dial, text input, and wrapping time wheels or combine them with configurable standard and vibrant time picker dialogs.
 - Customize adaptive navigation types, animated visibility, and the bar or rail layout while keeping destination selection and focus across width changes.
 - Compose date pickers with customizable anchors, panels, dialog actions and state colors. Control the displayed month, partial range, display mode, and year availability.

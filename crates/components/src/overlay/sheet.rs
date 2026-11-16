@@ -15,7 +15,11 @@ use gpui_material_theme::{
     TypeRole,
 };
 
-use crate::{Button, ButtonVariant, Divider, Icon, IconButton, IconName, Text};
+use crate::{Button, ButtonVariant, Divider, Icon, IconButton, IconName, ScaffoldInsets, Text};
+
+use super::bottom_sheet::{
+    BottomHandle, BottomSheetLayout, BottomSheetState, BottomSheetThresholds, BottomSheetValue,
+};
 
 use super::dialog::{
     DialogCloseReason, DialogProperties, DialogState, ModalClosed, ModalDismissRequest,
@@ -124,19 +128,22 @@ enum CloseAction {
 impl SheetClose {
     /// Requests dismissal from the sheet's Close action.
     pub fn activate(&self, window: &mut Window, cx: &mut App) {
+        self.request(window, cx);
+    }
+
+    pub(super) fn request(&self, window: &mut Window, cx: &mut App) -> bool {
         let reason = DialogCloseReason::Cancel;
         match &self.0 {
-            CloseAction::Modal(session) => {
-                session.dismiss(reason, window, cx);
-            }
+            CloseAction::Modal(session) => session.dismiss(reason, window, cx),
             CloseAction::Standard(request, Some(closed))
                 if request
                     .as_ref()
                     .is_none_or(|request| request(reason, window, cx)) =>
             {
                 closed(reason, window, cx);
+                true
             }
-            CloseAction::Standard(_, _) => {}
+            CloseAction::Standard(_, _) => false,
         }
     }
 }
@@ -265,12 +272,17 @@ fn drag_handle_mark(tint: gpui::Hsla) -> gpui::Div {
     div().w(px(32.)).h(px(4.)).rounded_full().bg(tint)
 }
 
+enum SheetBinding {
+    Immediate(Entity<DialogState>),
+    Retained(Entity<BottomSheetState>),
+}
+
 /// A docked or modal Material sheet. Standard sheets take part in parent layout.
 /// The caller owns the bottom sheet's expanded value and handles changes.
 #[derive(IntoElement)]
 pub struct Sheet {
     id: ElementId,
-    state: Entity<DialogState>,
+    state: SheetBinding,
     title: SharedString,
     content: AnyElement,
     edge: SheetEdge,
@@ -299,6 +311,15 @@ pub struct Sheet {
     shadow_elevation: Option<Elevation>,
     scrim_opacity: f32,
     presence: Option<gpui_base::motion::PresenceSample>,
+    layout_size: Option<Size<Pixels>>,
+    peek_height: Option<Pixels>,
+    max_width: Pixels,
+    drag_enabled: bool,
+    show_handle: bool,
+    handle_content: Option<AnyElement>,
+    handle_label: SharedString,
+    thresholds: BottomSheetThresholds,
+    content_insets: ScaffoldInsets,
 }
 
 impl Sheet {
@@ -308,11 +329,40 @@ impl Sheet {
         title: impl Into<SharedString>,
         content: impl IntoElement,
     ) -> Self {
+        Self::with_state(
+            id.into(),
+            SheetBinding::Immediate(state.clone()),
+            title.into(),
+            content.into_any_element(),
+        )
+    }
+
+    /// Creates a bottom sheet with retained stops and state-owned visibility.
+    pub fn bottom(
+        id: impl Into<ElementId>,
+        state: &Entity<BottomSheetState>,
+        title: impl Into<SharedString>,
+        content: impl IntoElement,
+    ) -> Self {
+        Self::with_state(
+            id.into(),
+            SheetBinding::Retained(state.clone()),
+            title.into(),
+            content.into_any_element(),
+        )
+    }
+
+    fn with_state(
+        id: ElementId,
+        state: SheetBinding,
+        title: SharedString,
+        content: AnyElement,
+    ) -> Self {
         Self {
-            id: id.into(),
-            state: state.clone(),
-            title: title.into(),
-            content: content.into_any_element(),
+            id,
+            state,
+            title,
+            content,
             edge: SheetEdge::Bottom,
             mode: SheetMode::Standard,
             extent: px(320.),
@@ -339,11 +389,79 @@ impl Sheet {
             shadow_elevation: None,
             scrim_opacity: 0.32,
             presence: None,
+            layout_size: None,
+            peek_height: None,
+            max_width: px(640.),
+            drag_enabled: true,
+            show_handle: true,
+            handle_content: None,
+            handle_label: "Resize bottom sheet".into(),
+            thresholds: BottomSheetThresholds::default(),
+            content_insets: ScaffoldInsets::default(),
         }
     }
 
+    pub(crate) fn in_scaffold(mut self, size: Size<Pixels>) -> Self {
+        self.edge = SheetEdge::Bottom;
+        self.mode = SheetMode::Standard;
+        self.layout_size = Some(size);
+        self
+    }
+
+    /// Sets the retained bottom sheet's partial height. It fits the expanded extent.
+    pub fn peek_height(mut self, height: Pixels) -> Self {
+        if f32::from(height).is_finite() {
+            self.peek_height = Some(height.max(px(48.)));
+        }
+        self
+    }
+
+    /// Sets the bottom sheet's maximum width in logical pixels.
+    pub fn max_width(mut self, width: Pixels) -> Self {
+        if f32::from(width).is_finite() && width > px(0.) {
+            self.max_width = width;
+        }
+        self
+    }
+
+    pub fn drag_enabled(mut self, enabled: bool) -> Self {
+        self.drag_enabled = enabled;
+        self
+    }
+
+    pub fn drag_thresholds(mut self, thresholds: BottomSheetThresholds) -> Self {
+        self.thresholds = thresholds.normalized();
+        self
+    }
+
+    /// Replaces the grip decoration of the retained sheet's resize control.
+    pub fn handle_content(mut self, content: impl IntoElement) -> Self {
+        self.handle_content = Some(content.into_any_element());
+        self
+    }
+
+    /// Names the resize action for keyboard and assistive technology.
+    pub fn handle_label(mut self, label: impl Into<SharedString>) -> Self {
+        self.handle_label = label.into();
+        self
+    }
+
+    /// Uses a text height action in place of the grip when multiple stops are available.
+    pub fn show_handle(mut self, show: bool) -> Self {
+        self.show_handle = show;
+        self
+    }
+
+    /// Sets logical padding within the bottom sheet's scrolling content.
+    pub fn content_insets(mut self, insets: ScaffoldInsets) -> Self {
+        self.content_insets = insets.normalized();
+        self
+    }
+
     pub fn edge(mut self, edge: SheetEdge) -> Self {
-        self.edge = edge;
+        if matches!(self.state, SheetBinding::Immediate(_)) {
+            self.edge = edge;
+        }
         self
     }
 
@@ -522,25 +640,79 @@ impl Sheet {
 impl RenderOnce for Sheet {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let modal = self.mode == SheetMode::Modal;
-        let open = !modal || self.state.read(cx).is_open();
-        let presence = modal.then(|| {
+        let viewport = window.viewport_size();
+        let available = self.layout_size.unwrap_or(viewport);
+        let bottom = self.edge == SheetEdge::Bottom;
+        let bottom_width = available.width.min(self.max_width);
+        let bottom_left = (viewport.width - bottom_width) / 2.;
+        let (dialog, retained) = match &self.state {
+            SheetBinding::Immediate(dialog) => (dialog.clone(), None),
+            SheetBinding::Retained(state) => (state.read(cx).dialog.clone(), Some(state.clone())),
+        };
+        let bottom_state = retained.as_ref().filter(|_| bottom);
+        let mut on_dismiss_request = self.on_dismiss_request;
+        let mut on_close = self.on_close;
+        let retained_layout = bottom_state.map(|state| {
+            let expanded = self.extent.min(available.height);
+            let partial = self
+                .peek_height
+                .unwrap_or_else(|| {
+                    if modal {
+                        available.height / 2.
+                    } else {
+                        px(56.)
+                    }
+                })
+                .min(expanded);
+            let layout = BottomSheetLayout {
+                available,
+                expanded,
+                partial,
+                mode: self.mode,
+                drag_enabled: self.drag_enabled && self.show_handle,
+            };
+            let height = state.update(cx, |state, cx| {
+                state.configure(layout, window, cx);
+                state.visible_height()
+            });
+            let state = state.downgrade();
+            let request = on_dismiss_request.take();
+            on_dismiss_request = Some(Rc::new(move |reason, window, cx| {
+                request
+                    .as_ref()
+                    .is_none_or(|request| request(reason, window, cx))
+                    && state
+                        .update(cx, |state, cx| state.accept_user_close(window, cx))
+                        .unwrap_or(false)
+            }));
+            if !modal && on_close.is_none() {
+                on_close = Some(Rc::new(|_, _, _| {}));
+            }
+            (height, partial.max(px(1.)))
+        });
+        let open = !modal || dialog.read(cx).is_open();
+        let presence = (modal && retained_layout.is_none()).then(|| {
             self.presence
                 .unwrap_or_else(|| crate::motion::presence(&self.id, open, 240, window, cx))
         });
-        if presence.is_some_and(|presence| !presence.should_render()) {
+        let hidden = bottom_state.is_some_and(|state| {
+            let state = state.read(cx);
+            state.target_value() == BottomSheetValue::Hidden && state.visible_height() <= px(0.)
+        });
+        if hidden || presence.is_some_and(|presence| !presence.should_render()) {
             return div().into_any_element();
         }
-        let visibility = presence.map_or(1., |presence| presence.progress);
-        let viewport = window.viewport_size();
-        let bottom_width = viewport.width.min(px(640.));
-        let bottom_left = (viewport.width - bottom_width) / 2.;
+        let visibility = if let Some((height, peek)) = retained_layout {
+            (height / peek).clamp(0., 1.)
+        } else {
+            presence.map_or(1., |presence| presence.progress)
+        };
         let theme = window_material_theme(window, cx).clone();
         let left = match self.edge {
             SheetEdge::Start => theme.layout.direction == Direction::Ltr,
             SheetEdge::End => theme.layout.direction == Direction::Rtl,
             SheetEdge::Bottom => false,
         };
-        let bottom = self.edge == SheetEdge::Bottom;
         let detached = !bottom && self.placement == SheetPlacement::Detached;
         let rtl = theme.layout.direction == Direction::Rtl;
         let margins = if detached {
@@ -550,7 +722,7 @@ impl RenderOnce for Sheet {
         };
         let available_width = (viewport.width - margins.left - margins.right).max(px(0.));
         let target = if bottom {
-            self.extent.min(viewport.height)
+            self.extent.min(available.height)
         } else {
             self.extent.min(px(400.)).min(available_width)
         };
@@ -576,16 +748,10 @@ impl RenderOnce for Sheet {
                 .expansion
                 .as_ref()
                 .is_none_or(|(expanded, _)| *expanded);
-        let focus = self.state.read(cx).focus.clone();
-        let scroll = self.state.read(cx).scroll.clone();
-        let session = modal.then(|| {
-            ModalSession::new(
-                &self.state,
-                self.on_dismiss_request.clone(),
-                self.on_close.clone(),
-                cx,
-            )
-        });
+        let focus = dialog.read(cx).focus.clone();
+        let scroll = dialog.read(cx).scroll.clone();
+        let session = modal
+            .then(|| ModalSession::new(&dialog, on_dismiss_request.clone(), on_close.clone(), cx));
         let gesture = window
             .use_keyed_state((self.id.clone(), "drag"), cx, |_, _| {
                 Rc::new(RefCell::new(Gesture::default()))
@@ -595,7 +761,9 @@ impl RenderOnce for Sheet {
         // The 48dp handle and 48dp header actions must remain operable at rest.
         let collapsed = px(48. + 8. + 48. + 16.).min(extent);
         let travel = extent - collapsed;
-        let height = if self.expansion.is_some() && bottom {
+        let height = if let Some((height, _)) = retained_layout {
+            height
+        } else if self.expansion.is_some() && bottom {
             let drag = gesture.borrow();
             let tracked = drag.capture.is_some();
             let target = if expanded { extent } else { collapsed } - drag.offset;
@@ -619,11 +787,15 @@ impl RenderOnce for Sheet {
         } else {
             extent
         };
-        let offscreen = -(if bottom { height } else { extent }) * (1. - visibility);
+        let offscreen = if retained_layout.is_some() {
+            px(0.)
+        } else {
+            -(if bottom { height } else { extent }) * (1. - visibility)
+        };
         let handle = self
             .expansion
             .as_ref()
-            .filter(|_| bottom)
+            .filter(|_| bottom && retained_layout.is_none())
             .map(|(expanded, change)| {
                 if open {
                     drag_handle(
@@ -648,11 +820,39 @@ impl RenderOnce for Sheet {
                         .into_any_element()
                 }
             });
-        let show_default_close = modal || self.on_close.is_some();
+        let show_default_close = (modal || on_close.is_some())
+            && bottom_state.is_none_or(|state| {
+                state
+                    .read(cx)
+                    .available_values()
+                    .contains(&BottomSheetValue::Hidden)
+            });
         let close_action = SheetClose(match session.clone() {
             Some(session) => CloseAction::Modal(session),
-            None => CloseAction::Standard(self.on_dismiss_request, self.on_close),
+            None => CloseAction::Standard(on_dismiss_request, on_close),
         });
+        let handle = if let Some(state) = bottom_state
+            .filter(|state| self.show_handle || state.read(cx).available_values().len() > 1)
+        {
+            Some(
+                BottomHandle {
+                    id: self.id.clone(),
+                    state: state.clone(),
+                    close: close_action.clone(),
+                    decoration: self.handle_content,
+                    label: self.handle_label,
+                    grip: self.show_handle,
+                    thresholds: self.thresholds,
+                    tint: color(theme.colors.color(ColorRole::OnSurfaceVariant)),
+                    active: open,
+                }
+                .render(window, cx),
+            )
+        } else {
+            handle
+        };
+        let show_chrome = retained_layout.is_none() || handle.is_none() || height >= px(120.);
+        let body_insets = self.content_insets.resolve(theme.layout.direction);
         let close = self
             .show_close
             .then(|| match self.close_content {
@@ -799,16 +999,26 @@ impl RenderOnce for Sheet {
                 |surface| surface.w_full().h(height).overflow_hidden(),
                 |surface| surface.h_full().flex_1().min_w_0().overflow_hidden(),
             )
-            .child(header)
-            .when(expanded || height > collapsed, |surface| {
+            .children(show_chrome.then_some(header))
+            .when(show_chrome && (expanded || height > collapsed), |surface| {
                 surface.child(
                     isolated_scroll("sheet-content", &scroll)
                         .test_support()
                         .flex_1()
-                        .child(self.content),
+                        .child(if self.content_insets == ScaffoldInsets::default() {
+                            self.content
+                        } else {
+                            div()
+                                .pt(body_insets.top)
+                                .pr(body_insets.right)
+                                .pb(body_insets.bottom)
+                                .pl(body_insets.left)
+                                .child(self.content)
+                                .into_any_element()
+                        }),
                 )
             })
-            .children(footer);
+            .children(footer.filter(|_| retained_layout.is_none() || height >= px(192.)));
         let edge_separator = (!bottom && !modal && !detached && self.edge_divider).then(|| {
             div()
                 .id("sheet-edge-divider")
@@ -830,7 +1040,7 @@ impl RenderOnce for Sheet {
                     .occlude()
             })
             .when(bottom && !modal, |panel| {
-                panel.w_full().max_w(px(640.)).mx_auto()
+                panel.w_full().max_w(bottom_width).mx_auto()
             })
             .when(!bottom, |panel| {
                 panel
@@ -919,7 +1129,7 @@ impl RenderOnce for Sheet {
                         .h(viewport.height)
                         .overflow_hidden()
                         .child(scrim)
-                        .child(exiting_panel(panel, &self.id, &self.state, window, cx)),
+                        .child(exiting_panel(panel, &self.id, &dialog, window, cx)),
                 ),
             )
             .with_priority(layer)

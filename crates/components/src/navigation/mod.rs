@@ -10,4 +10,4 @@ pub use items::{
     NavigationBar, NavigationBarLayout, NavigationItem, NavigationItems, TabVariant, Tabs,
 };
 pub use rail::{NavigationRail, RailMode};
-pub use scaffold::Scaffold;
+pub use scaffold::{Scaffold, ScaffoldContentLayout, ScaffoldFabPosition, ScaffoldInsets};

@@ -7,6 +7,7 @@ See [versioning and releases](docs/release.md) for the release process.
 ### Components
 
 - Supply measured progress, custom morph shapes, and instance colors and container corners for Loading Indicators.
+- Position Scaffold FABs at the start, center, end, or over the bottom bar. Resolve content insets against measured bars and rail space.
 - Set divider thickness and color for each horizontal or vertical rule. A zero thickness selects a one-device-pixel hairline.
 - Compose text fields with configurable label placement, leading and trailing elements, value affixes, custom hints and supporting content, and required, invalid, and character count presentation.
 - Observe Button and ToggleButton interaction changes through an optional shared interaction source.

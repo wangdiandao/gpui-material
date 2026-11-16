@@ -12,6 +12,9 @@ use gpui_material::{
     foundation::isolated_scroll, theme::TypeRole,
 };
 
+#[cfg(all(test, feature = "test-support"))]
+mod scaffold_tests;
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Destination {
     Inbox,

@@ -121,8 +121,16 @@ By default the scrim is decorative. It dims the content while leaving pointer in
 | `Tabs` | Primary and Secondary tabs with fixed or scrolling layouts. | [Tabs](https://m3.material.io/components/tabs/overview) |
 | `NavigationBar`, `NavigationRail` | Short navigation bar with vertical or horizontal items. Rail with collapsed, expanded, hidden, and modal presentation. | [Navigation bar](https://m3.material.io/components/navigation-bar/overview) · [Navigation rail](https://m3.material.io/components/navigation-rail/overview) |
 | `AdaptiveNavigation` | Switches between the navigation bar and rail by available width. | [Breakpoints](https://m3.material.io/foundations/layout/breakpoints/overview) |
-| `Scaffold` | Combines navigation, app bars, content, a FAB, and snackbars. | [Scaffold](https://m3.material.io/foundations/layout/scaffold/overview) |
+| `Scaffold` | Combines navigation, app bars, content, a positioned FAB, and snackbars. Resolves content insets from occupied space. | [Scaffold](https://m3.material.io/foundations/layout/scaffold/overview) |
 | `ListDetail`, `SupportingPane`, `Feed` | Canonical layouts for list and detail views, supporting content, and responsive feeds. | [Canonical layouts](https://m3.material.io/foundations/layout/canonical-examples/overview) |
+
+### Scaffold
+
+`Scaffold::new(id, content)` reserves the measured space occupied by the independent `.app_bar`, `.rail`, and `.bottom_bar` slots. The app owns those slots, the FAB and the snackbar host. Keep a stable ID and give the scaffold a bounded size. Use `.content_insets(ScaffoldInsets { top, start, bottom, end })` for the minimum distance, in logical pixels, from each scaffold edge to the usable content. Each occupied edge counts toward that minimum. The normal constructor applies any remaining padding inside the content area.
+
+Use `Scaffold::with_layout(id, |layout, window, cx| ...)` to receive the current layout before building content. `ScaffoldContentLayout` exposes the body `bounds`, measured `occupied` space, remaining `padding`, and text `direction`. Apply only `padding` to the content or a scroll child because the scaffold already reserved `occupied`. Use `ScaffoldInsets::resolve(direction)` to convert logical start and end to physical edges. The content builder runs during layout and receives the current measurements when a slot changes size or the window resizes.
+
+Set `.fab_position(ScaffoldFabPosition)` to `Start`, `Center`, or `End` within the available content width. `End` is the default. These positions keep the FAB above the bottom bar and above the snackbar when the snackbar slot is present. `EndOverlay` places the FAB at the scaffold's bottom edge over the bar, inside the requested bottom inset. The snackbar clears both the bottom bar and the FAB. Start and end mirror with the window direction. The FAB and snackbar are overlays, so they do not contribute to occupied content space.
 
 <a id="可选组件"></a>
 

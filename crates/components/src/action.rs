@@ -96,9 +96,11 @@ pub(crate) struct ActionControl {
 pub(crate) struct FeedbackState {
     hovered: bool,
     pressed: bool,
+    dragged: bool,
+    pointer_cancelled: bool,
     keyboard_focus: Option<FocusHandle>,
-    shape: Option<Shape>,
-    ripple: Option<Ripple>,
+    pub(crate) shape: Option<Shape>,
+    pub(crate) ripple: Option<Ripple>,
     tracker: Option<(InteractionTracker, FocusHandle)>,
 }
 
@@ -110,6 +112,7 @@ impl FeedbackState {
         interaction.focus_visible = focus.is_focused(window) && window.last_input_was_keyboard();
         interaction.pressed =
             enabled && self.pressed && (self.hovered || interaction.focus_visible);
+        interaction.dragged = enabled && self.dragged;
         interaction
     }
 
@@ -142,6 +145,34 @@ impl FeedbackState {
 
     pub(crate) fn pressed(&self) -> bool {
         self.pressed
+    }
+
+    pub(crate) fn set_dragged(&mut self, dragged: bool) {
+        if dragged {
+            self.pointer_cancelled = true;
+            self.cancel();
+        }
+        self.dragged = dragged;
+    }
+
+    pub(crate) fn track(
+        &mut self,
+        enabled: bool,
+        focus: &FocusHandle,
+        tracker: Option<InteractionTracker>,
+        window: &Window,
+        cx: &mut App,
+    ) -> InteractionState {
+        let state = self.interaction(enabled, focus, window);
+        if let Some(tracker) = &tracker {
+            tracker.record(state, cx);
+        }
+        self.tracker = tracker.map(|tracker| (tracker, focus.clone()));
+        state
+    }
+
+    pub(crate) fn blocks_activation(&self, event: &ClickEvent) -> bool {
+        self.dragged || self.pointer_cancelled && matches!(event, ClickEvent::Mouse(_))
     }
 }
 
@@ -537,11 +568,13 @@ fn decorate(
         .text_color(foreground)
         .child(content);
     control
-        .when(enabled, |control| feedback_target(control, feedback, true))
+        .when(enabled, |control| {
+            feedback_target(control, feedback, true, None)
+        })
         .into_any_element()
 }
 
-fn activate_feedback(
+pub(crate) fn activate_feedback(
     event: &ClickEvent,
     state: &RefCell<FeedbackState>,
     window: &mut Window,
@@ -634,13 +667,18 @@ pub(crate) fn ripple_target<E>(control: E, state: Rc<RefCell<FeedbackState>>) ->
 where
     E: StatefulInteractiveElement,
 {
-    feedback_target(control, state, false)
+    feedback_target(control, state, false, None)
 }
 
 /// Observe presentation events without consuming them: Base still owns activation,
 /// focus, disabled semantics and controlled value changes. Action controls also
 /// read hover from this state; selection and display controls style hover themselves.
-fn feedback_target<E>(control: E, state: Rc<RefCell<FeedbackState>>, track_hover: bool) -> E
+pub(crate) fn feedback_target<E>(
+    control: E,
+    state: Rc<RefCell<FeedbackState>>,
+    track_hover: bool,
+    keyboard_owner: Option<FocusHandle>,
+) -> E
 where
     E: StatefulInteractiveElement,
 {
@@ -652,6 +690,7 @@ where
     control
         .on_mouse_down(MouseButton::Left, move |event, window, cx| {
             let mut state = press.borrow_mut();
+            state.pointer_cancelled = false;
             state.pressed = true;
             state.keyboard_focus = None;
             if track_hover {
@@ -693,7 +732,12 @@ where
                 state.cancel();
                 state.record(window, cx);
                 window.refresh();
-            } else if matches!(event.keystroke.key.as_str(), "space" | "enter") && !event.is_held {
+            } else if matches!(event.keystroke.key.as_str(), "space" | "enter")
+                && !event.is_held
+                && keyboard_owner
+                    .as_ref()
+                    .is_none_or(|owner| owner.is_focused(window))
+            {
                 let mut state = keyboard.borrow_mut();
                 state.pressed = true;
                 state.keyboard_focus = window.focused(cx);

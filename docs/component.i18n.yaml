@@ -50,6 +50,9 @@
 /components/input-and-overlays:
   en: "13367d3b0ca895aa"
   zh: "5d3d6261f7f67aef"
+/components/input-and-overlays/exposed-dropdowns:
+  en: "42d0ee2aa841f85a"
+  zh: "f9ccf06af5bf4128"
 /components/input-and-overlays/menu-controls-and-item-content:
   en: "e3e914aecf69d3f3"
   zh: "00f3613c4cab5143"

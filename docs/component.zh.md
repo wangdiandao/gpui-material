@@ -171,6 +171,16 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 `TextField` 为调用方持有的 Base 编辑器提供外观。使用 `label_content`、`placeholder_content` 和 `supporting_content` 时，纯文本分别提供无障碍名称、提示和说明。首尾元素与紧邻输入值的前后缀分开。标签收起时显示前后缀。Filled 默认使用内部标签，Outlined 默认使用缺口标签。可通过 Above 将标签放在容器上方，也可设置水平对齐方式，让内部或缺口标签始终保持收起。字符计数按 Unicode 标量值统计，输入长度仍由编辑器处理。安全字段隐藏计数和无障碍值。可独立于窗口主题设置实例配色、容器形状、内容内边距和输入文字样式。`on_text_layout` 在帧结束后报告编辑器与文本的布局边界和换行后的行数。通过 `interaction_source` 共享悬停、键盘焦点和禁用状态的观测结果。Base 实体继续管理编辑、选区、校验、滚动和输入法组合。
 
+### 公开式下拉菜单
+
+每个下拉菜单创建一个 `ExposedDropdownState`，由它保存待提交的查询、已提交的选择和列表位置。用 `is_open()` 读取当前显示状态，用 `selected_option_id()` 读取最近提交的选项 ID。`with_editor(&editor, editable, window, cx)` 使用调用方持有的 `TextFieldState`。`.editor(|field| ...)` 可以配置或包装传入的 `TextField`，包括标签、装饰和编辑器布局。将这个字段保留在返回元素中，可保留无障碍名称以及原生编辑、光标和输入法行为。
+
+默认可编辑字段在输入或激活尾部触发器时展开，并保留编辑器焦点。默认仅选择字段通过点击或空格展开，同样保留字段焦点。`.primary_anchor(DropdownAnchor::PrimaryEditable)` 让整个字段可以触发菜单并保留编辑器焦点。仅选择状态使用 `PrimaryNotEditable` 可在展开时将焦点移至列表，关闭时回到字段。`.secondary_anchor(label, |open| ...)` 自定义尾部触发器及其无障碍名称。使用指针激活次要锚点时仍可继续编辑，通过无障碍操作激活可编辑字段的次要锚点时焦点进入选项列表。`.primary_anchor_enabled(false)` 和 `.secondary_anchor_enabled(false)` 可分别关闭相应锚点的菜单激活，仍可使用编辑器。
+
+通过 `.open(open)` 和 `.on_open_change(|requested, window, cx| ...)` 控制菜单显示。由调用方处理请求并重新渲染。`.on_dismiss(...)` 报告用户发出的关闭请求。程序更新在渲染时生效，丢弃草稿时保留已提交值。上下方向键浏览选项，回车提交，Escape 在输入法组合结束后关闭。从菜单关闭时，焦点返回仍可用的触发锚点。已获取焦点的外部控件保留焦点。
+
+重新创建或调整选项顺序时保留各自的 ID。`.option_content(|option, highlighted, window, cx| ...)` 提供装饰性行内容，原始标签用于无障碍名称和筛选。可通过 `scroll_state()` 读取或移动保留的 GPUI `ListState`，或用 `set_scroll_state(&scroll, cx)` 接入调用方持有的状态。列表仅构造可见行和预加载区域，包括自定义内容。菜单默认跟随字段宽度。用 `.match_anchor_width(false)` 选用独立宽度，默认 240 px，`.popup_width(width)` 可覆盖该值。菜单宽高受窗口可用区域限制。`.appearance(MenuSurfaceStyle)` 配置菜单形状、主题角色、描边和高程。`.container_color(color)` 可覆盖容器颜色。
+
 ### 菜单开关和菜单项内容
 
 `Menu::new` 默认自行管理显示状态。使用 `.open(open)` 和 `.on_open_change(|requested, window, cx| ...)` 时，由调用者持有状态。调用者可接受请求、更新状态并重新渲染。调用者主动更新 `open` 会同步显示和焦点，不会触发变更回调。`.on_dismiss(|window, cx| ...)` 报告用户操作发出的关闭请求。`Menu::composed` 向自定义触发控件提供当前显示状态及激活回调。

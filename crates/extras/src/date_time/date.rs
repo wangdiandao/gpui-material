@@ -1,10 +1,11 @@
-use std::{ops::RangeInclusive, rc::Rc, sync::Arc};
+use std::{cell::Cell, ops::RangeInclusive, rc::Rc, sync::Arc};
 
 use chrono::{Datelike, Days, Months};
 use gpui::{
-    AccessibleAction, Anchor, AnyElement, App, AppContext as _, Context, ElementId, Entity,
-    FocusHandle, Focusable as _, InteractiveElement as _, IntoElement, ParentElement as _, Pixels,
-    RenderOnce, Role, SharedString, StatefulInteractiveElement as _, Styled as _, Window, div,
+    AccessibleAction, Anchor, AnyElement, App, AppContext as _, Bounds, Context, ElementId, Entity,
+    EntityInputHandler as _, FocusHandle, Focusable as _, Hsla, InteractiveElement as _,
+    IntoElement, ParentElement as _, Pixels, RenderOnce, Role, SharedString,
+    StatefulInteractiveElement as _, Styled as _, WeakFocusHandle, Window, canvas, div,
     prelude::FluentBuilder as _, px,
 };
 use gpui_base::{
@@ -12,8 +13,9 @@ use gpui_base::{
     actions::Confirm as ConfirmAction,
 };
 use gpui_material_components::{
-    Button, ButtonVariant, Dialog, DialogState, Icon, IconButton, IconName, Text, TextField,
-    TextFieldState, TextFieldVariant,
+    Button, ButtonColors, ButtonVariant, Dialog, DialogAction, DialogCloseReason, DialogColors,
+    DialogProperties, DialogState, DialogVariant, Icon, IconButton, IconName, Text, TextField,
+    TextFieldColors, TextFieldState, TextFieldVariant,
 };
 use gpui_material_foundation::{Surface, color, logical_anchor, text_style, window_material_theme};
 use gpui_material_theme::{ColorRole, Direction, Elevation, TypeRole, TypographyEmphasis};
@@ -53,12 +55,95 @@ pub enum DatePickerVariant {
     #[default]
     Modal,
     ModalInput,
+    /// Uses a full-screen dialog in compact windows.
+    FullScreen,
+}
+
+/// A draft can retain the first endpoint before the second is chosen.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DatePickerDraft {
+    Single(Option<NaiveDate>),
+    Range(Option<NaiveDate>, Option<NaiveDate>),
+}
+
+impl DatePickerDraft {
+    /// Returns a complete candidate selection, when the draft has all its dates.
+    pub fn selection(self) -> Option<DateSelection> {
+        complete(self.into())
+    }
+}
+
+impl From<DateSelection> for DatePickerDraft {
+    fn from(value: DateSelection) -> Self {
+        value.draft().into()
+    }
+}
+
+impl From<Date> for DatePickerDraft {
+    fn from(date: Date) -> Self {
+        match date {
+            Date::Single(value) => Self::Single(value),
+            Date::Range(start, end) => Self::Range(start, end),
+        }
+    }
+}
+
+impl From<DatePickerDraft> for Date {
+    fn from(draft: DatePickerDraft) -> Self {
+        match draft {
+            DatePickerDraft::Single(value) => Self::Single(value),
+            DatePickerDraft::Range(start, end) => Self::Range(start, end),
+        }
+    }
+}
+
+/// The visible editor in a date picker.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum DatePickerDisplayMode {
+    #[default]
+    Calendar,
+    Input,
+}
+
+/// Local date picker and editor colors. Unset values use the active Material theme.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DatePickerColors {
+    pub container: Option<Hsla>,
+    pub title: Option<Hsla>,
+    pub headline: Option<Hsla>,
+    pub weekday: Option<Hsla>,
+    pub subheading: Option<Hsla>,
+    pub navigation: Option<Hsla>,
+    pub year: Option<Hsla>,
+    pub current_year: Option<Hsla>,
+    pub disabled_year: Option<Hsla>,
+    pub selected_year: Option<Hsla>,
+    pub selected_year_container: Option<Hsla>,
+    pub disabled_selected_year: Option<Hsla>,
+    pub disabled_selected_year_container: Option<Hsla>,
+    pub day: Option<Hsla>,
+    pub disabled_day: Option<Hsla>,
+    pub selected_day: Option<Hsla>,
+    pub selected_day_container: Option<Hsla>,
+    pub disabled_selected_day: Option<Hsla>,
+    pub disabled_selected_day_container: Option<Hsla>,
+    pub today: Option<Hsla>,
+    pub today_outline: Option<Hsla>,
+    pub range_day: Option<Hsla>,
+    pub range_container: Option<Hsla>,
+    pub focus_outline: Option<Hsla>,
+    pub input: Option<TextFieldColors>,
 }
 
 type DateFormatter = Rc<dyn Fn(NaiveDate) -> SharedString>;
 type DateParser = Rc<dyn Fn(&str) -> Option<NaiveDate>>;
 type WeekdayFormatter = Rc<dyn Fn(Weekday) -> SharedString>;
 type DateFilter = Arc<dyn Fn(NaiveDate) -> bool + Send + Sync>;
+type YearFilter = Arc<dyn Fn(i32) -> bool + Send + Sync>;
+type OnClose = Rc<dyn Fn(DialogCloseReason, &mut Window, &mut App)>;
+type DismissRequest = Rc<dyn Fn(DialogCloseReason, &mut Window, &mut App) -> bool>;
+type CustomAnchor = Box<dyn FnOnce(TextField) -> AnyElement>;
+type CustomAction = Box<dyn FnOnce(DialogAction) -> AnyElement>;
 
 /// Formatting and parsing belong to the application locale. Default editing
 /// uses an ISO pattern and the calendar uses English headings.
@@ -102,6 +187,15 @@ impl DatePickerLocale {
         self
     }
 
+    /// Sets the spoken date format independently of editable text.
+    pub fn accessible_date_format(
+        mut self,
+        format: impl Fn(NaiveDate) -> SharedString + 'static,
+    ) -> Self {
+        self.day = Rc::new(format);
+        self
+    }
+
     /// Formats day accessibility names, month headings, and weekday labels.
     pub fn calendar_format(
         mut self,
@@ -137,11 +231,24 @@ impl DateError {
 struct DateLimits {
     bounds: RangeInclusive<NaiveDate>,
     disabled: DateFilter,
+    disabled_years: YearFilter,
 }
 
 impl DateLimits {
     fn accepts(&self, date: NaiveDate) -> bool {
-        self.bounds.contains(&date) && !(self.disabled)(date)
+        self.bounds.contains(&date) && self.accepts_year(date.year()) && !(self.disabled)(date)
+    }
+
+    fn accepts_year(&self, year: i32) -> bool {
+        (self.bounds.start().year()..=self.bounds.end().year()).contains(&year)
+            && !(self.disabled_years)(year)
+    }
+
+    fn accepts_draft(&self, draft: Date) -> bool {
+        let start = draft.start();
+        let end = draft.end();
+        start.is_none_or(|date| self.accepts(date))
+            && end.is_none_or(|date| start.is_some_and(|start| start <= date) && self.accepts(date))
     }
 }
 
@@ -186,12 +293,22 @@ pub struct DatePickerState {
     calendar: Entity<CalendarState>,
     start: Entity<TextFieldState>,
     end: Entity<TextFieldState>,
+    anchor: Entity<TextFieldState>,
+    anchor_value: Option<SharedString>,
     dialog: Entity<DialogState>,
     trigger: FocusHandle,
     docked: FocusHandle,
     day: FocusHandle,
     cursor: NaiveDate,
     docked_open: bool,
+    docked_generation: u64,
+    docked_previous: Option<WeakFocusHandle>,
+    docked_reason: Option<DialogCloseReason>,
+    variant: DatePickerVariant,
+    locale: DatePickerLocale,
+    locale_initialized: bool,
+    initial_month: Option<NaiveDate>,
+    year_page: Option<i32>,
     input_mode: bool,
     input_attempted: bool,
     limits: DateLimits,
@@ -203,11 +320,14 @@ impl DatePickerState {
             bounds: NaiveDate::from_ymd_opt(1900, 1, 1).unwrap()
                 ..=NaiveDate::from_ymd_opt(2100, 12, 31).unwrap(),
             disabled: Arc::new(|_| false),
+            disabled_years: Arc::new(|_| false),
         };
         let calendar = cx.new(|cx| CalendarState::new(window, cx));
         let cursor = calendar.read(cx).today();
         let start = cx.new(|cx| TextFieldState::new(window, cx));
         let end = cx.new(|cx| TextFieldState::new(window, cx));
+        let anchor = cx.new(|cx| TextFieldState::new(window, cx));
+        cx.observe(&anchor, |_, _, cx| cx.notify()).detach();
         let dialog = cx.new(DialogState::new);
         cx.observe(&start, |_, _, cx| cx.notify()).detach();
         cx.observe(&end, |_, _, cx| cx.notify()).detach();
@@ -216,12 +336,22 @@ impl DatePickerState {
             calendar,
             start,
             end,
+            anchor,
+            anchor_value: None,
             dialog,
             trigger: cx.focus_handle(),
             docked: cx.focus_handle(),
             day: cx.focus_handle(),
             cursor,
             docked_open: false,
+            docked_generation: 0,
+            docked_previous: None,
+            docked_reason: None,
+            variant: DatePickerVariant::default(),
+            locale: DatePickerLocale::default(),
+            locale_initialized: false,
+            initial_month: None,
+            year_page: None,
             input_mode: false,
             input_attempted: false,
             limits,
@@ -233,6 +363,9 @@ impl DatePickerState {
     pub fn date_bounds(mut self, bounds: RangeInclusive<NaiveDate>) -> Self {
         let (min, max) = bounds.into_inner();
         self.limits.bounds = min.min(max)..=min.max(max);
+        self.cursor = self
+            .cursor
+            .clamp(*self.limits.bounds.start(), *self.limits.bounds.end());
         self
     }
 
@@ -245,14 +378,147 @@ impl DatePickerState {
         self
     }
 
-    fn month(&self, cx: &App) -> NaiveDate {
-        let calendar = self.calendar.read(cx);
-        NaiveDate::from_ymd_opt(
-            calendar.current_year(),
-            u32::from(calendar.current_month()),
-            1,
-        )
-        .expect("calendar displays a valid month")
+    /// Selects which month is initially displayed on each open.
+    pub fn initial_month(mut self, date: NaiveDate) -> Self {
+        self.initial_month = Some(date);
+        self.cursor = date.clamp(*self.limits.bounds.start(), *self.limits.bounds.end());
+        self
+    }
+
+    /// Marks every date in matching years unavailable, independently of day filtering.
+    pub fn disabled_years(
+        mut self,
+        disabled: impl Fn(i32) -> bool + Send + Sync + 'static,
+    ) -> Self {
+        self.limits.disabled_years = Arc::new(disabled);
+        self
+    }
+
+    pub fn is_open(&self, cx: &App) -> bool {
+        self.docked_open || self.dialog.read(cx).is_open()
+    }
+
+    pub fn last_close_reason(&self, cx: &App) -> Option<DialogCloseReason> {
+        if self.variant == DatePickerVariant::Docked {
+            self.docked_reason
+        } else {
+            self.dialog.read(cx).last_close_reason()
+        }
+    }
+
+    /// Updates presentation and cursor without changing the draft.
+    pub fn set_displayed_month(&mut self, date: NaiveDate, cx: &mut Context<Self>) {
+        self.cursor = date.clamp(*self.limits.bounds.start(), *self.limits.bounds.end());
+        self.show_month(self.cursor, cx);
+        self.year_page = None;
+        cx.notify();
+    }
+
+    pub fn displayed_month(&self) -> NaiveDate {
+        first_of_month(self.cursor)
+    }
+
+    pub fn draft(&self, cx: &App) -> DatePickerDraft {
+        if self.input_mode {
+            self.input_draft(cx).into()
+        } else {
+            self.calendar.read(cx).date().into()
+        }
+    }
+
+    /// Returns the retained start editor and the end editor for a range draft.
+    pub fn input_editors(
+        &self,
+        cx: &App,
+    ) -> (&Entity<TextFieldState>, Option<&Entity<TextFieldState>>) {
+        let range = !self.calendar.read(cx).date().is_single();
+        (&self.start, range.then_some(&self.end))
+    }
+
+    /// Applies a valid draft, including empty values and a range with only a start.
+    pub fn set_draft(
+        &mut self,
+        draft: DatePickerDraft,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let draft = draft.into();
+        if !self.limits.accepts_draft(draft) {
+            return false;
+        }
+        self.apply_draft(draft, cx);
+        self.show_month(self.cursor, cx);
+        self.reset_input(draft, &self.locale, window, cx);
+        self.input_attempted = false;
+        cx.notify();
+        true
+    }
+
+    pub fn display_mode(&self) -> DatePickerDisplayMode {
+        if self.input_mode {
+            DatePickerDisplayMode::Input
+        } else {
+            DatePickerDisplayMode::Calendar
+        }
+    }
+
+    /// Changes display mode after any active IME composition has finished.
+    pub fn set_display_mode(
+        &mut self,
+        mode: DatePickerDisplayMode,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let input = mode == DatePickerDisplayMode::Input;
+        if self.input_mode == input {
+            return true;
+        }
+        if self.input_mode && self.input_composing(window, cx) {
+            return false;
+        }
+        self.input_attempted = false;
+        if self.input_mode {
+            let draft = self.input_draft(cx);
+            self.apply_draft(draft, cx);
+            if let Some(day) = draft.start() {
+                self.set_displayed_month(day, cx);
+            }
+        } else {
+            self.reset_input(self.calendar.read(cx).date(), &self.locale, window, cx);
+        }
+        self.input_mode = input;
+        self.year_page = None;
+        if self.is_open(cx) {
+            self.default_focus(cx).focus(window, cx);
+        }
+        cx.notify();
+        true
+    }
+
+    fn default_focus(&self, cx: &App) -> FocusHandle {
+        if self.input_mode {
+            self.start.read(cx).focus_handle(cx)
+        } else {
+            self.day.clone()
+        }
+    }
+
+    fn input_composing(&self, window: &mut Window, cx: &mut App) -> bool {
+        [&self.start, &self.end].into_iter().any(|field| {
+            field.update(cx, |field, cx| {
+                field.marked_text_range(window, cx).is_some()
+            })
+        })
+    }
+
+    fn apply_draft(&self, draft: Date, cx: &mut Context<Self>) {
+        let limits = self.limits.clone();
+        self.calendar.update(cx, |calendar, _| {
+            calendar.set_disabled_matcher_shared(Some(Rc::new(Matcher::custom(move |date| {
+                !limits.accepts(*date)
+            }))));
+            calendar.apply_date(draft);
+        });
     }
 
     fn show_month(&self, date: NaiveDate, cx: &mut Context<Self>) {
@@ -262,46 +528,54 @@ impl DatePickerState {
         });
     }
 
-    fn open(&mut self, picker: &DatePickerOptions, window: &mut Window, cx: &mut Context<Self>) {
-        let draft = match picker.value.draft() {
-            Date::Single(Some(day)) if !self.limits.accepts(day) => Date::Single(None),
-            Date::Range(Some(start), Some(end))
-                if start > end || !self.limits.accepts(start) || !self.limits.accepts(end) =>
-            {
-                Date::Range(None, None)
-            }
-            draft => draft,
+    /// Opens a picker rendered by a caller-owned trigger and copies the committed value.
+    pub fn open(
+        &mut self,
+        value: DateSelection,
+        variant: DatePickerVariant,
+        locale: &DatePickerLocale,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.is_open(cx) {
+            return;
+        }
+        self.variant = variant;
+        self.locale = locale.clone();
+        self.locale_initialized = true;
+        let draft = value.draft();
+        let draft = if self.limits.accepts_draft(draft) {
+            draft
+        } else if draft.is_single() {
+            Date::Single(None)
+        } else {
+            Date::Range(None, None)
         };
-        let limits = self.limits.clone();
-        self.calendar.update(cx, |calendar, _| {
-            calendar.set_disabled_matcher_shared(Some(Rc::new(Matcher::custom(move |date| {
-                !limits.accepts(*date)
-            }))));
-            calendar.apply_date(draft);
-        });
+        self.apply_draft(draft, cx);
         let today = self.calendar.read(cx).today();
-        self.cursor = draft
-            .start()
-            .unwrap_or(today)
-            .clamp(*self.limits.bounds.start(), *self.limits.bounds.end());
-        self.show_month(self.cursor, cx);
-        self.reset_input(draft, &picker.locale, window, cx);
-        self.input_mode = picker.variant == DatePickerVariant::ModalInput;
+        self.set_displayed_month(self.initial_month.or(draft.start()).unwrap_or(today), cx);
+        self.reset_input(draft, locale, window, cx);
+        self.input_mode = variant == DatePickerVariant::ModalInput;
         self.input_attempted = false;
-        self.trigger.focus(window, cx);
-        if picker.variant == DatePickerVariant::Docked {
+        if variant == DatePickerVariant::Docked {
+            self.docked_previous = window.focused(cx).map(|focus| focus.downgrade());
             self.docked_open = true;
-            self.docked.focus(window, cx);
+            self.docked_generation = self.docked_generation.wrapping_add(1);
         } else {
             self.dialog.update(cx, |dialog, cx| dialog.open(window, cx));
         }
-        let focus = if self.input_mode {
-            self.start.read(cx).focus_handle(cx)
-        } else {
-            self.day.clone()
-        };
-        focus.focus(window, cx);
+        self.default_focus(cx).focus(window, cx);
         cx.notify();
+    }
+
+    /// Closes either presentation and restores focus when the picker still owns it.
+    pub fn close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.docked_open {
+            self.dismiss_docked(DialogCloseReason::Programmatic, window, cx);
+        } else {
+            self.dialog
+                .update(cx, |dialog, cx| dialog.close(window, cx));
+        }
     }
 
     fn reset_input(
@@ -329,42 +603,40 @@ impl DatePickerState {
         parse_selection(&start, range.then_some(end.as_ref()), locale, &self.limits)
     }
 
-    fn toggle_mode(
-        &mut self,
-        locale: &DatePickerLocale,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.input_attempted = false;
-        if self.input_mode {
-            if let Ok(value) = self.input_value(locale, cx) {
-                self.calendar
-                    .update(cx, |calendar, _| calendar.apply_date(value.draft()));
-                if let Some(day) = value.draft().start() {
-                    self.cursor = day;
-                }
-            }
-        } else {
-            self.reset_input(self.calendar.read(cx).date(), locale, window, cx);
-        }
-        self.input_mode = !self.input_mode;
-        cx.notify();
-        let focus = if self.input_mode {
-            self.start.read(cx).focus_handle(cx)
-        } else {
-            self.day.clone()
+    fn input_draft(&self, cx: &App) -> Date {
+        let parse = |field: &Entity<TextFieldState>| {
+            let text = field.read(cx).value();
+            (self.locale.parse)(text.trim()).filter(|date| self.limits.accepts(*date))
         };
-        focus.focus(window, cx);
+        let start = parse(&self.start);
+        if self.calendar.read(cx).date().is_single() {
+            return Date::Single(start);
+        }
+        let end = parse(&self.end).filter(|end| start.is_some_and(|start| start <= *end));
+        Date::Range(start, end)
     }
 
-    fn dismiss_docked(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.docked_open {
-            self.docked_open = false;
-            if self.docked.contains_focused(window, cx) {
-                self.trigger.focus(window, cx);
-            }
-            cx.notify();
+    fn dismiss_docked(
+        &mut self,
+        reason: DialogCloseReason,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        if !self.docked_open {
+            return false;
         }
+        self.docked_open = false;
+        self.docked_reason = Some(reason);
+        let previous = self.docked_previous.take();
+        if self.docked.contains_focused(window, cx) || self.docked.is_focused(window) {
+            if let Some(focus) = previous.and_then(|focus| focus.upgrade()) {
+                focus.focus(window, cx);
+            } else {
+                window.blur(cx);
+            }
+        }
+        cx.notify();
+        true
     }
 
     fn select_day(&mut self, date: NaiveDate, cx: &mut Context<Self>) -> Option<DateSelection> {
@@ -432,17 +704,88 @@ struct DatePickerOptions {
     value: DateSelection,
     variant: DatePickerVariant,
     locale: DatePickerLocale,
+    focus_target: Option<FocusHandle>,
 }
 
-/// An anchored or modal date picker. A completed docked selection commits
-/// immediately. Modal editing commits only after a valid confirmation.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum Presentation {
+    Triggered,
+    Panel,
+    Dialog,
+}
+
+#[derive(Clone)]
+struct DockedActions {
+    state: Entity<DatePickerState>,
+    generation: u64,
+    properties: DialogProperties,
+    confirm: Option<Confirm<DateSelection>>,
+    request: Option<DismissRequest>,
+    closed: Option<OnClose>,
+}
+
+impl DockedActions {
+    fn current(&self, cx: &App) -> bool {
+        let state = self.state.read(cx);
+        state.docked_open && state.docked_generation == self.generation
+    }
+
+    fn dismiss(&self, reason: DialogCloseReason, window: &mut Window, cx: &mut App) {
+        let enabled = match reason {
+            DialogCloseReason::Escape => self.properties.dismiss_on_escape,
+            DialogCloseReason::OutsideClick => self.properties.dismiss_on_outside_click,
+            _ => true,
+        };
+        if enabled
+            && self.current(cx)
+            && self
+                .request
+                .as_ref()
+                .is_none_or(|callback| callback(reason, window, cx))
+        {
+            self.finish(reason, None, window, cx);
+        }
+    }
+
+    fn finish(
+        &self,
+        reason: DialogCloseReason,
+        value: Option<DateSelection>,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        if self.current(cx) {
+            self.state
+                .update(cx, |model, cx| model.dismiss_docked(reason, window, cx));
+            if let (Some(value), Some(confirm)) = (value, &self.confirm) {
+                confirm(value, window, cx);
+            }
+            if let Some(closed) = &self.closed {
+                closed(reason, window, cx);
+            }
+        }
+    }
+}
+
+/// A single or range date picker with a trigger, a standalone panel, or a modal dialog.
 #[derive(IntoElement)]
 pub struct DatePicker {
     id: ElementId,
     label: SharedString,
     state: Entity<DatePickerState>,
     options: DatePickerOptions,
+    presentation: Presentation,
+    anchor: Option<CustomAnchor>,
+    show_mode_toggle: bool,
+    title: Option<AnyElement>,
+    headline: Option<AnyElement>,
+    confirm_content: Option<CustomAction>,
+    dismiss_content: Option<CustomAction>,
     confirm: Option<Confirm<DateSelection>>,
+    properties: DialogProperties,
+    request: Option<DismissRequest>,
+    closed: Option<OnClose>,
+    colors: DatePickerColors,
 }
 
 impl DatePicker {
@@ -460,8 +803,45 @@ impl DatePicker {
                 value,
                 variant: DatePickerVariant::default(),
                 locale: DatePickerLocale::default(),
+                focus_target: None,
             },
+            presentation: Presentation::Triggered,
+            anchor: None,
+            show_mode_toggle: true,
+            title: None,
+            headline: None,
+            confirm_content: None,
+            dismiss_content: None,
             confirm: None,
+            properties: DialogProperties::default(),
+            request: None,
+            closed: None,
+            colors: DatePickerColors::default(),
+        }
+    }
+
+    /// Embeds the retained draft and display mode directly in another layout.
+    pub fn panel(
+        id: impl Into<ElementId>,
+        label: impl Into<SharedString>,
+        state: &Entity<DatePickerState>,
+    ) -> Self {
+        Self {
+            presentation: Presentation::Panel,
+            ..Self::new(id, label, state, DateSelection::Single(None))
+        }
+    }
+
+    /// Renders a modal opened by a caller-owned control with `DatePickerState::open`.
+    pub fn dialog(
+        id: impl Into<ElementId>,
+        label: impl Into<SharedString>,
+        state: &Entity<DatePickerState>,
+        value: DateSelection,
+    ) -> Self {
+        Self {
+            presentation: Presentation::Dialog,
+            ..Self::new(id, label, state, value)
         }
     }
 
@@ -475,6 +855,54 @@ impl DatePicker {
         self
     }
 
+    /// Chooses the initial focus when the built-in control opens the picker.
+    pub fn focus_target(mut self, focus: &FocusHandle) -> Self {
+        self.options.focus_target = Some(focus.clone());
+        self
+    }
+
+    /// Wraps/customizes the retained docked editor and supplied trailing trigger.
+    pub fn docked_anchor<E: IntoElement>(
+        mut self,
+        render: impl FnOnce(TextField) -> E + 'static,
+    ) -> Self {
+        self.anchor = Some(Box::new(move |field| render(field).into_any_element()));
+        self
+    }
+
+    pub fn show_mode_toggle(mut self, show: bool) -> Self {
+        self.show_mode_toggle = show;
+        self
+    }
+
+    /// Replaces the visible title while preserving the accessible picker label.
+    pub fn title_content(mut self, element: impl IntoElement) -> Self {
+        self.title = Some(element.into_any_element());
+        self
+    }
+
+    /// Replaces the selection headline while preserving its date announcement.
+    pub fn headline_content(mut self, element: impl IntoElement) -> Self {
+        self.headline = Some(element.into_any_element());
+        self
+    }
+
+    pub fn confirm_content<E: IntoElement>(
+        mut self,
+        build: impl FnOnce(DialogAction) -> E + 'static,
+    ) -> Self {
+        self.confirm_content = Some(Box::new(move |confirm| build(confirm).into_any_element()));
+        self
+    }
+
+    pub fn dismiss_content<E: IntoElement>(
+        mut self,
+        build: impl FnOnce(DialogAction) -> E + 'static,
+    ) -> Self {
+        self.dismiss_content = Some(Box::new(move |dismiss| build(dismiss).into_any_element()));
+        self
+    }
+
     pub fn on_confirm(
         mut self,
         callback: impl Fn(DateSelection, &mut Window, &mut App) + 'static,
@@ -482,62 +910,108 @@ impl DatePicker {
         self.confirm = Some(Rc::new(callback));
         self
     }
+
+    pub fn properties(mut self, properties: DialogProperties) -> Self {
+        self.properties = properties;
+        self
+    }
+
+    pub fn on_dismiss_request(
+        mut self,
+        callback: impl Fn(DialogCloseReason, &mut Window, &mut App) -> bool + 'static,
+    ) -> Self {
+        self.request = Some(Rc::new(callback));
+        self
+    }
+
+    pub fn on_close(
+        mut self,
+        callback: impl Fn(DialogCloseReason, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.closed = Some(Rc::new(callback));
+        self
+    }
+
+    pub fn colors(mut self, colors: DatePickerColors) -> Self {
+        self.colors = colors;
+        self
+    }
 }
 
-fn selection_label(draft: Date, locale: &DatePickerLocale) -> SharedString {
+fn selection_label(draft: Date, formatter: &DateFormatter) -> SharedString {
     match (draft.start(), draft.end()) {
-        (Some(start), Some(end)) => {
-            format!("{} – {}", (locale.format)(start), (locale.format)(end)).into()
-        }
-        (Some(start), _) => (locale.format)(start),
+        (Some(start), Some(end)) => format!("{} – {}", formatter(start), formatter(end)).into(),
+        (Some(start), _) => formatter(start),
         _ if draft.is_single() => "No date selected".into(),
         _ => "No date range selected".into(),
     }
 }
 
 impl RenderOnce for DatePicker {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        self.state.update(cx, |state, cx| {
+            state.locale = self.options.locale.clone();
+            if !state.locale_initialized {
+                state.locale_initialized = true;
+                if self.presentation == Presentation::Panel {
+                    let draft = state.calendar.read(cx).date();
+                    state.reset_input(draft, &self.options.locale, window, cx);
+                }
+            }
+        });
+        let width = (window.viewport_size().width - px(96.)).clamp(px(70.), px(336.));
+        if self.presentation == Presentation::Panel {
+            let body = self.body(width, None, true, window, cx);
+            return Surface::new(ColorRole::SurfaceContainerHigh)
+                .when_some(self.colors.container, Surface::container_color)
+                .child(
+                    div()
+                        .id(self.id)
+                        .role(Role::Group)
+                        .aria_label(self.label)
+                        .child(body),
+                )
+                .into_any_element();
+        }
+
+        let docked = self.options.variant == DatePickerVariant::Docked
+            && self.presentation == Presentation::Triggered;
         let model = self.state.read(cx);
-        let docked = self.options.variant == DatePickerVariant::Docked;
         let open = if docked {
             model.docked_open
         } else {
             model.dialog.read(cx).is_open()
         };
-        let trigger_focus = model.trigger.clone();
         let scope = model.docked.clone();
         let overlay = model.dialog.clone();
-        let trigger_state = self.state.clone();
-        let opts = self.options.clone();
-        let trigger = div()
-            .id((self.id.clone(), "trigger-group"))
-            .role(Role::Group)
-            .aria_expanded(open)
-            .child(
-                Button::new((self.id.clone(), "open"), self.label.clone())
-                    .variant(ButtonVariant::Outlined)
-                    .track_focus(&trigger_focus)
-                    .on_activate(move |window, cx| {
-                        trigger_state.update(cx, |state, cx| {
-                            if docked && state.docked_open {
-                                state.dismiss_docked(window, cx);
-                            } else {
-                                state.open(&opts, window, cx);
-                            }
-                        });
-                    }),
-            );
+        let docked_actions = DockedActions {
+            state: self.state.clone(),
+            generation: model.docked_generation,
+            properties: self.properties,
+            confirm: self.confirm.clone(),
+            request: self.request.clone(),
+            closed: self.closed.clone(),
+        };
+
+        let trigger = (self.presentation == Presentation::Triggered)
+            .then(|| self.trigger(docked, open, docked_actions.clone(), window, cx));
         if docked {
+            let (trigger, bounds) = trigger.expect("docked pickers have an anchor");
             let direction = window_material_theme(window, cx).layout.direction;
             let mut popup = Popup::new(self.id.clone(), trigger)
                 .anchor(logical_anchor(Anchor::TopLeft, direction))
                 .offset(px(4.));
             if open {
-                let width = (window.viewport_size().width - px(16.))
-                    .min(px(360.))
-                    .max(px(1.));
-                let close_key = self.state.clone();
-                let close_outside = self.state.clone();
+                let width = (window.viewport_size().width - px(16.)).clamp(px(1.), px(360.));
+                let close_key = docked_actions.clone();
+                let close_outside = docked_actions.clone();
+                let body = self.body(
+                    (width - px(24.)).max(px(1.)),
+                    Some(docked_actions),
+                    true,
+                    window,
+                    cx,
+                );
                 let panel = div()
                     .id((self.id.clone(), "docked"))
                     .test_support()
@@ -548,130 +1022,344 @@ impl RenderOnce for DatePicker {
                     .occlude()
                     .max_h((window.viewport_size().height - px(16.)).max(px(1.)))
                     .overflow_y_scroll()
-                    .on_mouse_down_out(move |_, window, cx| {
-                        close_outside.update(cx, |state, cx| state.dismiss_docked(window, cx));
+                    .on_mouse_down_out(move |event, window, cx| {
+                        if bounds
+                            .get()
+                            .is_none_or(|bounds| !bounds.contains(&event.position))
+                        {
+                            close_outside.dismiss(DialogCloseReason::OutsideClick, window, cx);
+                        }
                     })
                     .on_key_down(move |event, window, cx| {
                         if event.keystroke.key == "escape" {
-                            close_key.update(cx, |state, cx| state.dismiss_docked(window, cx));
+                            close_key.dismiss(DialogCloseReason::Escape, window, cx);
                             cx.stop_propagation();
                         }
                     })
                     .child(
                         Surface::new(ColorRole::SurfaceContainerHigh)
+                            .when_some(self.colors.container, Surface::container_color)
                             .w(width)
                             .rounded(px(16.))
                             .shadow_elevation(Elevation::Level3)
                             .p(px(12.))
-                            .child(calendar(
-                                &self.id,
-                                self.state,
-                                self.options.locale,
-                                self.confirm,
-                                width - px(24.),
-                                window,
-                                cx,
-                            )),
+                            .child(body),
                     );
                 popup = popup.content(panel);
             }
             return popup.into_any_element();
         }
 
-        let input_mode = model.input_mode;
-        let body = if !open {
-            div().into_any_element()
-        } else if input_mode {
-            self.input_fields(cx)
+        let body = if open {
+            self.body(width, None, false, window, cx)
         } else {
-            let width = (window.viewport_size().width - px(96.)).clamp(px(100.), px(312.));
-            calendar(
-                &self.id,
-                self.state.clone(),
-                self.options.locale.clone(),
-                None,
-                width,
-                window,
-                cx,
-            )
+            div().into_any_element()
         };
-        let toggle_state = self.state.clone();
-        let locale = self.options.locale.clone();
-        let toggle = Button::new(
-            (self.id.clone(), "display-mode"),
-            if input_mode {
-                "Show calendar"
-            } else {
-                "Enter date"
-            },
-        )
-        .variant(ButtonVariant::Text)
-        .on_activate(move |window, cx| {
-            toggle_state.update(cx, |state, cx| state.toggle_mode(&locale, window, cx))
-        });
-        let state = self.state;
+        let state = self.state.clone();
+        let request_state = self.state;
         let locale = self.options.locale;
         let callback = self.confirm;
+        let request = self.request;
+        let mut dialog = Dialog::new(self.id, &overlay, self.label)
+            .variant(if self.options.variant == DatePickerVariant::FullScreen {
+                DialogVariant::FullScreen
+            } else {
+                DialogVariant::Basic
+            })
+            .properties(self.properties)
+            .colors(DialogColors {
+                container: self.colors.container,
+                title: self.colors.title,
+                ..DialogColors::default()
+            })
+            .when_some(self.title, Dialog::title_content)
+            .body(body)
+            .on_dismiss_request(move |reason, window, cx| {
+                let composing = reason == DialogCloseReason::Escape
+                    && request_state.update(cx, |state, cx| {
+                        state.input_mode && state.input_composing(window, cx)
+                    });
+                !composing
+                    && request
+                        .as_ref()
+                        .is_none_or(|request| request(reason, window, cx))
+            })
+            .confirm("OK", move |window, cx| {
+                let value = state.update(cx, |model, cx| {
+                    if model.input_mode && model.input_composing(window, cx) {
+                        return None;
+                    }
+                    let value = if model.input_mode {
+                        model.input_value(&locale, cx).ok()
+                    } else {
+                        complete(model.calendar.read(cx).date())
+                    };
+                    if value.is_none() {
+                        model.input_attempted = true;
+                        cx.notify();
+                    }
+                    value
+                });
+                if let (Some(value), Some(callback)) = (value, &callback) {
+                    callback(value, window, cx);
+                }
+                value.is_some()
+            });
+        if let Some(build) = self.confirm_content {
+            dialog = dialog.confirm_content(build);
+        }
+        if let Some(build) = self.dismiss_content {
+            dialog = dialog.dismiss_content(build);
+        }
+        if let Some(closed) = self.closed {
+            dialog = dialog.on_close(move |reason, window, cx| closed(reason, window, cx));
+        }
         div()
-            .child(trigger)
-            .child(
-                Dialog::new(self.id, &overlay, self.label)
-                    .body(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .gap(px(8.))
-                            .child(body)
-                            .child(toggle),
-                    )
-                    .confirm("OK", move |window, cx| {
-                        let value = {
-                            let model = state.read(cx);
-                            if model.input_mode {
-                                model.input_value(&locale, cx).ok()
-                            } else {
-                                complete(model.calendar.read(cx).date())
-                            }
-                        };
-                        let Some(value) = value else {
-                            state.update(cx, |state, cx| {
-                                state.input_attempted = true;
-                                cx.notify();
-                            });
-                            return false;
-                        };
-                        if let Some(callback) = &callback {
-                            callback(value, window, cx);
-                        }
-                        true
-                    }),
-            )
+            .children(trigger.map(|(trigger, _)| trigger))
+            .child(dialog)
             .into_any_element()
     }
 }
 
+type AnchorBounds = Rc<Cell<Option<Bounds<Pixels>>>>;
+
 impl DatePicker {
+    fn trigger(
+        &mut self,
+        docked: bool,
+        open: bool,
+        docked_actions: DockedActions,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (AnyElement, AnchorBounds) {
+        let model = self.state.read(cx);
+        let focus = model.trigger.clone();
+        let editor = model.anchor.clone();
+        let state = self.state.clone();
+        let options = self.options.clone();
+        let typed_actions = docked_actions.clone();
+        let toggle = move |window: &mut Window, cx: &mut App| {
+            if docked && state.read(cx).docked_open {
+                docked_actions.dismiss(DialogCloseReason::Cancel, window, cx);
+            } else {
+                focus.focus(window, cx);
+                state.update(cx, |state, cx| {
+                    state.open(options.value, options.variant, &options.locale, window, cx);
+                    if let Some(focus) = &options.focus_target {
+                        focus.focus(window, cx);
+                    }
+                });
+            }
+        };
+        let bounds = Rc::new(Cell::new(None));
+        let capture = bounds.clone();
+        let group = div()
+            .id((self.id.clone(), "trigger-group"))
+            .relative()
+            .role(Role::Group)
+            .aria_expanded(open)
+            .child(
+                canvas(
+                    move |bounds, _, _| capture.set(Some(bounds)),
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .inset_0(),
+            );
+        let control_id = (self.id.clone(), "open");
+        let focus = self.state.read(cx).trigger.clone();
+        if let Some(anchor) = self.anchor.take().filter(|_| docked) {
+            let locale = self.options.locale.clone();
+            let value = self.options.value;
+            let formatted = if value.draft().start().is_none() {
+                SharedString::default()
+            } else {
+                selection_label(value.draft(), &locale.format)
+            };
+            self.state.update(cx, |state, cx| {
+                if state.anchor_value.as_ref() != Some(&formatted) {
+                    let synchronized = state.anchor.update(cx, |editor, cx| {
+                        if editor.marked_text_range(window, cx).is_some() {
+                            return false;
+                        }
+                        editor.set_value(formatted.clone(), window, cx);
+                        true
+                    });
+                    if synchronized {
+                        state.anchor_value = Some(formatted);
+                    }
+                }
+            });
+            let handle = editor.read(cx).focus_handle(cx);
+            let state = self.state.clone();
+            let commit = self.confirm.clone();
+            let trailing = IconButton::new(
+                control_id,
+                "Open calendar",
+                Icon::new(IconName::ArrowDropDown),
+            )
+            .track_focus(&focus)
+            .on_activate(toggle);
+            let field = TextField::new((self.id.clone(), "anchor"), self.label.clone(), &editor)
+                .variant(TextFieldVariant::Outlined)
+                .when_some(self.colors.input, TextField::colors)
+                .trailing(trailing);
+            let element = group
+                .on_key_down(move |event, window, cx| {
+                    if event.keystroke.key != "enter" || !handle.is_focused(window) {
+                        return;
+                    }
+                    let text = editor.update(cx, |editor, cx| {
+                        editor
+                            .marked_text_range(window, cx)
+                            .is_none()
+                            .then(|| editor.value())
+                    });
+                    let Some(text) = text else {
+                        return;
+                    };
+                    let model = state.read(cx);
+                    let selection = if value.draft().is_single() {
+                        parse_selection(&text, None, &locale, &model.limits).ok()
+                    } else {
+                        text.split_once(" – ").and_then(|(start, end)| {
+                            parse_selection(start, Some(end), &locale, &model.limits).ok()
+                        })
+                    };
+                    if let Some(selection) = selection {
+                        state.update(cx, |state, cx| {
+                            state.set_draft(selection.draft().into(), window, cx);
+                        });
+                        if typed_actions.current(cx) {
+                            typed_actions.finish(
+                                DialogCloseReason::Confirm,
+                                Some(selection),
+                                window,
+                                cx,
+                            );
+                        } else if let Some(commit) = &commit {
+                            commit(selection, window, cx);
+                        }
+                        cx.stop_propagation();
+                    }
+                })
+                .child(anchor(field))
+                .into_any_element();
+            (element, bounds)
+        } else {
+            let element = group
+                .child(
+                    Button::new(control_id, self.label.clone())
+                        .variant(ButtonVariant::Outlined)
+                        .track_focus(&focus)
+                        .on_activate(toggle),
+                )
+                .into_any_element();
+            (element, bounds)
+        }
+    }
+
+    fn body(
+        &mut self,
+        width: Pixels,
+        docked: Option<DockedActions>,
+        inline_title: bool,
+        window: &Window,
+        cx: &App,
+    ) -> AnyElement {
+        let model = self.state.read(cx);
+        let input = model.input_mode;
+        let draft = Date::from(model.draft(cx));
+        let locale = &self.options.locale;
+        let value = selection_label(draft, &locale.format);
+        let spoken = selection_label(draft, &locale.day);
+        let heading = div()
+            .id((self.id.clone(), "headline"))
+            .test_support()
+            .role(Role::Status)
+            .aria_label(spoken)
+            .a11y_synthetic_children(|tree| {
+                tree.parent_node().set_live(gpui::accesskit::Live::Polite)
+            })
+            .when_some(self.colors.headline, gpui::Styled::text_color)
+            .child(self.headline.take().unwrap_or_else(|| {
+                Text::new(value)
+                    .id("date-headline-text")
+                    .role(TypeRole::TitleMedium)
+                    .into_any_element()
+            }));
+        let title = inline_title.then(|| self.title.take()).flatten();
+        let attempted = model.input_attempted;
+        let body = if input {
+            self.input_fields(cx)
+        } else {
+            calendar(
+                &self.id,
+                self.state.clone(),
+                locale.clone(),
+                docked.clone(),
+                (self.colors, width),
+                window,
+                cx,
+            )
+        };
+        let state = self.state.clone();
+        let mode = if input {
+            DatePickerDisplayMode::Calendar
+        } else {
+            DatePickerDisplayMode::Input
+        };
+        let toggle = (self.show_mode_toggle && docked.is_none()).then(|| {
+            Button::new(
+                (self.id.clone(), "display-mode"),
+                if input { "Show calendar" } else { "Enter date" },
+            )
+            .variant(ButtonVariant::Text)
+            .on_activate(move |window, cx| {
+                state.update(cx, |state, cx| {
+                    state.set_display_mode(mode, window, cx);
+                });
+            })
+        });
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(8.))
+            .children(title.map(|title| {
+                div()
+                    .when_some(self.colors.title, gpui::Styled::text_color)
+                    .child(title)
+            }))
+            .child(heading)
+            .child(body)
+            .children(toggle)
+            .children(
+                (!input && attempted && complete(draft).is_none())
+                    .then(|| status("Select a date before confirming".into(), true)),
+            )
+            .into_any_element()
+    }
+
     fn input_fields(&self, cx: &App) -> AnyElement {
         let model = self.state.read(cx);
         let range = !model.calendar.read(cx).date().is_single();
         let result = model.input_value(&self.options.locale, cx);
+        let field = |id, name, state: &Entity<TextFieldState>| {
+            TextField::new((self.id.clone(), id), name, state)
+                .variant(TextFieldVariant::Outlined)
+                .when_some(self.colors.input, TextField::colors)
+        };
         div()
             .flex()
             .flex_col()
             .gap(px(12.))
-            .child(
-                TextField::new(
-                    (self.id.clone(), "start"),
-                    if range { "Start date" } else { "Date" },
-                    &model.start,
-                )
-                .variant(TextFieldVariant::Outlined),
-            )
+            .child(field(
+                "start",
+                if range { "Start date" } else { "Date" },
+                &model.start,
+            ))
             .when(range, |column| {
-                column.child(
-                    TextField::new((self.id.clone(), "end"), "End date", &model.end)
-                        .variant(TextFieldVariant::Outlined),
-                )
+                column.child(field("end", "End date", &model.end))
             })
             .when_some(
                 result.err().filter(|_| model.input_attempted),
@@ -681,17 +1369,173 @@ impl DatePicker {
     }
 }
 
-fn calendar(
+const YEARS_PER_PAGE: i32 = 12;
+
+fn year_page(year: i32, first: i32) -> i32 {
+    first + (year - first) / YEARS_PER_PAGE * YEARS_PER_PAGE
+}
+
+fn year_choices(
     id: &ElementId,
-    state: Entity<DatePickerState>,
-    locale: DatePickerLocale,
-    docked_commit: Option<Confirm<DateSelection>>,
-    width: Pixels,
+    state: &Entity<DatePickerState>,
+    from: i32,
+    colors: DatePickerColors,
     window: &Window,
     cx: &App,
 ) -> AnyElement {
     let model = state.read(cx);
-    let month = model.month(cx);
+    let first = model.limits.bounds.start().year();
+    let last = model.limits.bounds.end().year();
+    let displayed = model.displayed_month();
+    let today = model.calendar.read(cx).today();
+    let selected_year = displayed.year();
+    let direction = window_material_theme(window, cx).layout.direction;
+    let rtl = direction == Direction::Rtl;
+    let page_change = |delta: i32| {
+        let state = state.clone();
+        move |_: &mut Window, cx: &mut App| {
+            state.update(cx, |model, cx| {
+                model.year_page = Some((from + delta).clamp(first, last));
+                cx.notify();
+            });
+        }
+    };
+    let items = (from..(from + YEARS_PER_PAGE).min(last + 1)).map(|year| {
+        let state = state.clone();
+        let selected = selected_year == year;
+        let enabled = model.limits.accepts_year(year);
+        let content = if selected {
+            colors.selected_year
+        } else if today.year() == year {
+            colors.current_year
+        } else {
+            colors.year
+        };
+        let container = selected.then_some(colors.selected_year_container).flatten();
+        Button::new((id.clone(), format!("year-{year}")), year.to_string())
+            .variant(if selected {
+                ButtonVariant::Filled
+            } else {
+                ButtonVariant::Text
+            })
+            .disabled(!enabled)
+            .colors(ButtonColors {
+                content,
+                container,
+                disabled_content: if selected {
+                    colors.disabled_selected_year
+                } else {
+                    colors.disabled_year
+                },
+                disabled_container: selected
+                    .then_some(colors.disabled_selected_year_container)
+                    .flatten(),
+                ..ButtonColors::default()
+            })
+            .on_activate(move |window, cx| {
+                state.update(cx, |model, cx| {
+                    if model.limits.accepts_year(year)
+                        && let Some(target) = NaiveDate::from_ymd_opt(year, displayed.month(), 1)
+                    {
+                        model.set_displayed_month(target, cx);
+                        model.day.focus(window, cx);
+                    }
+                });
+            })
+    });
+    let switch = state.clone();
+    div()
+        .id((id.clone(), "year-list"))
+        .test_support()
+        .flex()
+        .flex_col()
+        .gap(px(8.))
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .justify_between()
+                .when(rtl, gpui::Styled::flex_row_reverse)
+                .child(
+                    Button::new((id.clone(), "previous-years"), "Earlier years")
+                        .variant(ButtonVariant::Text)
+                        .disabled(from <= first)
+                        .colors(ButtonColors {
+                            content: colors.navigation,
+                            ..ButtonColors::default()
+                        })
+                        .on_activate(page_change(-YEARS_PER_PAGE)),
+                )
+                .child(
+                    Button::new((id.clone(), "return-month"), "Show month")
+                        .variant(ButtonVariant::Text)
+                        .colors(ButtonColors {
+                            content: colors.subheading,
+                            ..ButtonColors::default()
+                        })
+                        .on_activate(move |window, cx| {
+                            switch.update(cx, |model, cx| {
+                                model.year_page = None;
+                                model.day.focus(window, cx);
+                                cx.notify();
+                            });
+                        }),
+                )
+                .child(
+                    Button::new((id.clone(), "next-years"), "Later years")
+                        .variant(ButtonVariant::Text)
+                        .disabled(from + YEARS_PER_PAGE > last)
+                        .colors(ButtonColors {
+                            content: colors.navigation,
+                            ..ButtonColors::default()
+                        })
+                        .on_activate(page_change(YEARS_PER_PAGE)),
+                ),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_wrap()
+                .gap(px(4.))
+                .when(rtl, gpui::Styled::flex_row_reverse)
+                .children(items),
+        )
+        .into_any_element()
+}
+
+fn activate_day(
+    state: &Entity<DatePickerState>,
+    docked: Option<&DockedActions>,
+    date: NaiveDate,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    if docked.is_some_and(|actions| !actions.current(cx)) {
+        return;
+    }
+    let picked = state.update(cx, |model, cx| model.select_day(date, cx));
+    if let (Some(actions), Some(value)) = (docked, picked) {
+        actions.finish(DialogCloseReason::Confirm, Some(value), window, cx);
+    } else {
+        state.read(cx).day.clone().focus(window, cx);
+    }
+}
+
+fn calendar(
+    id: &ElementId,
+    state: Entity<DatePickerState>,
+    locale: DatePickerLocale,
+    docked: Option<DockedActions>,
+    presentation: (DatePickerColors, Pixels),
+    window: &Window,
+    cx: &App,
+) -> AnyElement {
+    let (colors, width) = presentation;
+    let model = state.read(cx);
+    if let Some(page) = model.year_page {
+        return year_choices(id, &state, page, colors, window, cx);
+    }
+    let month = model.displayed_month();
     let draft = model.calendar.read(cx).date();
     let today = model.calendar.read(cx).today();
     let cursor = model.cursor;
@@ -706,19 +1550,11 @@ fn calendar(
     let confirm_focus = day_focus.clone();
     let focus_cursor = day_focus.is_focused(window);
     let keys = state.clone();
-    let key_commit = docked_commit.clone();
+    let key_actions = docked.clone();
     let key_selection = state.clone();
     let select = Rc::new(move |window: &mut Window, cx: &mut App| {
-        let result = key_selection.update(cx, |model, cx| {
-            let result = model.select_day(model.cursor, cx);
-            if result.is_some() && model.docked_open {
-                model.dismiss_docked(window, cx);
-            }
-            result
-        });
-        if let (Some(value), Some(callback)) = (result, &key_commit) {
-            callback(value, window, cx);
-        }
+        let cursor = key_selection.read(cx).cursor;
+        activate_day(&key_selection, key_actions.as_ref(), cursor, window, cx);
     });
     let confirm = select.clone();
     let first_day = locale.first_day;
@@ -730,6 +1566,11 @@ fn calendar(
                 model.navigate(key, false, direction, first_day, cx);
             });
         }
+    };
+    let show_years = state.clone();
+    let navigation = ButtonColors {
+        content: colors.navigation,
+        ..ButtonColors::default()
     };
     let header = div()
         .flex()
@@ -744,13 +1585,32 @@ fn calendar(
                     .rotate(gpui::Radians(std::f32::consts::PI))
                     .mirror_in_rtl(true),
             )
+            .colors(navigation)
             .disabled(month <= first_of_month(*model.limits.bounds.start()))
             .on_activate(move_month(prev, "pageup")),
         )
         .child(
-            Text::new((locale.month)(month))
-                .id("current-month")
-                .role(TypeRole::TitleSmall),
+            Button::new(
+                (id.clone(), "year-toggle"),
+                format!("Choose year, {}", (locale.month)(month)),
+            )
+            .variant(ButtonVariant::Text)
+            .colors(ButtonColors {
+                content: colors.subheading,
+                ..ButtonColors::default()
+            })
+            .content(
+                Text::new((locale.month)(month))
+                    .id("current-month")
+                    .role(TypeRole::TitleSmall),
+            )
+            .on_activate(move |_, cx| {
+                show_years.update(cx, |model, cx| {
+                    model.year_page =
+                        Some(year_page(month.year(), model.limits.bounds.start().year()));
+                    cx.notify();
+                });
+            }),
         )
         .child(
             IconButton::new(
@@ -758,6 +1618,7 @@ fn calendar(
                 "Next month",
                 Icon::new(IconName::ChevronRight).mirror_in_rtl(true),
             )
+            .colors(navigation)
             .disabled(month >= first_of_month(*model.limits.bounds.end()))
             .on_activate(move_month(next, "pagedown")),
         );
@@ -771,6 +1632,7 @@ fn calendar(
             .flex()
             .items_center()
             .justify_center()
+            .when_some(colors.weekday, gpui::Styled::text_color)
             .child(
                 Text::new((locale.weekday)(weekday))
                     .id(("weekday", weekday.num_days_from_monday()))
@@ -794,20 +1656,42 @@ fn calendar(
                 let leading = range && draft.start() == Some(date);
                 let trailing = range && draft.end() == Some(date);
                 let focus = cursor == date;
-                let ink = tone(if active {
-                    ColorRole::OnPrimary
-                } else if range {
-                    ColorRole::OnSecondaryContainer
-                } else if date == today {
-                    ColorRole::Primary
-                } else {
-                    ColorRole::OnSurface
-                });
-                let background = tone(if active {
-                    ColorRole::Primary
-                } else {
-                    ColorRole::SurfaceContainerHigh
-                });
+                let (ink, selected_background) = match (enabled, active) {
+                    (true, true) => (
+                        colors
+                            .selected_day
+                            .unwrap_or_else(|| tone(ColorRole::OnPrimary)),
+                        colors
+                            .selected_day_container
+                            .unwrap_or_else(|| tone(ColorRole::Primary)),
+                    ),
+                    (false, true) => (
+                        colors
+                            .disabled_selected_day
+                            .unwrap_or_else(|| tone(ColorRole::OnSurface).opacity(0.38)),
+                        colors
+                            .disabled_selected_day_container
+                            .unwrap_or_else(|| tone(ColorRole::OnSurface).opacity(0.12)),
+                    ),
+                    (true, false) => (
+                        if range {
+                            colors
+                                .range_day
+                                .unwrap_or_else(|| tone(ColorRole::OnSecondaryContainer))
+                        } else if date == today {
+                            colors.today.unwrap_or_else(|| tone(ColorRole::Primary))
+                        } else {
+                            colors.day.unwrap_or_else(|| tone(ColorRole::OnSurface))
+                        },
+                        gpui::transparent_black(),
+                    ),
+                    (false, false) => (
+                        colors
+                            .disabled_day
+                            .unwrap_or_else(|| tone(ColorRole::OnSurface).opacity(0.38)),
+                        gpui::transparent_black(),
+                    ),
+                };
                 let control = BaseButton::new((id.clone(), format!("day-{date}")))
                     .role(Role::ListBoxOption)
                     .aria_selected(range || active)
@@ -820,20 +1704,9 @@ fn calendar(
                     .when_some(
                         enabled.then(|| {
                             let state = state.clone();
-                            let callback = docked_commit.clone();
+                            let actions = docked.clone();
                             Rc::new(move |window: &mut Window, cx: &mut App| {
-                                let result = state.update(cx, |model, cx| {
-                                    let result = model.select_day(date, cx);
-                                    if result.is_some() && model.docked_open {
-                                        model.dismiss_docked(window, cx);
-                                    } else {
-                                        model.day.focus(window, cx);
-                                    }
-                                    result
-                                });
-                                if let (Some(result), Some(callback)) = (result, &callback) {
-                                    callback(result, window, cx);
-                                }
+                                activate_day(&state, actions.as_ref(), date, window, cx);
                             })
                         }),
                         |button, activate| {
@@ -867,7 +1740,9 @@ fn calendar(
                                 } else {
                                     px(0.)
                                 })
-                                .bg(tone(ColorRole::SecondaryContainer)),
+                                .bg(colors
+                                    .range_container
+                                    .unwrap_or_else(|| tone(ColorRole::SecondaryContainer))),
                         )
                     })
                     .child(
@@ -878,10 +1753,16 @@ fn calendar(
                                 .flex()
                                 .justify_center()
                                 .items_center()
-                                .when(active, |day| day.bg(background))
+                                .when(active, |day| day.bg(selected_background))
                                 .when(
                                     focus && focus_cursor && window.last_input_was_keyboard(),
-                                    |day| day.border_2().border_color(tone(ColorRole::Secondary)),
+                                    |day| {
+                                        day.border_2().border_color(
+                                            colors
+                                                .focus_outline
+                                                .unwrap_or_else(|| tone(ColorRole::Secondary)),
+                                        )
+                                    },
                                 )
                                 .when(
                                     date == today
@@ -889,9 +1770,15 @@ fn calendar(
                                         && !(focus
                                             && focus_cursor
                                             && window.last_input_was_keyboard()),
-                                    |day| day.border_1().border_color(tone(ColorRole::Primary)),
+                                    |day| {
+                                        day.border_1().border_color(
+                                            colors
+                                                .today_outline
+                                                .unwrap_or_else(|| tone(ColorRole::Primary)),
+                                        )
+                                    },
                                 )
-                                .text_color(if enabled { ink } else { ink.opacity(0.38) })
+                                .text_color(ink)
                                 .child(date.day().to_string()),
                         ),
                     )
@@ -954,15 +1841,7 @@ fn calendar(
             .flex_col()
             .gap(px(4.))
             .child(header)
-            .child(grid)
-            .child(status(
-                if model.input_attempted && complete(draft).is_none() {
-                    "Select a date before confirming".into()
-                } else {
-                    selection_label(draft, &locale)
-                },
-                model.input_attempted && complete(draft).is_none(),
-            )),
+            .child(grid),
         TypeRole::BodyLarge.style(TypographyEmphasis::Baseline),
         1.,
         window,
@@ -986,6 +1865,7 @@ mod tests {
         let limits = DateLimits {
             bounds: first..=last,
             disabled: Arc::new(|date| date.day() == 10),
+            disabled_years: Arc::new(|_| false),
         };
         assert_eq!(
             parse_selection(" 29/02/2024 ", None, &locale, &limits),

@@ -121,7 +121,7 @@ FAB 开始隐藏时立即退出焦点导航并停止响应输入。淡出期间�
 | `Tabs` | Primary、Secondary，可固定或滚动。 | [标签页](https://m3.material.io/components/tabs/overview) |
 | `NavigationBar`、`NavigationRail` | 短导航栏支持纵向或横向排列选项。导航轨道支持折叠、展开、隐藏和模态呈现。 | [导航栏](https://m3.material.io/components/navigation-bar/overview) · [导航轨道](https://m3.material.io/components/navigation-rail/overview) |
 | `AdaptiveNavigation` | 根据可用宽度在导航栏和导航轨道之间切换。 | [断点](https://m3.material.io/foundations/layout/breakpoints/overview) |
-| `Scaffold` | 组合导航、应用栏、内容、悬浮操作按钮和消息条。 | [Scaffold](https://m3.material.io/foundations/layout/scaffold/overview) |
+| `Scaffold` | 组合导航、应用栏、内容、可定位的悬浮操作按钮和消息条，并根据已占空间计算内容内边距。 | [Scaffold](https://m3.material.io/foundations/layout/scaffold/overview) |
 | `ListDetail`、`SupportingPane`、`Feed` | 列表与详情、辅助窗格及响应式信息流布局。 | [典型布局](https://m3.material.io/foundations/layout/canonical-examples/overview) |
 | `VerticalDragHandle` | 用于横向调整窗格尺寸的纵向把手，可分别设置静止、按下和拖动外观。 | [布局要素](https://m3.material.io/foundations/layout/understanding-layout/parts-of-layout#314a4c32-be52-414c-8da7-31f059f1776d) · [Compose VerticalDragHandle](https://developer.android.com/reference/kotlin/androidx/compose/material3/VerticalDragHandle.composable) |
 
@@ -132,6 +132,14 @@ FAB 开始隐藏时立即退出焦点导航并停止响应输入。淡出期间�
 使用 `.on_resize(label, width, min..=max, callback)` 设置分隔控件的名称、逻辑起始窗格的当前宽度、最小及最大宽度和宽度请求回调。调用方决定是否采用请求的宽度，并负责布局。分隔控件获得焦点后，左右方向键分别向左或向右移动它，Home 和 End 分别请求最小和最大宽度。用 `.keyboard_step(px(...))` 修改默认的 8 像素步长。当前无障碍桥接将原生 Splitter 角色视为只读，因此该纵向分隔控件提供带名称的可写范围语义，以 “splitter” 描述角色，数值为起始窗格的宽度。窗口主题根据 LTR 或 RTL 将鼠标及触摸的实际移动方向映射到逻辑宽度。按 Escape、失去焦点或指针操作被取消时，拖动结束，调用方保留最近一次接受的宽度。
 
 传入 `.interaction_source(&source)` 可通过共享的 `Entity<InteractionSource>` 观察悬停、按下、拖动和可见键盘焦点。观察多个把手时，请为它们提供不同的标识。运行 `cargo gallery vertical-drag-handle` 可体验分割窗格示例。
+
+### Scaffold 布局
+
+`Scaffold::new(id, content)` 测量并预留独立的 `.app_bar`、`.rail` 和 `.bottom_bar` 插槽所占的空间。应用持有这些插槽、FAB 和消息条宿主。请使用稳定的 ID，并为 Scaffold 提供有界的尺寸。用 `.content_insets(ScaffoldInsets { top, start, bottom, end })` 设置可用内容距各边的最小距离，单位为逻辑像素。各边已占用的空间计入最小距离。普通构造器会在内容区内应用剩余内边距。
+
+用 `Scaffold::with_layout(id, |layout, window, cx| ...)` 在构造内容前读取当前布局。`ScaffoldContentLayout` 提供内容区边界 `bounds`、已占空间 `occupied`、剩余内边距 `padding` 和文本方向 `direction`。只把 `padding` 应用到内容或滚动区的子元素，因为 Scaffold 已预留 `occupied`。用 `ScaffoldInsets::resolve(direction)` 将逻辑起始侧和末尾侧转换成实际左右边。内容构造闭包在布局时执行。插槽或窗口尺寸变化后，它会收到当前测量结果。
+
+用 `.fab_position(ScaffoldFabPosition)` 将 FAB 在可用内容宽度内设为 `Start`、`Center` 或 `End`，默认是 `End`。这三种位置让 FAB 位于底栏上方，有消息条插槽时也位于消息条上方。`EndOverlay` 让 FAB 贴近 Scaffold 底部并覆盖底栏，仍遵守请求的底部内边距；消息条会避让底栏和 FAB。起始侧与末尾侧随窗口方向镜像。FAB 和消息条作为浮层呈现，不计入已占内容空间。
 
 <a id="optional-components"></a>
 

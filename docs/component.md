@@ -25,6 +25,14 @@ Use `.content(element)` to customize the rendered label while retaining the cons
 
 Keep an `Entity<InteractionSource>` in the caller and attach it with `.interaction_source(&source)` to observe a button. Give each control sharing a source a distinct element ID within its window. Read the current state with `InteractionSource::state`, or subscribe to `InteractionUpdate` for each deferred change, including press and release between draws. A removed control clears its snapshot. Base still owns input handling and the application owns toggle values.
 
+### Floating action button
+
+`Fab::new` takes an icon and an accessible name. It defaults to a 56 dp Small FAB in the primary container palette. Give each Small, Medium, or Large instance its own `.shape(CornerShape)`, `.colors(ButtonColors)`, and `.elevations(ButtonElevations)`. Use the container and content fields for enabled and disabled colors. Omitted fields keep the size and palette defaults. Use `.interaction_source(&source)` to observe the action with a caller-owned source.
+
+Keep the visibility flag in application state and pass it with `.visible(visible)` on each render. Use a stable element ID between updates so the two motion channels can reverse from their current progress. `FabVisibilityAnimation` defaults to center alignment, a hidden scale of `0.2`, and the theme's Fast Spatial and Fast Effects motion for scale and alpha. Use logical `FabAlignment` positions to scale about an edge or corner that mirrors in right-to-left windows. Set `target_scale` to a finite nonnegative value and set `scale_motion` and `alpha_motion` independently. Invalid scales, including values that overflow the scaled extent, fall back to `0.2`. Reduced motion applies the final state immediately.
+
+A hiding FAB stops taking focus and input immediately. It occupies its layout space while fading and gives up that space at zero opacity. An initially hidden FAB takes no space. Keep the icon decorative so the FAB owns activation and focus. Use inherited text sizing or relative dimensions for custom icons that should resize during the transition.
+
 <a id="内容与反馈"></a>
 
 ## Content and feedback

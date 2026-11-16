@@ -13,7 +13,9 @@ pub use button::{
     IconButtonWidth, IconToggleButton, ToggleButton, ToggleButtonVariant,
 };
 pub use button_style::{ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShapes};
-pub use fab::{ExtendedFab, Fab, FabColor, FabSize, FloatingAction};
+pub use fab::{
+    ExtendedFab, Fab, FabAlignment, FabColor, FabSize, FabVisibilityAnimation, FloatingAction,
+};
 
 mod selection;
 pub use selection::{Checkbox, CheckboxState, Radio, RadioGroup, Switch};

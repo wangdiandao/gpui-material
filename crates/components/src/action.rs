@@ -70,6 +70,7 @@ pub(crate) struct ActionLayout {
     pub(crate) width: Option<Pixels>,
     pub(crate) tab_stop: bool,
     pub(crate) semantic_only: bool,
+    pub(crate) decorative: bool,
     pub(crate) appearance: ButtonStyle,
 }
 
@@ -145,6 +146,40 @@ impl FeedbackState {
 }
 
 impl ActionControl {
+    fn feedback(
+        &self,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (Rc<RefCell<FeedbackState>>, FocusHandle) {
+        let (feedback, focus) = window
+            .use_keyed_state((self.id.clone(), "material-feedback"), cx, |_, cx| {
+                (
+                    Rc::new(RefCell::new(FeedbackState::default())),
+                    cx.focus_handle(),
+                )
+            })
+            .read(cx);
+        (
+            feedback.clone(),
+            self.focus.as_ref().unwrap_or(focus).clone(),
+        )
+    }
+
+    pub(crate) fn clear_interaction(&self, window: &mut Window, cx: &mut App) {
+        let (feedback, focus) = self.feedback(window, cx);
+        let mut state = feedback.borrow_mut();
+        state.cancel();
+        state.hovered = false;
+        state.tracker = None;
+        if focus.is_focused(window) {
+            window.defer(cx, move |window, cx| {
+                if focus.is_focused(window) {
+                    window.blur(cx);
+                }
+            });
+        }
+    }
+
     pub(crate) fn render(self, window: &mut Window, cx: &mut App) -> AnyElement {
         self.render_scaled(1., None, ButtonStyle::default(), window, cx)
     }
@@ -178,17 +213,7 @@ impl ActionControl {
         window: &mut Window,
         cx: &mut App,
     ) -> AnyElement {
-        let feedback_id = (self.id.clone(), "material-feedback");
-        let (feedback, focus) = window
-            .use_keyed_state(feedback_id.clone(), cx, |_, cx| {
-                (
-                    Rc::new(RefCell::new(FeedbackState::default())),
-                    cx.focus_handle(),
-                )
-            })
-            .read(cx)
-            .clone();
-        let focus = self.focus.unwrap_or(focus);
+        let (feedback, focus) = self.feedback(window, cx);
         let tracker =
             interaction_source.map(|source| InteractionSource::track(source, &self.id, window, cx));
         let style = self.style;
@@ -252,7 +277,13 @@ impl ActionControl {
         let interaction = {
             let mut state = feedback.borrow_mut();
             state.cancel_unavailable(enabled, window);
-            let interaction = state.interaction(enabled, &focus, window);
+            let interaction = if layout.decorative {
+                let mut interaction = InteractionState::default();
+                interaction.disabled = self.disabled;
+                interaction
+            } else {
+                state.interaction(enabled, &focus, window)
+            };
             if let Some(tracker) = &tracker {
                 tracker.record(interaction, cx);
             }
@@ -402,6 +433,15 @@ impl ActionControl {
             .min_h(visual_height)
             .child(visual)
             .child(self.content);
+        if layout.decorative {
+            return div()
+                .min_h(target_height)
+                .min_w(target_width)
+                .max_w_full()
+                .text_color(foreground)
+                .child(content)
+                .into_any_element();
+        }
         let id = self.id;
         let label = self.label;
         let disabled = self.disabled;

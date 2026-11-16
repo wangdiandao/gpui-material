@@ -1,16 +1,22 @@
 use std::rc::Rc;
 
 use gpui::{
-    AnyElement, App, ElementId, FocusHandle, IntoElement, ParentElement, RenderOnce, SharedString,
-    Styled, Window, anchored, deferred, div, px,
+    AnyElement, App, ElementId, Empty, Entity, FocusHandle, IntoElement, ParentElement, Point,
+    RenderOnce, SharedString, Styled, Window, anchored, deferred, div, point, px,
 };
-use gpui_material_foundation::{animate, color, logical_anchor, window_material_theme};
+use gpui_material_foundation::{
+    InteractionSource, animate, color, logical_anchor, window_material_theme,
+};
 use gpui_material_theme::{
-    ColorRole, CornerRole, Direction, Elevation, MotionKind, MotionSpeed, TypeRole,
-    TypographyEmphasis,
+    ColorRole, CornerRole, CornerShape, Direction, Elevation, MotionKind, MotionSpec, MotionSpeed,
+    TypeRole, TypographyEmphasis,
 };
 
-use crate::action::{Action, ActionControl, ActionStyle, Activate, DisabledStyle, icon_slot};
+use crate::action::{
+    Action, ActionControl, ActionLayout, ActionStyle, Activate, DisabledStyle, icon_slot,
+};
+use crate::button_style::{ButtonColors, ButtonElevations, ButtonStyle};
+use crate::motion::OverlayMotion;
 
 /// Expressive FAB sizes. Small is the 56 dp FAB and Small Extended FAB.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -55,6 +61,115 @@ pub enum FabColor {
     PrimaryStrong,
     SecondaryStrong,
     TertiaryStrong,
+}
+
+/// Logical pivot for the FAB's visibility transition.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum FabAlignment {
+    TopStart,
+    TopCenter,
+    TopEnd,
+    CenterStart,
+    #[default]
+    Center,
+    CenterEnd,
+    BottomStart,
+    BottomCenter,
+    BottomEnd,
+}
+
+impl FabAlignment {
+    fn pivot(self, direction: Direction) -> Point<f32> {
+        use FabAlignment::*;
+        let x = match self {
+            TopStart | CenterStart | BottomStart => 0.,
+            TopCenter | Center | BottomCenter => 0.5,
+            TopEnd | CenterEnd | BottomEnd => 1.,
+        };
+        let y = match self {
+            TopStart | TopCenter | TopEnd => 0.,
+            CenterStart | Center | CenterEnd => 0.5,
+            BottomStart | BottomCenter | BottomEnd => 1.,
+        };
+        point(
+            if direction == Direction::Rtl {
+                1. - x
+            } else {
+                x
+            },
+            y,
+        )
+    }
+}
+
+/// Appearance and disappearance motion for a controlled FAB.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FabVisibilityAnimation {
+    pub alignment: FabAlignment,
+    /// The ending scale of a hide and the starting scale of a show.
+    /// Negative, non-finite, or overflowing values use the default of 0.2.
+    pub target_scale: f32,
+    /// Defaults to the window theme's Fast Spatial motion.
+    pub scale_motion: Option<MotionSpec>,
+    /// Defaults to the window theme's Fast Effects motion.
+    pub alpha_motion: Option<MotionSpec>,
+}
+
+impl Default for FabVisibilityAnimation {
+    fn default() -> Self {
+        Self {
+            alignment: FabAlignment::Center,
+            target_scale: 0.2,
+            scale_motion: None,
+            alpha_motion: None,
+        }
+    }
+}
+
+impl FabVisibilityAnimation {
+    fn sample(
+        self,
+        id: &ElementId,
+        visible: bool,
+        extent: f32,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> OverlayMotion {
+        let scheme = window_material_theme(window, cx).motion;
+        let reduced = cx.reduce_motion();
+        let mut progress = |channel, kind, spec: Option<MotionSpec>| {
+            let spec = if reduced {
+                MotionSpec::Instant
+            } else {
+                spec.unwrap_or_else(|| scheme.spec(kind, MotionSpeed::Fast, false))
+            };
+            animate((id.clone(), channel), f32::from(visible), spec, window, cx)
+        };
+        let spatial = progress(
+            "fab-visibility-scale",
+            MotionKind::Spatial,
+            self.scale_motion,
+        );
+        let alpha = progress(
+            "fab-visibility-alpha",
+            MotionKind::Effects,
+            self.alpha_motion,
+        );
+        let target = if self.target_scale >= 0. && (self.target_scale * extent).is_finite() {
+            self.target_scale
+        } else {
+            Self::default().target_scale
+        };
+        let scale = ((1. - spatial) * target + spatial).max(0.);
+        OverlayMotion {
+            scale: if (scale * extent).is_finite() {
+                scale
+            } else {
+                1.
+            },
+            alpha: alpha.clamp(0., 1.),
+        }
+    }
 }
 
 struct FabContent {
@@ -162,6 +277,10 @@ macro_rules! fab_builders {
 #[derive(IntoElement)]
 pub struct Fab {
     content: FabContent,
+    appearance: ButtonStyle,
+    interaction_source: Option<Entity<InteractionSource>>,
+    visible: Option<bool>,
+    animation: FabVisibilityAnimation,
 }
 
 impl Fab {
@@ -172,10 +291,51 @@ impl Fab {
     ) -> Self {
         Self {
             content: FabContent::new(id, name, icon),
+            appearance: ButtonStyle::default(),
+            interaction_source: None,
+            visible: None,
+            animation: FabVisibilityAnimation::default(),
         }
     }
 
     fab_builders!();
+
+    /// Overrides the container shape for all interaction states.
+    pub fn shape(mut self, shape: CornerShape) -> Self {
+        self.appearance.shapes.resting = Some(shape);
+        self.appearance.shapes.pressed = Some(shape);
+        self
+    }
+
+    /// Sets the enabled and disabled container and icon colors.
+    pub fn colors(mut self, colors: ButtonColors) -> Self {
+        self.appearance.colors = colors;
+        self
+    }
+
+    /// Overrides the elevation for each interaction state.
+    pub fn elevations(mut self, elevations: ButtonElevations) -> Self {
+        self.appearance.elevations = elevations;
+        self
+    }
+
+    /// Reports this FAB's interaction state through a caller-owned source.
+    pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
+        self.interaction_source = Some(source.clone());
+        self
+    }
+
+    /// Applies the caller's visibility state. Use a stable ID across updates.
+    pub fn visible(mut self, visible: bool) -> Self {
+        self.visible = Some(visible);
+        self
+    }
+
+    /// Sets the pivot, hidden scale, and independent scale and alpha motions.
+    pub fn visibility_animation(mut self, animation: FabVisibilityAnimation) -> Self {
+        self.animation = animation;
+        self
+    }
 }
 
 impl RenderOnce for Fab {
@@ -187,16 +347,69 @@ impl RenderOnce for Fab {
         } else {
             icon_size
         };
-        ActionControl {
+        let theme = window_material_theme(window, cx);
+        let direction = theme.layout.direction;
+        let extent = theme.layout.density.interactive_size(style.height);
+        let motion = self.visible.map(|visible| {
+            self.animation
+                .sample(&self.content.id, visible, extent, window, cx)
+        });
+        let action = ActionControl {
             id: self.content.id,
             label: self.content.name,
             focus: self.content.focus,
             disabled: self.content.disabled,
             action: Action::Invoke(self.content.on_activate),
             style,
-            content: icon_slot(self.content.icon, icon_size).into_any_element(),
+            content: icon_slot(
+                self.content.icon,
+                icon_size * motion.map_or(1., |sample| sample.scale),
+            )
+            .into_any_element(),
+        };
+        let Some(motion) = motion else {
+            return action.render_scaled(
+                1.,
+                self.interaction_source.as_ref(),
+                self.appearance,
+                window,
+                cx,
+            );
+        };
+        let interactive = self.visible == Some(true) && motion.alpha > 0. && motion.scale > 0.;
+        if !interactive {
+            action.clear_interaction(window, cx);
         }
-        .render(window, cx)
+        if motion.alpha == 0. {
+            return Empty.into_any_element();
+        }
+        let extent = px(extent);
+        let mut footprint = div().relative().size(extent).min_w(extent).min_h(extent);
+        if motion.scale > 0. {
+            let pivot = self.animation.alignment.pivot(direction);
+            let distance = extent * (1. - motion.scale);
+            let control = action.render_layout(
+                motion.scale,
+                ActionLayout {
+                    tab_stop: interactive,
+                    decorative: !interactive,
+                    appearance: self.appearance,
+                    ..Default::default()
+                },
+                self.interaction_source.as_ref().filter(|_| interactive),
+                window,
+                cx,
+            );
+            footprint = footprint.child(
+                div()
+                    .absolute()
+                    .left(distance * pivot.x)
+                    .top(distance * pivot.y)
+                    .opacity(motion.alpha)
+                    .child(control),
+            );
+        }
+        footprint.into_any_element()
     }
 }
 

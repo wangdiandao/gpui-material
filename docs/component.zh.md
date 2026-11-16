@@ -217,6 +217,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `toolbars` | `FabMenu`、`Toolbar` | 可展开的悬浮操作菜单。工具栏支持悬浮或停靠，以及横向或纵向布局。 | [悬浮操作菜单](https://m3.material.io/components/fab-menu/overview) · [工具栏](https://m3.material.io/components/toolbars/overview) |
 | `search` | `SearchBar`、`SearchView` | 收起的搜索栏，以及停靠或全屏的搜索视图。 | [搜索](https://m3.material.io/components/search/overview) |
 | `date-time` | `DatePicker`、`TimePicker`、`ScrollField` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input。时间选择支持 Dial、Input 和 12、24 小时制。支持独立的滚动选择字段。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
+| `carousel` | `Carousel`、`CarouselParallax` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。 任意 GPUI 内容可使用独立滚动视差效果。 | [轮播](https://m3.material.io/components/carousel/overview) |
 
 ### 滚动选择字段
 
@@ -225,4 +226,13 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 当前选项在三行可见区域内居中。可点击某行，也可使用鼠标滚轮、触控板、上下方向键或无障碍操作改变选项。滚动到末项后会回到首项，反向操作同样循环。通过 `.item_content(|index, selected, enabled| ...)` 为每行提供装饰性 GPUI 元素。默认将索引补足为至少两位数字。构造器的名称用于标识字段，`.value_description(|index| ...)` 为辅助技术描述滚动中的目标选项和静止时的居中选项。字段名称应说明用途，并在需要时说明选项范围。
 
 通过 `.colors(ScrollFieldColors)` 设置启用和禁用时的容器、普通选项及选中选项颜色。默认配色使用 `SurfaceContainerLowest`、`Outline` 和 `OnSurface`。`.disabled(true)` 结束当前的用户滚动并阻止后续用户操作。调用方仍可通过状态定位。使用 `.interaction_source(&source)` 接入调用方持有的 `InteractionSource`，独立于选中值观察字段交互。
-| `carousel` | `Carousel` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。 | [轮播](https://m3.material.io/components/carousel/overview) |
+
+### 轮播
+
+通过 `Carousel::new(id, label, items)` 构造轮播，为每个条目提供唯一且稳定的 ID。可用 `cx.new(|_| CarouselState::new(initial_index))` 创建 `Entity<CarouselState>`，并通过 `.state(&state)` 接入。观察该实体即可读取 `current_item()`、`current_item_id()` 和相对最接近条目的带符号偏移 `current_item_offset_fraction()`。条目移动时位置随目标 ID 保持，目标被移除时回到经过边界限制的原索引。初始索引和空列表期间发出的请求会在条目到达后生效。通过 `scroll_to_item(index, cx)` 立即定位，通过 `animate_scroll_to_item(index, cx)` 按窗口动效设置移动。两种方法都会限制索引范围。每个实体对应一个轮播。未接入实体时，轮播按元素 ID 保留自身位置。
+
+通过 `.alignment(CarouselAlignment::Start)` 或 `.alignment(CarouselAlignment::Center)` 设置 Multi-browse、Hero 和 Centered Hero 的对齐方式。Centered Hero 默认居中，其他内含布局默认起始侧对齐。六种布局均支持 `.item_spacing(px(...))` 和 `.content_padding(CarouselPadding { start, end, top, bottom })`。`start` 和 `end` 是逻辑方向边。横向布局默认使用 8 px 间距、16 px 起始侧内边距和 8 px 交叉轴内边距。内含布局还有 16 px 末尾侧内边距。Full-screen 默认使用 16 px 间距和零内边距。`.small_item_widths(min, max)` 设置小条目的正数宽度上下限，默认范围为 40–56 px。视口过窄时布局可简化为一个焦点条目。
+
+`.user_scroll_enabled(false)` 关闭滚轮、触控板、键盘导航及无障碍滚动，条目仍可激活，应用仍可定位。内含布局和 Full-screen 默认吸附到最近的定位线，非内含布局默认自由滚动，可通过 `.snap_scrolling(true)` 启用吸附。`.fling_behavior(...)` 可选择自由滚动、就近吸附、单条目推进，或根据 `CarouselFlingContext` 自定义最终条目。逐格滚轮与无障碍滚动请求按条目移动。定位动画和吸附遵循减少动态效果设置。
+
+在可滚动布局中，用 `CarouselParallax::new(content)` 包装任意 GPUI 内容。效果默认使用 GPUI 当前裁剪区域作为视口，也可通过 `.viewport(bounds)` 传入窗口坐标下的视口。纵向布局使用 `.axis(Axis::Vertical)`。条目进出视口时，内容逐步裁剪和平移，布局尺寸保持固定。减少动态效果设置保留视口裁剪，并跳过附加的视差平移。通过 `.shape(CornerShape)` 和 `.border(CarouselBorder)` 配置匹配的圆角和描边。GPUI 使用矩形区域裁剪内容，圆角处通过 Material Surface 颜色覆盖，也可通过 `.backdrop(color)` 设置与均匀父背景匹配的不透明色。图案或透明背景可使用直角保留原背景。

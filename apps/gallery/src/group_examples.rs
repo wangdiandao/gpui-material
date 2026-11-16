@@ -1,12 +1,16 @@
 use gpui::prelude::FluentBuilder;
-use gpui::{Context, FocusHandle, ParentElement, Render, SharedString, Styled, Window, div, px};
+use gpui::{
+    Context, FocusHandle, ParentElement, Radians, Render, SharedString, Styled, Window, div, px,
+};
 use gpui_material::{
-    ButtonGroup, ButtonGroupItem, ButtonGroupSelection, ButtonGroupVariant, ButtonVariant,
-    ControlSize, Icon, IconName, MenuItem, SplitButton, Text,
+    ButtonGroup, ButtonGroupItem, ButtonGroupSelection, ButtonGroupVariant, ButtonShape,
+    ButtonVariant, ControlSize, Icon, IconName, MenuItem, SplitButton, Text,
 };
 
 use crate::story::{Story, section, stack};
 
+#[cfg(all(test, feature = "test-support"))]
+mod button_group_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod split_button_tests;
 
@@ -16,6 +20,7 @@ pub(crate) struct GroupExamples {
     message: SharedString,
     split_focus: (FocusHandle, FocusHandle),
     keep_export: bool,
+    keep_archive: bool,
 }
 
 impl GroupExamples {
@@ -26,6 +31,7 @@ impl GroupExamples {
             message: "No action yet".into(),
             split_focus: (cx.focus_handle(), cx.focus_handle()),
             keep_export: false,
+            keep_archive: false,
         }
     }
 
@@ -47,16 +53,33 @@ impl Render for GroupExamples {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let mut body = stack();
         if self.story == Story::ButtonGroup {
+            let archive = cx.weak_entity();
+            let keep = self.keep_archive;
             body = body.child(
-                section("Standard actions").child(ButtonGroup::new(
+                section("Standard commands and toggle").child(ButtonGroup::new(
                     "file-actions",
                     "File actions",
                     [
                         ButtonGroupItem::new("copy", "Copy")
-                            .on_activate(Self::command("Copied", cx)),
+                            .leading_icon(|| Icon::new(IconName::Description))
+                            .action(Self::command("Copied", cx)),
                         ButtonGroupItem::new("rename", "Rename")
                             .on_activate(Self::command("Renamed", cx)),
                         ButtonGroupItem::new("archive", "Archive").disabled(true),
+                        ButtonGroupItem::new("keep-archive", "Keep archive")
+                            .icon_only(move || Icon::new(IconName::Favorite).filled(keep))
+                            .toggle(keep, move |keep, _, cx| {
+                                let _ = archive.update(cx, |this, cx| {
+                                    this.keep_archive = keep;
+                                    this.message = if keep {
+                                        "Keeping archive"
+                                    } else {
+                                        "Archive unpinned"
+                                    }
+                                    .into();
+                                    cx.notify();
+                                });
+                            }),
                     ],
                 )),
             );
@@ -64,30 +87,39 @@ impl Render for GroupExamples {
                 section("Connected single selection")
                     .description("Select a time period. The group keeps one option selected.")
                     .child(
-                        ButtonGroup::new(
-                            "period",
-                            "Period",
-                            [
-                                ButtonGroupItem::new("day", "Day"),
-                                ButtonGroupItem::new("week", "Week"),
-                                ButtonGroupItem::new("month", "Month"),
-                                ButtonGroupItem::new("quarter", "Quarter"),
-                                ButtonGroupItem::new("year", "Year"),
-                            ],
-                        )
-                        .variant(ButtonGroupVariant::Connected)
-                        .appearance(ButtonVariant::FilledTonal)
-                        .selection(ButtonGroupSelection::SingleRequired, self.selected.clone())
-                        .on_change({
-                            let view = cx.weak_entity();
-                            move |next, _, cx| {
-                                let _ = view.update(cx, |this, cx| {
-                                    this.message = format!("Period: {}", next[0]).into();
-                                    this.selected = next;
-                                    cx.notify();
-                                });
-                            }
-                        }),
+                        div().max_w(px(290.)).child(
+                            ButtonGroup::new(
+                                "period",
+                                "Period",
+                                [
+                                    ButtonGroupItem::new("day", "Day").weight(1.),
+                                    ButtonGroupItem::new("week", "Week").weight(2.),
+                                    ButtonGroupItem::new("month", "Month"),
+                                    ButtonGroupItem::new("quarter", "Quarter"),
+                                    ButtonGroupItem::new("year", "Year"),
+                                ],
+                            )
+                            .variant(ButtonGroupVariant::Connected)
+                            .shape(ButtonShape::Square)
+                            .appearance(ButtonVariant::FilledTonal)
+                            .expanded_ratio(0.2)
+                            .overflow_trigger(px(52.), |open| {
+                                Icon::new(IconName::ArrowDropDown)
+                                    .size(px(24.))
+                                    .rotate(Radians(if open { std::f32::consts::PI } else { 0. }))
+                            })
+                            .selection(ButtonGroupSelection::SingleRequired, self.selected.clone())
+                            .on_change({
+                                let view = cx.weak_entity();
+                                move |next, _, cx| {
+                                    let _ = view.update(cx, |this, cx| {
+                                        this.message = format!("Period: {}", next[0]).into();
+                                        this.selected = next;
+                                        cx.notify();
+                                    });
+                                }
+                            }),
+                        ),
                     ),
             );
         } else {

@@ -282,6 +282,18 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `date-time` | `DatePicker`、`TimePicker`、`ScrollField` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input。时间选择支持 Dial、Input 和 12、24 小时制。支持独立的滚动选择字段。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
 | `carousel` | `Carousel`、`CarouselParallax` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。 任意 GPUI 内容可使用独立滚动视差效果。 | [轮播](https://m3.material.io/components/carousel/overview) |
 
+### 按钮组
+
+`ButtonGroup::new(id, name, items)` 使用稳定的成员标识，并提供一个 Tab 焦点。左右方向键移动焦点，保留选中状态。导航会跳过禁用成员，视觉顺序和方向键随窗口书写方向调整。`.variant(ButtonGroupVariant::Connected)` 连接相邻成员。Standard 和 Connected 默认间距分别为 12 和 2 个逻辑像素。可通过 `.spacing(width)` 覆盖间距，使用 `.alignment(ButtonGroupAlignment)` 设置逻辑横向排列，使用 `.vertical_alignment(ButtonGroupVerticalAlignment)` 设置纵向对齐，默认 Top。成员可以单独设置纵向对齐。
+
+`ButtonGroupItem::new(id, name)` 在启用组选择时使用 `.selection(mode, selected_ids)` 和 `.on_change(...)`。Single 和 Multiple 允许取消选中，Required 模式会保留最后一个选中项。应用处理请求并提供当前选择。`.action(callback)` 在任一组内建立独立命令，`.toggle(selected, callback)` 建立单独受控的切换控件。`.on_activate(...)` 为 Actions 模式下的成员提供命令。
+
+使用 `.leading_icon(|| ...)` 在标签旁加入图标，用 `.icon_only(|| ...)` 以图标替代标签，或通过 `.content(width, || ...)` 提供带首选逻辑宽度的装饰内容。构造器名称用于无障碍和默认溢出菜单行。`.icon_width(IconButtonWidth)` 选择纯图标尺寸。`.appearance(ButtonVariant)` 和 `.style(ButtonGroupItemStyle)` 分别覆盖成员的外观预设，以及静止、按下、选中形状、配色、描边、阴影和逻辑内边距。通过 `.shape(ButtonShape::Square)` 可将默认 Round 外侧形状改为方形。`.connected_shapes(ButtonGroupConnectedShapes)` 为首段、中间段、尾段和单一段设置各状态形状。成员设置的形状字段优先。
+
+`.weight(weight)` 按比例分配非加权成员与最小目标宽度剩余的空间。默认权重为零。`.expanded_ratio(ratio)` 默认为 `0.15`。按下的成员向左右可见邻项借用宽度。`.compression_limit(px(...))` 限制成员可让出的宽度，默认保留至少 24 个逻辑像素。`.interaction_source(&source)` 使用 `ElementId::from((group_id, item_id))` 观察可见成员，宽度动画读取同一按压状态。减少动态效果时立即应用目标宽度。
+
+无法显示的成员进入溢出菜单，保留各自的名称、可用与选中状态以及回调。`.overflow_trigger(width, |open| ...)` 替换触发器的显示内容，`.overflow_label(...)` 保留其无障碍名称。`.overflow_content(|| ...)` 在自动生成的菜单行之前添加装饰内容，`.overflow_item_content(|| ...)` 自定义对应成员的菜单行。使用 `.overflow_open(open)` 时由应用持有显示状态，并应用 `.on_overflow_open_change(...)` 的请求。省略打开值时，由按钮组管理菜单显示。
+
 ### 拆分按钮
 
 `SplitButton::new(id, leading_name, trailing_name, menu_items)` 提供两段各自的无障碍名称。前段命令使用 `.on_activate(...)`。通过 `.leading_icon(element)` 在标签旁加入图标，`.leading_icon_only(element)` 用图标替代标签，`.leading_content(element)` 提供自定义内容。尾段默认显示菜单箭头。使用 `.trailing_icon(element)` 可按当前尺寸设置图标，或用 `.trailing_content(element)` 提供自定义内容。每段以最后一次内容设置为准。各插槽仅用于呈现，由对应段负责焦点、名称和激活。

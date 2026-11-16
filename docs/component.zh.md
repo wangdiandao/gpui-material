@@ -194,7 +194,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `Tooltip` | 临时普通提示、临时富内容提示和持久富内容提示。调用方可持有显示状态并自定义内容、定位及外观。 | [提示](https://m3.material.io/components/tooltips/overview) |
 | `Label` | 锚定控件的静态标签，支持共享交互状态和持续显示。 | [Compose Label](https://developer.android.com/reference/kotlin/androidx/compose/material3/Label.composable) |
 | `Scrim` | 独立遮罩，支持主题配色、自定义颜色、透明度和可选关闭操作。 | [遮罩](https://developer.android.com/reference/kotlin/androidx/compose/material3/Scrim.composable) |
-| `Dialog` | 基本对话框和全屏任务对话框。后者在紧凑布局中占用窗口内容区。 | [对话框](https://m3.material.io/components/dialogs/overview) |
+| `Dialog` | 结构化基本对话框、自适应全屏任务对话框、自定义内容的模态外壳，以及按需打开的原生对话框窗口。 | [对话框](https://m3.material.io/components/dialogs/overview) |
 | `Sheet` | 标准和模态底部面板，以及在逻辑起始侧或末尾侧停靠或覆盖的侧面板。 | [底部面板](https://m3.material.io/components/bottom-sheets/overview) · [侧面板](https://m3.material.io/components/side-sheets/overview) |
 
 `TextField` 为调用方持有的 Base 编辑器提供外观。使用 `label_content`、`placeholder_content` 和 `supporting_content` 时，纯文本分别提供无障碍名称、提示和说明。首尾元素与紧邻输入值的前后缀分开。标签收起时显示前后缀。Filled 默认使用内部标签，Outlined 默认使用缺口标签。可通过 Above 将标签放在容器上方，也可设置水平对齐方式，让内部或缺口标签始终保持收起。字符计数按 Unicode 标量值统计，输入长度仍由编辑器处理。安全字段隐藏计数和无障碍值。可独立于窗口主题设置实例配色、容器形状、内容内边距和输入文字样式。`on_text_layout` 在帧结束后报告编辑器与文本的布局边界和换行后的行数。通过 `interaction_source` 共享悬停、键盘焦点和禁用状态的观测结果。Base 实体继续管理编辑、选区、校验、滚动和输入法组合。
@@ -242,6 +242,18 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 在已定位的容器中，将 `Scrim::new(id)` 放在背景内容之后、前景表面之前。遮罩填满容器，默认使用当前窗口主题的 Scrim 色彩角色和 32% 不透明度。使用 `.color(color)` 指定自定义颜色，用 `.opacity(value)` 乘以该颜色的 alpha 值。数值限制在 0–1，NaN 使用默认值。
 
 默认遮罩仅作装饰，降低内容亮度，并保留底下内容的指针操作和无障碍遍历。使用 `.on_click(|window, cx| ...)` 后，遮罩拦截指向底下内容的指针事件，并响应指针或辅助技术的激活操作。遮罩不占用键盘 Tab 焦点。使用 `.accessibility_label(label)` 为辅助技术提供操作名称，默认名称为 “Dismiss overlay”。显示状态、关闭操作，以及模态内容的焦点与无障碍范围均由调用方管理。模态内容需要提供自己的键盘关闭操作。
+
+### 对话框
+
+每个对话框创建一个 `Entity<DialogState>`。调用 `open(window, cx)` 与 `close(window, cx)` 控制窗口内对话框。用 `Dialog::new(id, &state, title)` 创建采用 Material 默认布局的对话框。`DialogVariant::FullScreen` 在内容宽度小于 600 逻辑像素时填满窗口内容区，在较宽窗口中采用基本布局。Tab 和 Shift+Tab 在模态范围内切换焦点。在同一窗口中嵌套时，为内层对话框设置更高的 `.layer(index)`，并从当前对话框内打开它。如果关闭时焦点仍在对话框内，则恢复此前的焦点。
+
+用 `.icon(element)`、`.title_content(element)`、`.description(text)` 和 `.body(element)` 构造图标、标题、辅助文字和正文。构造器的标题用于无障碍名称。用 `.show_title(false)` 隐藏可见标题。`.confirm(label, validate)` 提供默认确认操作，也能在焦点位于对话框容器时用 Enter 触发。校验返回 false 时，对话框保持打开。`.confirm_content(|confirm| ...)` 与 `.dismiss_content(|dismiss| ...)` 分别构造确认和取消控件。使用 `Button` 等控件，将指针、键盘及辅助技术的激活操作连接到传入的 `DialogAction::activate(window, cx)`。自定义确认控件可复用同一校验函数，并自行处理快捷键。`.show_cancel(false)` 省略默认的取消按钮或紧凑布局中的关闭图标。
+
+用 `Dialog::unstructured(id, &state, accessible_name).body(element)` 自定义对话框结构。外壳提供焦点范围、无障碍名称、受限视口与关闭策略。调用方指定内边距、滚动、标题、操作和表面。`.body_content(|confirm, dismiss| ...)` 将两个激活句柄传给自定义内容。`.width(pixels)` 设置居中对话框的最大宽度，并受可用空间限制。用 `.shape`、`.colors(DialogColors)`、`.tonal_elevation` 和 `.shadow_elevation` 配置表面及插槽样式。用 `.scrim_color` 和 `.scrim_opacity` 自定义窗口内遮罩。透明遮罩仍拦截指向对话框后方的指针输入。
+
+`DialogProperties` 分别控制 Escape 和点击外部是否关闭，默认均允许。`.on_dismiss_request(|reason, window, cx| ...)` 返回 false 可拒绝 Escape、外部点击和系统窗口关闭请求。`.on_close(|reason, window, cx| ...)` 对一次已接受的用户关闭操作只回调一次。原因包括 `Confirm`、`Cancel`、`Escape`、`OutsideClick` 或 `WindowClose`。程序主动关闭时，可从状态的 `last_close_reason()` 读取 `Programmatic`。回调接收对话框所在窗口。状态切换和焦点恢复独立于回调。
+
+在活动父窗口中调用 `Dialog::open_window(&state, parent, options, cx, |state, window, cx| ...)`，可请求独立的 GPUI 对话框窗口并在其中构造内容。`WindowOptions` 指定窗口边界、标题栏和是否可调整大小。父窗口的模态行为、窗口装饰及原生尺寸调整由系统处理。Windows 会停用当前活动父窗口，macOS 使用窗口附属表单，Linux 的模态行为由合成器决定。Escape 和系统关闭按钮沿用同样的关闭策略。外部点击关闭和遮罩用于窗口内对话框。需要跨平台一致的单窗口模态行为时，使用窗口内对话框。
 
 <a id="navigation-and-adaptive-layout"></a>
 

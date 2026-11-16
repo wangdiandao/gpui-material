@@ -1,12 +1,15 @@
 use gpui::InteractiveElement;
 use gpui::{
-    AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, div, px,
+    AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, TitlebarOptions,
+    Window, WindowBounds, WindowOptions, div, px, size,
 };
 use gpui::{FocusHandle, SharedString};
 use gpui_base::TestSupportExt as _;
 use gpui_material::{
-    Button, Dialog, DialogState, DialogVariant, Icon, IconName, Sheet, SheetEdge, SheetMode,
-    Snackbar, SnackbarColors, SnackbarHost, TextField, TextFieldState, TextFieldVariant,
+    Button, Dialog, DialogColors, DialogProperties, DialogState, DialogVariant, Icon, IconName,
+    Sheet, SheetEdge, SheetMode, Snackbar, SnackbarColors, SnackbarHost, Surface, TextField,
+    TextFieldState, TextFieldVariant,
+    theme::{ColorRole, CornerRole, Elevation},
 };
 use gpui_material::{
     InteractionSource, Label, Menu, MenuColor, MenuItem, Switch, Text, Tooltip, TooltipCaret,
@@ -15,6 +18,8 @@ use gpui_material::{
 
 use crate::story::{Story, section, stack};
 
+#[cfg(all(test, feature = "test-support"))]
+mod dialog_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod label_tests;
 #[cfg(all(test, feature = "test-support"))]
@@ -27,6 +32,8 @@ pub(crate) struct ModalExamples {
     primary: Entity<DialogState>,
     secondary: Entity<DialogState>,
     standard: Entity<DialogState>,
+    custom: Entity<DialogState>,
+    native: Entity<DialogState>,
     name: Entity<TextFieldState>,
     expanded: bool,
 }
@@ -36,6 +43,9 @@ impl ModalExamples {
         let primary = cx.new(DialogState::new);
         let secondary = cx.new(DialogState::new);
         let standard = cx.new(DialogState::new);
+        let custom = cx.new(DialogState::new);
+        let native = cx.new(DialogState::new);
+        cx.observe(&custom, |_, _, cx| cx.notify()).detach();
         cx.observe(&primary, |_, _, cx| cx.notify()).detach();
         cx.observe(&secondary, |_, _, cx| cx.notify()).detach();
         Self {
@@ -43,6 +53,8 @@ impl ModalExamples {
             primary,
             secondary,
             standard,
+            custom,
+            native,
             name: cx.new(|cx| TextFieldState::new(window, cx).placeholder("名称")),
             expanded: false,
         }
@@ -57,6 +69,7 @@ impl ModalExamples {
 
     fn dialogs(&self) -> impl IntoElement {
         let editor = self.name.clone();
+        let native = self.native.clone();
         stack()
             .child(
                 section("Rename a project")
@@ -90,6 +103,91 @@ impl ModalExamples {
                     .variant(DialogVariant::FullScreen)
                     .description("Use the project name as it appears in your team’s roadmap.")
                     .cancel_label("Close"),
+            )
+            .child(
+                section("Customize a modal")
+                    .child(Self::trigger(
+                        "review-export",
+                        "Review export…",
+                        &self.custom,
+                    ))
+                    .child(
+                        Button::new("open-native-dialog", "Open native dialog…").on_activate(
+                            move |parent, cx| {
+                                let result =
+                                    Dialog::open_window(
+                                        &native,
+                                        parent,
+                                        WindowOptions {
+                                            titlebar: Some(TitlebarOptions {
+                                                title: Some("Native project dialog".into()),
+                                                ..TitlebarOptions::default()
+                                            }),
+                                            window_bounds: Some(WindowBounds::centered(
+                                                size(px(460.), px(320.)),
+                                                cx,
+                                            )),
+                                            ..WindowOptions::default()
+                                        },
+                                        cx,
+                                        |state, _, _| {
+                                            Dialog::unstructured(
+                                                "native-project-dialog",
+                                                state,
+                                                "Project information",
+                                            )
+                                            .width(px(360.))
+                                            .body_content(|_, dismiss| {
+                                                Surface::new(ColorRole::SecondaryContainer)
+                                                    .shape(CornerRole::Large.shape())
+                                                    .p(px(24.))
+                                                    .child(
+                                                        stack()
+                                                            .child(Text::new("Project information"))
+                                                            .child(
+                                                                Button::new(
+                                                                    "done-native-dialog",
+                                                                    "Done",
+                                                                )
+                                                                .on_activate(move |window, cx| {
+                                                                    dismiss.activate(window, cx)
+                                                                }),
+                                                            ),
+                                                    )
+                                            })
+                                        },
+                                    );
+                                if let Err(error) = result {
+                                    eprintln!("Could not open native project dialog: {error}");
+                                }
+                            },
+                        ),
+                    ),
+            )
+            .child(
+                Dialog::new("export-dialog", &self.custom, "Review export")
+                    .icon(Icon::new(IconName::Info).size(px(24.)))
+                    .title_content(div().child("Review your export"))
+                    .description("The export includes the project name and task history.")
+                    .properties(DialogProperties {
+                        dismiss_on_outside_click: false,
+                        ..DialogProperties::default()
+                    })
+                    .dismiss_content(|dismiss| {
+                        Button::new("keep-editing", "Keep editing")
+                            .on_activate(move |window, cx| dismiss.activate(window, cx))
+                    })
+                    .confirm_content(|confirm| {
+                        Button::new("download-export", "Download")
+                            .on_activate(move |window, cx| confirm.activate(window, cx))
+                    })
+                    .shape(CornerRole::Large.shape())
+                    .colors(DialogColors {
+                        icon: Some(gpui::rgb(0x6750a4).into()),
+                        ..DialogColors::default()
+                    })
+                    .shadow_elevation(Elevation::Level2)
+                    .scrim_opacity(0.28),
             )
     }
 

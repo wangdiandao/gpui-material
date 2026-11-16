@@ -72,7 +72,10 @@ mod overlay;
 pub fn init_components(cx: &mut gpui::App) {
     overlay::init_tooltip(cx);
 }
-pub use overlay::{Dialog, DialogState, DialogVariant, Sheet, SheetEdge, SheetMode};
+pub use overlay::{
+    Dialog, DialogAction, DialogCloseReason, DialogColors, DialogProperties, DialogState,
+    DialogVariant, Sheet, SheetEdge, SheetMode,
+};
 pub use overlay::{
     Snackbar, SnackbarColors, SnackbarHost, SnackbarId, SnackbarParts, SnackbarResult,
 };

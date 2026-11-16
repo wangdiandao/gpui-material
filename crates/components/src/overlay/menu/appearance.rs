@@ -28,6 +28,32 @@ pub struct MenuSurfaceStyle {
     pub spacing: Option<Pixels>,
 }
 
+impl MenuSurfaceStyle {
+    pub(crate) fn dropdown_surface(self, theme: &MaterialTheme, motion: OverlayMotion) -> Div {
+        let palette = MenuColor::Standard.palette(false, self.container);
+        Paint {
+            theme,
+            motion,
+            direction: theme.layout.direction,
+        }
+        .surface(self, palette, false)
+    }
+
+    pub(crate) fn popup_vertical_insets(self) -> Pixels {
+        let padding = self.padding.unwrap_or_else(|| axis_padding(px(0.), px(8.)));
+        let length = |value: Pixels| {
+            if f32::from(value).is_finite() {
+                value.max(px(0.))
+            } else {
+                px(0.)
+            }
+        };
+        length(padding.top)
+            + length(padding.bottom)
+            + self.border.map_or(px(0.), |(width, _)| length(width) * 2.)
+    }
+}
+
 /// Per-row overrides. Unset shapes and colors follow the menu palette and layout.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct MenuItemStyle {

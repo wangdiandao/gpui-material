@@ -87,6 +87,7 @@ pub struct TextFieldLayout {
 }
 
 type OnTextLayout = Box<dyn FnOnce(TextFieldLayout, &mut Window, &mut App)>;
+type DropdownRequest = Rc<dyn Fn(bool, &mut Window, &mut App)>;
 
 struct FieldDescription {
     text: SharedString,
@@ -119,7 +120,9 @@ pub struct TextField {
     trailing: Option<AnyElement>,
     prefix: Option<AnyElement>,
     suffix: Option<AnyElement>,
+    dropdown_editor: bool,
     expanded: Option<bool>,
+    dropdown_request: Option<DropdownRequest>,
     font_scale: f32,
     text_style: Option<TypeStyle>,
     shape: Option<CornerShape>,
@@ -207,7 +210,9 @@ impl TextField {
             trailing: None,
             prefix: None,
             suffix: None,
+            dropdown_editor: false,
             expanded: None,
+            dropdown_request: None,
             font_scale: 1.,
             text_style: None,
             shape: None,
@@ -379,8 +384,10 @@ impl TextField {
         self
     }
 
-    pub(super) fn expanded(mut self, expanded: bool) -> Self {
-        self.expanded = Some(expanded);
+    pub(super) fn dropdown(mut self, open: bool, request: Option<DropdownRequest>) -> Self {
+        self.dropdown_editor = true;
+        self.expanded = request.is_some().then_some(open);
+        self.dropdown_request = request;
         self
     }
 }
@@ -561,7 +568,7 @@ impl RenderOnce for TextField {
                 (false, true) => editor_ink(gpui::transparent_black()),
                 (false, false) => editor_ink(placeholder_color.opacity(floating)),
             },
-            caret: if self.expanded.is_some() && readonly {
+            caret: if self.dropdown_editor && readonly {
                 // Base treats zero alpha as unset. A negligible nonzero alpha
                 // hides the caret while the combobox retains focus.
                 editor_ink(gpui::transparent_black())
@@ -904,6 +911,25 @@ impl RenderOnce for TextField {
             .when_some(self.expanded, |field, expanded| {
                 field.aria_expanded(expanded)
             })
+            .when_some(
+                self.dropdown_request.filter(|_| !disabled),
+                |field, request| {
+                    let open = self.expanded.unwrap_or_default();
+                    let click = request.clone();
+                    field
+                        .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
+                            click(!open, window, cx);
+                        })
+                        .on_a11y_action(
+                            if open {
+                                AccessibleAction::Collapse
+                            } else {
+                                AccessibleAction::Expand
+                            },
+                            move |_, window, cx| request(!open, window, cx),
+                        )
+                },
+            )
             .when(!disabled, |field| field.track_focus(&focus).tab_stop(false))
             .when_some(value, |field, value| field.aria_value(value))
             .when_some(set_value, |field, set_value| {

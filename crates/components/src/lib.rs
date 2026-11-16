@@ -56,7 +56,7 @@ pub use overlay::{
     TooltipColors, TooltipPlacement, TooltipPositioner, TooltipState,
 };
 mod input;
-pub use input::{DropdownOption, ExposedDropdown, ExposedDropdownState};
+pub use input::{DropdownAnchor, DropdownOption, ExposedDropdown, ExposedDropdownState};
 pub use input::{
     TextAreaState, TextField, TextFieldColorOverrides, TextFieldColors, TextFieldEvent,
     TextFieldLabelAlignment, TextFieldLabelPosition, TextFieldLayout, TextFieldState,

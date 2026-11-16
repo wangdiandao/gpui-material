@@ -10,11 +10,20 @@ use gpui_material::{
 
 use crate::story::{section, stack};
 
-use gpui_material::{DropdownOption, ExposedDropdown, ExposedDropdownState, Text};
+use gpui_material::{
+    Button, ButtonVariant, DropdownAnchor, DropdownOption, ExposedDropdown, ExposedDropdownState,
+    MenuSurfaceStyle, Text,
+    theme::{ColorRole, CornerShape, Elevation},
+};
+
+#[cfg(all(test, feature = "test-support"))]
+mod dropdown_customization_tests;
 
 pub(crate) struct DropdownExamples {
     city: Entity<ExposedDropdownState>,
     language: Entity<ExposedDropdownState>,
+    custom: Entity<ExposedDropdownState>,
+    custom_open: bool,
     destination: gpui::SharedString,
 }
 
@@ -22,11 +31,16 @@ impl DropdownExamples {
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let city = cx.new(|cx| ExposedDropdownState::new("", true, window, cx));
         let language = cx.new(|cx| ExposedDropdownState::new("English", false, window, cx));
+        let editor = cx.new(|cx| TextFieldState::new(window, cx).default_value("Oslo"));
+        let custom = cx.new(|cx| ExposedDropdownState::with_editor(&editor, true, window, cx));
         cx.observe(&city, |_, _, cx| cx.notify()).detach();
         cx.observe(&language, |_, _, cx| cx.notify()).detach();
+        cx.observe(&custom, |_, _, cx| cx.notify()).detach();
         Self {
             city,
             language,
+            custom,
+            custom_open: false,
             destination: "".into(),
         }
     }
@@ -35,6 +49,9 @@ impl DropdownExamples {
 impl Render for DropdownExamples {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let owner = cx.entity().downgrade();
+        let custom_owner = owner.clone();
+        let custom_toggle = owner.clone();
+        let custom_open = self.custom_open;
         stack()
             .max_w(px(440.))
             .child(
@@ -72,6 +89,73 @@ impl Render for DropdownExamples {
                             DropdownOption::new("ja", "日本語"),
                         ],
                     )),
+            )
+            .child(
+                section("Custom editor and controlled popup")
+                    .child(
+                        Button::new(
+                            "destination-options",
+                            if custom_open {
+                                "Hide destination options"
+                            } else {
+                                "Show destination options"
+                            },
+                        )
+                        .variant(ButtonVariant::Text)
+                        .on_activate(move |_, cx| {
+                            let _ = custom_toggle.update(cx, |view, cx| {
+                                view.custom_open = !view.custom_open;
+                                cx.notify();
+                            });
+                        }),
+                    )
+                    .child(
+                        ExposedDropdown::new(
+                            "custom-destination",
+                            "Preset destination",
+                            &self.custom,
+                            ["Oslo", "Paris", "Tokyo", "Vienna"]
+                                .map(|name| DropdownOption::new(name, name)),
+                        )
+                        .primary_anchor(DropdownAnchor::PrimaryEditable)
+                        .secondary_anchor("Browse preset destinations", |open| {
+                            Icon::new(if open {
+                                IconName::Remove
+                            } else {
+                                IconName::Add
+                            })
+                        })
+                        .editor(|field| {
+                            field
+                                .variant(TextFieldVariant::Filled)
+                                .label_content(Text::new("Preset destination").id("preset-label"))
+                        })
+                        .open(custom_open)
+                        .on_open_change(move |open, _, cx| {
+                            let _ = custom_owner.update(cx, |view, cx| {
+                                view.custom_open = open;
+                                cx.notify();
+                            });
+                        })
+                        .option_content(|option, _, _, _| {
+                            div()
+                                .flex()
+                                .items_center()
+                                .gap_2()
+                                .child(Icon::new(IconName::Favorite).size(px(18.)))
+                                .child(Text::new(option.label.clone()).id("preset-name"))
+                        })
+                        .match_anchor_width(false)
+                        .popup_width(px(200.))
+                        .appearance(MenuSurfaceStyle {
+                            shape: Some(CornerShape::Radii([16.; 4])),
+                            container: Some(ColorRole::Surface),
+                            border: Some((px(1.), ColorRole::OutlineVariant)),
+                            tonal_elevation: Elevation::Level1,
+                            shadow_elevation: Some(Elevation::Level3),
+                            ..Default::default()
+                        }),
+                    ),
             )
             .children(
                 (!self.destination.is_empty())

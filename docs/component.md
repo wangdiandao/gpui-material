@@ -88,7 +88,7 @@ Retain the `SliderState` entity in the owner. Base manages the range and step gr
 | Component | Supported variants and behavior | Material 3 |
 | --- | --- | --- |
 | `Text`, `Icon` | Themed typography, replaceable icons, and bundled Material Symbols. | [Typography](https://m3.material.io/styles/typography/overview) · [Icons](https://m3.material.io/styles/icons/overview) |
-| `Surface` | Themed background and tonal elevation for application content. | [Elevation](https://m3.material.io/styles/elevation/overview) |
+| `Surface` | Passive, clickable, selectable, and checked surfaces with theme content colors and elevation. | [Elevation](https://m3.material.io/styles/elevation/overview) |
 | `Card` | Elevated, Filled, and Outlined, with static and actionable forms and per-instance appearance. | [Cards](https://m3.material.io/components/cards/specs) |
 | `List`, `ListItem` | Standard and Segmented lists with leading, supporting, and trailing content. | [Lists](https://m3.material.io/components/lists/overview) |
 | `SwipeToDismiss` | Horizontal swipes with caller-owned content, background, and action. | [Lists](https://m3.material.io/components/lists/guidelines) · [Compose SwipeToDismissBox](https://developer.android.com/reference/kotlin/androidx/compose/material3/SwipeToDismissBox.composable) |
@@ -97,6 +97,16 @@ Retain the `SliderState` entity in the owner. Base manages the range and step gr
 | `LinearProgress`, `CircularProgress` | Determinate and indeterminate progress with configurable straight and wavy styles. | [Progress indicators](https://m3.material.io/components/progress-indicators/overview) |
 | `LoadingIndicator` | Default and Contained, with determinate and indeterminate modes, custom morph sequences and instance colors. | [Loading indicator](https://m3.material.io/components/loading-indicator/overview) |
 | `Snackbar`, `SnackbarHost` | Queued timed or persistent messages with custom content and layout, optional actions and dismissal, and a completion result. | [Snackbars](https://m3.material.io/components/snackbar/specs) |
+
+### Surfaces
+
+`Surface::new(role)` supplies a passive background. For custom controls, use `Surface::clickable(id, label, role)` or `Surface::selectable(id, label, role, selected)` with `.on_activate(...)`. Use `Surface::toggleable(id, label, role, checked)` with `.on_checked_change(...)`. The label names the interactive surface, and the owner supplies the current selected or checked value on each render. Pointer, Enter, Space, and accessibility actions call the same handler. `.disabled(true)` turns off activation and skips the surface in Tab navigation. Give each surface a stable ID and keep independent actions on their own surfaces. Group related selectable surfaces in a named `gpui::Role::ListBox`.
+
+Surface uses the theme foreground paired with its background role. Roles without a matching foreground and colors set by `.container_color(color)` inherit the current foreground. Use `.inherit_content_color(true)` to inherit across a paired role or `.content_color(color)` to override it. The resulting color flows to descendants through GPUI text style, including Material text and icons without their own color.
+
+Use `.shape(CornerShape)` for logical corners and `.border(SurfaceBorder { width, color })` for a stroke in logical pixels. These settings apply to the background, outline and feedback. Other GPUI Styled layout and paint settings remain available. GPUI clips overflowing children with a rectangular content mask. `.tonal_elevation(Elevation)` tints a theme Surface background, and `.shadow_elevation(Elevation)` sets the shadow independently.
+
+Interactive surfaces use the Material state layer, bounded ripple and keyboard focus ring. `.feedback(SurfaceFeedback)` configures those effects and their colors for a single surface. Attach `.interaction_source(&source)` to observe hover, press, keyboard focus and disabled state. `.track_focus(&focus)` uses a caller-owned focus handle. Reduced motion uses static press feedback.
 
 ### Cards
 

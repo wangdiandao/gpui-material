@@ -252,14 +252,13 @@ use gpui_material::{Icon, IconName};`,
     title: "Surface",
     source: "crates/foundation/src/surface.rs",
     api: "struct.Surface.html",
-    story: null,
     description: {
-      en: "Paint a themed surface behind application content.",
-      zh: "为应用内容绘制主题表面。",
+      en: "Compose a themed background or a clickable, selectable, or checked surface.",
+      zh: "构建主题背景，或可点击、可选及可勾选的表面。",
     },
     usage: {
-      en: "Choose a ColorRole and fill the surface with GPUI elements. Tonal and shadow elevation can be configured separately.",
-      zh: "指定 ColorRole，再放入 GPUI 子元素。色调层级和阴影层级可分别配置。",
+      en: "Use new for a passive background or clickable, selectable, and toggleable for named controls. Keep selected and checked values in the caller. Set shape, border, content color, elevation, and feedback for each surface.",
+      zh: "用 new 创建静态背景，或用 clickable、selectable、toggleable 创建带名称的控件。由调用方保存选中和勾选状态。可分别设置形状、描边、内容颜色、层级和反馈。",
     },
     imports: `use gpui::ParentElement as _;
 use gpui_material::{Surface, Text, theme::ColorRole};`,

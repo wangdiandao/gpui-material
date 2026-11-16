@@ -289,8 +289,22 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `NavigationBar`、`NavigationRail` | 短导航栏支持等宽或居中排列、纵向或横向图标、自定义标签和徽标。导航轨道支持折叠、展开、隐藏和模态呈现。 | [导航栏](https://m3.material.io/components/navigation-bar/overview) · [导航轨道](https://m3.material.io/components/navigation-rail/overview) |
 | `AdaptiveNavigation` | 根据可用宽度在导航栏和导航轨道之间切换。 | [断点](https://m3.material.io/foundations/layout/breakpoints/overview) |
 | `Scaffold` | 组合导航、应用栏、内容、可定位的悬浮操作按钮和消息条，并根据已占空间计算内容内边距。 | [Scaffold](https://m3.material.io/foundations/layout/scaffold/overview) |
-| `ListDetail`、`SupportingPane`、`Feed` | 列表与详情、辅助窗格及响应式信息流布局。 | [典型布局](https://m3.material.io/foundations/layout/canonical-examples/overview) |
+| `ListDetail`、`SupportingPane`、`Feed` | 列表、详情、辅助窗格及响应式信息流的典型布局，支持自适应三窗格容器。 | [典型布局](https://m3.material.io/foundations/layout/canonical-examples/overview) |
 | `VerticalDragHandle` | 用于横向调整窗格尺寸的纵向把手，可分别设置静止、按下和拖动外观。 | [布局要素](https://m3.material.io/foundations/layout/understanding-layout/parts-of-layout#314a4c32-be52-414c-8da7-31f059f1776d) · [Compose VerticalDragHandle](https://developer.android.com/reference/kotlin/androidx/compose/material3/VerticalDragHandle.composable) |
+
+### 自适应多窗格布局
+
+每个布局用 `AdaptivePaneState::new(PaneDestination::new(role))` 创建并保留一个 `Entity<AdaptivePaneState>`。自定义布局使用 `AdaptivePaneLayout::new(id, size, &state)`，典型顺序使用 `ListDetail::adaptive(...)` 和 `SupportingPane::adaptive(...)`。传入可用视口的逻辑尺寸，并为各窗格提供稳定 ID。用 `.pane(PaneRole, AdaptivePane)` 注册窗格，额外窗格使用 `Tertiary`。业务状态、焦点句柄和滚动句柄由调用方保留。现有 List Detail、Supporting Pane 和 Feed 构造器沿用原行为。
+
+`PaneLayoutDirective::for_size(size)` 在紧凑和中等宽度下横向显示一个窗格，在展开宽度下最多显示两个，在大型宽度下最多显示三个。单列视口足够高时，还允许第二个纵向分区。用 `.directive(directive)` 指定横纵分区数上限、间距、默认首选宽高及逻辑宽度排除区间。`AdaptivePane` 可覆盖首选宽高、最小宽度和逻辑 `PaneMargins`。布局约束在可用视口内，RTL 下镜像逻辑排列，并将窗格内容裁剪到自身边界。
+
+超出布局容量的窗格可以隐藏，或在单列布局有剩余纵向空间时 `Reflow` 到可见窗格下方。`Levitate` 使用首选尺寸、可用视口和逻辑 `PaneOverlayAlignment`，将当前窗格悬浮在布局上方。用 `.adapt_with(...)` 按视口和指令选择策略。悬浮窗格接收自身范围内的指针输入。`.levitate_scrim(element)` 添加拦截输入的遮罩，并将 Tab 遍历限制在悬浮窗格内。用 `.entry_focus(&focus)` 指定窗格的首选键盘焦点。
+
+用 `.separator(start_role, end_role, PaneSeparator::new(label))` 为横向相邻窗格添加具名手柄。手柄支持拖动、随 RTL 映射的物理左右键、Home 和 End，以及无障碍范围调整。`.anchors(...)` 接收 `PaneExpansionAnchor::Proportion(fraction)`、`FromStart(px)` 或 `FromEnd(px)`。锚点基于扣除间距后的横向逻辑分区。完成拖动后吸附至最近锚点，拖动中断时保留最后生效的宽度。Page Up 和 Page Down 分别移至逻辑顺序中的下一个和上一个锚点。`.handle(...)` 自定义 Material 手柄，`.keyboard_step(...)` 调整输入步长。调用状态的 `set_expansion` 或 `clear_expansion` 可用程序移动或重置边界。
+
+用 `navigate_to(PaneDestination)` 前往指定窗格，可附带内容键。`current_destination()` 和 `history()` 返回保留的目的地。返回策略可回到最近一项，或跳至布局、角色或内容键有变化的一项。给 `can_navigate_back`、`navigate_back` 和 `seek_back` 传入 `PaneBackBehavior`。调用方绑定返回按钮或按键。`set_history_aware` 可选择已访问的窗格角色是否影响响应式布局。
+
+用 `current_value()`、`target_value()` 和 `progress()` 观察呈现状态。`snap_to`、`animate_to` 和 `seek_to` 接收明确的 `PaneLayoutValue` 布局配置。`follow_navigation` 恢复自动布局并取消返回预览。切换从当前显示的几何位置重新设定目标。默认持续 240 毫秒，可用 `.transition_duration(...)` 调整。减少动态效果时，自动切换立即完成。视口变化时仍保留业务导航历史。
 
 ### 应用栏
 

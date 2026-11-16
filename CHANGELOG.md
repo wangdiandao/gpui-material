@@ -9,6 +9,7 @@ See [versioning and releases](docs/release.md) for the release process.
 - Compose docked and floating toolbars with editable content, independently expandable slots, instance appearance, and retained scroll and settling behavior.
 - Add Pull to Refresh for scrollable content with a controlled refresh request, gesture thresholds, and a replaceable Material loading indicator.
 - Control FAB menu expansion and configure trigger animation, item content, palettes, and logical alignment.
+- Compose adaptive layouts with up to three panes, resizable anchored separators, reflow and levitation, and retained transitions and navigation history.
 - Compose dialog slots or a custom modal shell, configure instance appearance and dismissal, observe close reasons, and open optional native dialog windows.
 - Center short navigation bar destinations, mix icon positions, add custom labels and badges, and customize colors and observe interactions per item.
 - Customize mixed Button Group members, Connected segment shapes, weighted layout and press expansion, and controlled overflow.

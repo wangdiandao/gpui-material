@@ -84,8 +84,11 @@
   en: "9b9b523f8cf8afa2"
   zh: "e2bf09394ec6bd4e"
 /components/navigation-and-adaptive-layout:
-  en: "dc57a146272a5c19"
-  zh: "7634c155677738e2"
+  en: "c1da2e49a8199e4b"
+  zh: "8be03647337d442e"
+/components/navigation-and-adaptive-layout/adaptive-multi-pane-layouts:
+  en: "7bb0db714cf569a7"
+  zh: "0d09fbd610528926"
 /components/navigation-and-adaptive-layout/app-bars:
   en: "79b650d089fcfb3d"
   zh: "a14d94149ba7031f"

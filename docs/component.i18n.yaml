@@ -54,8 +54,8 @@
   en: "652d4f4f4421dc47"
   zh: "efa23e7600bab5f0"
 /components/input-and-overlays:
-  en: "13367d3b0ca895aa"
-  zh: "5d3d6261f7f67aef"
+  en: "39c650f354cf24f2"
+  zh: "fcfc86a41e44dbc1"
 /components/input-and-overlays/exposed-dropdowns:
   en: "42d0ee2aa841f85a"
   zh: "f9ccf06af5bf4128"
@@ -65,6 +65,9 @@
 /components/input-and-overlays/tooltips:
   en: "85950a9ab9088a76"
   zh: "77aa4071c2d990b3"
+/components/input-and-overlays/labels:
+  en: "be925872bd81db8e"
+  zh: "36108d0b259747c2"
 /components/input-and-overlays/scrim:
   en: "10e576b11f1c2adf"
   zh: "8b514df686bbc572"

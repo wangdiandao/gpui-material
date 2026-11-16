@@ -56,7 +56,7 @@ mod icon;
 pub use icon::{Icon, IconName};
 
 pub use overlay::{
-    Menu, MenuColor, MenuItem, MenuItemStyle, MenuSurfaceStyle, Tooltip, TooltipCaret,
+    Label, Menu, MenuColor, MenuItem, MenuItemStyle, MenuSurfaceStyle, Tooltip, TooltipCaret,
     TooltipColors, TooltipPlacement, TooltipPositioner, TooltipState,
 };
 mod input;

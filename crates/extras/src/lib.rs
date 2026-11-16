@@ -27,6 +27,7 @@ pub use search::*;
 mod toolbar;
 #[cfg(feature = "toolbars")]
 pub use toolbar::{
-    FabMenu, FabMenuItem, Toolbar, ToolbarAction, ToolbarColor, ToolbarFabPosition,
+    FabMenu, FabMenuAlignment, FabMenuItem, FabMenuItemColors, FabMenuTriggerAppearance,
+    FabMenuTriggerStyle, Toolbar, ToolbarAction, ToolbarColor, ToolbarFabPosition,
     ToolbarOrientation, ToolbarPlacement,
 };

@@ -127,6 +127,21 @@ impl Default for FabVisibilityAnimation {
 }
 
 impl FabVisibilityAnimation {
+    /// Resolves scale, alpha, and the physical pivot for related FAB components.
+    #[doc(hidden)]
+    pub fn frame(
+        self,
+        id: &ElementId,
+        visible: bool,
+        extent: f32,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (f32, f32, Point<f32>) {
+        let sample = self.sample(id, visible, extent, window, cx);
+        let direction = window_material_theme(window, cx).layout.direction;
+        (sample.scale, sample.alpha, self.alignment.pivot(direction))
+    }
+
     fn sample(
         self,
         id: &ElementId,

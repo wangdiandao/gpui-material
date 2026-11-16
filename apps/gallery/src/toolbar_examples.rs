@@ -4,12 +4,17 @@ use gpui::{
     prelude::FluentBuilder, px,
 };
 use gpui_material::{
-    FabColor, FabMenu, FabMenuItem, FabSize, Icon, IconName, NavigationBar, NavigationItem,
-    NavigationItems, Scaffold, Switch, Text, Toolbar, ToolbarAction, ToolbarColor,
-    ToolbarFabPosition, ToolbarOrientation, ToolbarPlacement, theme::TypeRole,
+    FabColor, FabMenu, FabMenuAlignment, FabMenuItem, FabMenuTriggerAppearance,
+    FabMenuTriggerStyle, FabSize, Icon, IconName, NavigationBar, NavigationItem, NavigationItems,
+    Scaffold, Switch, Text, Toolbar, ToolbarAction, ToolbarColor, ToolbarFabPosition,
+    ToolbarOrientation, ToolbarPlacement,
+    theme::{CornerShape, TypeRole},
 };
 
 use crate::story::{Story, section, stack};
+
+#[cfg(all(test, feature = "test-support"))]
+mod fab_menu_tests;
 
 pub(crate) struct ToolbarExamples {
     story: Story,
@@ -18,6 +23,7 @@ pub(crate) struct ToolbarExamples {
     last_action: SharedString,
     show_navigation: bool,
     favorite: bool,
+    menu_expanded: bool,
 }
 
 impl ToolbarExamples {
@@ -29,6 +35,7 @@ impl ToolbarExamples {
             last_action: "No action yet".into(),
             show_navigation: false,
             favorite: false,
+            menu_expanded: false,
         }
     }
 
@@ -43,6 +50,38 @@ impl ToolbarExamples {
     }
 
     fn menu(&self, cx: &Context<Self>) -> impl IntoElement {
+        let owner = cx.weak_entity();
+        let controlled = FabMenu::new(
+            "controlled-create",
+            "Compose actions",
+            IconName::Add,
+            [
+                FabMenuItem::custom("draft", "Start a draft", div().child("Start a draft"))
+                    .on_activate(Self::report("Draft", cx)),
+                FabMenuItem::new("note", "Quick note", IconName::Edit)
+                    .content(div().child("Quick note"))
+                    .on_activate(Self::report("Note", cx)),
+            ],
+        )
+        .expanded(self.menu_expanded)
+        .on_expanded_change(move |expanded, _, cx| {
+            let _ = owner.update(cx, |view, cx| {
+                view.menu_expanded = expanded;
+                cx.notify();
+            });
+        })
+        .alignment(FabMenuAlignment::Center)
+        .open_icon(Icon::new(IconName::Edit))
+        .close_content(Icon::new(IconName::Close).size(px(20.)))
+        .close_label("Close compose actions")
+        .trigger_style(FabMenuTriggerStyle {
+            collapsed: FabMenuTriggerAppearance {
+                size: Some(px(64.)),
+                shape: Some(CornerShape::Radii([12., 20., 20., 12.])),
+                ..Default::default()
+            },
+            ..Default::default()
+        });
         let examples = [
             ("small", FabSize::Small, FabColor::Primary, 2),
             ("medium", FabSize::Medium, FabColor::Secondary, 4),
@@ -56,44 +95,43 @@ impl ToolbarExamples {
             ("favorite", "Favourites", IconName::Favorite),
             ("alerts", "Notifications", IconName::Notifications),
         ];
-        section("Create actions")
-            .description("Open a menu to compare the available actions at each size.")
+        stack()
             .child(
-                div()
-                    .flex()
-                    .flex_wrap()
-                    .items_end()
-                    .gap_4()
-                    .children(examples.into_iter().map(|(id, size, color, count)| {
-                        let menu = FabMenu::new(
-                            id,
-                            "Create",
-                            IconName::Add,
-                            entries[..count].iter().map(|&(id, label, icon)| {
-                                FabMenuItem::new(id, label, icon)
-                                    .disabled(id == "archive")
-                                    .on_activate(Self::report(label, cx))
-                            }),
-                        )
-                        .size(size)
-                        .color(color)
-                        .when(size == FabSize::Small, |menu| {
-                            menu.track_focus(&self.menu_focus)
-                        });
-                        div()
-                            .id(id)
-                            .flex()
-                            .flex_col()
-                            .items_center()
-                            .gap_2()
-                            .child(Text::new(match size {
-                                FabSize::Small => "Small",
-                                FabSize::Medium => "Medium",
-                                FabSize::Large => "Large",
-                            }))
-                            .child(menu)
-                    })),
+                section("Create actions")
+                    .description("Open a menu to compare the available actions at each size.")
+                    .child(div().flex().flex_wrap().items_end().gap_4().children(
+                        examples.into_iter().map(|(id, size, color, count)| {
+                            let menu = FabMenu::new(
+                                id,
+                                "Create",
+                                IconName::Add,
+                                entries[..count].iter().map(|&(id, label, icon)| {
+                                    FabMenuItem::new(id, label, icon)
+                                        .disabled(id == "archive")
+                                        .on_activate(Self::report(label, cx))
+                                }),
+                            )
+                            .size(size)
+                            .color(color)
+                            .when(size == FabSize::Small, |menu| {
+                                menu.track_focus(&self.menu_focus)
+                            });
+                            div()
+                                .id(id)
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .gap_2()
+                                .child(Text::new(match size {
+                                    FabSize::Small => "Small",
+                                    FabSize::Medium => "Medium",
+                                    FabSize::Large => "Large",
+                                }))
+                                .child(menu)
+                        }),
+                    )),
             )
+            .child(section("Controlled menu").child(controlled))
     }
 
     fn actions(&self, cx: &Context<Self>) -> Vec<ToolbarAction> {

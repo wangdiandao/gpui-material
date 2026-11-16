@@ -15,6 +15,7 @@ See [versioning and releases](docs/release.md) for the release process.
 - Render standalone and anchored badges with custom content and per-instance colors.
 - Compose a standalone `Scrim` with window-theme or custom color, adjustable opacity, and optional accessible dismissal.
 - Customize FAB appearance and observe its interactions. Control FAB visibility with a logical scale pivot and independent scale and opacity motion.
+- Add SwipeToDismiss for caller-owned content with horizontal gestures, logical direction, and accessible dismissal commands.
 
 ### Gallery
 

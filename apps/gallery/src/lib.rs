@@ -23,6 +23,8 @@ mod search_examples;
 mod selection_examples;
 mod slider_examples;
 mod story;
+#[cfg(all(test, feature = "test-support"))]
+mod swipe_to_dismiss_tests;
 mod text_field_examples;
 #[cfg(all(test, feature = "test-support"))]
 mod theme_tests;

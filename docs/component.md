@@ -184,6 +184,7 @@ Use `.style(DisplayScrollbarStyle)` to set `thumb_color`, `track_color`, `thickn
 | `ExposedDropdown` | Editable filtering and selection-only lists anchored to a text field. | [Menus](https://m3.material.io/components/menus/overview) · [Text fields](https://m3.material.io/components/text-fields/overview) |
 | `Menu` | Anchored menus and context menus, with groups, checked items, and submenus. | [Menus](https://m3.material.io/components/menus/overview) |
 | `Tooltip` | Transient plain and rich tooltips, and persistent rich tooltips with caller-owned visibility and customizable content, placement and appearance. | [Tooltips](https://m3.material.io/components/tooltips/overview) |
+| `Label` | Passive control-anchored labels with shared interaction state and persistent visibility. | [Compose Label](https://developer.android.com/reference/kotlin/androidx/compose/material3/Label.composable) |
 | `Scrim` | Standalone backdrop with themed or custom color, adjustable opacity, and optional dismissal. | [Scrim](https://developer.android.com/reference/kotlin/androidx/compose/material3/Scrim.composable) |
 | `Dialog` | Basic dialogs and full-screen task dialogs that use the window content area on compact layouts. | [Dialogs](https://m3.material.io/components/dialogs/overview) |
 | `Sheet` | Standard and modal bottom sheets, and side sheets docked or overlaid at the logical start or end. | [Bottom sheets](https://m3.material.io/components/bottom-sheets/overview) · [Side sheets](https://m3.material.io/components/side-sheets/overview) |
@@ -219,6 +220,14 @@ Use `MenuSurfaceStyle` with `Menu::appearance` or `MenuItem::group_appearance` t
 Use `.title_content`, `.body_content` and `.action_content` for GPUI elements. The constructor's text provides the accessible description. `.link(label, callback)` creates a link whose callback owns navigation. `.placement(TooltipPlacement)` selects a physical side or the logical `Start` or `End`, and `.offset(pixels)` sets the gap. The default prefers `Above` with a 4 px gap and flips when the surface needs room. `.positioner(...)` can return a `TooltipPositioner` using the measured trigger bounds, viewport and text direction.
 
 Use `.caret(TooltipCaret::default())` for the Material 16 × 8 px caret, or supply custom dimensions and a path. The caret is off by default. `.max_width`, `.shape`, `.colors`, `.tonal_elevation`, and `.shadow_elevation` configure the surface. Plain and rich tooltips default to a maximum width of 200 px and 320 px respectively within the available window. Unset colors and shape use the window's Material palette and corner roles. Tonal elevation defaults to zero and shadow elevation defaults to Level 0 for plain and Level 2 for rich.
+
+### Labels
+
+Use `Label::new(id, anchor, description)` to append an overlay to a control or other GPUI element. The description provides accessible text. `.content(element)` supplies custom decorative content in the label surface. The anchor keeps its own role, focus, and activation. The label surface leaves pointer input available to controls beneath it.
+
+Attach `.interaction_source(&source, control_id)` using the source and ID observed by the owner of the control. A non-persistent label shows while that control is hovered, pressed, dragged, or has keyboard-visible focus. Disabled or detached controls clear interaction-driven visibility. The label stays hidden when no source is supplied. Pass `.persistent(true)` to keep it visible while its anchor is in view, regardless of interactions, and change that value on a later render to return to interaction-driven visibility. Escape and outside input remain with the surrounding controls.
+
+The label uses the plain Tooltip surface and placement. It prefers Above with a 4 px gap and fits the available window. Use `.placement(TooltipPlacement)`, `.offset(pixels)`, `.max_width(pixels)`, or `.caret(TooltipCaret)` to customize placement and the surface. The optional caret follows the resolved side.
 
 ### Scrim
 

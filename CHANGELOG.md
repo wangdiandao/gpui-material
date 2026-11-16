@@ -7,6 +7,7 @@ See [versioning and releases](docs/release.md) for the release process.
 ### Components
 
 - Customize mixed Button Group members, Connected segment shapes, weighted layout and press expansion, and controlled overflow.
+- Attach Material Labels with custom content and caller-controlled persistent or shared interaction visibility.
 - Compose custom clickable, selectable and checked Surfaces with inherited content colors, explicit shape and border, and configurable interaction feedback.
 - Compose exposed dropdowns with custom editors, anchors and options, caller-controlled visibility, and configurable popup size, scroll state and appearance.
 - Add display-only scrollbars with per-axis viewport tracking, custom geometry and colors, and configurable fading.

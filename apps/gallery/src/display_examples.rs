@@ -1,19 +1,22 @@
 use gpui::{
-    Context, IntoElement, ParentElement, Render, ScrollHandle, Styled, Window, div, point, px,
+    Axis, Context, InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle,
+    StatefulInteractiveElement, Styled, Window, div, point, px,
 };
 use gpui_material::foundation::{color, isolated_scroll, window_material_theme};
 use gpui_material::theme::{ColorRole, CornerRole, CornerShape, Elevation, TypeRole};
 use gpui_material::{
     Badge, Button, ButtonVariant, Card, CardBorder, CardColors, CardElevations, CardVariant,
-    CircularProgress, Divider, Icon, IconName, LinearProgress, List, ListItem, ListVariant,
-    LoadingIndicator, LoadingIndicatorShape, LoadingIndicatorShapes, ProgressCap, ProgressShape,
-    ProgressStroke, Text,
+    CircularProgress, DisplayScrollbar, DisplayScrollbarFade, DisplayScrollbarStyle, Divider, Icon,
+    IconName, LinearProgress, List, ListItem, ListVariant, LoadingIndicator, LoadingIndicatorShape,
+    LoadingIndicatorShapes, ProgressCap, ProgressShape, ProgressStroke, Text,
 };
 
 use crate::story::{Story, section, stack};
 
 #[cfg(all(test, feature = "test-support"))]
 mod card_tests;
+#[cfg(all(test, feature = "test-support"))]
+mod display_scrollbar_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod loading_tests;
 #[cfg(all(test, feature = "test-support"))]
@@ -32,6 +35,7 @@ pub(crate) struct DisplayExamples {
     selected_file: Option<usize>,
     pinned_file: Option<usize>,
     files_scroll: ScrollHandle,
+    wide_scroll: ScrollHandle,
 }
 
 impl Default for DisplayExamples {
@@ -49,6 +53,7 @@ impl Default for DisplayExamples {
             selected_file: None,
             pinned_file: None,
             files_scroll: ScrollHandle::new(),
+            wide_scroll: ScrollHandle::new(),
         }
     }
 }
@@ -555,7 +560,7 @@ impl Render for DisplayExamples {
                 section("Standard list")
                 .description("Scroll for more files. Pinning a file leaves the row selection as it was.")
                 .child(
-                    isolated_scroll("files-scroll", &self.files_scroll)
+                    div().relative().child(isolated_scroll("files-scroll", &self.files_scroll)
                         .h_48()
                         .child(List::new("standard-list").items((1..=24).map(|file| {
                             let select = cx.entity();
@@ -589,7 +594,30 @@ impl Render for DisplayExamples {
                                         },
                                     ),
                                 )
-                        }))),
+                        }))))
+                        .children((self.story == Some(Story::List)).then(|| {
+                            DisplayScrollbar::new("files-indicator", Axis::Vertical, &self.files_scroll)
+                        })),
+                )
+            }))
+            .children((self.story == Some(Story::List)).then(|| {
+                let colors = &window_material_theme(window, cx).colors;
+                section("Horizontal scrolling").child(
+                    div().relative()
+                        .child(div().id("wide-files-scroll").overflow_x_scroll().track_scroll(&self.wide_scroll)
+                            .child(div().flex().w(px(1008.)).h(px(52.)).children((1..=12).map(|file| {
+                                div().flex_1().p_2().child(format!("File {file}"))
+                            }))))
+                        .child(DisplayScrollbar::new("wide-files-indicator", Axis::Horizontal, &self.wide_scroll)
+                            .style(DisplayScrollbarStyle {
+                                thumb_color: Some(color(colors.color(ColorRole::Primary))),
+                                track_color: Some(color(colors.color(ColorRole::SecondaryContainer))),
+                                thickness: px(5.),
+                                main_axis_track_inset: px(8.),
+                                cross_axis_track_inset: px(3.),
+                                ..Default::default()
+                            })
+                            .fade(DisplayScrollbarFade { enabled: false, ..Default::default() })),
                 )
             }))
     }

@@ -7,6 +7,7 @@ See [versioning and releases](docs/release.md) for the release process.
 ### Components
 
 - Compose exposed dropdowns with custom editors, anchors and options, caller-controlled visibility, and configurable popup size, scroll state and appearance.
+- Add display-only scrollbars with per-axis viewport tracking, custom geometry and colors, and configurable fading.
 - Configure carousel layout and fling behavior, read and control the retained item position, and apply standalone scroll parallax to custom content.
 - Customize Snackbar content, controls, layout, and appearance, and observe action or dismissal results from the queue.
 - Compose Chips with custom content and Input avatars, apply Expressive Tonal presets and per-state appearance, and observe their interactions.

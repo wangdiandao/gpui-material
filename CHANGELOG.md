@@ -13,6 +13,7 @@ See [versioning and releases](docs/release.md) for the release process.
 - Set text-field colors, shape, content padding and input typography per instance, observe the Base editor's laid-out geometry, and share field interaction state.
 - Customize Button and ToggleButton content, shapes, colors, borders, padding, and elevations per instance.
 - Render standalone and anchored badges with custom content and per-instance colors.
+- Select values with the standalone `date-time` scroll field, with caller-owned selection, custom rows, and accessible value descriptions.
 - Compose a standalone `Scrim` with window-theme or custom color, adjustable opacity, and optional accessible dismissal.
 - Customize FAB appearance and observe its interactions. Control FAB visibility with a logical scale pivot and independent scale and opacity motion.
 - Add SwipeToDismiss for caller-owned content with horizontal gestures, logical direction, and accessible dismissal commands.

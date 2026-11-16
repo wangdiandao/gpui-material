@@ -265,7 +265,9 @@ impl Story {
             Self::TextField => {
                 "Edit single-line, multiline, and secure text with supporting feedback."
             }
-            Self::TimePicker => "Set hours and minutes with a clock face or keyboard entry.",
+            Self::TimePicker => {
+                "Set hours and minutes with a clock face, keyboard entry, or scroll fields."
+            }
             Self::ToggleButton => "Keep the on or off state of an action visible.",
             Self::Toolbars => "Group editing commands in floating and docked toolbars.",
             Self::Tooltip => "Provide contextual help for a control on hover or focus.",

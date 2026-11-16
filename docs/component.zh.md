@@ -120,12 +120,20 @@ FAB 开始隐藏时立即退出焦点导航并停止响应输入。淡出期间�
 
 ## 可选组件
 
-在 `gpui-material` 依赖上启用 feature。`DatePicker` 和 `TimePicker` 从 `gpui_material::date_time` 导入。
+在 `gpui-material` 依赖上启用 feature。日期选择器、时间选择器和滚动选择字段从 `gpui_material::date_time` 导入。
 
 | Feature | 组件 | 支持的变体与行为 | Material 3 |
 | --- | --- | --- | --- |
 | `expressive-groups` | `ButtonGroup`、`SplitButton` | Standard 和 Connected 按钮组，以及主操作与次操作独立的拆分按钮。 | [按钮组](https://m3.material.io/components/button-groups/overview) · [拆分按钮](https://m3.material.io/components/split-button/overview) |
 | `toolbars` | `FabMenu`、`Toolbar` | 可展开的悬浮操作菜单。工具栏支持悬浮或停靠，以及横向或纵向布局。 | [悬浮操作菜单](https://m3.material.io/components/fab-menu/overview) · [工具栏](https://m3.material.io/components/toolbars/overview) |
 | `search` | `SearchBar`、`SearchView` | 收起的搜索栏，以及停靠或全屏的搜索视图。 | [搜索](https://m3.material.io/components/search/overview) |
-| `date-time` | `DatePicker`、`TimePicker` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input。时间选择支持 Dial、Input 和 12、24 小时制。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
+| `date-time` | `DatePicker`、`TimePicker`、`ScrollField` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input。时间选择支持 Dial、Input 和 12、24 小时制。支持独立的滚动选择字段。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
+
+### 滚动选择字段
+
+每个字段通过 `cx.new(|cx| ScrollFieldState::new(item_count, index, cx))` 创建一个 `Entity<ScrollFieldState>`，并传给 `ScrollField::new(id, name, &state)`。`selected_option()` 返回最接近居中的选项，`target_option()` 返回目标选项，`is_scroll_in_progress()` 表示仍在滚动或归位。可观察该实体来更新其他视图。`scroll_to_option(index, cx)` 立即定位，`animate_scroll_to_option(index, cx)` 遵循窗口的动效方案和系统减少动效设置。越界索引会限制在有效范围内。`set_item_count(count, cx)` 更新选项数并限制目标索引。选项数为零时，字段为空，且没有选中项或目标项。
+
+当前选项在三行可见区域内居中。可点击某行，也可使用鼠标滚轮、触控板、上下方向键或无障碍操作改变选项。滚动到末项后会回到首项，反向操作同样循环。通过 `.item_content(|index, selected, enabled| ...)` 为每行提供装饰性 GPUI 元素。默认将索引补足为至少两位数字。构造器的名称用于标识字段，`.value_description(|index| ...)` 为辅助技术描述滚动中的目标选项和静止时的居中选项。字段名称应说明用途，并在需要时说明选项范围。
+
+通过 `.colors(ScrollFieldColors)` 设置启用和禁用时的容器、普通选项及选中选项颜色。默认配色使用 `SurfaceContainerLowest`、`Outline` 和 `OnSurface`。`.disabled(true)` 结束当前的用户滚动并阻止后续用户操作。调用方仍可通过状态定位。使用 `.interaction_source(&source)` 接入调用方持有的 `InteractionSource`，独立于选中值观察字段交互。
 | `carousel` | `Carousel` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。 | [轮播](https://m3.material.io/components/carousel/overview) |

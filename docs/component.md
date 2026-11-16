@@ -27,6 +27,14 @@ Pass a decorative icon element and an accessible name to `IconButton::new` or `I
 
 Keep an `Entity<InteractionSource>` in the caller and attach it with `.interaction_source(&source)` to observe a button or icon button. Give each control sharing a source a distinct element ID within its window. Read the current state with `InteractionSource::state`, or subscribe to `InteractionUpdate` for each deferred change, including press and release between draws. A removed control clears its snapshot. Base still owns input handling and the application owns toggle values.
 
+### Floating action button
+
+`Fab::new` takes an icon and an accessible name. It defaults to a 56 dp Small FAB in the primary container palette. Give each Small, Medium, or Large instance its own `.shape(CornerShape)`, `.colors(ButtonColors)`, and `.elevations(ButtonElevations)`. Use the container and content fields for enabled and disabled colors. Omitted fields keep the size and palette defaults. Use `.interaction_source(&source)` to observe the action with a caller-owned source.
+
+Keep the visibility flag in application state and pass it with `.visible(visible)` on each render. Use a stable element ID between updates so the two motion channels can reverse from their current progress. `FabVisibilityAnimation` defaults to center alignment, a hidden scale of `0.2`, and the theme's Fast Spatial and Fast Effects motion for scale and alpha. Use logical `FabAlignment` positions to scale about an edge or corner that mirrors in right-to-left windows. Set `target_scale` to a finite nonnegative value and set `scale_motion` and `alpha_motion` independently. Invalid scales, including values that overflow the scaled extent, fall back to `0.2`. Reduced motion applies the final state immediately.
+
+A hiding FAB stops taking focus and input immediately. It occupies its layout space while fading and gives up that space at zero opacity. An initially hidden FAB takes no space. Keep the icon decorative so the FAB owns activation and focus. Use inherited text sizing or relative dimensions for custom icons that should resize during the transition.
+
 <a id="内容与反馈"></a>
 
 ## Content and feedback
@@ -64,6 +72,7 @@ Container and content colors default to the window theme's `Error` and `OnError`
 | `ExposedDropdown` | Editable filtering and selection-only lists anchored to a text field. | [Menus](https://m3.material.io/components/menus/overview) · [Text fields](https://m3.material.io/components/text-fields/overview) |
 | `Menu` | Anchored menus and context menus, with groups, checked items, and submenus. | [Menus](https://m3.material.io/components/menus/overview) |
 | `Tooltip` | Plain and rich tooltips with hover and keyboard focus activation. | [Tooltips](https://m3.material.io/components/tooltips/overview) |
+| `Scrim` | Standalone backdrop with themed or custom color, adjustable opacity, and optional dismissal. | [Scrim](https://developer.android.com/reference/kotlin/androidx/compose/material3/Scrim.composable) |
 | `Dialog` | Basic dialogs and full-screen task dialogs that use the window content area on compact layouts. | [Dialogs](https://m3.material.io/components/dialogs/overview) |
 | `Sheet` | Standard and modal bottom sheets, and side sheets docked or overlaid at the logical start or end. | [Bottom sheets](https://m3.material.io/components/bottom-sheets/overview) · [Side sheets](https://m3.material.io/components/side-sheets/overview) |
 
@@ -78,6 +87,12 @@ Keep each `MenuItem` ID stable and provide a label for accessibility. Its `.cont
 Use `.color(MenuColor::Vibrant)` for the tertiary menu palette. A `MenuItem::section(id, name, rows)` draws a grouped surface and keeps its rows in the menu's arrow-key order. `Menu::content` adds caller-authored content before the rows. A section's `.content` replaces its visible heading.
 
 Use `MenuSurfaceStyle` with `Menu::appearance` or `MenuItem::group_appearance` to configure the surface shape, padding, spacing, border and elevations. `MenuItemStyle` overrides menu-row shapes, spacing, padding, and color roles. Use `.anchor` and `.offset` for logical trigger placement or `.position` with a window-local point. `.track_scroll` accepts a caller-owned scroll handle.
+
+### Scrim
+
+Place `Scrim::new(id)` in a positioned container, after the background content and before the foreground surface. It fills the container and uses the current window theme's Scrim role at 32% opacity. Use `.color(color)` to supply a custom tint and `.opacity(value)` to multiply the tint's alpha. Values clamp to 0–1 and NaN uses the default.
+
+By default the scrim is decorative. It dims the content while leaving pointer input and accessibility traversal available. Add `.on_click(|window, cx| ...)` to block pointer input behind the scrim and handle pointer or accessibility activation. The scrim has no keyboard tab stop. Use `.accessibility_label(label)` to name the action for assistive technology. The default label is “Dismiss overlay.” The caller owns visibility, dismissal, and the modal focus and accessibility scope. Give modal content its own keyboard dismissal action.
 
 <a id="导航与自适应布局"></a>
 

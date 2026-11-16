@@ -5,13 +5,16 @@ use gpui::{
 use gpui_base::TestSupportExt;
 use gpui_material::{
     Button, ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShape, ButtonShapes,
-    ButtonVariant, ControlSize, ExtendedFab, Fab, FabColor, FabSize, Icon, IconButton,
-    IconButtonVariant, IconButtonWidth, IconName, IconToggleButton, InteractionSource, Text,
-    ToggleButton, ToggleButtonVariant,
+    ButtonVariant, ControlSize, ExtendedFab, Fab, FabAlignment, FabColor, FabSize,
+    FabVisibilityAnimation, Icon, IconButton, IconButtonVariant, IconButtonWidth, IconName,
+    IconToggleButton, InteractionSource, Text, ToggleButton, ToggleButtonVariant,
     theme::{ColorRole, CornerShape, Elevation, TypeRole},
 };
 
 use crate::story::{Story, section, stack};
+
+#[cfg(all(test, feature = "test-support"))]
+mod fab_tests;
 
 #[derive(Default)]
 pub(crate) struct ActionExamples {
@@ -19,6 +22,7 @@ pub(crate) struct ActionExamples {
     count: usize,
     toggles: [bool; 5],
     icon_toggles: [bool; 5],
+    fab_hidden: bool,
     collapsed: bool,
     interactions: Option<Entity<InteractionSource>>,
     observed_toggle: bool,
@@ -353,6 +357,54 @@ impl Render for ActionExamples {
                             }),
                     ),
                 )
+            }))
+            .children(self.shows(Story::Fab).then(|| {
+                let view = cx.entity();
+                let toggle = view.clone();
+                section("Visibility")
+                    .description(
+                        "Use the toggle to show or hide the FAB. Activate the FAB to hide it.",
+                    )
+                    .child(
+                        row()
+                            .child(
+                                ToggleButton::new(
+                                    "show-fab",
+                                    "Show primary action",
+                                    !self.fab_hidden,
+                                )
+                                .on_change(
+                                    move |visible, _, cx| {
+                                        toggle.update(cx, |this, cx| {
+                                            this.fab_hidden = !visible;
+                                            cx.notify();
+                                        })
+                                    },
+                                ),
+                            )
+                            .child(
+                                Fab::new("visible-fab", "Create item", Icon::new(IconName::Add))
+                                    .size(FabSize::Medium)
+                                    .color(FabColor::Tertiary)
+                                    .shape(CornerShape::Radii([12., 24., 24., 12.]))
+                                    .elevations(ButtonElevations {
+                                        resting: Some(Elevation::Level2),
+                                        pressed: Some(Elevation::Level1),
+                                        ..Default::default()
+                                    })
+                                    .visible(!self.fab_hidden)
+                                    .visibility_animation(FabVisibilityAnimation {
+                                        alignment: FabAlignment::BottomEnd,
+                                        ..Default::default()
+                                    })
+                                    .on_activate(move |_, cx| {
+                                        view.update(cx, |this, cx| {
+                                            this.fab_hidden = true;
+                                            cx.notify();
+                                        })
+                                    }),
+                            ),
+                    )
             }))
             .children(self.shows(Story::ExtendedFab).then(|| {
                 section("Sizes and expansion")

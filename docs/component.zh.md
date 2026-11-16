@@ -299,10 +299,20 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `AppBar`、`AppBarRow`、`AppBarColumn` | Small、Centered、Medium Flexible、Large Flexible 及可自定义的 TwoRows 顶部应用栏，操作可随可用空间移入溢出菜单。 | [应用栏](https://m3.material.io/components/app-bars/overview) |
 | `Tabs` | Primary、Secondary，可固定或滚动，支持前置图标、自定义内容与徽标、指示器配置和保留的滚动状态。 | [标签页](https://m3.material.io/components/tabs/overview) |
 | `NavigationBar`、`NavigationRail` | 短导航栏支持等宽或居中排列、纵向或横向图标、自定义标签和徽标。导航轨道支持折叠、展开、隐藏和模态呈现。 | [导航栏](https://m3.material.io/components/navigation-bar/overview) · [导航轨道](https://m3.material.io/components/navigation-rail/overview) |
-| `AdaptiveNavigation` | 根据可用宽度在导航栏和导航轨道之间切换。 | [断点](https://m3.material.io/foundations/layout/breakpoints/overview) |
+| `AdaptiveNavigation` | 适配导航类型与动画可见性，支持自定义插槽和样式。 | [断点](https://m3.material.io/foundations/layout/breakpoints/overview) |
 | `Scaffold` | 组合导航、应用栏、内容、可定位的悬浮操作按钮和消息条，并根据已占空间计算内容内边距。 | [Scaffold](https://m3.material.io/foundations/layout/scaffold/overview) |
 | `ListDetail`、`SupportingPane`、`Feed` | 列表、详情、辅助窗格及响应式信息流的典型布局，支持自适应三窗格容器。 | [典型布局](https://m3.material.io/foundations/layout/canonical-examples/overview) |
 | `VerticalDragHandle` | 用于横向调整窗格尺寸的纵向把手，可分别设置静止、按下和拖动外观。 | [布局要素](https://m3.material.io/foundations/layout/understanding-layout/parts-of-layout#314a4c32-be52-414c-8da7-31f059f1776d) · [Compose VerticalDragHandle](https://developer.android.com/reference/kotlin/androidx/compose/material3/VerticalDragHandle.composable) |
+
+### 自适应导航
+
+用 `AdaptiveNavigation::new(scaffold, items, width)` 传入可用的逻辑宽度。默认在 600 px 以下使用项目纵向排列的 `ShortBarCompact`，从 600 px 到 839 px 使用项目横向排列的 `ShortBarMedium`，从 840 px 起使用 `RailCollapsed`。导航占用现有 Scaffold 的底部或逻辑起始侧。请保持导航集合和目标 ID 稳定，通过 `NavigationItems::on_select` 接收选择请求，再由调用方用 `.selected(id)` 提交。
+
+用 `.navigation_type(AdaptiveNavigationType)` 选择上述呈现方式，也可选择 `RailExpanded` 或 `None`。用 `.navigation_policy(|info| ...)` 根据可用尺寸、宽度类别和窗口方向选择导航类型。当 Scaffold 的有界尺寸与视口不同时，用 `.available_size(size)` 传入实际尺寸。选择 `None` 时，导航套件保留 Scaffold 已有的插槽。
+
+用 `AdaptiveNavigationVisibility::Shown` 或 `Hidden` 初始化 `Entity<AdaptiveNavigationState>`，并通过 `.state(&state)` 传给导航套件。用 `current_value()`、`target_value()`、`is_animating()` 和 `progress()` 读取当前值、目标值、动画状态及可见比例。调用 `show(cx)`、`hide(cx)` 或 `toggle(cx)` 从当前可见比例开始过渡，调用 `snap_to(value, cx)` 立即到达目标。默认过渡为 240 ms，遵循减少动态效果设置，可用 `.transition_duration(...)` 调整时长。导航从底部或逻辑起始侧滑入，Scaffold 预留当前可见部分的空间。隐藏完成后，插槽从焦点树和无障碍树移除。如果焦点位于隐藏的插槽内，会移到下一个可用控件。重新显示时，焦点留在当前控件；如果调用方的选择未改变，标准导航项目会恢复上一个可用的键盘停靠点。
+
+在 `NavigationItem` 上设置单项样式、图标位置、徽标内容及交互来源。用 `.navigation_bar(|kind, bar| ...)` 或 `.navigation_rail(|kind, rail| ...)` 设置各呈现方式的布局与外观，包括保留的 `NavigationRailState`、可选的模态会话、排列、形状和颜色。用 `.navigation_content(|kind, default| ...)` 替换导航区域，或在标准内容周围加入其他元素。自定义区域自行管理无障碍名称、Tab 停靠点和焦点句柄。切换呈现方式时保持句柄和元素 ID 稳定。如果自定义内容包含模态窗口，由应用协调模态会话和导航的可见状态。
 
 ### 自适应多窗格布局
 

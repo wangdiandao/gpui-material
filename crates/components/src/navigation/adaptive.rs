@@ -6,46 +6,7 @@ use gpui_base::TestSupportExt;
 use gpui_material_foundation::window_material_theme;
 use gpui_material_theme::{Direction, WidthClass};
 
-use super::{
-    AdaptivePane, AdaptivePaneLayout, AdaptivePaneState, NavigationBar, NavigationBarLayout,
-    NavigationItems, NavigationRail, PaneAdaptStrategy, PaneRole, RailMode, Scaffold,
-};
-
-/// Material 3 navigation suite. Compact and medium widths use a short bar;
-/// expanded widths use a collapsed rail. Create the items with the same
-/// collection and destination IDs on every render.
-#[derive(IntoElement)]
-pub struct AdaptiveNavigation {
-    scaffold: Scaffold,
-    items: NavigationItems,
-    available_width: Pixels,
-}
-
-impl AdaptiveNavigation {
-    /// Use the available width of the scaffold in logical units.
-    pub fn new(scaffold: Scaffold, items: NavigationItems, available_width: Pixels) -> Self {
-        Self {
-            scaffold,
-            items,
-            available_width,
-        }
-    }
-}
-
-impl RenderOnce for AdaptiveNavigation {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let items = self.items.retain(window, cx);
-        match WidthClass::from_width(self.available_width.into()) {
-            WidthClass::Compact => self.scaffold.bottom_bar(NavigationBar::new(items)),
-            WidthClass::Medium => self
-                .scaffold
-                .bottom_bar(NavigationBar::new(items).layout(NavigationBarLayout::Horizontal)),
-            _ => self
-                .scaffold
-                .rail(NavigationRail::new("adaptive-rail", items).mode(RailMode::Collapsed)),
-        }
-    }
-}
+use super::{AdaptivePane, AdaptivePaneLayout, AdaptivePaneState, PaneAdaptStrategy, PaneRole};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ListDetailPane {

@@ -7,6 +7,7 @@ See [versioning and releases](docs/release.md) for the release process.
 ### Components
 
 - Compose standalone dial, text input, and wrapping time wheels or combine them with configurable standard and vibrant time picker dialogs.
+- Customize adaptive navigation types, animated visibility, and the bar or rail layout while keeping destination selection and focus across width changes.
 - Compose date pickers with customizable anchors, panels, dialog actions and state colors. Control the displayed month, partial range, display mode, and year availability.
 - Compose Contained and Docked search with configurable editor slots, grouped virtual results, motion, appearance, and scroll behavior.
 - Compose tabs with leading icons, custom content and badges, configurable indicators and dividers, and external scroll handles.

@@ -6,13 +6,16 @@ use gpui::{
 };
 use gpui_base::TestSupportExt;
 use gpui_material::{
-    AdaptiveNavigation, AppBar, Button, ButtonVariant, Card, CardVariant, Fab, Feed, Icon,
-    IconButton, IconName, List, ListDetail, ListDetailPane, ListItem, NavigationItem,
+    AdaptiveNavigation, AdaptiveNavigationState, AdaptiveNavigationType,
+    AdaptiveNavigationVisibility, AppBar, Button, ButtonVariant, Card, CardVariant, Fab, Feed,
+    Icon, IconButton, IconName, List, ListDetail, ListDetailPane, ListItem, NavigationItem,
     NavigationItems, Scaffold, Snackbar, SnackbarHost, SupportingPane, Text,
     foundation::isolated_scroll, theme::TypeRole,
 };
 
 mod multi_pane;
+#[cfg(all(test, feature = "test-support"))]
+mod navigation_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod scaffold_tests;
 
@@ -38,6 +41,8 @@ impl Destination {
 pub(crate) struct AdaptiveExamples {
     width: Rc<Cell<Pixels>>,
     destination: Destination,
+    navigation: Entity<AdaptiveNavigationState>,
+    expanded_rail: bool,
     detail: ListDetailPane,
     support: bool,
     document: usize,
@@ -59,6 +64,8 @@ impl AdaptiveExamples {
         Self {
             width: Rc::new(Cell::new(px(0.))),
             destination: Destination::Inbox,
+            navigation: cx.new(|_| AdaptiveNavigationState::default()),
+            expanded_rail: false,
             detail: ListDetailPane::List,
             support: false,
             document: 0,
@@ -168,6 +175,39 @@ impl AdaptiveExamples {
             Destination::Feed => "Feed",
             Destination::Review => "Review",
         };
+        let navigation = self.navigation.clone();
+        let toggle_owner = cx.weak_entity();
+        let mode_owner = cx.weak_entity();
+        let show = navigation.read(cx).target_value() == AdaptiveNavigationVisibility::Hidden;
+        let toggle = Button::new(
+            "adaptive-toggle-navigation",
+            if show {
+                "Show navigation"
+            } else {
+                "Hide navigation"
+            },
+        )
+        .variant(ButtonVariant::Text)
+        .on_activate(move |_, cx| {
+            navigation.update(cx, |state, cx| state.toggle(cx));
+            let _ = toggle_owner.update(cx, |_, cx| cx.notify());
+        });
+        let mode = Button::new(
+            "adaptive-switch-type",
+            if self.expanded_rail {
+                "Use automatic navigation"
+            } else {
+                "Use expanded rail"
+            },
+        )
+        .variant(ButtonVariant::Text)
+        .on_activate(move |_, cx| {
+            let _ = mode_owner.update(cx, |this, cx| {
+                this.expanded_rail = !this.expanded_rail;
+                cx.notify();
+            });
+        });
+        let actions = div().flex().gap_1().child(toggle).child(mode);
         let app_bar = AppBar::new("adaptive-app-bar", title);
         let owner = cx.weak_entity();
         match self.destination {
@@ -189,33 +229,36 @@ impl AdaptiveExamples {
                             })
                             .ok();
                     }),
-                ),
-            Destination::Activity if single => app_bar.actions(
-                Button::new(
-                    "adaptive-support",
-                    if self.support {
-                        "Back to activity"
-                    } else {
-                        "Workspace details"
-                    },
                 )
-                .variant(ButtonVariant::Text)
-                .on_activate(move |window, cx| {
-                    owner
-                        .update(cx, |this, cx| {
-                            this.support = !this.support;
-                            let focus = if this.support {
-                                &this.support_focus
-                            } else {
-                                &this.activity_focus
-                            };
-                            focus.focus(window, cx);
-                            cx.notify();
-                        })
-                        .ok();
-                }),
+                .actions(actions),
+            Destination::Activity if single => app_bar.actions(
+                actions.child(
+                    Button::new(
+                        "adaptive-support",
+                        if self.support {
+                            "Back to activity"
+                        } else {
+                            "Workspace details"
+                        },
+                    )
+                    .variant(ButtonVariant::Text)
+                    .on_activate(move |window, cx| {
+                        owner
+                            .update(cx, |this, cx| {
+                                this.support = !this.support;
+                                let focus = if this.support {
+                                    &this.support_focus
+                                } else {
+                                    &this.activity_focus
+                                };
+                                focus.focus(window, cx);
+                                cx.notify();
+                            })
+                            .ok();
+                    }),
+                ),
             ),
-            _ => app_bar,
+            _ => app_bar.actions(actions),
         }
     }
 }
@@ -234,11 +277,17 @@ fn lines(label: &'static str) -> impl Iterator<Item = gpui::Div> {
 impl Render for AdaptiveExamples {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let width = self.width.get();
-        let inner_width = if ListDetail::is_single_pane(width) {
-            width
+        let kind = if self.expanded_rail {
+            AdaptiveNavigationType::RailExpanded
         } else {
-            width - px(96.)
+            AdaptiveNavigationType::for_width(width)
         };
+        let rail_width = match kind {
+            AdaptiveNavigationType::RailCollapsed => px(96.),
+            AdaptiveNavigationType::RailExpanded => px(240.),
+            _ => px(0.),
+        };
+        let inner_width = width - rail_width.min(width) * self.navigation.read(cx).progress();
         let content: AnyElement = match self.destination {
             Destination::Inbox => self.inbox(inner_width, cx).into_any_element(),
             Destination::Activity => self.activity(inner_width).into_any_element(),
@@ -295,7 +344,11 @@ impl Render for AdaptiveExamples {
             .size_full()
             .min_h_0()
             .min_w_0()
-            .child(AdaptiveNavigation::new(scaffold, items, width))
+            .child(
+                AdaptiveNavigation::new(scaffold, items, width)
+                    .navigation_type(kind)
+                    .state(&self.navigation),
+            )
             .child(
                 canvas(
                     move |bounds, window, cx| {

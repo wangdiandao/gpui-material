@@ -66,8 +66,11 @@
   en: "f749e65450d351e3"
   zh: "fdbeaa7d7dfdc868"
 /components/optional-components:
-  en: "afa0f713a9507dcd"
-  zh: "90708c1861bba663"
+  en: "d8a52add8f1988f1"
+  zh: "36cdf14081353c1b"
 /components/optional-components/scroll-fields:
-  en: "7d5a5c3724ab535b"
-  zh: "95cc61676ea1a9e1"
+  en: "5881f1d730e7138a"
+  zh: "a30907506d331a76"
+/components/optional-components/carousels:
+  en: "84d476842136f491"
+  zh: "63d38f85f5064a61"

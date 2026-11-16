@@ -1,6 +1,6 @@
 use gpui_material_theme::Direction;
 
-use super::CarouselVariant;
+use super::{CarouselAlignment, CarouselPadding, CarouselVariant};
 
 const PADDING: f32 = 16.;
 const GAP: f32 = 8.;
@@ -8,15 +8,38 @@ const FULL_SCREEN_GAP: f32 = 16.;
 const MIN_SMALL: f32 = 40.;
 const MAX_SMALL: f32 = 56.;
 
+#[derive(Clone, Copy)]
+pub(super) struct LayoutOptions {
+    pub(super) alignment: Option<CarouselAlignment>,
+    pub(super) spacing: Option<f32>,
+    pub(super) padding: Option<CarouselPadding>,
+    pub(super) small: (f32, f32),
+}
+
+impl Default for LayoutOptions {
+    fn default() -> Self {
+        Self {
+            alignment: None,
+            spacing: None,
+            padding: None,
+            small: (MIN_SMALL, MAX_SMALL),
+        }
+    }
+}
+
 /// A pose uses logical coordinates so keyboard order and RTL are independent
 /// of the strategy. Item geometry is interpolated between adjacent snap poses.
 pub(super) struct Layout {
     viewport: f32,
-    cross: f32,
     variant: CarouselVariant,
     leading: f32,
     trailing: f32,
+    cross_start: f32,
+    cross_size: f32,
+    cross_end: f32,
     gap: f32,
+    small: (f32, f32),
+    centered: bool,
     sizes: Vec<f32>,
     prefix: Vec<f32>,
     preferred: f32,
@@ -34,23 +57,44 @@ impl Layout {
         viewport: f32,
         cross: f32,
         preferred: f32,
+        options: LayoutOptions,
         aspects: impl IntoIterator<Item = f32>,
     ) -> Self {
         let vertical = variant.is_vertical();
         let uncontained = variant.is_uncontained();
-        let leading = if vertical {
-            0.
+        let (leading, trailing, cross_start, cross_end) = if let Some(padding) = options.padding {
+            let (main, across) = if vertical {
+                ((padding.top, padding.bottom), (padding.start, padding.end))
+            } else {
+                ((padding.start, padding.end), (padding.top, padding.bottom))
+            };
+            let (leading, trailing) = fit_padding(viewport, main.0.into(), main.1.into());
+            let (cross_start, cross_end) = fit_padding(cross, across.0.into(), across.1.into());
+            (leading, trailing, cross_start, cross_end)
+        } else if vertical {
+            (0., 0., 0., 0.)
         } else {
-            PADDING.min(viewport / 4.)
+            let leading = PADDING.min(viewport / 4.);
+            let trailing = if uncontained { 0. } else { leading };
+            let across = GAP.min(cross / 4.);
+            (leading, trailing, across, across)
         };
-        let trailing = if vertical || uncontained { 0. } else { leading };
         let available = (viewport - leading - trailing).max(0.);
-        let gap = if vertical { FULL_SCREEN_GAP } else { GAP };
+        let gap = options
+            .spacing
+            .unwrap_or(if vertical { FULL_SCREEN_GAP } else { GAP })
+            .min(viewport);
         let preferred = preferred.min(available);
+        let centered = options
+            .alignment
+            .map_or(variant == CarouselVariant::CenteredHero, |value| {
+                value == CarouselAlignment::Center
+            });
+        let cross_size = (cross - cross_start - cross_end).max(0.);
         let sizes: Vec<_> = aspects
             .into_iter()
             .map(|aspect| match variant {
-                CarouselVariant::FullScreen => viewport,
+                CarouselVariant::FullScreen => available,
                 CarouselVariant::UncontainedMultiAspectRatio => (cross * aspect).min(available),
                 _ => preferred,
             })
@@ -66,28 +110,35 @@ impl Layout {
             .collect();
         Self {
             viewport,
-            cross,
             variant,
             leading,
             trailing,
+            cross_start,
+            cross_size,
+            cross_end,
             gap,
+            small: options.small,
+            centered,
             sizes,
             prefix,
             preferred,
         }
     }
 
-    pub(super) fn cross_inset(&self) -> f32 {
-        if self.variant.is_vertical() {
-            0.
+    pub(super) fn cross_bounds(&self, direction: Direction) -> (f32, f32) {
+        let start = if self.variant.is_vertical() && direction == Direction::Rtl {
+            self.cross_end
         } else {
-            GAP.min(self.cross / 4.)
-        }
+            self.cross_start
+        };
+        (start, self.cross_size)
     }
 
-    pub(super) fn clip_range(&self) -> (f32, f32) {
-        if self.variant.is_vertical() || self.variant.is_uncontained() {
+    pub(super) fn clip_range(&self, direction: Direction) -> (f32, f32) {
+        if self.variant.is_uncontained() {
             (0., self.viewport)
+        } else if !self.variant.is_vertical() && direction == Direction::Rtl {
+            (self.trailing, self.viewport - self.leading)
         } else {
             (self.leading, self.viewport - self.trailing)
         }
@@ -95,8 +146,8 @@ impl Layout {
 
     pub(super) fn step(&self) -> f32 {
         match self.variant {
-            CarouselVariant::FullScreen => self.viewport + self.gap,
-            CarouselVariant::Hero | CarouselVariant::CenteredHero => self.viewport - MIN_SMALL,
+            CarouselVariant::FullScreen => self.viewport - self.leading - self.trailing + self.gap,
+            CarouselVariant::Hero | CarouselVariant::CenteredHero => self.viewport - self.small.0,
             _ => self.preferred + self.gap,
         }
         .max(1.)
@@ -130,7 +181,8 @@ impl Layout {
     }
 
     fn maximum_offset(&self) -> f32 {
-        (self.prefix.last().unwrap() + self.sizes.last().unwrap() - (self.viewport - self.leading))
+        (self.prefix.last().unwrap() + self.sizes.last().unwrap()
+            - (self.viewport - self.leading - self.trailing))
             .max(0.)
     }
 
@@ -144,7 +196,7 @@ impl Layout {
         let fraction = position.fract();
         let before = self.pose(lower);
         let after = self.pose(upper);
-        let (clip_start, clip_end) = self.clip_range();
+        let (clip_start, clip_end) = self.clip_range(Direction::Ltr);
         let mirror = !self.variant.is_vertical() && direction == Direction::Rtl;
         self.visible_range(&before, &after)
             .filter_map(|index| {
@@ -177,8 +229,9 @@ impl Layout {
     fn visible_range(&self, a: &Pose, b: &Pose) -> std::ops::Range<usize> {
         match (a, b) {
             (Pose::Track { .. }, Pose::Track { .. }) => {
-                let start = self.start_boundary(a);
-                let end = self.start_boundary(b) + self.viewport;
+                let (clip_start, clip_end) = self.clip_range(Direction::Ltr);
+                let start = self.start_boundary(a) + clip_start - self.leading;
+                let end = self.start_boundary(b) + clip_end - self.leading;
                 let first = self
                     .prefix
                     .partition_point(|x| *x <= start)
@@ -210,7 +263,7 @@ impl Layout {
             Pose::Contained { first, widths } => {
                 // Small offscreen anchors let items enter the viewport continuously
                 // while a visible keyline expands or contracts.
-                let anchor = MIN_SMALL.min(self.viewport);
+                let anchor = self.small.0.min(self.viewport);
                 let start = if index < *first {
                     self.leading - (*first - index) as f32 * (anchor + self.gap)
                 } else {
@@ -239,15 +292,17 @@ impl Layout {
         let available = (self.viewport - self.leading - self.trailing).max(0.);
         let count = self.sizes.len();
         let mut widths = match self.variant {
-            CarouselVariant::MultiBrowse => {
-                multi_browse(available, self.preferred, self.gap, count)
-            }
-            CarouselVariant::Hero | CarouselVariant::CenteredHero => hero(
+            CarouselVariant::MultiBrowse => multi_browse(
                 available,
+                self.preferred,
                 self.gap,
                 count,
-                self.variant == CarouselVariant::CenteredHero,
+                self.centered,
+                self.small,
             ),
+            CarouselVariant::Hero | CarouselVariant::CenteredHero => {
+                hero(available, self.gap, count, self.centered, self.small)
+            }
             _ => unreachable!(),
         };
         let maximum = widths.iter().copied().fold(0., f32::max);
@@ -271,36 +326,64 @@ enum Pose {
     Contained { first: usize, widths: Vec<f32> },
 }
 
-fn multi_browse(available: f32, preferred: f32, gap: f32, count: usize) -> Vec<f32> {
-    if count == 1 || available <= 2. * MIN_SMALL + gap {
+fn fit_padding(extent: f32, start: f32, end: f32) -> (f32, f32) {
+    let start = start.min(extent);
+    let end = end.min(extent);
+    let limit = extent - extent.min(1.);
+    if start + end <= limit {
+        (start, end)
+    } else {
+        let start = limit * (start / (start + end));
+        (start, limit - start)
+    }
+}
+
+fn multi_browse(
+    available: f32,
+    preferred: f32,
+    gap: f32,
+    count: usize,
+    centered: bool,
+    bounds: (f32, f32),
+) -> Vec<f32> {
+    let (min, max) = bounds;
+    let small_count = if centered && count > 2 { 2 } else { 1 };
+    if count <= small_count
+        || available <= (small_count + 1) as f32 * min + small_count as f32 * gap
+    {
         return vec![available];
     }
 
     // Fit the Compose large / medium / small arrangement to the window.
     // It targets a small item one third of the large item's size and a medium
     // halfway between them, then lets the medium flex up to ten percent.
-    let preferred = preferred.max(2. * MIN_SMALL);
-    let small = (preferred / 3.).clamp(MIN_SMALL, MAX_SMALL);
+    let preferred = preferred.max(2. * min);
+    let small = (preferred / 3.).clamp(min, max);
     let medium = (preferred + small) / 2.;
-    let largest = ((available / preferred).ceil() as usize).clamp(1, count - 1);
-    let smallest =
-        (((available - medium - MAX_SMALL) / preferred).floor() as usize).clamp(1, largest);
+    let largest = ((available / preferred).ceil() as usize).clamp(1, count - small_count);
+    let smallest = (((available - medium - small_count as f32 * max) / preferred).floor() as usize)
+        .clamp(1, largest);
     let mut best: Option<(f32, Vec<f32>)> = None;
     let mut priority = 0.;
     for large_count in (smallest..=largest).rev() {
         for medium_count in [1, 0] {
-            priority += 1.;
-            if large_count + medium_count + 1 > count {
+            if small_count == 2 && medium_count != 0 {
                 continue;
             }
-            let spaces = (large_count + medium_count) as f32 * gap;
+            priority += 1.;
+            if large_count + medium_count + small_count > count {
+                continue;
+            }
+            let spaces = (large_count + medium_count + small_count - 1) as f32 * gap;
             let remainder = available - spaces;
-            let delta =
-                remainder - (large_count as f32 * preferred + medium_count as f32 * medium + small);
-            let small = (small + delta).clamp(MIN_SMALL, MAX_SMALL);
+            let delta = remainder
+                - (large_count as f32 * preferred
+                    + medium_count as f32 * medium
+                    + small_count as f32 * small);
+            let small = (small + delta / small_count as f32).clamp(min, max);
             let large_count_f = large_count as f32;
             let medium_count_f = medium_count as f32;
-            let mut large = (remainder - (1. + medium_count_f / 2.) * small)
+            let mut large = (remainder - (small_count as f32 + medium_count_f / 2.) * small)
                 / (large_count_f + medium_count_f / 2.);
             let mut medium = (large + small) / 2.;
             if medium_count == 1 {
@@ -314,7 +397,11 @@ fn multi_browse(available: f32, preferred: f32, gap: f32, count: usize) -> Vec<f
             }
             let cost = (preferred - large).abs() * priority;
             if best.as_ref().is_none_or(|(current, _)| cost < *current) {
-                let mut widths = vec![large; large_count];
+                let mut widths = Vec::with_capacity(large_count + medium_count + small_count);
+                if small_count == 2 {
+                    widths.push(small);
+                }
+                widths.extend(std::iter::repeat_n(large, large_count));
                 widths.extend(std::iter::repeat_n(medium, medium_count));
                 widths.push(small);
                 best = Some((cost, widths));
@@ -324,16 +411,17 @@ fn multi_browse(available: f32, preferred: f32, gap: f32, count: usize) -> Vec<f
     best.map_or_else(|| vec![available], |(_, widths)| widths)
 }
 
-fn hero(available: f32, gap: f32, count: usize, centered: bool) -> Vec<f32> {
+fn hero(available: f32, gap: f32, count: usize, centered: bool, bounds: (f32, f32)) -> Vec<f32> {
+    let (min, max) = bounds;
     let small_count = match (centered, count) {
         (_, 1) => 0,
         (true, 3..) => 2,
         _ => 1,
     };
-    if small_count == 0 || available < small_count as f32 * (MIN_SMALL + gap) + MIN_SMALL * 1.25 {
+    if small_count == 0 || available < small_count as f32 * (min + gap) + min * 1.25 {
         return vec![available];
     }
-    let small = (available / 3.).clamp(MIN_SMALL, MAX_SMALL);
+    let small = (available / 3.).clamp(min, max);
     let small = small.min((available - small_count as f32 * gap) / (small_count as f32 + 1.25));
     let large = available - small_count as f32 * (small + gap);
     if small_count == 2 {
@@ -361,6 +449,7 @@ mod tests {
             viewport,
             196.,
             162.,
+            LayoutOptions::default(),
             [1.5, 0.75, 1., 1.25, 1.5, 1.5]
                 .into_iter()
                 .cycle()
@@ -374,6 +463,83 @@ mod tests {
             .into_iter()
             .map(|(_, item)| item.size)
             .collect()
+    }
+
+    #[test]
+    fn custom_keylines_use_logical_padding_spacing_and_bounded_small_items() {
+        let options = LayoutOptions {
+            alignment: Some(CarouselAlignment::Center),
+            spacing: Some(14.),
+            padding: Some(CarouselPadding {
+                start: gpui::px(22.),
+                end: gpui::px(38.),
+                top: gpui::px(5.),
+                bottom: gpui::px(9.),
+            }),
+            small: (28., 36.),
+        };
+        for variant in [
+            CarouselVariant::MultiBrowse,
+            CarouselVariant::Hero,
+            CarouselVariant::CenteredHero,
+        ] {
+            let layout = Layout::new(variant, 410., 150., 340., options, [1.; 7]);
+            assert_eq!(layout.cross_bounds(Direction::Ltr), (5., 136.));
+            assert_eq!(layout.clip_range(Direction::Ltr), (22., 372.));
+            assert_eq!(layout.clip_range(Direction::Rtl), (38., 388.));
+            let centered = layout.visible(3., Direction::Ltr);
+            assert_eq!(centered.len(), 3, "{variant:?}");
+            let [(before_index, before), (index, focal), (_, after)] = centered[..] else {
+                unreachable!()
+            };
+            assert_eq!((before_index, index), (2, 3));
+            assert!((28. ..=36.).contains(&before.size));
+            assert_eq!(before.size, after.size);
+            assert_eq!(focal.start - (before.start + before.size), 14.);
+            assert_eq!(focal.start + focal.size / 2., (22. + 372.) / 2.);
+            let mirror = layout.visible(3., Direction::Rtl);
+            assert_eq!(mirror[1].1.start, 410. - focal.start - focal.size);
+        }
+        let start = Layout::new(
+            CarouselVariant::CenteredHero,
+            410.,
+            150.,
+            340.,
+            LayoutOptions {
+                alignment: Some(CarouselAlignment::Start),
+                ..options
+            },
+            [1.; 7],
+        );
+        assert_eq!(start.visible(3., Direction::Ltr)[0].0, 3);
+        let full = Layout::new(
+            CarouselVariant::FullScreen,
+            240.,
+            360.,
+            192.,
+            options,
+            [1.; 3],
+        );
+        assert_eq!(full.cross_bounds(Direction::Rtl), (38., 300.));
+        assert_eq!(full.clip_range(Direction::Rtl), (5., 231.));
+        assert_eq!(
+            full.visible(2., Direction::Rtl),
+            [(
+                2,
+                ItemBounds {
+                    start: 5.,
+                    size: 226.
+                }
+            )]
+        );
+        for variant in ALL {
+            let tiny = Layout::new(variant, 3., 2., 192., options, [1.; 5]);
+            assert!(
+                tiny.visible(2., Direction::Rtl)
+                    .iter()
+                    .all(|(_, item)| item.size.is_finite())
+            );
+        }
     }
 
     #[test]

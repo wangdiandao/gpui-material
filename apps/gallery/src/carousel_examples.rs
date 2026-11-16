@@ -1,7 +1,13 @@
-use gpui::{Context, ParentElement, Render, SharedString, Styled, Window, div, px};
+use gpui::{
+    AppContext as _, Context, Entity, InteractiveElement as _, IntoElement, ParentElement, Render,
+    SharedString, StatefulInteractiveElement as _, Styled, Window, div, px,
+};
 use gpui_material::{
-    Carousel, CarouselItem, CarouselVariant, Icon, IconName, Surface, Text,
-    theme::{ColorRole, TypeRole},
+    Button, Carousel, CarouselAlignment, CarouselBorder, CarouselFling, CarouselItem,
+    CarouselPadding, CarouselParallax, CarouselState, CarouselVariant, Icon, IconName, Surface,
+    Text,
+    foundation::{color, window_material_theme},
+    theme::{ColorRole, CornerShape, TypeRole},
 };
 
 use crate::story::{section, stack};
@@ -67,6 +73,29 @@ fn foreground(background: ColorRole) -> ColorRole {
     }
 }
 
+fn place_content(place: &Place, radius: f32) -> impl IntoElement {
+    Surface::new(place.color)
+        .size_full()
+        .rounded(px(radius))
+        .flex()
+        .flex_col()
+        .items_center()
+        .justify_center()
+        .gap_2()
+        .child(
+            Icon::new(place.icon)
+                .size(px(36.))
+                .color(foreground(place.color)),
+        )
+        .child(
+            div().min_w_0().max_w_full().overflow_hidden().child(
+                Text::new(place.title)
+                    .role(TypeRole::TitleSmall)
+                    .color(foreground(place.color)),
+            ),
+        )
+}
+
 const STRATEGIES: [(&str, &str, CarouselVariant); 6] = [
     ("multi-browse", "Multi-browse", CarouselVariant::MultiBrowse),
     ("uncontained", "Uncontained", CarouselVariant::Uncontained),
@@ -87,10 +116,11 @@ const STRATEGIES: [(&str, &str, CarouselVariant); 6] = [
 #[derive(Default)]
 pub(crate) struct CarouselExamples {
     active: Option<SharedString>,
+    position: Option<Entity<CarouselState>>,
 }
 
 impl Render for CarouselExamples {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let mut body = stack().child(
             Text::new("Use arrow keys to browse and Enter to open an item.").id("carousel-hint"),
         );
@@ -101,60 +131,129 @@ impl Render for CarouselExamples {
         {
             body = body.child(Text::new(format!("Opened {}", active.title)).id("carousel-status"));
         }
-        body.children(STRATEGIES.iter().map(|&(id, name, variant)| {
-            let view = cx.weak_entity();
-            section(name).child(
+        let position = self
+            .position
+            .get_or_insert_with(|| cx.new(|_| CarouselState::new(2)));
+        let first = position.clone();
+        let last = position.clone();
+        let current = position
+            .read(cx)
+            .current_item_id()
+            .and_then(|id| PLACES.iter().find(|place| id.as_ref() == place.id))
+            .map(|place| place.title);
+        let positioned = section("Controlled position")
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(Button::new("carousel-jump", "Jump to first").on_activate(
+                        move |_, cx| {
+                            first.update(cx, |state, cx| state.scroll_to_item(0, cx));
+                        },
+                    ))
+                    .child(
+                        Button::new("carousel-animate", "Scroll to last").on_activate(
+                            move |_, cx| {
+                                last.update(cx, |state, cx| {
+                                    state.animate_scroll_to_item(PLACES.len() - 1, cx)
+                                });
+                            },
+                        ),
+                    )
+                    .children(current.map(|title| {
+                        Text::new(format!("Current item · {title}")).id("carousel-current")
+                    })),
+            )
+            .child(
                 Carousel::new(
-                    id,
-                    name,
+                    "carousel-positioned",
+                    "Positioned places",
                     PLACES.iter().map(|place| {
-                        CarouselItem::new(
-                            place.id,
-                            place.title,
-                            Surface::new(place.color)
-                                .size_full()
-                                .rounded(px(if variant == CarouselVariant::FullScreen {
-                                    0.
-                                } else {
-                                    28.
-                                }))
-                                .flex()
-                                .flex_col()
-                                .items_center()
-                                .justify_center()
-                                .gap_2()
-                                .child(
-                                    Icon::new(place.icon)
-                                        .size(px(36.))
-                                        .color(foreground(place.color)),
-                                )
-                                .child(
-                                    div().min_w_0().max_w_full().overflow_hidden().child(
-                                        Text::new(place.title)
-                                            .role(TypeRole::TitleSmall)
-                                            .color(foreground(place.color)),
-                                    ),
-                                ),
-                        )
-                        .aspect_ratio(place.aspect)
+                        CarouselItem::new(place.id, place.title, place_content(place, 28.))
                     }),
                 )
-                .variant(variant)
-                .height(px(if variant == CarouselVariant::FullScreen {
-                    320.
-                } else {
-                    180.
-                }))
-                .on_activate(move |item, _, cx| {
-                    let _ = view.update(cx, |this, cx| {
-                        this.active = Some(item.clone());
-                        cx.notify();
-                    });
-                }),
-            )
-        }))
+                .state(position)
+                .alignment(CarouselAlignment::Center)
+                .item_spacing(px(12.))
+                .content_padding(CarouselPadding {
+                    start: px(20.),
+                    end: px(20.),
+                    top: px(8.),
+                    bottom: px(8.),
+                })
+                .small_item_widths(px(48.), px(64.))
+                .fling_behavior(CarouselFling::SingleAdvance)
+                .height(px(180.)),
+            );
+        let theme = window_material_theme(window, cx);
+        let backdrop = color(theme.colors.color(ColorRole::Surface));
+        let border = CarouselBorder {
+            width: px(1.),
+            color: color(theme.colors.color(ColorRole::Outline)),
+        };
+        let parallax = section("Parallax in a scrollable row").child(
+            div()
+                .id("carousel-parallax")
+                .w_full()
+                .overflow_x_scroll()
+                .bg(backdrop)
+                .child(div().flex().gap_2().children(PLACES.iter().map(|place| {
+                    CarouselParallax::new(
+                        div()
+                            .id(place.id)
+                            .w(px(160. * place.aspect))
+                            .h(px(130.))
+                            .flex_none()
+                            .child(place_content(place, 0.)),
+                    )
+                    .shape(CornerShape::Radii([20., 32., 20., 32.]))
+                    .border(border)
+                }))),
+        );
+        body.child(positioned)
+            .children(STRATEGIES.iter().map(|&(id, name, variant)| {
+                let view = cx.weak_entity();
+                section(name).child(
+                    Carousel::new(
+                        id,
+                        name,
+                        PLACES.iter().map(|place| {
+                            CarouselItem::new(
+                                place.id,
+                                place.title,
+                                place_content(
+                                    place,
+                                    if variant == CarouselVariant::FullScreen {
+                                        0.
+                                    } else {
+                                        28.
+                                    },
+                                ),
+                            )
+                            .aspect_ratio(place.aspect)
+                        }),
+                    )
+                    .variant(variant)
+                    .height(px(if variant == CarouselVariant::FullScreen {
+                        320.
+                    } else {
+                        180.
+                    }))
+                    .on_activate(move |item, _, cx| {
+                        let _ = view.update(cx, |this, cx| {
+                            this.active = Some(item.clone());
+                            cx.notify();
+                        });
+                    }),
+                )
+            }))
+            .child(parallax)
     }
 }
+#[cfg(all(test, feature = "test-support"))]
+mod customization_tests;
+
 #[cfg(all(test, feature = "test-support"))]
 mod tests {
     use super::*;

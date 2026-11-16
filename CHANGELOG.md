@@ -6,6 +6,7 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ### Components
 
+- Configure carousel layout and fling behavior, read and control the retained item position, and apply standalone scroll parallax to custom content.
 - Compose Chips with custom content and Input avatars, apply Expressive Tonal presets and per-state appearance, and observe their interactions.
 - Reverse vertical sliders and customize tracks, individual handles, colors, markers, value indicators, and interaction observation.
 - Customize linear and circular progress strokes, gaps, and wave motion, and resize or replace the linear stop marker.

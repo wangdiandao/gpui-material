@@ -1,21 +1,27 @@
 //! Material 3 carousel strategies and desktop navigation.
 
 mod geometry;
+mod parallax;
+mod state;
 
-use std::{cell::RefCell, rc::Rc, time::Duration};
+use std::{cell::Cell, rc::Rc, time::Duration};
 
 use gpui::{
-    AccessibleAction, AnyElement, App, Bounds, ContentMask, Element, ElementId, FocusHandle,
+    AccessibleAction, AnyElement, App, Bounds, ContentMask, Element, ElementId, Entity,
     GlobalElementId, ImageSource, InspectorElementId, InteractiveElement, IntoElement, LayoutId,
     ObjectFit, ParentElement, Pixels, RenderOnce, Role, ScrollEvent, SharedString,
-    StatefulInteractiveElement, Style, Styled, StyledImage, Task, TouchPhase, Window, div, img,
-    point, prelude::FluentBuilder, px, relative, size,
+    StatefulInteractiveElement, Style, Styled, StyledImage, TouchPhase, Window, div, img, point,
+    prelude::FluentBuilder, px, relative, size,
 };
 use gpui_base::{Button, TestSupportExt};
 use gpui_material_foundation::{animate, color, window_material_theme};
 use gpui_material_theme::{ColorRole, CornerRole, Direction, MotionKind, MotionSpec, MotionSpeed};
 
-use geometry::Layout;
+use geometry::{Layout, LayoutOptions};
+use state::ItemFocus;
+
+pub use parallax::{CarouselBorder, CarouselParallax};
+pub use state::CarouselState;
 
 const SCROLL_SETTLE: Duration = Duration::from_millis(120);
 const WIDTH_TO_HEIGHT_MIN: f32 = 9. / 16.;
@@ -41,6 +47,58 @@ impl CarouselVariant {
     fn is_uncontained(self) -> bool {
         matches!(self, Self::Uncontained | Self::UncontainedMultiAspectRatio)
     }
+}
+
+/// Resting alignment for Multi-browse, Hero, and Centered Hero keylines.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum CarouselAlignment {
+    #[default]
+    Start,
+    Center,
+}
+
+/// Padding in logical pixels. Start and end follow the window direction.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct CarouselPadding {
+    pub start: Pixels,
+    pub end: Pixels,
+    pub top: Pixels,
+    pub bottom: Pixels,
+}
+
+/// Positions before and after a precise scroll gesture, in fractional item units.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CarouselFlingContext {
+    pub start: f32,
+    pub position: f32,
+    pub item_count: usize,
+}
+
+/// Chooses the resting position when a precise scroll gesture ends.
+#[derive(Clone, Default)]
+pub enum CarouselFling {
+    /// Snap on contained layouts and Full-screen. Scroll freely on uncontained layouts.
+    #[default]
+    Default,
+    /// Leaves the fractional position at the end of the gesture.
+    Free,
+    /// Snaps to the nearest item after any number of items have been scrolled.
+    Snap,
+    /// Snaps to the nearest item at most one index away from the gesture's start.
+    SingleAdvance,
+    /// Returns the resting item index, or None to leave the position where the gesture ended.
+    Custom(Rc<dyn Fn(CarouselFlingContext) -> Option<usize>>),
+}
+
+impl CarouselFling {
+    pub fn custom(target: impl Fn(CarouselFlingContext) -> Option<usize> + 'static) -> Self {
+        Self::Custom(Rc::new(target))
+    }
+}
+
+fn nonnegative(value: Pixels) -> f32 {
+    let value = f32::from(value);
+    if value.is_finite() { value.max(0.) } else { 0. }
 }
 
 type Activate = Rc<dyn Fn(&SharedString, &mut Window, &mut App)>;
@@ -120,7 +178,11 @@ pub struct Carousel {
     variant: CarouselVariant,
     height: Pixels,
     preferred_width: Pixels,
+    layout_options: LayoutOptions,
     snap: Option<bool>,
+    fling: CarouselFling,
+    user_scroll_enabled: bool,
+    state: Option<Entity<CarouselState>>,
     on_activate: Option<Activate>,
 }
 
@@ -137,7 +199,11 @@ impl Carousel {
             variant: CarouselVariant::default(),
             height: px(220.),
             preferred_width: px(192.),
+            layout_options: LayoutOptions::default(),
             snap: None,
+            fling: CarouselFling::Default,
+            user_scroll_enabled: true,
+            state: None,
             on_activate: None,
         }
     }
@@ -164,9 +230,57 @@ impl Carousel {
         self
     }
 
-    /// Sets snapping for uncontained layouts. Other layouts always snap.
+    /// Sets default snapping for uncontained layouts.
     pub fn snap_scrolling(mut self, snap: bool) -> Self {
         self.snap = Some(snap);
+        self
+    }
+
+    pub fn alignment(mut self, alignment: CarouselAlignment) -> Self {
+        self.layout_options.alignment = Some(alignment);
+        self
+    }
+
+    /// Sets the distance between items in logical pixels.
+    pub fn item_spacing(mut self, gap: Pixels) -> Self {
+        self.layout_options.spacing = Some(nonnegative(gap));
+        self
+    }
+
+    pub fn content_padding(mut self, padding: CarouselPadding) -> Self {
+        self.layout_options.padding = Some(CarouselPadding {
+            start: px(nonnegative(padding.start)),
+            end: px(nonnegative(padding.end)),
+            top: px(nonnegative(padding.top)),
+            bottom: px(nonnegative(padding.bottom)),
+        });
+        self
+    }
+
+    /// Overrides the ordered positive width bounds for small contained keylines.
+    pub fn small_item_widths(mut self, min: Pixels, max: Pixels) -> Self {
+        let (min, max) = (nonnegative(min), nonnegative(max));
+        if min > 0. && max >= min {
+            self.layout_options.small = (min, max);
+        }
+        self
+    }
+
+    /// Overrides the variant's default precise-scroll settling behavior.
+    pub fn fling_behavior(mut self, fling: CarouselFling) -> Self {
+        self.fling = fling;
+        self
+    }
+
+    /// Enables wheel, trackpad, keyboard navigation, and accessibility scrolling.
+    pub fn user_scroll_enabled(mut self, enabled: bool) -> Self {
+        self.user_scroll_enabled = enabled;
+        self
+    }
+
+    /// Uses a caller-retained entity for this carousel's position.
+    pub fn state(mut self, state: &Entity<CarouselState>) -> Self {
+        self.state = Some(state.clone());
         self
     }
 
@@ -179,109 +293,26 @@ impl Carousel {
     }
 }
 
-struct ItemFocus {
-    id: SharedString,
-    enabled: bool,
-    focus: FocusHandle,
-}
-
-#[derive(Default)]
-struct Position {
-    current: Option<SharedString>,
-    requested: f32,
-    direct: bool,
-    settle: Option<Task<()>>,
-    gesture_start: Option<f32>,
-}
-
-impl Position {
-    fn sync(&mut self, items: &[ItemFocus]) -> f32 {
-        let index = self
-            .current
-            .as_ref()
-            .and_then(|id| items.iter().position(|item| &item.id == id))
-            .unwrap_or_else(|| {
-                (self.requested.round() as usize).min(items.len().saturating_sub(1))
-            });
-        let current = items.get(index).map(|item| item.id.clone());
-        if current != self.current || index as f32 != self.requested.round() {
-            self.current = current;
-            self.requested = index as f32;
-            self.direct = false;
-            self.settle = None;
-        }
-        self.requested
-    }
-
-    fn select(&mut self, index: usize, item: &ItemFocus) {
-        self.current = Some(item.id.clone());
-        self.requested = index as f32;
-        self.direct = false;
-        self.settle = None;
-        self.gesture_start = None;
-    }
-
-    fn scroll_to(&mut self, position: f32, items: &[ItemFocus]) {
-        self.requested = position;
-        self.direct = true;
-        self.current = items
-            .get(position.round() as usize)
-            .map(|item| item.id.clone());
-    }
-}
-
-struct CarouselState {
-    position: Rc<RefCell<Position>>,
-    items: Rc<[ItemFocus]>,
-    width: Rc<RefCell<Pixels>>,
-}
-
-impl Default for CarouselState {
-    fn default() -> Self {
-        Self {
-            position: Rc::default(),
-            items: Rc::from([]),
-            width: Rc::default(),
-        }
-    }
-}
-
 impl RenderOnce for Carousel {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let state = window.use_keyed_state((self.id.clone(), "carousel-state"), cx, |_, _| {
-            CarouselState::default()
+        let state = self.state.unwrap_or_else(|| {
+            window.use_keyed_state((self.id.clone(), "carousel-state"), cx, |_, _| {
+                CarouselState::new(0)
+            })
         });
-        let (position, focus, width) = state.update(cx, |state, cx| {
-            if state.items.len() != self.items.len()
-                || state
-                    .items
-                    .iter()
-                    .zip(&self.items)
-                    .any(|(known, item)| known.id != item.id || known.enabled == item.disabled)
-            {
-                let previous: std::collections::HashMap<_, _> = state
-                    .items
-                    .iter()
-                    .map(|item| (&item.id, &item.focus))
-                    .collect();
-                state.items = self
-                    .items
-                    .iter()
-                    .map(|item| ItemFocus {
-                        id: item.id.clone(),
-                        enabled: !item.disabled,
-                        focus: previous
-                            .get(&item.id)
-                            .map_or_else(|| cx.focus_handle(), |focus| (*focus).clone()),
-                    })
-                    .collect();
+        let (target, direct, focus) = state.update(cx, |state, cx| {
+            state.sync(&self.items, cx);
+            if !self.user_scroll_enabled {
+                state.cancel_input(cx);
             }
-            (
-                state.position.clone(),
-                state.items.clone(),
-                state.width.clone(),
-            )
+            (state.requested, state.direct, state.items.clone())
         });
+        let width = window
+            .use_keyed_state((self.id.clone(), "carousel-width"), cx, |_, _| {
+                Rc::new(Cell::new(px(0.)))
+            })
+            .read(cx)
+            .clone();
         let theme = window_material_theme(window, cx);
         let direction = theme.layout.direction;
         let ring = color(theme.colors.color(ColorRole::Secondary));
@@ -291,11 +322,6 @@ impl RenderOnce for Carousel {
         let motion = theme
             .motion
             .spec(MotionKind::Spatial, MotionSpeed::Fast, reduced);
-        let (target, direct) = {
-            let mut position = position.borrow_mut();
-            let target = position.sync(&focus);
-            (target, position.direct)
-        };
         let sample = animate(
             (self.id.clone(), "carousel-position"),
             target,
@@ -303,8 +329,10 @@ impl RenderOnce for Carousel {
             window,
             cx,
         );
+        state.update(cx, |state, cx| state.sample(sample, cx));
+        let sample = state.read(cx).sampled;
         let vertical = self.variant.is_vertical();
-        let measured_width = *width.borrow();
+        let measured_width = width.get();
         let fallback_width = if measured_width > px(0.) {
             measured_width
         } else {
@@ -315,16 +343,23 @@ impl RenderOnce for Carousel {
             fallback_width,
             self.height,
             self.preferred_width,
+            self.layout_options,
             &self.items,
         ));
-        let snap = !self.variant.is_uncontained() || self.snap.unwrap_or(false);
+        let fling = match self.fling {
+            CarouselFling::Default if !self.variant.is_uncontained() || self.snap == Some(true) => {
+                CarouselFling::Snap
+            }
+            CarouselFling::Default => CarouselFling::Free,
+            explicit => explicit,
+        };
         let wheel = Interaction {
             layout,
             focus: focus.clone(),
-            position: position.clone(),
+            state: state.clone(),
             vertical,
             direction,
-            snap,
+            fling,
         };
         let keys = wheel.clone();
         let previous = wheel.clone();
@@ -351,41 +386,43 @@ impl RenderOnce for Carousel {
             .min_w_0()
             .relative()
             .overflow_hidden()
-            .on_key_down(move |event, window, cx| {
-                if event.keystroke.modifiers.modified() {
-                    return;
-                }
-                let current = keys.position.borrow().requested;
-                if let Some(index) = navigation_index(
-                    &keys.focus,
-                    current,
-                    &event.keystroke.key,
-                    keys.vertical,
-                    keys.direction,
-                ) {
-                    keys.position.borrow_mut().select(index, &keys.focus[index]);
-                    keys.focus[index].focus.focus(window, cx);
-                    window.refresh();
-                    cx.stop_propagation();
-                }
+            .when(self.user_scroll_enabled, move |region| {
+                region
+                    .on_key_down(move |event, window, cx| {
+                        if event.keystroke.modifiers.modified() {
+                            return;
+                        }
+                        let current = keys.state.read(cx).requested;
+                        if let Some(index) = navigation_index(
+                            &keys.focus,
+                            current,
+                            &event.keystroke.key,
+                            keys.vertical,
+                            keys.direction,
+                        ) {
+                            keys.state
+                                .update(cx, |state, cx| state.animate_scroll_to_item(index, cx));
+                            keys.focus[index].focus.focus(window, cx);
+                            window.refresh();
+                            cx.stop_propagation();
+                        }
+                    })
+                    .on_a11y_action(backward, move |_, window, cx| previous.page(-1, window, cx))
+                    .on_a11y_action(forward, move |_, window, cx| next.page(1, window, cx))
+                    .on_scroll(move |event, window, cx| wheel.on_scroll(event, window, cx))
             })
-            .on_a11y_action(backward, move |_, window, _| {
-                previous.page(-1, window);
-            })
-            .on_a11y_action(forward, move |_, window, _| {
-                next.page(1, window);
-            })
-            .on_scroll(move |event, window, cx| wheel.on_scroll(event, window, cx))
             .child(Viewport {
                 id: self.id,
                 variant: self.variant,
                 height: self.height,
                 preferred_width: self.preferred_width,
+                layout_options: self.layout_options,
+                user_scroll_enabled: self.user_scroll_enabled,
                 items: self.items.into_iter().map(Some).collect(),
                 focus,
                 focused,
                 tab_stop,
-                position,
+                state,
                 sample,
                 direction,
                 ring,
@@ -403,18 +440,20 @@ struct Viewport {
     variant: CarouselVariant,
     height: Pixels,
     preferred_width: Pixels,
+    layout_options: LayoutOptions,
+    user_scroll_enabled: bool,
     items: Vec<Option<CarouselItem>>,
     focus: Rc<[ItemFocus]>,
     focused: Option<usize>,
     tab_stop: Option<usize>,
-    position: Rc<RefCell<Position>>,
+    state: Entity<CarouselState>,
     sample: f32,
     direction: Direction,
     ring: gpui::Hsla,
     hover: gpui::Hsla,
     surface: gpui::Hsla,
     activate: Option<Activate>,
-    width: Rc<RefCell<Pixels>>,
+    width: Rc<Cell<Pixels>>,
     view: gpui::EntityId,
 }
 
@@ -479,21 +518,18 @@ impl Element for Viewport {
             bounds.size.width,
             bounds.size.height,
             self.preferred_width,
+            self.layout_options,
             self.items.iter().flatten(),
         );
-        let inset = layout.cross_inset();
-        let cross = if vertical {
-            bounds.size.width
-        } else {
-            bounds.size.height
-        } - px(inset * 2.);
+        let (inset, cross) = layout.cross_bounds(self.direction);
+        let (inset, cross) = (px(inset), px(cross));
         let mut visible = layout.visible(self.sample, self.direction);
         // When keyboard or UI Automation focuses an item outside the current
         // mask, reveal it in this frame rather than leaving an invisible focus
         // target during a long animation.
         if let Some(focused) = self.focused
-            && !self.position.borrow().direct
-            && self.position.borrow().current.as_ref() == Some(&self.focus[focused].id)
+            && !self.state.read(cx).direct
+            && self.state.read(cx).requested.round() as usize == focused
             && !visible.iter().any(|(index, item)| {
                 *index == focused
                     && item.size >= 40.
@@ -508,16 +544,16 @@ impl Element for Viewport {
         {
             visible = layout.visible(focused as f32, self.direction);
         }
-        let (start, end) = layout.clip_range();
+        let (start, end) = layout.clip_range(self.direction);
         let mask = if vertical {
             Bounds::new(
-                bounds.origin + point(px(0.), px(start)),
+                bounds.origin + point(inset, px(start)),
                 size(cross, px(end - start)),
             )
         } else {
             Bounds::new(
-                bounds.origin + point(px(start), px(0.)),
-                size(px(end - start), bounds.size.height),
+                bounds.origin + point(px(start), inset),
+                size(px(end - start), cross),
             )
         };
         let mut children = Vec::with_capacity(visible.len());
@@ -530,12 +566,12 @@ impl Element for Viewport {
                 let (size, offset) = if vertical {
                     (
                         size(cross, px(geometry.size)),
-                        point(px(inset), px(geometry.start)),
+                        point(inset, px(geometry.start)),
                     )
                 } else {
                     (
                         size(px(geometry.size), cross),
-                        point(px(geometry.start), px(inset)),
+                        point(px(geometry.start), inset),
                     )
                 };
                 let radius = if vertical {
@@ -552,10 +588,10 @@ impl Element for Viewport {
                 let accessible_id = id.clone();
                 let activate = self.activate.clone();
                 let activate_accessible = activate.clone();
-                let position = self.position.clone();
-                let accessible_position = position.clone();
-                let focus = self.focus.clone();
-                let accessible_focus = focus.clone();
+                let state = self.state.clone();
+                let accessible_state = state.clone();
+                let accessible_focus = self.focus[index].focus.clone();
+                let user_scroll_enabled = self.user_scroll_enabled;
                 let content = match item.content {
                     Content::Element(content) => content,
                     Content::Image(source) => img(source)
@@ -582,17 +618,23 @@ impl Element for Viewport {
                     .when(!item.disabled, |button| {
                         button
                             .on_click(move |_, window, cx| {
-                                position.borrow_mut().select(index, &focus[index]);
+                                if user_scroll_enabled {
+                                    state.update(cx, |state, cx| {
+                                        state.animate_scroll_to_item(index, cx)
+                                    });
+                                }
                                 window.refresh();
                                 if let Some(activate) = &activate {
                                     activate(&activate_id, window, cx);
                                 }
                             })
                             .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
-                                accessible_position
-                                    .borrow_mut()
-                                    .select(index, &accessible_focus[index]);
-                                accessible_focus[index].focus.focus(window, cx);
+                                if user_scroll_enabled {
+                                    accessible_state.update(cx, |state, cx| {
+                                        state.animate_scroll_to_item(index, cx)
+                                    });
+                                }
+                                accessible_focus.focus(window, cx);
                                 window.refresh();
                                 if let Some(activate) = &activate_accessible {
                                     activate(&accessible_id, window, cx);
@@ -648,6 +690,7 @@ fn layout<'a>(
     width: Pixels,
     height: Pixels,
     preferred_width: Pixels,
+    options: LayoutOptions,
     items: impl IntoIterator<Item = &'a CarouselItem>,
 ) -> Layout {
     let (main, cross) = if variant.is_vertical() {
@@ -660,6 +703,7 @@ fn layout<'a>(
         main.into(),
         cross.into(),
         preferred_width.into(),
+        options,
         items.into_iter().map(|item| item.aspect),
     )
 }
@@ -668,18 +712,19 @@ fn layout<'a>(
 struct Interaction {
     layout: Rc<Layout>,
     focus: Rc<[ItemFocus]>,
-    position: Rc<RefCell<Position>>,
+    state: Entity<CarouselState>,
     vertical: bool,
     direction: Direction,
-    snap: bool,
+    fling: CarouselFling,
 }
 
 impl Interaction {
-    fn page(&self, delta: isize, window: &mut Window) {
-        let mut position = self.position.borrow_mut();
-        let index = (position.requested.round() as usize).saturating_add_signed(delta);
-        if let Some(item) = self.focus.get(index) {
-            position.select(index, item);
+    fn page(&self, delta: isize, window: &mut Window, cx: &mut App) {
+        let state = self.state.read(cx);
+        let index = (state.requested.round() as usize).saturating_add_signed(delta);
+        if index < self.focus.len() {
+            self.state
+                .update(cx, |state, cx| state.animate_scroll_to_item(index, cx));
             window.refresh();
         }
     }
@@ -702,62 +747,69 @@ impl Interaction {
             if !event.modifiers.shift && y.abs() > x.abs() {
                 return;
             }
-            horizontal_input
-                * if self.direction == Direction::Rtl {
-                    -1.
-                } else {
-                    1.
+            if self.direction == Direction::Rtl {
+                -horizontal_input
+            } else {
+                horizontal_input
+            }
+        };
+        if self.focus.len() < 2 || !main.is_finite() {
+            return;
+        }
+
+        let moved = self.state.update(cx, |state, cx| {
+            if event.touch_phase == TouchPhase::Cancelled {
+                return finish_gesture(state, &self.fling, true, cx);
+            }
+
+            let previous = state.requested;
+            let limit = (self.focus.len() - 1) as f32;
+            if !event.delta.precise() {
+                let sign = if main == 0. { 0. } else { main.signum() };
+                let target = (previous - sign).clamp(0., limit);
+                if target == previous {
+                    return false;
                 }
-        };
-        if self.focus.len() < 2 {
+                state.animate_scroll_to_item(target.round() as usize, cx);
+                return true;
+            }
+
+            let target = (previous + self.layout.scroll_delta(previous, -main)).clamp(0., limit);
+            if target != previous {
+                state.gesture_start.get_or_insert(previous);
+                state.set_requested(target, true, cx);
+            }
+
+            if event.touch_phase == TouchPhase::Ended {
+                return finish_gesture(state, &self.fling, false, cx);
+            }
+            if target == previous {
+                return false;
+            }
+
+            // Some desktop drivers omit the terminal phase of a precise gesture.
+            let timer = cx.background_executor().timer(SCROLL_SETTLE);
+            let weak_state = cx.weak_entity();
+            let fling = self.fling.clone();
+            state.settle = Some(window.spawn(cx, async move |cx| {
+                timer.await;
+                let _ = cx.update(|window, cx| {
+                    if weak_state
+                        .update(cx, |state, cx| finish_gesture(state, &fling, false, cx))
+                        .unwrap_or(false)
+                    {
+                        window.refresh();
+                    }
+                });
+            }));
+            true
+        });
+        if !moved {
             return;
         }
-        let mut position = self.position.borrow_mut();
-        let previous = position.requested;
-        let limit = (self.focus.len() - 1) as f32;
-        let target = match event.touch_phase {
-            TouchPhase::Cancelled => {
-                let Some(start) = position.gesture_start.take() else {
-                    return;
-                };
-                start.clamp(0., limit)
-            }
-            _ if event.delta.precise() => {
-                (previous + self.layout.scroll_delta(previous, -main)).clamp(0., limit)
-            }
-            _ => (previous - main.signum() * f32::from(main != 0.)).clamp(0., limit),
-        };
-        let terminal = event.touch_phase == TouchPhase::Ended && position.direct && self.snap;
-        if target == previous && !terminal {
-            return;
-        }
-        if event.touch_phase == TouchPhase::Cancelled && !self.snap {
-            position.scroll_to(target, &self.focus);
-        } else if !event.delta.precise() || terminal || event.touch_phase == TouchPhase::Cancelled {
-            let index = target.round() as usize;
-            position.select(index, &self.focus[index]);
-        } else {
-            position.gesture_start.get_or_insert(previous);
-            position.scroll_to(target, &self.focus);
-            if self.snap {
-                let timer = cx.background_executor().timer(SCROLL_SETTLE);
-                let state = Rc::downgrade(&self.position);
-                let focus = self.focus.clone();
-                position.settle = Some(window.spawn(cx, async move |cx| {
-                    timer.await;
-                    let _ = cx.update(|window, _| {
-                        if let Some(state) = state.upgrade() {
-                            let mut state = state.borrow_mut();
-                            let index = state.requested.round() as usize;
-                            state.select(index, &focus[index]);
-                            window.refresh();
-                        }
-                    });
-                }));
-            }
-        }
-        // If focus was already inside the carousel, keep it within the
-        // visible range. A pointer scroll never steals outside focus.
+
+        // A pointer scroll can move already-contained focus to a visible item.
+        let target = self.state.read(cx).requested;
         let viewport = self.layout.visible(target, self.direction);
         let current_focus = self
             .focus
@@ -771,10 +823,49 @@ impl Interaction {
         {
             self.focus[*index].focus.focus(window, cx);
         }
-        drop(position);
         window.refresh();
         cx.stop_propagation();
     }
+}
+
+fn finish_gesture(
+    state: &mut CarouselState,
+    fling: &CarouselFling,
+    cancelled: bool,
+    cx: &mut gpui::Context<CarouselState>,
+) -> bool {
+    let Some(start) = state.gesture_start.take() else {
+        return false;
+    };
+    state.settle = None;
+    let position = state.requested;
+    let resting_item = if cancelled {
+        if matches!(fling, CarouselFling::Free) {
+            state.set_requested(start, true, cx);
+            None
+        } else {
+            Some(start.round() as usize)
+        }
+    } else {
+        let item = position.round() as usize;
+        let initial = start.round() as usize;
+        match fling {
+            CarouselFling::Free => None,
+            CarouselFling::Default | CarouselFling::Snap => Some(item),
+            CarouselFling::SingleAdvance => {
+                Some(item.clamp(initial.saturating_sub(1), initial + 1))
+            }
+            CarouselFling::Custom(target) => target(CarouselFlingContext {
+                start,
+                position,
+                item_count: state.items.len(),
+            }),
+        }
+    };
+    if let Some(item) = resting_item {
+        state.animate_scroll_to_item(item, cx);
+    }
+    true
 }
 
 fn focus_at_position(items: &[ItemFocus], position: f32) -> Option<usize> {

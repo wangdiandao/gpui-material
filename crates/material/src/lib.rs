@@ -12,7 +12,10 @@ pub use gpui_material_extras::{
     ButtonGroup, ButtonGroupItem, ButtonGroupSelection, ButtonGroupVariant, SplitButton,
 };
 #[cfg(feature = "carousel")]
-pub use gpui_material_extras::{Carousel, CarouselItem, CarouselVariant};
+pub use gpui_material_extras::{
+    Carousel, CarouselAlignment, CarouselBorder, CarouselFling, CarouselFlingContext, CarouselItem,
+    CarouselPadding, CarouselParallax, CarouselState, CarouselVariant,
+};
 #[cfg(feature = "toolbars")]
 pub use gpui_material_extras::{
     FabMenu, FabMenuItem, Toolbar, ToolbarAction, ToolbarColor, ToolbarFabPosition,

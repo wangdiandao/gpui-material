@@ -5,7 +5,10 @@ mod carousel;
 #[cfg(feature = "date-time")]
 pub mod date_time;
 #[cfg(feature = "carousel")]
-pub use carousel::{Carousel, CarouselItem, CarouselVariant};
+pub use carousel::{
+    Carousel, CarouselAlignment, CarouselBorder, CarouselFling, CarouselFlingContext, CarouselItem,
+    CarouselPadding, CarouselParallax, CarouselState, CarouselVariant,
+};
 
 #[cfg(feature = "expressive-groups")]
 mod groups;

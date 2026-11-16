@@ -3,8 +3,8 @@
   en: "04d1812e593709d7"
   zh: "f4acb7f93a6372a7"
 /components/actions-and-selection:
-  en: "f563f672dcd89a48"
-  zh: "ff8e84a140e05603"
+  en: "80f36fe8c1157a7f"
+  zh: "7e939491729d70ec"
 /components/actions-and-selection/floating-action-button:
   en: "c77a57b086907ad0"
   zh: "e5c132ba393b8843"
@@ -18,8 +18,11 @@
   en: "1a13309ab9e66c00"
   zh: "1d9aefc71da5ba42"
 /components/actions-and-selection/chips:
-  en: "c30eb9a0cc9402aa"
-  zh: "c44ffc65148a09bd"
+  en: "b385d14689e1d861"
+  zh: "b7179c7377a82841"
+/components/actions-and-selection/sliders:
+  en: "cec1ef65bc09216b"
+  zh: "8935c390996df97a"
 /components/content-and-feedback:
   en: "7cf5e961ec2960ad"
   zh: "eb8412d894a38cbf"

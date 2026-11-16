@@ -6,8 +6,10 @@ pub(crate) use tooltip::init as init_tooltip;
 pub use tooltip::{
     Label, Tooltip, TooltipCaret, TooltipColors, TooltipPlacement, TooltipPositioner, TooltipState,
 };
+mod bottom_sheet;
 mod dialog;
 mod sheet;
+pub use bottom_sheet::{BottomSheetState, BottomSheetThresholds, BottomSheetValue};
 
 pub use dialog::{
     Dialog, DialogAction, DialogCloseReason, DialogColors, DialogProperties, DialogState,

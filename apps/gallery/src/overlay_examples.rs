@@ -18,6 +18,10 @@ use gpui_material::{
 
 use crate::story::{Story, section, stack};
 
+mod bottom_sheet_examples;
+#[cfg(all(test, feature = "test-support"))]
+mod bottom_sheet_tests;
+
 #[cfg(all(test, feature = "test-support"))]
 mod dialog_tests;
 #[cfg(all(test, feature = "test-support"))]
@@ -38,6 +42,7 @@ pub(crate) struct ModalExamples {
     native: Entity<DialogState>,
     detached_side: Entity<DialogState>,
     standard_side: Entity<DialogState>,
+    bottom_examples: Entity<bottom_sheet_examples::BottomSheetExamples>,
     standard_side_visible: bool,
     reviewing_side_details: bool,
     name: Entity<TextFieldState>,
@@ -65,6 +70,7 @@ impl ModalExamples {
             native,
             detached_side,
             standard_side: cx.new(DialogState::new),
+            bottom_examples: cx.new(bottom_sheet_examples::BottomSheetExamples::new),
             standard_side_visible: true,
             reviewing_side_details: false,
             name: cx.new(|cx| TextFieldState::new(window, cx).placeholder("名称")),
@@ -261,6 +267,7 @@ impl ModalExamples {
                 .mode(SheetMode::Modal)
                 .extent(px(360.)),
             )
+            .child(self.bottom_examples.clone())
             .child(self.side_sheets(cx))
     }
 

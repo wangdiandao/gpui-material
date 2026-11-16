@@ -80,9 +80,9 @@ pub fn init_components(cx: &mut gpui::App) {
     overlay::init_tooltip(cx);
 }
 pub use overlay::{
-    Dialog, DialogAction, DialogCloseReason, DialogColors, DialogProperties, DialogState,
-    DialogVariant, Sheet, SheetClose, SheetColors, SheetEdge, SheetMargins, SheetMode,
-    SheetPlacement,
+    BottomSheetState, BottomSheetThresholds, BottomSheetValue, Dialog, DialogAction,
+    DialogCloseReason, DialogColors, DialogProperties, DialogState, DialogVariant, Sheet,
+    SheetClose, SheetColors, SheetEdge, SheetMargins, SheetMode, SheetPlacement,
 };
 pub use overlay::{
     Snackbar, SnackbarColors, SnackbarHost, SnackbarId, SnackbarParts, SnackbarResult,

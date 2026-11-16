@@ -87,14 +87,17 @@
   en: "88d7f9f958c88e33"
   zh: "800322be47d3d24b"
 /components/navigation-and-adaptive-layout:
-  en: "c1da2e49a8199e4b"
-  zh: "8be03647337d442e"
+  en: "83f851529c497fe6"
+  zh: "63286087ed98001a"
 /components/navigation-and-adaptive-layout/adaptive-multi-pane-layouts:
   en: "7bb0db714cf569a7"
   zh: "0d09fbd610528926"
 /components/navigation-and-adaptive-layout/app-bars:
   en: "79b650d089fcfb3d"
   zh: "a14d94149ba7031f"
+/components/navigation-and-adaptive-layout/tabs:
+  en: "a29acda233d89c33"
+  zh: "d9431f39dfc9fd7c"
 /components/navigation-and-adaptive-layout/short-navigation-bar:
   en: "f3573539435982b9"
   zh: "d91bd72622b60ca0"

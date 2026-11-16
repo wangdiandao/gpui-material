@@ -21,6 +21,7 @@ use crate::{
     search_examples::SearchExamples,
     selection_examples::SelectionExamples,
     slider_examples::SliderExamples,
+    surface_examples::SurfaceExamples,
     text_field_examples::{DropdownExamples, TextFieldExamples},
     toolbar_examples::ToolbarExamples,
 };
@@ -62,6 +63,7 @@ pub enum Story {
     Slider,
     Snackbar,
     SplitButton,
+    Surface,
     Switch,
     Tabs,
     Text,
@@ -108,6 +110,7 @@ impl Story {
         Self::Slider,
         Self::Snackbar,
         Self::SplitButton,
+        Self::Surface,
         Self::Switch,
         Self::Tabs,
         Self::Text,
@@ -154,6 +157,7 @@ impl Story {
             Self::Slider => "slider",
             Self::Snackbar => "snackbar",
             Self::SplitButton => "split-button",
+            Self::Surface => "surface",
             Self::Switch => "switch",
             Self::Tabs => "tabs",
             Self::Text => "text",
@@ -201,6 +205,7 @@ impl Story {
             Self::Slider => "Slider",
             Self::Snackbar => "Snackbar",
             Self::SplitButton => "Split button",
+            Self::Surface => "Surface",
             Self::Switch => "Switch",
             Self::Tabs => "Tabs",
             Self::Text => "Text",
@@ -264,6 +269,7 @@ impl Story {
             Self::Slider => "Adjust a value or range with a pointer or keyboard.",
             Self::Snackbar => "Announce an outcome and offer a follow-up action such as Undo.",
             Self::SplitButton => "Run a primary command or choose a related action from its menu.",
+            Self::Surface => "Compose passive surfaces and named controls with custom content.",
             Self::Switch => "Turn a setting on or off.",
             Self::Tabs => "Switch between related panels with fixed or scrolling tabs.",
             Self::Text => "Preview Material typography, font scaling, and mixed scripts.",
@@ -317,6 +323,7 @@ impl Story {
                 cx.new(|cx| SelectionExamples::for_story(self, cx)).into()
             }
             Self::Slider => cx.new(SliderExamples::new).into(),
+            Self::Surface => cx.new(SurfaceExamples::new).into(),
             Self::VerticalDragHandle => cx.new(DragHandleExamples::new).into(),
             Self::Search => cx.new(|cx| SearchExamples::new(window, cx)).into(),
             Self::AppBar | Self::NavigationBar | Self::NavigationRail | Self::Tabs => {

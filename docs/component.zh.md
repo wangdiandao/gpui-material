@@ -88,7 +88,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | 组件 | 支持的变体与行为 | Material 3 |
 | --- | --- | --- |
 | `Text`、`Icon` | 主题排版、可替换图标和随库提供的 Material Symbols。 | [排版](https://m3.material.io/styles/typography/overview) · [图标](https://m3.material.io/styles/icons/overview) |
-| `Surface` | 为应用内容提供主题背景和色调层级。 | [层级](https://m3.material.io/styles/elevation/overview) |
+| `Surface` | 支持静态、可点击、可选及可勾选表面，提供主题内容颜色与层级。 | [层级](https://m3.material.io/styles/elevation/overview) |
 | `Card` | Elevated、Filled、Outlined，支持静态或可操作的卡片及独立外观配置。 | [卡片](https://m3.material.io/components/cards/specs) |
 | `List`、`ListItem` | Standard 和 Segmented 列表，支持前置、辅助及尾部内容。 | [列表](https://m3.material.io/components/lists/overview) |
 | `SwipeToDismiss` | 横向滑动关闭，内容、背景及操作由调用方提供。 | [列表](https://m3.material.io/components/lists/guidelines) · [Compose SwipeToDismissBox](https://developer.android.com/reference/kotlin/androidx/compose/material3/SwipeToDismissBox.composable) |
@@ -96,6 +96,16 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `LinearProgress`、`CircularProgress` | 确定和不确定进度，支持可配置的直线和波浪样式。 | [进度指示器](https://m3.material.io/components/progress-indicators/overview) |
 | `LoadingIndicator` | Default 和 Contained 样式，支持确定与不确定进度、自定义形状序列和实例配色。 | [加载指示器](https://m3.material.io/components/loading-indicator/overview) |
 | `Snackbar`、`SnackbarHost` | 定时或持续显示的排队消息，支持自定义内容和布局、可选操作与关闭，以及完成结果。 | [消息条](https://m3.material.io/components/snackbar/specs) |
+
+### 表面
+
+`Surface::new(role)` 提供静态背景。自定义控件可使用 `Surface::clickable(id, label, role)` 或 `Surface::selectable(id, label, role, selected)`，并通过 `.on_activate(...)` 处理激活。通过 `Surface::toggleable(id, label, role, checked)` 和 `.on_checked_change(...)` 处理勾选请求。标签提供无障碍名称，由调用方在每次渲染时传入当前选中或勾选状态。指针、回车、空格和无障碍操作调用同一处理函数。`.disabled(true)` 禁止激活，Tab 导航会跳过该表面。为每个表面提供稳定 ID，为独立操作使用独立表面。同组可选表面可放在具有无障碍名称的 `gpui::Role::ListBox` 中。
+
+表面默认使用与主题背景角色配对的前景色。没有配对前景色的背景角色，以及通过 `.container_color(color)` 设置的容器颜色，沿用当前前景色。`.inherit_content_color(true)` 可让有配对色的背景角色也沿用当前前景，`.content_color(color)` 可覆盖内容颜色。颜色通过 GPUI 文本样式传递给子元素，包括未明确设置颜色的 Material 文字和图标。
+
+通过 `.shape(CornerShape)` 设置逻辑方向圆角，通过 `.border(SurfaceBorder { width, color })` 设置以逻辑像素表示的描边。背景、外框和反馈使用这些设置。其他 GPUI Styled 布局与绘制接口仍可使用。GPUI 使用矩形内容区域裁剪溢出的子元素。`.tonal_elevation(Elevation)` 为使用主题 Surface 角色的背景着色，`.shadow_elevation(Elevation)` 独立设置阴影。
+
+交互表面显示 Material 状态层、有边界的涟漪和键盘焦点环。`.feedback(SurfaceFeedback)` 配置单个表面的效果和颜色。通过 `.interaction_source(&source)` 观察悬停、按下、键盘焦点和禁用状态，`.track_focus(&focus)` 接入调用方持有的焦点句柄。减少动态效果设置使用静态按下反馈。
 
 ### 卡片
 

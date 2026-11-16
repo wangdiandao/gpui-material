@@ -8,11 +8,13 @@ pub use root::{
     MaterialRoot, material_theme, set_material_theme, set_window_material_theme,
     window_material_theme,
 };
-pub use surface::{Surface, color, elevation_shadows, scrim_color};
+pub use surface::{Surface, SurfaceBorder, SurfaceFeedback, color, elevation_shadows, scrim_color};
 #[doc(hidden)]
 pub use typography::font_cache_revision;
 pub use typography::{ShapedText, font_for_style, shape_text, text_style, wrapped_text};
 
+#[doc(hidden)]
+pub mod control_feedback;
 mod feedback;
 mod motion;
 mod shape;

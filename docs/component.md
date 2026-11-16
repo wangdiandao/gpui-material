@@ -17,7 +17,7 @@ The [pinned Material 3 specification](design-sources.md#material-specification) 
 | `Fab`, `ExtendedFab` | Small, Medium, and Large sizes with multiple color roles. `ExtendedFab` supports a text label and an icon. | [FAB](https://m3.material.io/components/floating-action-button/overview) · [Extended FAB](https://m3.material.io/components/extended-fab/overview) |
 | `Checkbox` | Unchecked, checked, mixed, error, and disabled states, with per-instance colors, strokes, and interaction observation. | [Checkbox](https://m3.material.io/components/checkbox/overview) |
 | `Radio`, `RadioGroup` | Mutually exclusive selection, group keyboard navigation, per-option colors, and optional interaction observation. | [Radio button](https://m3.material.io/components/radio-button/specs) |
-| `Switch` | On and off states with optional thumb icons. | [Switch](https://m3.material.io/components/switch/overview) |
+| `Switch` | On and off states with optional thumb icons or custom content, per-state colors, and shared interaction observation. | [Switch](https://m3.material.io/components/switch/overview) |
 | `Chip` | Assist, Filter, Input, and Suggestion, with selection and removal where applicable. | [Chips](https://m3.material.io/components/chips/overview) |
 | `Slider` | Single-value, centered, and range sliders, with horizontal or vertical layouts and continuous or stepped values. | [Sliders](https://m3.material.io/components/sliders/overview) |
 
@@ -48,6 +48,14 @@ Set `.checkmark_stroke(gpui::StrokeOptions)` for the uniform checkmark and mixed
 Use `Radio::colors(RadioColors)` to override the indicator's selected, unselected, disabled-selected, and disabled-unselected colors independently. Unspecified fields use the current window palette. Selected defaults to Primary, unselected defaults to On Surface Variant, and both disabled defaults use On Surface at 38% opacity.
 
 Pass `.interaction_source(&source)` to observe a standalone radio or individual options in a `RadioGroup`. Grouped snapshots use the rendered ID `ElementId::from((group_id, option_id.to_string()))`, so groups can share one `Entity<InteractionSource>`. Removing an option or replacing its source clears its snapshot in the old source. The caller owns selection and applies `.on_select(...)` requests. A group has one Tab stop, skips disabled options, and mirrors horizontal navigation in RTL.
+
+### Switches
+
+Pass the application's current value to `Switch::new(id, label, checked)` and handle the requested next value with `.on_change(...)`. Pointer, keyboard, and accessible activation request the same change. `.disabled(true)` prevents user changes. The constructor's label provides the visible label and accessible name.
+
+Use `.checked_icon` and `.unchecked_icon` for optional icons, or pass a decorative GPUI element through `.thumb_content(element)`. The custom element takes precedence for that render. Choose it from the caller's checked value to show different elements in each state. Custom content sits in a centered 16 px slot and inherits the state's content color. Keep labels and independent controls outside the thumb.
+
+Use `.colors(SwitchColors)` to configure each `SwitchStateColors` palette for checked, unchecked, disabled checked and disabled unchecked states. Each palette can override `track`, `border`, `thumb` and `content` independently. Omitted fields retain the theme defaults. Attach a caller-owned `Entity<InteractionSource>` with `.interaction_source(&source)` to observe hover, focus, press and disabled changes while the application continues to own the checked value.
 
 <a id="内容与反馈"></a>
 

@@ -278,6 +278,18 @@ Use `Dialog::unstructured(id, &state, accessible_name).body(element)` for a moda
 
 Call `Dialog::open_window(&state, parent, options, cx, |state, window, cx| ...)` from the active parent to request a separate GPUI dialog window and build its contents in that window. Window bounds, title bar and resizability come from `WindowOptions`. The system owns parent modality, window chrome and native resize behavior. Windows disables the active parent, macOS uses a window sheet, and Linux modality follows the compositor. Escape and the system close control use the same dismissal policy as the in-window shell. Outside-click dismissal and a scrim apply to in-window dialogs. Use the in-window path for consistent owner-local modality across platforms.
 
+### Side sheets
+
+Build a side sheet with `Sheet::new(id, &state, name, content)` and `.edge(SheetEdge::Start)` or `.edge(SheetEdge::End)`. The edge follows the window's direction. Standard sheets take part in the caller's layout and leave nearby content interactive. Place the sheet next to the primary content on the corresponding logical edge. Modal sheets overlay the window and confine focus until closed. Retain a `DialogState` and call `open(window, cx)` and `close(window, cx)` for modal visibility. When nesting modal sheets, give the inner sheet a higher `.layer(index)`.
+
+Use `.placement(SheetPlacement::Detached)` to inset a floating sheet from the window or layout slot. Detached margins default to 16 logical px and `.margins(SheetMargins { top, bottom, start, end })` overrides them. Docked sheets sit flush with their edge. `.extent(width)` selects the side sheet width up to 400 logical px, within the available space. The default width is 320 logical px. `.edge_divider(true)` separates a docked Standard sheet from the adjacent content.
+
+Use `.header_content(element)` to replace the visible title. The constructor's name remains the sheet's accessible label. `.back(label, callback)` supplies a named navigation button and `.back_content(element)` supplies a caller-owned alternative. Back navigation leaves the sheet open unless its callback closes it. Modal sheets include a Close action. Use `.close_label(label)` to name it, `.show_close(false)` to omit it, or `.close_content(|close| ...)` to build a named control whose activation calls `close.activate(window, cx)`. On a Standard sheet, `.on_close` delegates removal of the sheet to the caller and enables the default Close action. Use `.footer(element)` for fixed actions below the scrolling body and `.footer_divider(true)` to separate them from the body.
+
+`.properties(DialogProperties)` controls Escape and outside-click closing for the modal sheet. `.on_dismiss_request(|reason, window, cx| ...)` can veto a user close, including the Close action. `.on_close(|reason, window, cx| ...)` reports one accepted modal close or the Standard Close action. The reason is `Cancel`, `Escape`, or `OutsideClick`. Programmatic modal closure records `Programmatic` in `DialogState::last_close_reason()`. A modal returns focus to the prior control while it still owns focus. The modal backdrop blocks pointer and scroll input even with zero opacity or outside dismissal disabled.
+
+Set `.shape`, `.container_role`, `.content_role`, and `.colors(SheetColors)` for the surface, content, heading, dividers, and scrim. `.tonal_elevation`, `.shadow_elevation`, and `.scrim_opacity` apply per instance. The Standard side sheet uses Surface and the modal side sheet uses Surface Container Low. Docked modal sheets round the inner corners and detached sheets round all four. Custom slot controls retain their own appearance and semantics.
+
 <a id="导航与自适应布局"></a>
 
 ## Navigation and adaptive layout

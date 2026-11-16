@@ -59,6 +59,25 @@ pub(super) fn exiting_panel<E: StatefulInteractiveElement + ParentElement>(
         .child(div().absolute().inset_0().occlude())
 }
 
+/// Supplies the hit target shared by modal sheet and dialog scrims.
+pub(super) fn modal_backdrop(
+    scrim: Scrim,
+    dismiss: impl Fn(&mut Window, &mut App) + 'static,
+) -> impl IntoElement {
+    div()
+        .absolute()
+        .inset_0()
+        .occlude()
+        .on_any_mouse_down(move |event, window, cx| {
+            cx.stop_propagation();
+            if event.button == MouseButton::Left {
+                dismiss(window, cx);
+            }
+        })
+        .on_scroll(|_, _, cx| cx.stop_propagation())
+        .child(scrim)
+}
+
 /// An accepted transition from an open to a closed Material dialog.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DialogCloseReason {
@@ -219,20 +238,34 @@ pub struct DialogColors {
 }
 
 type Confirm = Rc<dyn Fn(&mut Window, &mut App) -> bool>;
-type DismissRequest = Rc<dyn Fn(DialogCloseReason, &mut Window, &mut App) -> bool>;
-type Closed = Rc<dyn Fn(DialogCloseReason, &mut Window, &mut App)>;
+pub(super) type ModalDismissRequest = Rc<dyn Fn(DialogCloseReason, &mut Window, &mut App) -> bool>;
+pub(super) type ModalClosed = Rc<dyn Fn(DialogCloseReason, &mut Window, &mut App)>;
 type ActionSlot = Box<dyn FnOnce(DialogAction) -> AnyElement>;
 type BodySlot = Box<dyn FnOnce(DialogAction, DialogAction) -> AnyElement>;
 
 #[derive(Clone)]
-struct DialogSession {
+pub(super) struct ModalSession {
     state: WeakEntity<DialogState>,
     generation: u64,
-    dismiss_request: Option<DismissRequest>,
-    on_close: Option<Closed>,
+    dismiss_request: Option<ModalDismissRequest>,
+    on_close: Option<ModalClosed>,
 }
 
-impl DialogSession {
+impl ModalSession {
+    pub(super) fn new(
+        state: &Entity<DialogState>,
+        dismiss_request: Option<ModalDismissRequest>,
+        on_close: Option<ModalClosed>,
+        cx: &App,
+    ) -> Self {
+        Self {
+            state: state.downgrade(),
+            generation: state.read(cx).generation,
+            dismiss_request,
+            on_close,
+        }
+    }
+
     fn current(&self, window: &Window, cx: &App) -> bool {
         self.state.upgrade().is_some_and(|state| {
             let dialog = state.read(cx);
@@ -243,7 +276,12 @@ impl DialogSession {
         })
     }
 
-    fn dismiss(&self, reason: DialogCloseReason, window: &mut Window, cx: &mut App) -> bool {
+    pub(super) fn dismiss(
+        &self,
+        reason: DialogCloseReason,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> bool {
         self.current(window, cx)
             && self
                 .dismiss_request
@@ -273,7 +311,7 @@ impl DialogSession {
 /// Activation for a dialog slot, valid while that open dialog owns input.
 #[derive(Clone)]
 pub struct DialogAction {
-    session: DialogSession,
+    session: ModalSession,
     reason: DialogCloseReason,
     validate: Option<Confirm>,
 }
@@ -319,8 +357,8 @@ pub struct Dialog {
     scrim_color: Option<Hsla>,
     scrim_opacity: f32,
     width: Pixels,
-    dismiss_request: Option<DismissRequest>,
-    on_close: Option<Closed>,
+    dismiss_request: Option<ModalDismissRequest>,
+    on_close: Option<ModalClosed>,
 }
 
 impl Dialog {
@@ -624,12 +662,12 @@ impl RenderOnce for Dialog {
         let scroll = state.scroll.clone();
         let cancel_focus = state.cancel_focus.clone();
         let confirm_focus = state.confirm_focus.clone();
-        let session = DialogSession {
-            state: self.state.downgrade(),
-            generation: state.generation,
-            dismiss_request: self.dismiss_request.take(),
-            on_close: self.on_close.take(),
-        };
+        let session = ModalSession::new(
+            &self.state,
+            self.dismiss_request.take(),
+            self.on_close.take(),
+            cx,
+        );
         let presence = crate::motion::presence(&self.id, open, 200, window, cx);
         if !presence.should_render() {
             return div().into_any_element();
@@ -891,23 +929,11 @@ impl RenderOnce for Dialog {
             .layer(self.layer, true)
             .accessibility_label(self.title)
             .close_on_backdrop_press(false)
-            .backdrop(
-                div()
-                    .absolute()
-                    .inset_0()
-                    .occlude()
-                    .on_any_mouse_down(move |event, window, cx| {
-                        cx.stop_propagation();
-                        if !native
-                            && properties.dismiss_on_outside_click
-                            && event.button == MouseButton::Left
-                        {
-                            outside.dismiss(DialogCloseReason::OutsideClick, window, cx);
-                        }
-                    })
-                    .on_scroll(|_, _, cx| cx.stop_propagation())
-                    .child(backdrop),
-            )
+            .backdrop(modal_backdrop(backdrop, move |window, cx| {
+                if !native && properties.dismiss_on_outside_click {
+                    outside.dismiss(DialogCloseReason::OutsideClick, window, cx);
+                }
+            }))
             .on_ok(move |_, window, cx| {
                 if keyboard_confirmation && keyboard_focus.is_focused(window) {
                     confirm_action.activate(window, cx);

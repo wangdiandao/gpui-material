@@ -22,6 +22,7 @@ pub(crate) struct ActionExamples {
     collapsed: bool,
     interactions: Option<Entity<InteractionSource>>,
     observed_toggle: bool,
+    custom_icon_selected: bool,
 }
 
 impl ActionExamples {
@@ -269,6 +270,62 @@ impl Render for ActionExamples {
                     }),
                 ))
             }))
+            .children(self.shows(Story::IconButton).then(|| {
+                let action = cx.entity();
+                let toggle = cx.entity();
+                section("Custom icon buttons").child(
+                    row()
+                        .child(labeled_sample(
+                            format!("Activations: {}", self.count),
+                            IconButton::new(
+                                "custom-icon-action",
+                                "Add item",
+                                Icon::new(IconName::Add),
+                            )
+                            .variant(IconButtonVariant::Outlined)
+                            .shapes(ButtonShapes {
+                                resting: Some(CornerShape::Radii([5., 15., 5., 15.])),
+                                pressed: Some(CornerShape::Radii([4.; 4])),
+                                ..Default::default()
+                            })
+                            .border(ButtonBorder {
+                                width: gpui::px(2.),
+                                color: custom_border_color(),
+                            })
+                            .on_activate(move |_, cx| {
+                                action.update(cx, |view, cx| {
+                                    view.count += 1;
+                                    cx.notify();
+                                });
+                            }),
+                        ))
+                        .child(
+                            IconToggleButton::new(
+                                "custom-icon-toggle",
+                                "Favorite item",
+                                Icon::new(IconName::Favorite),
+                                self.custom_icon_selected,
+                            )
+                            .selected_icon(Icon::new(IconName::Favorite).filled(true))
+                            .variant(IconButtonVariant::FilledTonal)
+                            .shapes(ButtonShapes {
+                                checked: Some(CornerShape::Radii([6.; 4])),
+                                ..Default::default()
+                            })
+                            .colors(ButtonColors {
+                                checked_container: Some(custom_toggle_color()),
+                                checked_content: Some(gpui::white()),
+                                ..Default::default()
+                            })
+                            .on_change(move |selected, _, cx| {
+                                toggle.update(cx, |view, cx| {
+                                    view.custom_icon_selected = selected;
+                                    cx.notify();
+                                });
+                            }),
+                        ),
+                )
+            }))
             .children(self.shows(Story::Fab).then(|| {
                 section("Colors and sizes").child(
                     row().children(
@@ -482,6 +539,289 @@ mod tests {
     };
     use gpui_base::test_support::find;
     use gpui_material::foundation::MaterialRoot;
+
+    #[gpui::test]
+    fn icon_buttons_customize_paint_and_keep_controlled_keyboard_behavior(cx: &mut TestAppContext) {
+        use gpui::{App, Hsla, KeyDownEvent, KeyUpEvent, Keystroke, RenderOnce, rgb};
+        use gpui_material::InteractionUpdate;
+
+        const ACTION: u32 = 0x355675;
+        const ACTION_INK: u32 = 0xb6d5ff;
+        const DISABLED: u32 = 0x413e4a;
+        const DISABLED_INK: u32 = 0xc3b9ce;
+        const BORDER: u32 = 0x70529e;
+        const CHECKED: u32 = 0x1f664c;
+        const CHECKED_INK: u32 = 0xc1f1d3;
+
+        #[derive(IntoElement)]
+        struct Ink(&'static str);
+
+        impl RenderOnce for Ink {
+            fn render(self, window: &mut Window, _: &mut App) -> impl IntoElement {
+                div()
+                    .id(self.0)
+                    .test_support()
+                    .size(px(10.))
+                    .bg(window.text_style().color)
+            }
+        }
+
+        struct Controls {
+            source: Entity<InteractionSource>,
+            events: Vec<InteractionUpdate>,
+            activations: usize,
+            requests: Vec<bool>,
+            selected: bool,
+            disabled: bool,
+        }
+
+        impl Render for Controls {
+            fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+                let action = cx.entity();
+                let toggle = cx.entity();
+                row()
+                    .child(
+                        IconButton::new("action", "Add item", Ink("add-ink"))
+                            .variant(IconButtonVariant::Outlined)
+                            .size(ControlSize::Medium)
+                            .width(IconButtonWidth::Wide)
+                            .shapes(ButtonShapes {
+                                resting: Some(CornerShape::Radii([7.; 4])),
+                                pressed: Some(CornerShape::Radii([3.; 4])),
+                                ..Default::default()
+                            })
+                            .colors(ButtonColors {
+                                container: Some(rgb(ACTION).into()),
+                                content: Some(rgb(ACTION_INK).into()),
+                                disabled_container: Some(rgb(DISABLED).into()),
+                                disabled_content: Some(rgb(DISABLED_INK).into()),
+                                ..Default::default()
+                            })
+                            .border(ButtonBorder {
+                                width: px(2.),
+                                color: rgb(BORDER).into(),
+                            })
+                            .disabled(self.disabled)
+                            .interaction_source(&self.source)
+                            .on_activate(move |_, cx| {
+                                action.update(cx, |model, _| model.activations += 1);
+                            }),
+                    )
+                    .child(
+                        IconToggleButton::new("toggle", "Pin item", Ink("pin-ink"), self.selected)
+                            .selected_icon(Ink("pinned-ink"))
+                            .variant(IconButtonVariant::FilledTonal)
+                            .size(ControlSize::ExtraSmall)
+                            .width(IconButtonWidth::Narrow)
+                            .shapes(ButtonShapes {
+                                checked: Some(CornerShape::Radii([9.; 4])),
+                                ..Default::default()
+                            })
+                            .colors(ButtonColors {
+                                checked_container: Some(rgb(CHECKED).into()),
+                                checked_content: Some(rgb(CHECKED_INK).into()),
+                                ..Default::default()
+                            })
+                            .border(ButtonBorder {
+                                width: px(1.),
+                                color: rgb(BORDER).into(),
+                            })
+                            .interaction_source(&self.source)
+                            .on_change(move |selected, _, cx| {
+                                toggle.update(cx, |model, _| model.requests.push(selected));
+                            }),
+                    )
+            }
+        }
+
+        let (handle, model) = cx.update(|cx| {
+            crate::init_gallery(cx);
+            cx.set_reduce_motion(true);
+            let model = cx.new(|cx: &mut Context<Controls>| {
+                let source = cx.new(|_| InteractionSource::new());
+                cx.subscribe(&source, |model, _, event, _| {
+                    model.events.push(event.clone())
+                })
+                .detach();
+                Controls {
+                    source,
+                    events: Vec::new(),
+                    activations: 0,
+                    requests: Vec::new(),
+                    selected: false,
+                    disabled: false,
+                }
+            });
+            let handle =
+                MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, _| model.clone())
+                    .unwrap();
+            (handle, model)
+        });
+        cx.simulate_window_scale_factor_change(handle.into(), 1.);
+        cx.update_window(handle.into(), |_, window, _| window.activate_window())
+            .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle.into(), |_, window, cx| {
+            let draw = |window: &mut Window, cx: &mut App| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+            };
+            let quad = |fill, window: &Window| {
+                let fill: Hsla = rgb(fill).into();
+                window
+                    .painted_quads()
+                    .into_iter()
+                    .find(|quad| quad.background == fill.into())
+                    .unwrap_or_else(|| panic!("Missing icon button color {fill:?}"))
+            };
+            let key = Keystroke::parse_with_os("space", cx.platform_info().os).unwrap();
+            let press = |window: &mut Window, cx: &mut App| {
+                window.dispatch_event(
+                    KeyDownEvent {
+                        keystroke: key.clone(),
+                        is_held: false,
+                        prefer_character_input: false,
+                    }
+                    .to_platform_input(),
+                    cx,
+                );
+            };
+            let release = |window: &mut Window, cx: &mut App| {
+                window.dispatch_event(
+                    KeyUpEvent {
+                        keystroke: key.clone(),
+                    }
+                    .to_platform_input(),
+                    cx,
+                );
+            };
+
+            draw(window, cx);
+            let action = find(window, &[], &"action".into()).unwrap();
+            let toggle = find(window, &[], &"toggle".into()).unwrap();
+            assert_eq!(action.role(), Some(Role::Button));
+            assert_eq!(action.label(), Some("Add item"));
+            assert_eq!(toggle.role(), Some(Role::Button));
+            assert_eq!(toggle.label(), Some("Pin item"));
+            assert_eq!(toggle.checked(), Some(false));
+            let paint = quad(ACTION, window);
+            assert_eq!(
+                paint.bounds.size,
+                size(px(72.).scale(1.), px(56.).scale(1.))
+            );
+            assert_eq!(paint.corner_radii.top_left, px(7.).scale(1.));
+            assert_eq!(paint.border_widths.top, px(2.).scale(1.));
+            assert_eq!(paint.border_color, rgb(BORDER).into());
+            assert_eq!(
+                quad(ACTION_INK, window).bounds.center(),
+                paint.bounds.center()
+            );
+
+            window.focus_next(cx);
+            draw(window, cx);
+            assert_eq!(
+                find(window, &[], &"action".into()).unwrap().focused(),
+                Some(true)
+            );
+            press(window, cx);
+            draw(window, cx);
+            assert_eq!(quad(ACTION, window).corner_radii.top_left, px(3.).scale(1.));
+            release(window, cx);
+            assert_eq!(model.read(cx).activations, 1);
+
+            window.focus_next(cx);
+            draw(window, cx);
+            assert_eq!(
+                find(window, &[], &"toggle".into()).unwrap().focused(),
+                Some(true)
+            );
+            assert!(find(window, &[], &"pin-ink".into()).is_some());
+            press(window, cx);
+            release(window, cx);
+            draw(window, cx);
+            assert_eq!(model.read(cx).requests, [true]);
+            assert_eq!(
+                find(window, &[], &"toggle".into()).unwrap().checked(),
+                Some(false)
+            );
+
+            model.update(cx, |model, cx| {
+                model.selected = true;
+                model.disabled = true;
+                cx.notify();
+            });
+            draw(window, cx);
+            window.focus_prev(cx);
+            draw(window, cx);
+            let paint = quad(CHECKED, window);
+            assert_eq!(
+                paint.bounds.size,
+                size(px(28.).scale(1.), px(32.).scale(1.))
+            );
+            assert_eq!(paint.corner_radii.top_left, px(9.).scale(1.));
+            assert_eq!(paint.border_widths.top, px(1.).scale(1.));
+            assert_eq!(paint.border_color, rgb(BORDER).into());
+            assert_eq!(
+                quad(CHECKED_INK, window).bounds.center(),
+                paint.bounds.center()
+            );
+            assert!(find(window, &[], &"pin-ink".into()).is_none());
+            assert!(find(window, &[], &"pinned-ink".into()).is_some());
+            assert_eq!(
+                find(window, &[], &"toggle".into()).unwrap().checked(),
+                Some(true)
+            );
+
+            let action = find(window, &[], &"action".into()).unwrap();
+            assert_eq!(action.disabled(), Some(true));
+            assert_ne!(action.focused(), Some(true));
+            let paint = quad(DISABLED, window);
+            assert_eq!(paint.border_color, rgb(BORDER).into());
+            assert_eq!(
+                quad(DISABLED_INK, window).bounds.center(),
+                paint.bounds.center()
+            );
+            let position = action.bounds().center();
+            window.dispatch_event(
+                MouseDownEvent {
+                    button: MouseButton::Left,
+                    position,
+                    modifiers: Default::default(),
+                    click_count: 1,
+                    first_mouse: false,
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.dispatch_event(
+                MouseUpEvent {
+                    button: MouseButton::Left,
+                    position,
+                    modifiers: Default::default(),
+                    click_count: 1,
+                }
+                .to_platform_input(),
+                cx,
+            );
+            assert_eq!(model.read(cx).activations, 1);
+        })
+        .unwrap();
+        cx.run_until_parked();
+        cx.update(|cx| {
+            let model = model.read(cx);
+            for id in ["action", "toggle"] {
+                assert!(model.events.iter().any(|event| {
+                    event.id == id.into() && event.state.is_some_and(|state| state.pressed)
+                }));
+            }
+            let handle: gpui::AnyWindowHandle = handle.into();
+            let state = model
+                .source
+                .read(cx)
+                .state(handle.window_id(), &"action".into());
+            assert!(state.is_some_and(|state| state.disabled && !state.pressed));
+        });
+    }
 
     #[gpui::test]
     fn action_and_selection_feedback_clear_after_pointer_cancellation(cx: &mut TestAppContext) {

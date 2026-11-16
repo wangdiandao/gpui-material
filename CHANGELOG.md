@@ -9,6 +9,7 @@ See [versioning and releases](docs/release.md) for the release process.
 - Set divider thickness and color for each horizontal or vertical rule. A zero thickness selects a one-device-pixel hairline.
 - Compose text fields with configurable label placement, leading and trailing elements, value affixes, custom hints and supporting content, and required, invalid, and character count presentation.
 - Observe Button and ToggleButton interaction changes through an optional shared interaction source.
+- Customize IconButton and IconToggleButton shapes, colors, and outlines, and observe their interactions through a shared source.
 - Set text-field colors, shape, content padding and input typography per instance, observe the Base editor's laid-out geometry, and share field interaction state.
 - Customize Button and ToggleButton content, shapes, colors, borders, padding, and elevations per instance.
 - Render standalone and anchored badges with custom content and per-instance colors.

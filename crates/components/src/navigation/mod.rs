@@ -10,7 +10,9 @@ pub use app_bar::{
     AppBarPadding, AppBarRow, AppBarScrollBehavior, AppBarScrollState, AppBarVariant,
 };
 pub use items::{
-    NavigationBar, NavigationBarLayout, NavigationItem, NavigationItems, TabVariant, Tabs,
+    NavigationBar, NavigationBarArrangement, NavigationBarColors, NavigationBarLayout,
+    NavigationItem, NavigationItemColors, NavigationItemIconPosition, NavigationItems, TabVariant,
+    Tabs,
 };
 pub use rail::{NavigationRail, RailMode};
 pub use scaffold::{Scaffold, ScaffoldContentLayout, ScaffoldFabPosition, ScaffoldInsets};

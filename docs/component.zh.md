@@ -263,7 +263,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | --- | --- | --- |
 | `AppBar`、`AppBarRow`、`AppBarColumn` | Small、Centered、Medium Flexible、Large Flexible 及可自定义的 TwoRows 顶部应用栏，操作可随可用空间移入溢出菜单。 | [应用栏](https://m3.material.io/components/app-bars/overview) |
 | `Tabs` | Primary、Secondary，可固定或滚动。 | [标签页](https://m3.material.io/components/tabs/overview) |
-| `NavigationBar`、`NavigationRail` | 短导航栏支持纵向或横向排列选项。导航轨道支持折叠、展开、隐藏和模态呈现。 | [导航栏](https://m3.material.io/components/navigation-bar/overview) · [导航轨道](https://m3.material.io/components/navigation-rail/overview) |
+| `NavigationBar`、`NavigationRail` | 短导航栏支持等宽或居中排列、纵向或横向图标、自定义标签和徽标。导航轨道支持折叠、展开、隐藏和模态呈现。 | [导航栏](https://m3.material.io/components/navigation-bar/overview) · [导航轨道](https://m3.material.io/components/navigation-rail/overview) |
 | `AdaptiveNavigation` | 根据可用宽度在导航栏和导航轨道之间切换。 | [断点](https://m3.material.io/foundations/layout/breakpoints/overview) |
 | `Scaffold` | 组合导航、应用栏、内容、可定位的悬浮操作按钮和消息条，并根据已占空间计算内容内边距。 | [Scaffold](https://m3.material.io/foundations/layout/scaffold/overview) |
 | `ListDetail`、`SupportingPane`、`Feed` | 列表与详情、辅助窗格及响应式信息流布局。 | [典型布局](https://m3.material.io/foundations/layout/canonical-examples/overview) |
@@ -280,6 +280,16 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 通过 `.track_scroll(&handle)` 接入 GPUI 内容滚动句柄，或通过 `.scroll_state(&state)` 接入保留的 `Entity<AppBarScrollState>`。调用方也可用 `set_content_offset(offset, cx)` 设置内容离顶部的非负距离。接入滚动句柄时由句柄提供该距离。可从状态读取 `content_offset()`、`height_offset()`、`height_offset_limit()`、`collapsed_fraction()` 和 `overlapped_fraction()`。未指定策略时，Flexible 栏按内容离顶部的距离收起。用 `.scroll_behavior(AppBarScrollBehavior::Pinned)` 固定高度并按滚动切换容器色，`EnterAlways` 在滚动反向时立即展开，`ExitUntilCollapsed` 在内容回到顶部之前保持收起。内容区继续持有滚动及其输入。用 `.scroll_enabled(false)` 暂停滚动驱动的更新。用 `set_collapsed_fraction(fraction, cx)` 设置位置，或在滚动结束时调用 `settle(velocity, cx)`。正速度选择收起，负速度在策略允许时选择展开，零选择最近端点。`.scroll_motion(MotionSpec)` 覆盖归位动效，减少动效时即时归位。
 
 `AppBarRow::new(id, items)` 和 `AppBarColumn::new(id, items)` 水平或垂直排列操作，将放不下的项移入 Material 菜单。用 `AppBarItem::clickable(id, label, icon_factory)` 创建行内和溢出共用的命令，并通过 `.on_activate(...)` 和 `.disabled(bool)` 设置行为。通过 `AppBarItem::custom(id, inline, |menu| ...)` 提供自定义行内元素和对应的 `MenuItem`。为各项提供稳定的 ID。`.overflow_indicator(|menu| ...)` 可自定义内置键盘按钮的图形，用 `.overflow_label(label)` 设置按钮名称。`AppBarMenuState` 提供 `is_showing()`、`show(window, cx)` 和 `dismiss(window, cx)`。`.max_item_count(count)` 限制包括触发按钮在内的可见项数。横排在 RTL 中镜像，溢出操作在菜单打开后可访问。
+
+### 短导航栏
+
+`NavigationBar::new(items)` 默认采用 `.layout(NavigationBarLayout::Vertical)` 和 `.arrangement(NavigationBarArrangement::EqualWeight)`，各导航项等宽。`Centered` 将各项集中放在栏的中间，标签较长的项可以增宽，最多占据等宽布局中单项的宽度。布局决定每项的默认图标位置。可用 `.icon_position(NavigationItemIconPosition::Top)` 将图标放在标签上方，或用 `Start` 放在逻辑起始侧。同一栏可以混用两种位置，`Start` 在从右到左的窗口中镜像。
+
+创建 `NavigationItem::new(id, label)` 时提供稳定 ID 和无障碍名称。可用 `.label_content(element)` 替换可见标签，内容用作装饰，无障碍名称仍然保留。用 `.badge(Badge::standalone())` 提供圆点，或为独立徽标设置自定义内容。徽标覆盖图标的上方末尾侧，无图标时贴合标签。徽标的 `.accessible_label(...)` 用作导航项的无障碍描述。导航项保留自己的名称和一个焦点停靠点。
+
+用 `.colors(NavigationBarColors)` 配置导航栏容器色和共用内容色。可在导航项上调用 `.colors(NavigationItemColors)` 分别覆盖选中与未选中时的图标和标签色、禁用时的图标和标签色，以及选中指示器色。选中标签可按 Top 和 Start 位置分别配色。导航项覆盖值优先于导航栏配色，省略的值沿用导航栏的共用配色或窗口主题。图标和标签的禁用色优先于选中色。
+
+使用 `.interaction_source(&source)` 让导航项接入由调用方持有的 `Entity<InteractionSource>`。通过 `ElementId::from((collection_id, destination_id))` 读取该项状态，集合 ID 为 `ElementId`，导航项 ID 为 `SharedString`。导航项移除后释放其状态。整栏只有一个 Tab 停靠点，方向键跳过禁用项，在从右到左的窗口中反转左右键行为。Home 和 End 分别移至首个和末个可用项。使用指针、键盘或辅助技术激活时，`NavigationItems::on_select` 报告目标项，由调用方通过 `.selected(id)` 提交选中状态。
 
 ### 纵向拖动把手
 

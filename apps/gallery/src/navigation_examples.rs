@@ -4,15 +4,19 @@ use gpui::{
 };
 use gpui_material::{
     AppBar, AppBarAlignment, AppBarItem, AppBarRow, AppBarScrollBehavior, AppBarScrollState,
-    AppBarVariant, Button, ButtonVariant, DialogState, Fab, Icon, IconButton, IconName,
-    NavigationBar, NavigationBarLayout, NavigationItem, NavigationItems, NavigationRail, RailMode,
-    TabVariant, Tabs, Text, theme::TypeRole,
+    AppBarVariant, Badge, Button, ButtonVariant, DialogState, Fab, Icon, IconButton, IconName,
+    NavigationBar, NavigationBarArrangement, NavigationBarLayout, NavigationItem,
+    NavigationItemIconPosition, NavigationItems, NavigationRail, RailMode, TabVariant, Tabs, Text,
+    theme::TypeRole,
 };
 
 use crate::story::{Story, section, stack};
 
 #[cfg(all(test, feature = "test-support"))]
 mod app_bar_tests;
+
+#[cfg(all(test, feature = "test-support"))]
+mod bar_tests;
 
 const DESTINATIONS: &[(&str, &str, IconName)] = &[
     ("inbox", "Inbox", IconName::Inbox),
@@ -124,6 +128,32 @@ impl NavigationExamples {
     }
 
     fn bar(&self, cx: &mut Context<Self>) -> AnyElement {
+        let centered = NavigationItems::new(
+            "horizontal-bar",
+            "Centered navigation",
+            [
+                NavigationItem::new("inbox", "Inbox")
+                    .icon(Icon::new(IconName::Inbox))
+                    .badge(
+                        Badge::standalone()
+                            .content("inbox-count", "3")
+                            .accessible_label("inbox-status", "3 unread messages"),
+                    ),
+                NavigationItem::new("favorites", "Favorites")
+                    .icon(Icon::new(IconName::Favorite))
+                    .disabled(true),
+                NavigationItem::new("archive", "Archive")
+                    .icon(Icon::new(IconName::Archive))
+                    .icon_position(NavigationItemIconPosition::Top)
+                    .label_content(div().child("Archive")),
+            ],
+        )
+        .selected(self.selected.clone())
+        .font_scale(self.font_scale)
+        .on_select(cx.listener(|this, id: &SharedString, _, cx| {
+            this.selected = id.clone();
+            cx.notify();
+        }));
         stack()
             .child(
                 section("Vertical items").child(NavigationBar::new(self.items(
@@ -136,16 +166,10 @@ impl NavigationExamples {
                 ))),
             )
             .child(
-                section("Horizontal items").child(
-                    NavigationBar::new(self.items(
-                        "horizontal-bar",
-                        "Horizontal navigation",
-                        3,
-                        true,
-                        false,
-                        cx,
-                    ))
-                    .layout(NavigationBarLayout::Horizontal),
+                section("Centered items").child(
+                    NavigationBar::new(centered)
+                        .layout(NavigationBarLayout::Horizontal)
+                        .arrangement(NavigationBarArrangement::Centered),
                 ),
             )
             .into_any_element()

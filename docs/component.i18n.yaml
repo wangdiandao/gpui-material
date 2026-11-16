@@ -78,11 +78,14 @@
   en: "9b9b523f8cf8afa2"
   zh: "e2bf09394ec6bd4e"
 /components/navigation-and-adaptive-layout:
-  en: "95867e79e12c798c"
-  zh: "232f28c160c96a5a"
+  en: "dc57a146272a5c19"
+  zh: "7634c155677738e2"
 /components/navigation-and-adaptive-layout/app-bars:
   en: "79b650d089fcfb3d"
   zh: "a14d94149ba7031f"
+/components/navigation-and-adaptive-layout/short-navigation-bar:
+  en: "f3573539435982b9"
+  zh: "d91bd72622b60ca0"
 /components/navigation-and-adaptive-layout/vertical-drag-handle:
   en: "c9ce9bd62d6df8f7"
   zh: "69452f32921b5f85"

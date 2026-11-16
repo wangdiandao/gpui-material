@@ -602,6 +602,15 @@ impl Badge {
         self.accessible_label = Some((id.into(), label.into()));
         self
     }
+
+    pub(crate) fn take_accessible_label(&mut self) -> Option<SharedString> {
+        self.accessible_label.take().map(|(_, label)| label)
+    }
+
+    pub(crate) fn attach_to(mut self, host: impl IntoElement) -> Self {
+        self.host = Some(host.into_any_element());
+        self
+    }
 }
 
 impl RenderOnce for Badge {

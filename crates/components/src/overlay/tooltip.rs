@@ -1,5 +1,6 @@
 mod appearance;
 mod interaction;
+mod label;
 
 use std::{cell::Cell, rc::Rc};
 
@@ -19,6 +20,7 @@ use interaction::{Dismiss, Interaction};
 pub use appearance::{TooltipCaret, TooltipColors, TooltipPlacement};
 pub use gpui_base::Positioner as TooltipPositioner;
 pub use interaction::TooltipState;
+pub use label::Label;
 
 use crate::{
     Button, ButtonColors, ButtonVariant,
@@ -86,6 +88,7 @@ pub struct Tooltip {
     focusable: bool,
     enable_user_input: bool,
     persistent: Option<Entity<TooltipState>>,
+    label_visible: Option<bool>,
     on_dismiss_request: Option<TooltipCallback>,
     placement: TooltipPlacement,
     offset: Pixels,
@@ -115,6 +118,7 @@ impl Tooltip {
             focusable: false,
             enable_user_input: true,
             persistent: None,
+            label_visible: None,
             on_dismiss_request: None,
             placement: TooltipPlacement::Above,
             offset: px(4.),
@@ -283,6 +287,7 @@ struct Geometry {
 
 impl RenderOnce for Tooltip {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let label = self.label_visible.is_some();
         let state = window.use_keyed_state(
             (self.id.clone(), "tooltip-interaction"),
             cx,
@@ -294,7 +299,7 @@ impl RenderOnce for Tooltip {
             })
             .read(cx)
             .clone();
-        let transient = self.enable_user_input && self.persistent.is_none();
+        let transient = !label && self.enable_user_input && self.persistent.is_none();
         state.update(cx, |state, cx| {
             state.configure(
                 transient,
@@ -304,10 +309,12 @@ impl RenderOnce for Tooltip {
                 cx,
             )
         });
-        let open = self.persistent.as_ref().map_or_else(
-            || state.read(cx).is_open(window, cx),
-            |state| state.read(cx).is_visible(),
-        );
+        let open = self.label_visible.unwrap_or_else(|| {
+            self.persistent.as_ref().map_or_else(
+                || state.read(cx).is_open(window, cx),
+                |state| state.read(cx).is_visible(),
+            )
+        });
         let surface = state.read(cx).surface.clone();
         let first = self.focus_target.clone().or_else(|| {
             self.action
@@ -318,7 +325,7 @@ impl RenderOnce for Tooltip {
         let anchor = geometry.anchor.get();
         state.update(cx, |state, cx| {
             state.present(
-                open && anchor.is_some(),
+                !label && open && anchor.is_some(),
                 self.trigger_focus.as_ref(),
                 self.focusable
                     .then(|| first.clone().unwrap_or_else(|| surface.clone())),
@@ -336,13 +343,17 @@ impl RenderOnce for Tooltip {
         let hover = state.clone();
         let measured = geometry.anchor.clone();
         let trigger = div()
-            .id("tooltip-trigger")
+            .id(if label {
+                "label-anchor"
+            } else {
+                "tooltip-trigger"
+            })
             .role(Role::Group)
             .aria_description(self.text.clone())
             .when(self.persistent.is_some(), |trigger| {
                 trigger.aria_expanded(open)
             })
-            .when(open, |trigger| {
+            .when(open && !label, |trigger| {
                 trigger.when_some(first.clone(), |trigger, first| {
                     trigger.key_context("MaterialTooltipTrigger").on_action(
                         move |_: &FocusTooltipAction, window, cx| first.focus(window, cx),
@@ -355,7 +366,9 @@ impl RenderOnce for Tooltip {
                 })
             })
             .when_some(
-                self.persistent.clone().filter(|_| self.enable_user_input),
+                self.persistent
+                    .clone()
+                    .filter(|_| self.enable_user_input && !label),
                 |trigger, visibility| {
                     let press = state.clone();
                     let release = state.clone();
@@ -395,7 +408,10 @@ impl RenderOnce for Tooltip {
             .child(
                 canvas(
                     move |bounds, window, _| {
-                        if measured.replace(Some(bounds)) != Some(bounds) && open {
+                        let anchor = (!label
+                            || !bounds.intersect(&window.content_mask().bounds).is_empty())
+                        .then_some(bounds);
+                        if measured.replace(anchor) != anchor && open {
                             window.refresh();
                         }
                     },
@@ -404,17 +420,18 @@ impl RenderOnce for Tooltip {
                 .absolute()
                 .inset_0(),
             );
-        let mut root = div()
-            .id(self.id.clone())
-            .relative()
-            .child(trigger)
-            .when(open, |root| {
-                root.key_context("MaterialTooltip").on_action(
-                    move |_: &DismissTooltip, window, cx| {
-                        on_escape.request(window, cx);
-                    },
-                )
-            });
+        let mut root =
+            div()
+                .id(self.id.clone())
+                .relative()
+                .child(trigger)
+                .when(open && !label, |root| {
+                    root.key_context("MaterialTooltip").on_action(
+                        move |_: &DismissTooltip, window, cx| {
+                            on_escape.request(window, cx);
+                        },
+                    )
+                });
         let (Some(motion), Some(anchor)) =
             (OverlayMotion::sample(&self.id, open, window, cx), anchor)
         else {
@@ -429,40 +446,61 @@ impl RenderOnce for Tooltip {
         let theme = window_material_theme(window, cx);
         let direction = theme.layout.direction;
         let style = self.appearance.resolve(self.rich, viewport, motion, theme);
-        let view = tooltip_surface(&mut self, open, style, motion, window, cx);
+        let view = tooltip_surface(&mut self, open || label, style, motion, window, cx);
         let margin = self.appearance.margin(viewport);
+        let view = if label {
+            // The overlay owns the accessible text for its decorative children.
+            div()
+                .id("label-content")
+                .role(Role::Group)
+                .a11y_synthetic_children(|tree| tree.parent_node().set_hidden())
+                .child(
+                    view.max_h((viewport.height - margin * 2.) * motion.scale)
+                        .overflow_hidden(),
+                )
+                .into_any_element()
+        } else {
+            view.into_any_element()
+        };
         let caret = self.appearance.caret.take();
         let resolved_side = geometry.side.clone();
         let shift_tab = first.clone();
         let return_focus = self.trigger_focus;
         let anchor_bounds = geometry.anchor.clone();
         let tip = div()
-            .id(if open { "tooltip" } else { "tooltip-exit" })
+            .id(match (label, open) {
+                (true, true) => "label",
+                (true, false) => "label-exit",
+                (false, true) => "tooltip",
+                (false, false) => "tooltip-exit",
+            })
             .relative()
             .test_support()
             .opacity(motion.alpha)
             .when(open, |tip| {
                 tip.role(Role::Tooltip)
                     .aria_label(self.text)
-                    .track_focus(&surface)
-                    .key_context("MaterialTooltipContent")
-                    .on_action(move |_: &FocusTooltipTrigger, window, cx| {
-                        if let Some(trigger) = &return_focus
-                            && shift_tab
-                                .as_ref()
-                                .is_some_and(|first| first.is_focused(window))
-                        {
-                            trigger.focus(window, cx);
-                        } else {
-                            cx.propagate();
-                        }
+                    .when(!label, |tip| {
+                        tip.track_focus(&surface)
+                            .key_context("MaterialTooltipContent")
+                            .on_action(move |_: &FocusTooltipTrigger, window, cx| {
+                                if let Some(trigger) = &return_focus
+                                    && shift_tab
+                                        .as_ref()
+                                        .is_some_and(|first| first.is_focused(window))
+                                {
+                                    trigger.focus(window, cx);
+                                } else {
+                                    cx.propagate();
+                                }
+                            })
                     })
                     .when(transient, |tip| {
                         tip.on_hover(move |hovering, window, cx| {
                             state.update(cx, |state, cx| state.hover(true, *hovering, window, cx));
                         })
                     })
-                    .when(dismiss.persistent.is_some(), |tip| {
+                    .when(!label && dismiss.persistent.is_some(), |tip| {
                         tip.on_mouse_down_out(move |event, window, cx| {
                             if !anchor_bounds
                                 .get()
@@ -502,7 +540,7 @@ impl RenderOnce for Tooltip {
             );
             positioner
                 .margin(margin)
-                .occlude()
+                .when(!label, TooltipPositioner::occlude)
                 .on_position(move |resolved| {
                     geometry.placed.set(resolved.bounds);
                     geometry.side.set(resolved.placement);

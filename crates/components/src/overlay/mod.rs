@@ -4,7 +4,7 @@ mod tooltip;
 pub use menu::{Menu, MenuColor, MenuItem, MenuItemStyle, MenuSurfaceStyle};
 pub(crate) use tooltip::init as init_tooltip;
 pub use tooltip::{
-    Tooltip, TooltipCaret, TooltipColors, TooltipPlacement, TooltipPositioner, TooltipState,
+    Label, Tooltip, TooltipCaret, TooltipColors, TooltipPlacement, TooltipPositioner, TooltipState,
 };
 mod dialog;
 mod sheet;

@@ -379,7 +379,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `expressive-groups` | `ButtonGroup`、`SplitButton` | Standard 和 Connected 按钮组，以及内容、外观和激活行为各自独立的拆分按钮。 | [按钮组](https://m3.material.io/components/button-groups/overview) · [拆分按钮](https://m3.material.io/components/split-button/overview) |
 | `toolbars` | `FabMenu`、`Toolbar` | 悬浮操作菜单支持受控展开、触发器和操作项插槽及水平对齐。悬浮和停靠工具栏支持任意控件、外观和滚动行为配置。 | [悬浮操作菜单](https://m3.material.io/components/fab-menu/overview) · [工具栏](https://m3.material.io/components/toolbars/overview) |
 | `search` | `SearchBar`、`SearchView` | 收起的搜索栏及可自定义的 Docked、Full-screen 和 Contained 搜索视图。 | [搜索](https://m3.material.io/components/search/overview) |
-| `date-time` | `DatePicker`、`TimePicker`、`ScrollField` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input。时间选择支持 Dial、Input 和 12、24 小时制。支持独立的滚动选择字段。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
+| `date-time` | `DatePicker`、`TimePicker`、`TimePickerDialog`、`VibrantTimePickerDialog`、`TimePickerPanel`、`TimeScroll`、`ScrollField` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input。时间选择支持表盘、文本输入、循环滚动和 12、24 小时制。支持独立的滚动选择字段。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
 | `carousel` | `Carousel`、`CarouselParallax` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。 任意 GPUI 内容可使用独立滚动视差效果。 | [轮播](https://m3.material.io/components/carousel/overview) |
 
 ### 搜索
@@ -441,6 +441,18 @@ Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供
 使用 `.track_scroll(&handle)` 读取滚动视图的纵向偏移，或通过 `.scroll_state(&state)` 接入保留的 `Entity<ToolbarScrollState>`，并调用 `set_content_offset(offset, cx)`。同时设置时由滚动句柄提供偏移。使用从内容顶部起算的非负逻辑像素距离。`.scroll_behavior(ToolbarScrollBehavior)` 设置展开和收起阈值，默认从最后一次换向起各累计 40 dp。设置 `exit_direction` 后，向前滚动将工具栏移向逻辑 Start、End、Top 或 Bottom，反向滚动使其返回。工具栏保留布局占位，到达隐藏端点时移除其中的控件，内部控件持有焦点时保持可见。相邻的悬浮操作按钮保持可用。省略退出方向时，滚动只改变展开状态。
 
 可从保留的状态读取 `content_offset()`、`offset()`、`offset_limit()` 和 `collapsed_fraction()`。`offset()` 是朝指定边缘移动的非负距离。`set_collapsed_fraction(fraction, cx)` 立即应用位置。应用管理的手势结束时可调用 `settle(velocity, cx)`。正速度朝退出方向移动。惯性配置在指定时间内投影速度，并归位到最近的端点。用 `snap_motion` 和 `ToolbarFling::motion` 设置归位动效。新的滚动输入从当前显示位置中断归位。`.transition_motion(MotionSpec)` 控制插槽展开与高度层级动效。启用减少动态效果时直接应用目标状态。
+
+### 时间选择器
+
+`TimePicker::new(id, label, &state, value)` 提供打开标准对话框的触发按钮，每次打开都用应用已提交的值创建精确到分钟的草稿。默认使用表盘、24 小时制和自动布局。通过 `.variant(TimePickerVariant::Input)` 或 `.variant(TimePickerVariant::Scroll)` 设置初始模式，使用 `.format(TimeFormat::TwelveHour)` 启用上午和下午选择，使用 `.on_confirm(...)` 将确认的草稿应用到程序状态中。表盘支持自动、横向和纵向布局。两种窗口方向下表盘都按顺时针排列，字段顺序按窗口方向镜像。
+
+每个选择器通过 `cx.new(|cx| TimePickerState::new(window, cx))` 创建一个 `Entity<TimePickerState>`。独立挂载时，`TimePickerPanel::new(id, &state)` 使用状态中的模式，`TimePickerPanel::dial(id, &state)` 和 `TimePickerPanel::input(id, &state)` 分别固定显示表盘和输入面板，`TimeScroll::new(id, &state)` 显示两个鲜明配色的滚动字段。每个状态只挂载一个面板。用 `.layout(...)` 设置表盘布局，或用 `.mode_toggle_content(...)` 在独立输入或滚动字段旁放置切换控件。小时和分钟各自循环。每个字段有独立的无障碍名称、当前值、焦点和方向键操作。滚轮归位后将选中的值写入草稿。启用减少动效时立即归位。
+
+通过实体读取最近的有效 `value()`、`hour()`（0–23）、`minute()`（0–59）、`segment()`、`mode()` 和 `format()`。使用 `set_value`、`set_hour` 或 `set_minute` 从外部修改时间。越界数值会被拒绝，保留当前编辑值。使用 `set_segment`、`set_mode`、`set_format` 和 `set_locale` 改变呈现方式或活动字段。`TimePickerLocale` 可设置数字格式与解析、分隔符、字段与时段名称及验证消息。输入过程中，`hour_input(cx)` 和 `minute_input(cx)` 可以包含未完成的文本。用 `set_hour_input` 和 `set_minute_input` 可从外部写入本地化原始文本。每次有效编辑会更新对应的草稿分量。`is_pm()` 返回当前是否为下午，`is_hour_input_valid(cx)`、`is_minute_input_valid(cx)` 和 `is_input_valid(cx)` 分别检查小时、分钟和两者。切换到另一模式会从草稿恢复有效文本。
+
+应用自定义触发器可挂载 `TimePickerDialog::new(id, title, &state)` 或 `VibrantTimePickerDialog::new(id, name, &state)`，并在触发时调用 `state.open(value, window, cx)`。鲜明配色对话框采用表层容器色和大圆角。即使标题在视觉上隐藏，辅助技术也能读出其名称。两种对话框默认都根据保留的模式显示对应面板。通过 `.body(...)` 放入固定面板时，让保留的模式与面板匹配，使焦点和验证对应。用 `.body(...)` 放入自定义控件，`.title_content(...)` 替换可见标题，或用 `.mode_toggle_content(|action| ...)` 替换模式切换控件。调用该操作的 `activate(window, cx)` 切换模式并转移焦点。`.show_mode_toggle(false)` 和 `.show_dismiss(false)` 隐藏对应的默认控件。通过 `.confirm_content(|action| ...)` 和 `.dismiss_content(|action| ...)` 将自定义控件接入同一对话框流程。用 `.properties(...)` 配置 Escape 与外部点击关闭。`.on_dismiss_request(...)` 可以拒绝这些请求，`.on_close(...)` 在接受用户关闭时收到一次关闭原因。取消、Escape 和外部点击都不会确认。确认时如果存在无效输入，对话框保持打开，将对应字段标记为无效并聚焦首个无效字段。接受关闭后，Material 对话框会恢复先前的焦点。调用 `state.close(window, cx)` 可通过代码关闭，无需触发用户关闭回调。
+
+通过选择器、面板或对话框的 `.style(TimePickerStyle)` 覆盖时间字段与时段选择器的形状、面板和表盘的配色、表盘指针和标签、时间及上午下午的选中与未选中颜色、时段描边、描边文本字段的配色和滚动字段配色。省略的颜色及形状采用预设以及当前窗口主题。用对话框的 `.shape(...)` 和 `.colors(DialogColors)` 独立调整外壳。
 
 ### 滚动选择字段
 

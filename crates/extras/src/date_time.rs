@@ -18,7 +18,9 @@ pub use chrono::{NaiveDate, NaiveTime, Weekday};
 pub use date::{DatePicker, DatePickerLocale, DatePickerState, DatePickerVariant, DateSelection};
 pub use scroll_field::{ScrollField, ScrollFieldColors, ScrollFieldState};
 pub use time::{
-    TimeFormat, TimePicker, TimePickerLayout, TimePickerLocale, TimePickerState, TimePickerVariant,
+    TimeFormat, TimePicker, TimePickerDialog, TimePickerLayout, TimePickerLocale,
+    TimePickerModeAction, TimePickerPanel, TimePickerSegment, TimePickerSelectionColors,
+    TimePickerState, TimePickerStyle, TimePickerVariant, TimeScroll, VibrantTimePickerDialog,
 };
 
 type Confirm<T> = Rc<dyn Fn(T, &mut Window, &mut App)>;

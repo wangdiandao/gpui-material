@@ -16,7 +16,8 @@ use gpui_material_foundation::{
     color, window_material_theme,
 };
 use gpui_material_theme::{
-    ColorRole, CornerRole, MaterialTheme, MotionKind, MotionSpec, MotionSpeed, TypeRole,
+    ColorRole, CornerRole, CornerShape, MaterialTheme, MotionKind, MotionSpec, MotionSpeed,
+    TypeRole,
 };
 
 const HEIGHT: f32 = 200.;
@@ -338,6 +339,8 @@ pub struct ScrollField {
     state: Entity<ScrollFieldState>,
     disabled: bool,
     colors: ScrollFieldColors,
+    time_field_shape: Option<CornerShape>,
+    numeric_offset: usize,
     source: Option<Entity<InteractionSource>>,
     item: Option<ItemContent>,
     description: Option<ValueDescription>,
@@ -355,6 +358,8 @@ impl ScrollField {
             state: state.clone(),
             disabled: false,
             colors: ScrollFieldColors::default(),
+            time_field_shape: None,
+            numeric_offset: 0,
             source: None,
             item: None,
             description: None,
@@ -368,6 +373,12 @@ impl ScrollField {
 
     pub fn colors(mut self, colors: ScrollFieldColors) -> Self {
         self.colors = colors;
+        self
+    }
+
+    pub(super) fn time_field(mut self, shape: Option<CornerShape>, numeric_offset: usize) -> Self {
+        self.time_field_shape = shape;
+        self.numeric_offset = numeric_offset;
         self
     }
 
@@ -400,8 +411,11 @@ impl ScrollField {
 impl RenderOnce for ScrollField {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = window_material_theme(window, cx);
-        let corner = CornerRole::Large.shape();
+        let corner = self
+            .time_field_shape
+            .unwrap_or_else(|| CornerRole::Large.shape());
         let direction = theme.layout.direction;
+        let [tl, tr, br, bl] = corner.radii(HEIGHT, HEIGHT, direction).map(px);
         let ring = color(theme.colors.color(ColorRole::Secondary));
         let motion_spec =
             theme
@@ -442,6 +456,7 @@ impl RenderOnce for ScrollField {
                 .map(|source| InteractionSource::track(source, &self.id, window, cx)),
             state: self.state,
             feedback,
+            numeric_offset: self.numeric_offset,
         };
         let mut interaction = input.feedback.get();
         if !enabled || !window.is_window_active() {
@@ -505,7 +520,10 @@ impl RenderOnce for ScrollField {
             .h(px(HEIGHT))
             .flex_none()
             .overflow_hidden()
-            .rounded(px(corner.radii(HEIGHT, HEIGHT, direction)[0]))
+            .rounded_tl(tl)
+            .rounded_tr(tr)
+            .rounded_br(br)
+            .rounded_bl(bl)
             .bg(container)
             .role(Role::Slider)
             .aria_label(self.name)
@@ -513,9 +531,9 @@ impl RenderOnce for ScrollField {
             .when_some(label, |field, label| {
                 field
                     .aria_value(label)
-                    .aria_numeric_value(target as f64)
-                    .aria_min_numeric_value(0.)
-                    .aria_max_numeric_value((count - 1) as f64)
+                    .aria_numeric_value(target as f64 + self.numeric_offset as f64)
+                    .aria_min_numeric_value(self.numeric_offset as f64)
+                    .aria_max_numeric_value((count - 1) as f64 + self.numeric_offset as f64)
                     .aria_numeric_value_step(1.)
             })
             .when(!enabled, |field| {
@@ -553,6 +571,7 @@ impl RenderOnce for ScrollField {
 struct Input {
     state: Entity<ScrollFieldState>,
     feedback: Rc<Cell<InteractionState>>,
+    numeric_offset: usize,
     tracker: Option<InteractionTracker>,
 }
 
@@ -581,6 +600,7 @@ impl Input {
         let increment = self.state.clone();
         let decrement = self.state.clone();
         let set_value = self.state.clone();
+        let numeric_offset = self.numeric_offset as f64;
         field
             .on_scroll(move |event, window, cx| {
                 if scroll
@@ -637,7 +657,11 @@ impl Input {
                 };
                 if let Some(value) = value.filter(|value| value.is_finite()) {
                     set_value.update(cx, |state, cx| {
-                        state.animate_to(value.round() as usize, ScrollOrigin::Interaction, cx)
+                        state.animate_to(
+                            (value - numeric_offset).round() as usize,
+                            ScrollOrigin::Interaction,
+                            cx,
+                        )
                     });
                 }
             })

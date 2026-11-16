@@ -13,7 +13,9 @@ pub use dialog::{
     Dialog, DialogAction, DialogCloseReason, DialogColors, DialogProperties, DialogState,
     DialogVariant,
 };
-pub use sheet::{Sheet, SheetEdge, SheetMode};
+pub use sheet::{
+    Sheet, SheetClose, SheetColors, SheetEdge, SheetMargins, SheetMode, SheetPlacement,
+};
 mod snackbar;
 
 pub use snackbar::{

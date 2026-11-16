@@ -3,7 +3,7 @@ use std::{collections::HashMap, rc::Rc};
 use gpui::{
     AccessibleAction, AnyElement, App, ElementId, Entity, FocusHandle, Hsla, InteractiveElement,
     IntoElement, ParentElement, RenderOnce, Role, ScrollHandle, SharedString,
-    StatefulInteractiveElement, Styled, TextAlign, Window, div, prelude::FluentBuilder, px,
+    StatefulInteractiveElement, Styled, TextAlign, Window, canvas, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{Button, TestSupportExt};
 use gpui_material_foundation::{
@@ -15,6 +15,9 @@ use gpui_material_theme::{
     ColorRole, Direction, MotionKind, MotionSpeed, TypeRole, TypographyEmphasis,
 };
 
+use super::tabs::{
+    TabDecoration, TabIndicatorTarget, TabOptions, TabReveal, TabVariant, decorative_slot,
+};
 use crate::{Badge, Icon};
 
 /// Placement of a navigation item's icon relative to its label.
@@ -75,13 +78,13 @@ impl NavigationItem {
         self
     }
 
-    /// Overrides the icon placement inherited from the short navigation bar.
+    /// Overrides icon placement in a tab or short navigation bar.
     pub fn icon_position(mut self, position: NavigationItemIconPosition) -> Self {
         self.icon_position = Some(position);
         self
     }
 
-    /// Replaces the visible bar label while retaining the destination's accessible name.
+    /// Replaces a visible tab or bar label while retaining the accessible name.
     pub fn label_content(mut self, content: impl IntoElement) -> Self {
         self.label_content = Some(content.into_any_element());
         self
@@ -94,13 +97,13 @@ impl NavigationItem {
         self
     }
 
-    /// Sets per-state pigments for this short navigation bar destination.
+    /// Sets per-state pigments for this tab or short navigation bar destination.
     pub fn colors(mut self, colors: NavigationItemColors) -> Self {
         self.colors = colors;
         self
     }
 
-    /// Observes the short navigation bar destination using its collection ID and item ID.
+    /// Observes this tab or bar destination using its collection ID and item ID.
     pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
         self.interaction_source = Some(source.clone());
         self
@@ -174,51 +177,6 @@ impl NavigationItems {
         window.use_keyed_state((self.id.clone(), "navigation-state"), cx, |_, _| {
             RowState::default()
         })
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum TabVariant {
-    #[default]
-    Primary,
-    Secondary,
-}
-
-/// A fixed Material tab row by default. Enable scrolling for long tab lists.
-#[derive(IntoElement)]
-pub struct Tabs {
-    items: NavigationItems,
-    variant: TabVariant,
-    scrollable: bool,
-}
-
-impl Tabs {
-    pub fn new(items: NavigationItems) -> Self {
-        Self {
-            items,
-            variant: TabVariant::Primary,
-            scrollable: false,
-        }
-    }
-
-    pub fn variant(mut self, variant: TabVariant) -> Self {
-        self.variant = variant;
-        self
-    }
-
-    pub fn scrollable(mut self, scrollable: bool) -> Self {
-        self.scrollable = scrollable;
-        self
-    }
-}
-
-impl RenderOnce for Tabs {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        self.items.render_row(
-            Presentation::Tabs(self.variant, self.scrollable),
-            window,
-            cx,
-        )
     }
 }
 
@@ -360,6 +318,7 @@ struct RowState {
     horizontal_scroll: ScrollHandle,
     vertical_scroll: ScrollHandle,
     reveal: Option<(Presentation, Direction, SharedString, usize)>,
+    tab_reveal: TabReveal,
 }
 
 impl NavigationItems {
@@ -369,17 +328,32 @@ impl NavigationItems {
         window: &mut Window,
         cx: &mut App,
     ) -> AnyElement {
+        self.render_row_with_tabs(presentation, None, window, cx)
+    }
+
+    pub(super) fn render_row_with_tabs(
+        self,
+        presentation: Presentation,
+        mut tabs: Option<TabOptions>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> AnyElement {
         let theme = window_material_theme(window, cx);
         let rtl = theme.layout.direction == Direction::Rtl;
         let direction = theme.layout.direction;
         let density = theme.layout.density;
         let tone = |role| color(theme.colors.color(role));
         let ring = tone(ColorRole::Secondary);
+        let indicator_color = tone(ColorRole::Primary);
         let state_layer = tone(ColorRole::OnSurface);
-        let divider = tone(ColorRole::SurfaceVariant);
+        let tab_colors = tabs.as_ref().map(|tabs| tabs.colors).unwrap_or_default();
+        let divider = tab_colors
+            .divider
+            .unwrap_or_else(|| tone(ColorRole::SurfaceVariant));
         let bar_colors = presentation.bar_colors();
         let background = bar_colors
             .and_then(|colors| colors.container)
+            .or(tab_colors.container)
             .unwrap_or_else(|| {
                 tone(if bar_colors.is_some() {
                     ColorRole::SurfaceContainer
@@ -390,7 +364,10 @@ impl NavigationItems {
         let rail = presentation.is_rail();
         let tab = presentation.is_tab();
         let scrollable = presentation.is_scrollable();
-        let has_icons = self.items.iter().any(|item| item.icon.is_some());
+        let has_icons = self.items.iter().any(|item| {
+            item.icon.is_some()
+                && (!tab || item.icon_position != Some(NavigationItemIconPosition::Start))
+        });
         let height = px(density.interactive_size(presentation.minimum_height(has_icons)));
         let state = self
             .state
@@ -415,6 +392,11 @@ impl NavigationItems {
             };
             (state.focus.clone(), scroll.clone())
         });
+        let scroll = tabs
+            .as_ref()
+            .filter(|_| scrollable)
+            .and_then(|tabs| tabs.scroll.clone())
+            .unwrap_or(scroll);
         let enabled: Vec<_> = self
             .items
             .iter()
@@ -433,27 +415,88 @@ impl NavigationItems {
         if rtl && !rail {
             items.reverse();
         }
-        let reveal_target = if state.read(cx).selection.as_ref() != selected {
-            selected.or_else(|| focused.map(|(id, _)| id))
+        let focused_id = focused.map(|(id, _)| id);
+        let reveal_index = if tab && scrollable {
+            state.update(cx, |state, _| {
+                state.tab_reveal.choose(
+                    selected,
+                    focused_id,
+                    items.iter().map(|item| item.id.clone()).collect(),
+                    &scroll,
+                )
+            })
         } else {
-            focused.map(|(id, _)| id).or(selected)
+            state.update(cx, |state, _| {
+                let reveal_target = if state.selection.as_ref() != selected {
+                    selected.or(focused_id)
+                } else {
+                    focused_id.or(selected)
+                };
+                let reveal = reveal_target.and_then(|id| {
+                    items
+                        .iter()
+                        .position(|item| &item.id == id)
+                        .map(|index| (presentation, direction, id.clone(), index))
+                });
+                if scrollable
+                    && state.reveal != reveal
+                    && let Some((_, _, _, index)) = &reveal
+                {
+                    scroll.scroll_to_item(*index);
+                }
+                state.reveal = reveal;
+                state.selection = self.selected.clone();
+                state.tab_reveal = TabReveal::default();
+            });
+            None
         };
-        let reveal = reveal_target.and_then(|id| {
-            items
+        let custom_indicator = tabs
+            .as_ref()
+            .is_some_and(|tabs| tabs.indicator_style.is_some() || tabs.indicator_content.is_some());
+        let custom_divider = tabs.as_mut().and_then(|tabs| tabs.divider.take());
+        let decoration = tabs.as_mut().and_then(|tabs| {
+            let Presentation::Tabs(variant, _) = presentation else {
+                return None;
+            };
+            let (index, item) = items
                 .iter()
-                .position(|item| &item.id == id)
-                .map(|index| (presentation, direction, id.clone(), index))
-        });
-        state.update(cx, |state, _| {
-            if scrollable
-                && state.reveal != reveal
-                && let Some((_, _, _, index)) = &reveal
-            {
-                scroll.scroll_to_item(*index);
+                .enumerate()
+                .find(|(_, item)| selected == Some(&item.id))?;
+            if !custom_indicator {
+                return None;
             }
-            state.reveal = reveal;
-            state.selection = self.selected.clone();
+            let style = tabs.indicator_style.unwrap_or_default();
+            let tint = item
+                .colors
+                .selected_indicator
+                .or(style.color)
+                .unwrap_or(indicator_color);
+            Some((
+                index,
+                TabDecoration {
+                    row: self.id.clone(),
+                    selected: item.id.clone(),
+                    variant,
+                    direction,
+                    target: Rc::new(TabIndicatorTarget::default()),
+                    scroll: scrollable.then(|| scroll.clone()),
+                    style,
+                    content: tabs.indicator_content.take(),
+                    color: tint.opacity(if item.disabled { 0.38 } else { 1. }),
+                    has_default_divider: custom_divider.is_none(),
+                },
+            ))
         });
+        let indicator_target = decoration
+            .as_ref()
+            .map(|(index, decoration)| (*index, decoration.target.clone()));
+        let width = window.viewport_size().width;
+        let edge_padding = tabs
+            .as_ref()
+            .map_or(px(52.), |tabs| tabs.edge_padding.min(width / 2.));
+        let min_tab_width = tabs
+            .as_ref()
+            .map_or(px(90.), |tabs| tabs.min_tab_width.min(width.max(px(90.))));
         let count = items.len();
         let centered_widths = (presentation.centered() && count > 0).then(|| {
             // Compose reserves side space for short labels, while capping wider
@@ -463,6 +506,24 @@ impl NavigationItems {
             (gpui::relative(share * group), gpui::relative(share))
         });
         let row = div()
+            .when(tab && (scrollable || indicator_target.is_some()), |row| {
+                let scroll = scroll.clone();
+                let indicator_target = indicator_target.clone();
+                row.on_children_prepainted(move |bounds, window, cx| {
+                    if let Some((index, target)) = &indicator_target {
+                        target.tab_bounds.set(if scrollable {
+                            scroll.bounds_for_item(*index)
+                        } else {
+                            bounds.get(*index).copied()
+                        });
+                    }
+                    if let Some(index) = reveal_index {
+                        state.update(cx, |state, _| {
+                            state.tab_reveal.observe_geometry(index, &scroll, window)
+                        });
+                    }
+                })
+            })
             .id(self.id.clone())
             .test_support()
             .role(if tab { Role::TabList } else { Role::ListBox })
@@ -480,13 +541,20 @@ impl NavigationItems {
                         .overflow_y_scroll()
                         .occlude()
                 },
-                |row| row.flex_row().flex_none().min_h(height).bg(background),
+                |row| {
+                    row.flex_row()
+                        .flex_none()
+                        .min_h(height)
+                        .when(custom_divider.is_none(), |row| row.bg(background))
+                },
             )
-            .when(tab, |row| row.border_b_1().border_color(divider))
+            .when(tab && custom_divider.is_none(), |row| {
+                row.border_b_1().border_color(divider)
+            })
             .when(centered_widths.is_some(), Styled::justify_center)
             .when(scrollable && !rail, |row| row.overflow_x_scroll())
             .when(matches!(presentation, Presentation::Tabs(_, true)), |row| {
-                row.px(px(52.))
+                row.px(edge_padding)
             })
             .when(scrollable, |row| row.track_scroll(&scroll))
             .on_key_down(move |event, window, cx| {
@@ -507,24 +575,41 @@ impl NavigationItems {
                     cx.stop_propagation();
                 }
             });
-        row.children(items.into_iter().enumerate().map(|(index, mut item)| {
+        let row = row.children(items.into_iter().enumerate().map(|(index, mut item)| {
             let selected = selected == Some(&item.id);
+            let styled_item = bar_colors.is_some()
+                || tab
+                    && (tab_colors.content.is_some()
+                        || item.colors != NavigationItemColors::default());
             let visual = ItemVisual {
                 presentation,
                 selected,
                 height,
                 rtl,
                 font_scale: self.font_scale,
+                tab_content: tab_colors.content,
+                styled_item,
+                custom_indicator,
+                indicator_target: indicator_target
+                    .as_ref()
+                    .and_then(|(selected_index, target)| {
+                        (*selected_index == index).then(|| target.clone())
+                    }),
             };
             let handle = &focus[&item.id];
             let is_tab_stop = tab_stop.as_ref() == Some(&item.id);
             let id = (self.id.clone(), item.id.clone()).into();
-            let description = bar_colors
-                .and(item.badge.as_mut())
+            let customize_item = tab || bar_colors.is_some();
+            let description = item
+                .badge
+                .as_mut()
+                .filter(|_| customize_item)
                 .and_then(Badge::take_accessible_label);
             let content = visual.render(&id, &mut item, window, cx);
-            let feedback = bar_colors
-                .and(item.interaction_source.as_ref())
+            let feedback = item
+                .interaction_source
+                .as_ref()
+                .filter(|_| customize_item)
                 .map(|source| {
                     let feedback = ripple_state(&id, !item.disabled, window, cx);
                     let tracker = InteractionSource::track(source, &id, window, cx);
@@ -558,7 +643,7 @@ impl NavigationItems {
                     |button| {
                         button.flex_1().when(
                             matches!(presentation, Presentation::Tabs(_, true)),
-                            |button| button.flex_none().min_w(px(90.)),
+                            |button| button.flex_none().min_w(min_tab_width),
                         )
                     },
                 )
@@ -591,14 +676,32 @@ impl NavigationItems {
                                 })
                         })
                 })
-                .opacity(if item.disabled && bar_colors.is_none() {
+                .opacity(if item.disabled && !styled_item {
                     0.38
                 } else {
                     1.
                 })
                 .child(content)
-        }))
-        .into_any_element()
+        }));
+        if custom_divider.is_some() || decoration.is_some() {
+            div()
+                .relative()
+                .w_full()
+                .min_w_0()
+                .when(custom_divider.is_some(), |host| host.bg(background))
+                .children(custom_divider.map(|divider| {
+                    decorative_slot((self.id.clone(), "custom-divider").into(), divider)
+                        .absolute()
+                        .left_0()
+                        .right_0()
+                        .bottom_0()
+                }))
+                .child(row)
+                .children(decoration.map(|(_, decoration)| decoration.element()))
+                .into_any_element()
+        } else {
+            row.into_any_element()
+        }
     }
 }
 
@@ -621,6 +724,10 @@ struct ItemVisual {
     height: gpui::Pixels,
     rtl: bool,
     font_scale: f32,
+    tab_content: Option<Hsla>,
+    styled_item: bool,
+    custom_indicator: bool,
+    indicator_target: Option<Rc<TabIndicatorTarget>>,
 }
 
 impl ItemVisual {
@@ -648,26 +755,26 @@ impl ItemVisual {
             foreground
         };
         let bar = self.presentation.bar_colors();
-        let in_bar = bar.is_some();
-        let horizontal = bar.and(item.icon_position).map_or_else(
+        let tab = self.presentation.is_tab();
+        let customize_item = bar.is_some() || tab;
+        let fallback = bar.and_then(|colors| colors.content).or(self.tab_content);
+        let horizontal = item.icon_position.filter(|_| customize_item).map_or_else(
             || self.presentation.horizontal_label(),
             |position| position == NavigationItemIconPosition::Start,
         );
-        let (icon_color, label_color, selected_indicator) = if let Some(bar) = bar {
+        let (icon_color, label_color, selected_indicator) = if self.styled_item {
             let colors = item.colors;
             let resolve = |selected: Option<Hsla>,
                            unselected: Option<Hsla>,
                            disabled: Option<Hsla>,
                            active_role| {
                 let unselected = unselected
-                    .or(bar.content)
+                    .or(fallback)
                     .unwrap_or_else(|| tone(ColorRole::OnSurfaceVariant));
                 if item.disabled {
                     disabled.unwrap_or_else(|| unselected.opacity(0.38))
                 } else if self.selected {
-                    selected
-                        .or(bar.content)
-                        .unwrap_or_else(|| tone(active_role))
+                    selected.or(fallback).unwrap_or_else(|| tone(active_role))
                 } else {
                     unselected
                 }
@@ -703,20 +810,31 @@ impl ItemVisual {
                 tone(ColorRole::SecondaryContainer),
             )
         };
-        let indicator = tone(ColorRole::Primary);
+        let indicator = item
+            .colors
+            .selected_indicator
+            .unwrap_or_else(|| tone(ColorRole::Primary))
+            .opacity(if item.disabled && self.styled_item {
+                0.38
+            } else {
+                1.
+            });
         let motion = theme
             .motion
             .spec(MotionKind::Effects, MotionSpeed::Fast, cx.reduce_motion());
-        let selection = animate(
-            (id.clone(), "indicator"),
-            f32::from(self.selected),
-            motion,
-            window,
-            cx,
-        )
-        .clamp(0., 1.);
+        let selection = if self.custom_indicator {
+            0.
+        } else {
+            animate(
+                (id.clone(), "indicator"),
+                f32::from(self.selected),
+                motion,
+                window,
+                cx,
+            )
+            .clamp(0., 1.)
+        };
         let rail = self.presentation.is_rail();
-        let tab = self.presentation.is_tab();
         let text_role = if tab {
             TypeRole::TitleSmall
         } else if rail && horizontal {
@@ -738,20 +856,27 @@ impl ItemVisual {
         } else {
             TextAlign::Left
         });
-        label = if let Some(content) = item.label_content.take().filter(|_| in_bar) {
-            label.child(
-                div()
-                    .id((id.clone(), "visual-label"))
-                    .role(Role::Group)
-                    .a11y_synthetic_children(|tree| tree.parent_node().set_hidden())
-                    .child(content),
-            )
+        label = if let Some(content) = item.label_content.take().filter(|_| customize_item) {
+            if tab {
+                label.child(decorative_slot(
+                    (id.clone(), "visual-label").into(),
+                    content,
+                ))
+            } else {
+                label.child(
+                    div()
+                        .id((id.clone(), "visual-label"))
+                        .role(Role::Group)
+                        .a11y_synthetic_children(|tree| tree.parent_node().set_hidden())
+                        .child(content),
+                )
+            }
         } else {
             label.child(item.label.clone())
         };
-        let mut badge = item.badge.take().filter(|_| in_bar);
+        let mut badge = item.badge.take().filter(|_| customize_item);
         let icon = item.icon.take().map(|icon| {
-            let icon = if in_bar {
+            let icon = if self.styled_item {
                 icon.inherit_color()
             } else {
                 icon.color(icon_role)
@@ -784,6 +909,7 @@ impl ItemVisual {
         } else {
             label.into_any_element()
         };
+        let padding = px(if horizontal { 16. } else { 4. });
         let content = div()
             .relative()
             .min_w_0()
@@ -794,18 +920,33 @@ impl ItemVisual {
                 horizontal,
                 |content| {
                     content
-                        .gap(px(if rail { 8. } else { 4. }))
+                        .gap(px(if rail || tab { 8. } else { 4. }))
                         .when(self.rtl, Styled::flex_row_reverse)
-                        .px(px(16.))
-                        .min_h(px(if rail { 56. } else { 40. }))
-                        .rounded_full()
-                        .bg(selected_indicator.opacity(selection))
+                        .when(!tab, |content| {
+                            content
+                                .min_h(px(if rail { 56. } else { 40. }))
+                                .rounded_full()
+                                .bg(selected_indicator.opacity(selection))
+                        })
                         .when(rail, |content| content.w_full())
                 },
-                |content| content.flex_col().justify_center().gap(px(4.)).px(px(4.)),
+                |content| content.flex_col().justify_center().gap(px(4.)),
             )
+            .px(padding)
             .children(icon)
-            .child(label);
+            .child(label)
+            .children(self.indicator_target.map(|target| {
+                canvas(
+                    move |bounds, _, _| {
+                        target
+                            .content_width
+                            .set((bounds.size.width - padding * 2.).max(px(0.)))
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .inset_0()
+            }));
         div()
             .relative()
             .flex()
@@ -815,7 +956,7 @@ impl ItemVisual {
             .items_center()
             .justify_center()
             .child(content)
-            .when(tab, |body| {
+            .when(tab && !self.custom_indicator, |body| {
                 body.child(
                     div()
                         .absolute()

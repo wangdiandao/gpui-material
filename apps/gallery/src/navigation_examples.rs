@@ -4,10 +4,11 @@ use gpui::{
 };
 use gpui_material::{
     AppBar, AppBarAlignment, AppBarItem, AppBarRow, AppBarScrollBehavior, AppBarScrollState,
-    AppBarVariant, Badge, Button, ButtonVariant, DialogState, Fab, Icon, IconButton, IconName,
-    NavigationBar, NavigationBarArrangement, NavigationBarLayout, NavigationItem,
-    NavigationItemIconPosition, NavigationItems, NavigationRail, RailMode, TabVariant, Tabs, Text,
-    theme::TypeRole,
+    AppBarVariant, Badge, Button, ButtonVariant, DialogState, Divider, Fab, Icon, IconButton,
+    IconName, NavigationBar, NavigationBarArrangement, NavigationBarLayout, NavigationItem,
+    NavigationItemIconPosition, NavigationItems, NavigationRail, RailMode, TabIndicatorStyle,
+    TabIndicatorWidth, TabVariant, Tabs, Text,
+    theme::{CornerShape, TypeRole},
 };
 
 use crate::story::{Story, section, stack};
@@ -17,6 +18,9 @@ mod app_bar_tests;
 
 #[cfg(all(test, feature = "test-support"))]
 mod bar_tests;
+
+#[cfg(all(test, feature = "test-support"))]
+mod tabs_tests;
 
 const DESTINATIONS: &[(&str, &str, IconName)] = &[
     ("inbox", "Inbox", IconName::Inbox),
@@ -34,6 +38,7 @@ pub(crate) struct NavigationExamples {
     font_scale: f32,
     modal: Entity<DialogState>,
     scroll: ScrollHandle,
+    tab_scroll: ScrollHandle,
     app_bar_scroll: Entity<AppBarScrollState>,
 }
 
@@ -46,6 +51,7 @@ impl NavigationExamples {
             font_scale: 1.,
             modal: cx.new(DialogState::new),
             scroll: ScrollHandle::new(),
+            tab_scroll: ScrollHandle::new(),
             app_bar_scroll: cx.new(|_| AppBarScrollState::new()),
         }
     }
@@ -83,6 +89,29 @@ impl NavigationExamples {
     }
 
     fn tabs(&self, cx: &mut Context<Self>) -> AnyElement {
+        let custom = NavigationItems::new(
+            "workspace-tabs",
+            "Workspace tabs",
+            [
+                NavigationItem::new("inbox", "Messages")
+                    .icon(Icon::new(IconName::Inbox))
+                    .icon_position(NavigationItemIconPosition::Start)
+                    .badge(
+                        Badge::standalone()
+                            .content("workspace-count", "3")
+                            .accessible_label("workspace-status", "3 unread messages"),
+                    ),
+                NavigationItem::new("favorites", "Starred").disabled(true),
+                NavigationItem::new("archive", "Shared papers")
+                    .label_content(div().child("Shared papers")),
+            ],
+        )
+        .selected(self.selected.clone())
+        .font_scale(self.font_scale)
+        .on_select(cx.listener(|this, id: &SharedString, _, cx| {
+            this.selected = id.clone();
+            cx.notify();
+        }));
         stack()
             .child(section("Fixed primary").child(Tabs::new(self.items(
                 "fixed-primary",
@@ -123,6 +152,23 @@ impl NavigationExamples {
                             .scrollable(true),
                         ),
                     ),
+            )
+            .child(
+                section("Scrolling secondary").child(
+                    Tabs::new(custom)
+                        .variant(TabVariant::Secondary)
+                        .scrollable(true)
+                        .scroll_handle(&self.tab_scroll)
+                        .edge_padding(px(12.))
+                        .min_tab_width(px(112.))
+                        .divider(Divider::horizontal())
+                        .indicator_style(TabIndicatorStyle {
+                            width: TabIndicatorWidth::Content,
+                            height: Some(px(3.)),
+                            shape: Some(CornerShape::Full),
+                            ..Default::default()
+                        }),
+                ),
             )
             .into_any_element()
     }

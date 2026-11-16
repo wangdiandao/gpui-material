@@ -12,6 +12,7 @@ use gpui_material::{
     foundation::isolated_scroll, theme::TypeRole,
 };
 
+mod multi_pane;
 #[cfg(all(test, feature = "test-support"))]
 mod scaffold_tests;
 
@@ -20,6 +21,7 @@ enum Destination {
     Inbox,
     Activity,
     Feed,
+    Review,
 }
 
 impl Destination {
@@ -28,6 +30,7 @@ impl Destination {
             Self::Inbox => "adaptive-inbox",
             Self::Activity => "adaptive-activity",
             Self::Feed => "adaptive-feed",
+            Self::Review => "adaptive-review",
         }
     }
 }
@@ -48,6 +51,7 @@ pub(crate) struct AdaptiveExamples {
     activity_focus: FocusHandle,
     support_focus: FocusHandle,
     snackbar: Entity<SnackbarHost>,
+    review: Entity<multi_pane::ReviewExample>,
 }
 
 impl AdaptiveExamples {
@@ -68,6 +72,7 @@ impl AdaptiveExamples {
             activity_focus: cx.focus_handle(),
             support_focus: cx.focus_handle(),
             snackbar: cx.new(|_| SnackbarHost::default()),
+            review: cx.new(multi_pane::ReviewExample::new),
         }
     }
 
@@ -161,6 +166,7 @@ impl AdaptiveExamples {
             Destination::Inbox => "Inbox",
             Destination::Activity => "Activity",
             Destination::Feed => "Feed",
+            Destination::Review => "Review",
         };
         let app_bar = AppBar::new("adaptive-app-bar", title);
         let owner = cx.weak_entity();
@@ -237,11 +243,13 @@ impl Render for AdaptiveExamples {
             Destination::Inbox => self.inbox(inner_width, cx).into_any_element(),
             Destination::Activity => self.activity(inner_width).into_any_element(),
             Destination::Feed => self.feed(inner_width).into_any_element(),
+            Destination::Review => self.review.clone().into_any_element(),
         };
         let destinations = [
             (Destination::Inbox, "Inbox", IconName::Inbox),
             (Destination::Activity, "Activity", IconName::Notifications),
             (Destination::Feed, "Feed", IconName::Description),
+            (Destination::Review, "Review", IconName::Search),
         ];
         let items = NavigationItems::new(
             "adaptive-destinations",

@@ -3,12 +3,16 @@ use gpui::{
     Render, ScrollHandle, SharedString, StatefulInteractiveElement, Styled, Window, div, px,
 };
 use gpui_material::{
-    AppBar, AppBarVariant, Button, ButtonVariant, DialogState, Fab, Icon, IconButton, IconName,
+    AppBar, AppBarAlignment, AppBarItem, AppBarRow, AppBarScrollBehavior, AppBarScrollState,
+    AppBarVariant, Button, ButtonVariant, DialogState, Fab, Icon, IconButton, IconName,
     NavigationBar, NavigationBarLayout, NavigationItem, NavigationItems, NavigationRail, RailMode,
     TabVariant, Tabs, Text, theme::TypeRole,
 };
 
 use crate::story::{Story, section, stack};
+
+#[cfg(all(test, feature = "test-support"))]
+mod app_bar_tests;
 
 const DESTINATIONS: &[(&str, &str, IconName)] = &[
     ("inbox", "Inbox", IconName::Inbox),
@@ -26,6 +30,7 @@ pub(crate) struct NavigationExamples {
     font_scale: f32,
     modal: Entity<DialogState>,
     scroll: ScrollHandle,
+    app_bar_scroll: Entity<AppBarScrollState>,
 }
 
 impl NavigationExamples {
@@ -37,6 +42,7 @@ impl NavigationExamples {
             font_scale: 1.,
             modal: cx.new(DialogState::new),
             scroll: ScrollHandle::new(),
+            app_bar_scroll: cx.new(|_| AppBarScrollState::new()),
         }
     }
 
@@ -252,6 +258,41 @@ impl NavigationExamples {
                 ),
             )
             .child(
+                section("Two rows and responsive actions").child(
+                    AppBar::new("two-row-app-bar", "Project workspace")
+                        .variant(AppBarVariant::TwoRows)
+                        .title_max_lines(2)
+                        .subtitle_content(div().child("Design and engineering"))
+                        .subtitle_alignment(AppBarAlignment::End)
+                        .expanded_height(px(152.))
+                        .logo(Icon::new(IconName::Description).size(px(22.)))
+                        .actions(
+                            AppBarRow::new(
+                                "workspace-app-bar-actions",
+                                [
+                                    AppBarItem::clickable(
+                                        "workspace-favorite",
+                                        "Favorite workspace",
+                                        || Icon::new(IconName::Favorite),
+                                    ),
+                                    AppBarItem::clickable(
+                                        "workspace-notifications",
+                                        "Workspace notifications",
+                                        || Icon::new(IconName::Notifications),
+                                    ),
+                                    AppBarItem::clickable(
+                                        "workspace-details",
+                                        "Workspace details",
+                                        || Icon::new(IconName::Info),
+                                    ),
+                                ],
+                            )
+                            .max_item_count(2)
+                            .overflow_label("More workspace actions"),
+                        ),
+                ),
+            )
+            .child(
                 section("Large flexible")
                     .description("Scroll the example content to collapse the app bar.")
                     .child(
@@ -282,7 +323,9 @@ impl NavigationExamples {
                                         },
                                     ),
                                 )
-                                .track_scroll(&self.scroll),
+                                .track_scroll(&self.scroll)
+                                .scroll_state(&self.app_bar_scroll)
+                                .scroll_behavior(AppBarScrollBehavior::EnterAlways),
                             )
                             .child(
                                 div()

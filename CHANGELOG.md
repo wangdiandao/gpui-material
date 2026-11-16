@@ -10,6 +10,7 @@ See [versioning and releases](docs/release.md) for the release process.
 - Add display-only scrollbars with per-axis viewport tracking, custom geometry and colors, and configurable fading.
 - Configure carousel layout and fling behavior, read and control the retained item position, and apply standalone scroll parallax to custom content.
 - Customize Snackbar content, controls, layout, and appearance, and observe action or dismissal results from the queue.
+- Add customizable TwoRows app bars, logical multiline headings and logo slots, retained scroll strategies, and responsive app bar action rows and columns.
 - Compose Chips with custom content and Input avatars, apply Expressive Tonal presets and per-state appearance, and observe their interactions.
 - Reverse vertical sliders and customize tracks, individual handles, colors, markers, value indicators, and interaction observation.
 - Customize linear and circular progress strokes, gaps, and wave motion, and resize or replace the linear stop marker.

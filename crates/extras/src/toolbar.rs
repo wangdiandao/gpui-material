@@ -20,7 +20,9 @@ type Expand = Rc<dyn Fn(bool, &mut Window, &mut App)>;
 
 mod bar;
 pub use bar::{
-    Toolbar, ToolbarAction, ToolbarColor, ToolbarFabPosition, ToolbarOrientation, ToolbarPlacement,
+    Toolbar, ToolbarAction, ToolbarArrangement, ToolbarColor, ToolbarColors, ToolbarElevations,
+    ToolbarExitDirection, ToolbarFabPosition, ToolbarFling, ToolbarOrientation, ToolbarPadding,
+    ToolbarPlacement, ToolbarScrollBehavior, ToolbarScrollState,
 };
 
 /// An individually labeled FAB menu action. Supply a stable id for each item.

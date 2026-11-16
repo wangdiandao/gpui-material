@@ -99,8 +99,8 @@
   en: "f749e65450d351e3"
   zh: "fdbeaa7d7dfdc868"
 /components/optional-components:
-  en: "124d0a3b0acc640b"
-  zh: "5d28ade9f980f6a9"
+  en: "eba2a94b6b86c004"
+  zh: "b574eb030ad33dbd"
 /components/optional-components/button-groups:
   en: "6cdd2b7bf5b2a013"
   zh: "95837a482620b6cb"
@@ -110,6 +110,9 @@
 /components/optional-components/fab-menus:
   en: "a5d840d969ad243a"
   zh: "8e22b7c51755c7fa"
+/components/optional-components/toolbars:
+  en: "be4f9791b41356d4"
+  zh: "5ef25bbf22730ef0"
 /components/optional-components/scroll-fields:
   en: "5881f1d730e7138a"
   zh: "a30907506d331a76"

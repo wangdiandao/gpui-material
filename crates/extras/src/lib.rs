@@ -28,6 +28,7 @@ mod toolbar;
 #[cfg(feature = "toolbars")]
 pub use toolbar::{
     FabMenu, FabMenuAlignment, FabMenuItem, FabMenuItemColors, FabMenuTriggerAppearance,
-    FabMenuTriggerStyle, Toolbar, ToolbarAction, ToolbarColor, ToolbarFabPosition,
-    ToolbarOrientation, ToolbarPlacement,
+    FabMenuTriggerStyle, Toolbar, ToolbarAction, ToolbarArrangement, ToolbarColor, ToolbarColors,
+    ToolbarElevations, ToolbarExitDirection, ToolbarFabPosition, ToolbarFling, ToolbarOrientation,
+    ToolbarPadding, ToolbarPlacement, ToolbarScrollBehavior, ToolbarScrollState,
 };

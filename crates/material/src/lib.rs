@@ -21,8 +21,9 @@ pub use gpui_material_extras::{
 #[cfg(feature = "toolbars")]
 pub use gpui_material_extras::{
     FabMenu, FabMenuAlignment, FabMenuItem, FabMenuItemColors, FabMenuTriggerAppearance,
-    FabMenuTriggerStyle, Toolbar, ToolbarAction, ToolbarColor, ToolbarFabPosition,
-    ToolbarOrientation, ToolbarPlacement,
+    FabMenuTriggerStyle, Toolbar, ToolbarAction, ToolbarArrangement, ToolbarColor, ToolbarColors,
+    ToolbarElevations, ToolbarExitDirection, ToolbarFabPosition, ToolbarFling, ToolbarOrientation,
+    ToolbarPadding, ToolbarPlacement, ToolbarScrollBehavior, ToolbarScrollState,
 };
 #[cfg(feature = "search")]
 pub use gpui_material_extras::{

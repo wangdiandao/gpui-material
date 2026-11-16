@@ -353,7 +353,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | Feature | 组件 | 支持的变体与行为 | Material 3 |
 | --- | --- | --- | --- |
 | `expressive-groups` | `ButtonGroup`、`SplitButton` | Standard 和 Connected 按钮组，以及内容、外观和激活行为各自独立的拆分按钮。 | [按钮组](https://m3.material.io/components/button-groups/overview) · [拆分按钮](https://m3.material.io/components/split-button/overview) |
-| `toolbars` | `FabMenu`、`Toolbar` | 悬浮操作菜单支持受控展开、触发器和操作项插槽及水平对齐。工具栏支持悬浮或停靠，以及横向或纵向布局。 | [悬浮操作菜单](https://m3.material.io/components/fab-menu/overview) · [工具栏](https://m3.material.io/components/toolbars/overview) |
+| `toolbars` | `FabMenu`、`Toolbar` | 悬浮操作菜单支持受控展开、触发器和操作项插槽及水平对齐。悬浮和停靠工具栏支持任意控件、外观和滚动行为配置。 | [悬浮操作菜单](https://m3.material.io/components/fab-menu/overview) · [工具栏](https://m3.material.io/components/toolbars/overview) |
 | `search` | `SearchBar`、`SearchView` | 收起的搜索栏，以及停靠或全屏的搜索视图。 | [搜索](https://m3.material.io/components/search/overview) |
 | `date-time` | `DatePicker`、`TimePicker`、`ScrollField` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input。时间选择支持 Dial、Input 和 12、24 小时制。支持独立的滚动选择字段。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
 | `carousel` | `Carousel`、`CarouselParallax` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。 任意 GPUI 内容可使用独立滚动视差效果。 | [轮播](https://m3.material.io/components/carousel/overview) |
@@ -391,6 +391,18 @@ Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供
 `FabMenuItem::new(id, name, icon)` 创建带图标和标签的操作项，`FabMenuItem::custom(id, name, content)` 接收任意呈现内容。`.icon(element)` 替换图标，`.content(element)` 替换可见标签。操作项继续使用构造器提供的无障碍名称。`.colors(FabMenuItemColors)` 设置启用和禁用的容器色和内容色。`.disabled(true)` 保留操作项的显示状态，并在激活和键盘移动时跳过该项。
 
 通过 `.visible(visible)` 独立控制触发器是否显示，通过 `.visibility_animation(FabVisibilityAnimation)` 设置缩放、透明度和逻辑缩放原点。开始隐藏时，触发器和菜单操作立即退出焦点导航和无障碍树，淡出完成后释放触发器的布局空间。触发器再次显示时，受控的 `.expanded(true)` 会重新生效。
+
+### 工具栏
+
+`Toolbar::new(id, name, actions)` 默认创建采用 Standard 配色的横向悬浮工具栏。`.content(element)` 在生成的操作项前插入任意内容，包括可编辑文本框。`.leading_content(element)` 和 `.trailing_content(element)` 在该区域前后加入插槽。插槽默认随 `.expanded(expanded)` 与内容滚动展开或收起。可通过 `.leading_expanded(bool)` 或 `.trailing_expanded(bool)` 单独设置。拥有焦点的插槽保留至其中的控件失去焦点。嵌入控件管理自身的键盘和输入行为。生成的操作项继续支持方向键导航，收起的次要操作移入有名称的溢出菜单。
+
+通过 `.placement(ToolbarPlacement::Docked)` 使用停靠工具栏。横向停靠栏有空余空间时，可用 `.arrangement(ToolbarArrangement)` 按逻辑 Start、Center、End、SpaceBetween、SpaceAround 或 SpaceEvenly 排列。`.spacing(pixels)` 设置最小间距，默认 4 dp。`.expanded_height(pixels)` 设置横向停靠栏展开时的固定高度。省略设置时沿用现有布局。横向顺序和逻辑内边距在 RTL 中镜像，纵向插槽保持从上到下的顺序。为工具栏提供有界的主轴尺寸，以便空间缩小时滚动到获得焦点的控件。
+
+通过 `.padding(ToolbarPadding { top, start, bottom, end })`、`.shape(CornerShape)`、`.colors(ToolbarColors)` 和 `.elevations(ToolbarElevations)` 设置实例外观。悬浮栏仍默认使用圆角，停靠栏仍默认使用直角。工具栏配色包括容器色、继承的内容色及选中操作色。高度层级随展开状态变化，默认为零。`.fab(...)` 在悬浮栏旁放置拥有独立名称和焦点的悬浮操作按钮。通过 `.fab_color(FabColor)` 和 `.fab_colors(ButtonColors)` 单独配置该按钮。`.fab_content(position, element)` 可在相同位置放入自定义控件。停靠栏的主操作由内容或操作列表提供。
+
+使用 `.track_scroll(&handle)` 读取滚动视图的纵向偏移，或通过 `.scroll_state(&state)` 接入保留的 `Entity<ToolbarScrollState>`，并调用 `set_content_offset(offset, cx)`。同时设置时由滚动句柄提供偏移。使用从内容顶部起算的非负逻辑像素距离。`.scroll_behavior(ToolbarScrollBehavior)` 设置展开和收起阈值，默认从最后一次换向起各累计 40 dp。设置 `exit_direction` 后，向前滚动将工具栏移向逻辑 Start、End、Top 或 Bottom，反向滚动使其返回。工具栏保留布局占位，到达隐藏端点时移除其中的控件，内部控件持有焦点时保持可见。相邻的悬浮操作按钮保持可用。省略退出方向时，滚动只改变展开状态。
+
+可从保留的状态读取 `content_offset()`、`offset()`、`offset_limit()` 和 `collapsed_fraction()`。`offset()` 是朝指定边缘移动的非负距离。`set_collapsed_fraction(fraction, cx)` 立即应用位置。应用管理的手势结束时可调用 `settle(velocity, cx)`。正速度朝退出方向移动。惯性配置在指定时间内投影速度，并归位到最近的端点。用 `snap_motion` 和 `ToolbarFling::motion` 设置归位动效。新的滚动输入从当前显示位置中断归位。`.transition_motion(MotionSpec)` 控制插槽展开与高度层级动效。启用减少动态效果时直接应用目标状态。
 
 ### 滚动选择字段
 

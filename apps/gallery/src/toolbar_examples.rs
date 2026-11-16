@@ -1,13 +1,13 @@
 use gpui::{
-    App, Context, FocusHandle, InteractiveElement, IntoElement, ParentElement, Render,
-    ScrollHandle, SharedString, StatefulInteractiveElement, Styled, Window, div,
+    App, AppContext, Context, Entity, FocusHandle, InteractiveElement, IntoElement, ParentElement,
+    Render, ScrollHandle, SharedString, StatefulInteractiveElement, Styled, Window, div,
     prelude::FluentBuilder, px,
 };
 use gpui_material::{
-    FabColor, FabMenu, FabMenuAlignment, FabMenuItem, FabMenuTriggerAppearance,
+    Button, FabColor, FabMenu, FabMenuAlignment, FabMenuItem, FabMenuTriggerAppearance,
     FabMenuTriggerStyle, FabSize, Icon, IconName, NavigationBar, NavigationItem, NavigationItems,
-    Scaffold, Switch, Text, Toolbar, ToolbarAction, ToolbarColor, ToolbarFabPosition,
-    ToolbarOrientation, ToolbarPlacement,
+    Scaffold, Switch, Text, TextField, TextFieldState, Toolbar, ToolbarAction, ToolbarArrangement,
+    ToolbarColor, ToolbarFabPosition, ToolbarOrientation, ToolbarPlacement,
     theme::{CornerShape, TypeRole},
 };
 
@@ -15,6 +15,9 @@ use crate::story::{Story, section, stack};
 
 #[cfg(all(test, feature = "test-support"))]
 mod fab_menu_tests;
+
+#[cfg(all(test, feature = "test-support"))]
+mod toolbar_content_tests;
 
 pub(crate) struct ToolbarExamples {
     story: Story,
@@ -24,6 +27,7 @@ pub(crate) struct ToolbarExamples {
     show_navigation: bool,
     favorite: bool,
     menu_expanded: bool,
+    toolbar_editor: Option<Entity<TextFieldState>>,
 }
 
 impl ToolbarExamples {
@@ -36,6 +40,7 @@ impl ToolbarExamples {
             show_navigation: false,
             favorite: false,
             menu_expanded: false,
+            toolbar_editor: None,
         }
     }
 
@@ -264,11 +269,32 @@ impl ToolbarExamples {
                         ),
                     ),
             )
+            .children(self.toolbar_editor.as_ref().map(|editor| {
+                section("Editable docked toolbar").child(
+                    Toolbar::new("editable-toolbar", "Editable document toolbar", [])
+                        .placement(ToolbarPlacement::Docked)
+                        .arrangement(ToolbarArrangement::SpaceBetween)
+                        .shape(CornerShape::Radii([10., 10., 0., 0.]))
+                        .leading_content(Button::new("editor-filter", "Filter documents"))
+                        .content(div().w(px(192.)).child(TextField::new(
+                            "toolbar-query",
+                            "Find a document",
+                            editor,
+                        )))
+                        .trailing_content(
+                            Button::new("editor-save", "Save view")
+                                .on_activate(Self::report("View saved", cx)),
+                        ),
+                )
+            }))
     }
 }
 
 impl Render for ToolbarExamples {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if self.story == Story::Toolbars && self.toolbar_editor.is_none() {
+            self.toolbar_editor = Some(cx.new(|cx| TextFieldState::new(window, cx)));
+        }
         let body = match self.story {
             Story::FabMenu => self.menu(cx).into_any_element(),
             _ => self.toolbars(cx).into_any_element(),

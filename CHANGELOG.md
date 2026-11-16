@@ -10,6 +10,7 @@ See [versioning and releases](docs/release.md) for the release process.
 - Center short navigation bar destinations, mix icon positions, add custom labels and badges, and customize colors and observe interactions per item.
 - Customize mixed Button Group members, Connected segment shapes, weighted layout and press expansion, and controlled overflow.
 - Use text-only and custom-content Extended FABs with controlled expansion, visibility motion, and per-instance appearance and interaction observation.
+- Compose Standard and Segmented lists with custom row slots, checked and expandable rows, long-press actions, swipe dismissal, and per-state appearance.
 - Attach Material Labels with custom content and caller-controlled persistent or shared interaction visibility.
 - Compose custom clickable, selectable and checked Surfaces with inherited content colors, explicit shape and border, and configurable interaction feedback.
 - Compose exposed dropdowns with custom editors, anchors and options, caller-controlled visibility, and configurable popup size, scroll state and appearance.

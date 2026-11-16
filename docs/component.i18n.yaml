@@ -27,14 +27,17 @@
   en: "cec1ef65bc09216b"
   zh: "8935c390996df97a"
 /components/content-and-feedback:
-  en: "5ec9b066cfb18e6e"
-  zh: "5a9aa7be5ab3f484"
+  en: "73dd108f823ea35a"
+  zh: "3f0cae527c21f2cf"
 /components/content-and-feedback/surfaces:
   en: "b91300867ead40c9"
   zh: "7f5f0c7448efa7a9"
 /components/content-and-feedback/cards:
   en: "4d2f6789dacad3ba"
   zh: "072abf03f19a86b4"
+/components/content-and-feedback/lists:
+  en: "31095ee35ec859f3"
+  zh: "09918936439b1d1b"
 /components/content-and-feedback/divider:
   en: "91017ca9ca1e50e9"
   zh: "552fa38bdd6c09d0"

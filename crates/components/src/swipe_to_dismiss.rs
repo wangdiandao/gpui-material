@@ -224,6 +224,14 @@ impl SwipeToDismissState {
         true
     }
 
+    pub(crate) fn shows_foreground(&self) -> bool {
+        self.moving || self.settled == SwipeToDismissValue::Settled
+    }
+
+    pub(crate) fn is_dragging(&self) -> bool {
+        matches!(self.input, SwipeInput::Mouse { .. } | SwipeInput::Touch)
+    }
+
     fn move_to(&mut self, value: SwipeToDismissValue, window: &mut Window, cx: &mut Context<Self>) {
         if self.moving && self.target == value {
             return;
@@ -593,10 +601,7 @@ impl Element for SwipeContent {
                     state.width = bounds.size.width;
                     cx.notify();
                 }
-                (
-                    state.offset(),
-                    state.moving || state.settled == SwipeToDismissValue::Settled,
-                )
+                (state.offset(), state.shows_foreground())
             })
             .unwrap_or((px(0.), true));
         if visible {

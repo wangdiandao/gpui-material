@@ -1,6 +1,6 @@
 use gpui::{
-    Axis, Context, InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle,
-    StatefulInteractiveElement, Styled, Window, div, point, px,
+    AppContext, Axis, Context, Entity, InteractiveElement, IntoElement, ParentElement, Render,
+    ScrollHandle, StatefulInteractiveElement, Styled, Window, div, point, px,
 };
 use gpui_material::foundation::{color, isolated_scroll, window_material_theme};
 use gpui_material::theme::{ColorRole, CornerRole, CornerShape, Elevation, TypeRole};
@@ -17,6 +17,7 @@ use crate::story::{Story, section, stack};
 mod card_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod display_scrollbar_tests;
+mod list_examples;
 #[cfg(all(test, feature = "test-support"))]
 mod loading_tests;
 #[cfg(all(test, feature = "test-support"))]
@@ -35,6 +36,7 @@ pub(crate) struct DisplayExamples {
     selected_file: Option<usize>,
     pinned_file: Option<usize>,
     files_scroll: ScrollHandle,
+    list_examples: Option<Entity<list_examples::ListExamples>>,
     wide_scroll: ScrollHandle,
 }
 
@@ -53,6 +55,7 @@ impl Default for DisplayExamples {
             selected_file: None,
             pinned_file: None,
             files_scroll: ScrollHandle::new(),
+            list_examples: None,
             wide_scroll: ScrollHandle::new(),
         }
     }
@@ -372,6 +375,9 @@ impl Render for DisplayExamples {
                             ),
                     ),
                 )
+            }))
+            .children((self.story == Some(Story::List)).then(|| {
+                self.list_examples.get_or_insert_with(|| cx.new(list_examples::ListExamples::new)).clone()
             }))
             .children(self.shows(Story::List).then(|| {
                 section("Segmented list")

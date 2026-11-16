@@ -9,6 +9,7 @@ mod adaptive_examples;
 mod carousel_examples;
 mod date_time_examples;
 mod display_examples;
+mod drag_handle_examples;
 #[cfg(all(test, feature = "test-support"))]
 mod drawing;
 mod gallery;

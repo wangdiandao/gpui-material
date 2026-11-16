@@ -123,6 +123,15 @@ FAB 开始隐藏时立即退出焦点导航并停止响应输入。淡出期间�
 | `AdaptiveNavigation` | 根据可用宽度在导航栏和导航轨道之间切换。 | [断点](https://m3.material.io/foundations/layout/breakpoints/overview) |
 | `Scaffold` | 组合导航、应用栏、内容、可定位的悬浮操作按钮和消息条，并根据已占空间计算内容内边距。 | [Scaffold](https://m3.material.io/foundations/layout/scaffold/overview) |
 | `ListDetail`、`SupportingPane`、`Feed` | 列表与详情、辅助窗格及响应式信息流布局。 | [典型布局](https://m3.material.io/foundations/layout/canonical-examples/overview) |
+| `VerticalDragHandle` | 用于横向调整窗格尺寸的纵向把手，可分别设置静止、按下和拖动外观。 | [布局要素](https://m3.material.io/foundations/layout/understanding-layout/parts-of-layout#314a4c32-be52-414c-8da7-31f059f1776d) · [Compose VerticalDragHandle](https://developer.android.com/reference/kotlin/androidx/compose/material3/VerticalDragHandle.composable) |
+
+### 纵向拖动把手
+
+将 `VerticalDragHandle::new(id)` 放在两个窗格之间。用 `.sizes(DragHandleSizes)`、`.colors(DragHandleColors)` 和 `.shapes(DragHandleShapes)` 分别覆盖静止、按下和拖动状态的值。默认静止标记为 4 × 48 的胶囊，使用当前窗口主题的 Outline 角色。按下和拖动标记为 12 × 52，使用 On Surface 角色与 Medium 圆角。视觉尺寸以逻辑像素计。交互目标始终至少为 48 × 48，并能容纳所有状态中尺寸最大的标记。悬停和键盘焦点提供各自的反馈，且保留独立的交互状态。
+
+使用 `.on_resize(label, width, min..=max, callback)` 设置分隔控件的名称、逻辑起始窗格的当前宽度、最小及最大宽度和宽度请求回调。调用方决定是否采用请求的宽度，并负责布局。分隔控件获得焦点后，左右方向键分别向左或向右移动它，Home 和 End 分别请求最小和最大宽度。用 `.keyboard_step(px(...))` 修改默认的 8 像素步长。当前无障碍桥接将原生 Splitter 角色视为只读，因此该纵向分隔控件提供带名称的可写范围语义，以 “splitter” 描述角色，数值为起始窗格的宽度。窗口主题根据 LTR 或 RTL 将鼠标及触摸的实际移动方向映射到逻辑宽度。按 Escape、失去焦点或指针操作被取消时，拖动结束，调用方保留最近一次接受的宽度。
+
+传入 `.interaction_source(&source)` 可通过共享的 `Entity<InteractionSource>` 观察悬停、按下、拖动和可见键盘焦点。观察多个把手时，请为它们提供不同的标识。运行 `cargo gallery vertical-drag-handle` 可体验分割窗格示例。
 
 ### Scaffold 布局
 

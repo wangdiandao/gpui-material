@@ -634,6 +634,34 @@ let dialog = Dialog::new("delete", &self.dialog, "Delete project?")
     .app_bar(AppBar::new("header", "Workspace"))`,
   },
   {
+    slug: "vertical-drag-handle",
+    group: "layout",
+    title: "VerticalDragHandle",
+    source: "crates/components/src/drag_handle.rs",
+    api: "struct.VerticalDragHandle.html",
+    description: {
+      en: "Resize two adjacent panes using a vertical handle.",
+      zh: "用竖向拖柄调整相邻窗格的宽度。",
+    },
+    usage: {
+      en: "Place the handle between the panes. Supply the current start pane width, its permitted range, and an accessible label. Apply accepted resize requests in your view. Use sizes, colors, and shapes to customize the resting, pressed, and dragged appearances.",
+      zh: "将拖柄放在窗格之间，传入起始侧窗格的当前宽度、允许范围和无障碍名称。由视图应用接受的宽度请求。用 sizes、colors 和 shapes 定制静止、按下和拖动外观。",
+    },
+    imports: "use gpui::px;\nuse gpui_material::VerticalDragHandle;",
+    code: `let view = cx.entity();
+VerticalDragHandle::new("pane-divider").on_resize(
+    "Start pane width",
+    self.pane_width,
+    px(80.)..=px(360.),
+    move |width, _, cx| {
+        view.update(cx, |view, cx| {
+            view.pane_width = width;
+            cx.notify();
+        });
+    },
+)`,
+  },
+  {
     slug: "adaptive-layout",
     group: "layout",
     title: "AdaptiveNavigation",

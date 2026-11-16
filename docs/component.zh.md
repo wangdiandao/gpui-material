@@ -98,7 +98,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `Text`、`Icon` | 主题排版、可替换图标和随库提供的 Material Symbols。 | [排版](https://m3.material.io/styles/typography/overview) · [图标](https://m3.material.io/styles/icons/overview) |
 | `Surface` | 支持静态、可点击、可选及可勾选表面，提供主题内容颜色与层级。 | [层级](https://m3.material.io/styles/elevation/overview) |
 | `Card` | Elevated、Filled、Outlined，支持静态或可操作的卡片及独立外观配置。 | [卡片](https://m3.material.io/components/cards/specs) |
-| `List`、`ListItem` | Standard 和 Segmented 列表，支持前置、辅助及尾部内容。 | [列表](https://m3.material.io/components/lists/overview) |
+| `List`、`ListItem` | Standard 和 Segmented 列表，支持自定义插槽、受控行操作及各状态外观。 | [列表](https://m3.material.io/components/lists/overview) |
 | `SwipeToDismiss` | 横向滑动关闭，内容、背景及操作由调用方提供。 | [列表](https://m3.material.io/components/lists/guidelines) · [Compose SwipeToDismissBox](https://developer.android.com/reference/kotlin/androidx/compose/material3/SwipeToDismissBox.composable) |
 | `Divider`、`Badge` | 横向与纵向分隔线支持逻辑内缩、粗细和单独配色。徽标支持独立或附着显示，可使用圆点、文本、计数、自定义内容和单独配色。 | [分隔线](https://m3.material.io/components/divider/overview) · [徽标](https://m3.material.io/components/badges/overview) |
 | `DisplayScrollbar` | 根据视口状态绘制任一方向的滚动位置，支持自定义尺寸、配色和淡出。 | [Compose 显示型滚动条](https://developer.android.com/reference/kotlin/androidx/compose/material3/nonInteractiveScrollbar.composable) |
@@ -123,6 +123,18 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 使用 `.shape(CornerShape)` 设置容器、描边、阴影和交互反馈的形状，圆角随窗口书写方向调整。通过 `.border(CardBorder { width, color })` 自定义描边，宽度为零时移除描边。`.colors(CardColors)` 独立覆盖启用和禁用时的容器色与内容色。`.elevations(CardElevations)` 独立覆盖静止、按下、聚焦、悬停、拖动和禁用时的阴影高度。未指定的值沿用变体默认值，包括 Medium 圆角、Outlined 描边以及 Outlined 悬停时的平坦外观。禁用高度优先，其次依次为拖动、按下、键盘聚焦、悬停和静止。
 
 调用方可根据拖动生命周期设置 `.dragged(bool)`，并在完成或取消时清除该状态。拖动会中断尚未完成的指针激活。传入 `.interaction_source(&source)` 可通过共享的 `Entity<InteractionSource>` 观察卡片。同一窗口中每张受观察的卡片需要有独立标识。
+
+### 列表
+
+使用 `List::new(id).items(rows)` 创建 Standard 列表，或用 `.variant(ListVariant::Segmented)` 设置分组圆角和 2 像素行间距。为每个 `ListItem::new(id, label)` 提供稳定的 ID 和无障碍名称。`.content(element)`、`.overline_content(element)` 和 `.supporting_content(element)` 接收任意元素。行操作的无障碍名称仍来自标签。`.overline(text)` 和 `.supporting_text(text)` 使用 Material 字体样式，辅助文本会换行。`.leading(element)` 和 `.trailing(element)` 随窗口书写方向排列。内嵌控件独立接收焦点和激活。
+
+用 `.on_activate(...)` 设置行操作。`.selected(bool)` 控制选中样式和语义。`.checked(bool).on_checked_change(...)` 独立提供勾选值和请求反转值的回调。具备勾选值的行提供复选框角色。`.expanded_content(expanded, element).on_expanded_change(...)` 提供展开状态，通过激活该行请求切换。展开内容渲染在行下方，可包含独立操作的控件。各状态更新由应用负责。列表的游标式 Tab 停靠点可用上下方向键在启用的行操作间移动。`.track_focus(&focus, tab_stop)` 允许虚拟列表自行管理焦点和导航。
+
+用 `.on_long_press(label, callback)` 设置具名次要操作。按住行中间内容、使用 Shift+F10 或平台支持的无障碍上下文操作均可触发。提前松开、开始拖动或中断输入都会取消长按。`.long_press_button(id)` 在逻辑尾部添加使用相同名称和回调的可见按钮，适用于缺少次要上下文操作的平台。长按完成后会消费对应的行点击。
+
+用 `.swipe_to_dismiss(&state, |swipe| ...)` 将现有的 `SwipeToDismiss` 与行组合，使用其保留状态及配置方法。调用方处理关闭结果，并按下文提供具名且可用键盘操作的命令。纵向滚动仍可用。已滑动关闭的行离开焦点遍历，直到重置或移除。
+
+`.shapes(ListItemShapes)` 覆盖静止、选中、按下、聚焦、悬停和拖动状态的逻辑圆角。`.colors(ListItemColors)` 通过 `ListItemStateColors` 分别配置普通、禁用、选中和拖动状态下的容器、主体、前置、尾部、上方标签及辅助内容颜色。省略的字段沿用窗口默认值。`.vertical_alignment(ListItemAlignment)` 可选 Auto、Start、Center 或 End。Auto 将较矮的行内容居中，将较高文本行的内容置顶。`.content_padding(ListItemPadding)` 以像素指定逻辑起始侧、尾侧、顶部和底部的内边距。默认水平 16 像素、垂直 10 像素，三行内容的垂直内边距为 12 像素。`.elevations(ListItemElevations)` 覆盖静止及交互状态的阴影高程。`.dragged(bool)` 提供由调用方管理的拖动状态，`.interaction_source(&source)` 可观察行的悬停、按下、键盘焦点、拖动和禁用状态。
 
 ### 分隔线
 

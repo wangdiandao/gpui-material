@@ -13,7 +13,7 @@ The [pinned Material 3 specification](design-sources.md#material-specification) 
 | Component | Supported variants and behavior | Material 3 |
 | --- | --- | --- |
 | `Button`, `ToggleButton` | Elevated, Filled, Filled Tonal, and Outlined. `Button` also has a Text variant. Both support XS–XL sizes, round or square shapes, custom content and appearance, and optional interaction observation. | [Buttons](https://m3.material.io/components/buttons/overview) |
-| `IconButton`, `IconToggleButton` | Standard, Filled, Filled Tonal, and Outlined, with selectable sizes, widths, and shapes. | [Icon buttons](https://m3.material.io/components/icon-buttons/overview) |
+| `IconButton`, `IconToggleButton` | Standard, Filled, Filled Tonal, and Outlined, with selectable sizes and widths, per-instance shapes, colors and stroke, and optional interaction observation. | [Icon buttons](https://m3.material.io/components/icon-buttons/overview) |
 | `Fab`, `ExtendedFab` | Small, Medium, and Large sizes with multiple color roles. `ExtendedFab` supports a text label and an icon. | [FAB](https://m3.material.io/components/floating-action-button/overview) · [Extended FAB](https://m3.material.io/components/extended-fab/overview) |
 | `Checkbox` | Unchecked, checked, and mixed states. | [Checkbox](https://m3.material.io/components/checkbox/overview) |
 | `Radio`, `RadioGroup` | Mutually exclusive selection with keyboard navigation in a group. | [Radio button](https://m3.material.io/components/radio-button/overview) |
@@ -23,7 +23,9 @@ The [pinned Material 3 specification](design-sources.md#material-specification) 
 
 Use `.content(element)` to customize the rendered label while retaining the constructor's accessible name and any leading or trailing icon slots. Keep the content free of independent controls so the button owns activation and focus. Set `.shapes(ButtonShapes)`, `.colors(ButtonColors)`, `.border(ButtonBorder)`, `.content_padding(ButtonPadding)`, and `.elevations(ButtonElevations)` per instance. Unspecified shape, color, and elevation fields keep the size and variant defaults for that state. `ButtonPadding` follows the window's text direction. A zero-width border removes the default outline.
 
-Keep an `Entity<InteractionSource>` in the caller and attach it with `.interaction_source(&source)` to observe a button. Give each control sharing a source a distinct element ID within its window. Read the current state with `InteractionSource::state`, or subscribe to `InteractionUpdate` for each deferred change, including press and release between draws. A removed control clears its snapshot. Base still owns input handling and the application owns toggle values.
+Pass a decorative icon element and an accessible name to `IconButton::new` or `IconToggleButton::new`. Icon buttons default to the Small size, Uniform width, Round shape, and Standard palette. Use `.shapes(ButtonShapes)` for resting and pressed corners and for checked corners on toggles. `.colors(ButtonColors)` supplies container and icon colors for enabled, disabled, and checked states. Omitted fields use the current size and variant defaults. `.border(ButtonBorder)` replaces the default stroke. Use zero width to remove it. `IconToggleButton` renders the caller's selected value and uses `.selected_icon(element)` when selected, if supplied.
+
+Keep an `Entity<InteractionSource>` in the caller and attach it with `.interaction_source(&source)` to observe a button or icon button. Give each control sharing a source a distinct element ID within its window. Read the current state with `InteractionSource::state`, or subscribe to `InteractionUpdate` for each deferred change, including press and release between draws. A removed control clears its snapshot. Base still owns input handling and the application owns toggle values.
 
 ### Floating action button
 

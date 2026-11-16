@@ -303,7 +303,7 @@ impl Slots {
     }
 }
 
-macro_rules! slot_builders {
+macro_rules! appearance_builders {
     () => {
         /// Observes this button's interaction presentation through a caller-owned source.
         /// The source does not handle input or change selection.
@@ -312,20 +312,13 @@ macro_rules! slot_builders {
             self
         }
 
-        /// Replaces the visible label with an element. The constructor's label
-        /// remains the accessible name. Keep interactive children outside the button.
-        pub fn content(mut self, content: impl IntoElement) -> Self {
-            self.slots.content = Some(content.into_any_element());
-            self
-        }
-
-        /// Overrides state-specific corners. Unspecified states use the variant defaults.
+        /// Overrides state-specific corners. Unspecified states use the size and variant defaults.
         pub fn shapes(mut self, shapes: ButtonShapes) -> Self {
             self.common.appearance.shapes = shapes;
             self
         }
 
-        /// Overrides container and label colors for individual states.
+        /// Overrides container and content colors for individual states.
         pub fn colors(mut self, colors: ButtonColors) -> Self {
             self.common.appearance.colors = colors;
             self
@@ -334,6 +327,17 @@ macro_rules! slot_builders {
         /// Supplies a border in place of the variant's outline.
         pub fn border(mut self, border: ButtonBorder) -> Self {
             self.common.appearance.border = Some(border);
+            self
+        }
+    };
+}
+
+macro_rules! slot_builders {
+    () => {
+        /// Replaces the visible label with an element. The constructor's label
+        /// remains the accessible name. Keep interactive children outside the button.
+        pub fn content(mut self, content: impl IntoElement) -> Self {
+            self.slots.content = Some(content.into_any_element());
             self
         }
 
@@ -386,6 +390,7 @@ impl Button {
     }
 
     common_builders!();
+    appearance_builders!();
     slot_builders!();
 
     pub fn variant(mut self, variant: ButtonVariant) -> Self {
@@ -459,6 +464,7 @@ impl ToggleButton {
     }
 
     common_builders!();
+    appearance_builders!();
     slot_builders!();
 
     pub fn variant(mut self, variant: ToggleButtonVariant) -> Self {
@@ -538,6 +544,7 @@ impl IconButton {
     }
 
     common_builders!();
+    appearance_builders!();
 
     pub fn variant(mut self, variant: IconButtonVariant) -> Self {
         self.variant = variant;
@@ -606,6 +613,7 @@ impl IconToggleButton {
     }
 
     common_builders!();
+    appearance_builders!();
 
     pub fn selected_icon(mut self, icon: impl IntoElement) -> Self {
         self.selected_icon = Some(icon.into_any_element());

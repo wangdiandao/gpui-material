@@ -25,6 +25,14 @@
 
 调用方持有 `Entity<InteractionSource>`，通过 `.interaction_source(&source)` 观察按钮。同一窗口内共享一个源的控件应使用各自的元素 ID。用 `InteractionSource::state` 读取当前状态，或订阅 `InteractionUpdate` 逐次接收延后派发的变更，包括两次绘制之间发生的按下和释放。控件移除后，其状态快照会清除。Base 管理输入，应用持有切换值。
 
+### 悬浮操作按钮
+
+`Fab::new` 接收一个图标和无障碍名称，默认使用 56 dp 的 Small 尺寸和主色容器配色。可通过 `.shape(CornerShape)`、`.colors(ButtonColors)` 和 `.elevations(ButtonElevations)` 分别配置每个 Small、Medium 或 Large 实例。用启用和禁用状态的容器与内容字段设置颜色，省略的字段沿用对应尺寸和配色的默认值。用 `.interaction_source(&source)` 连接由调用方持有的交互源。
+
+应用持有显示状态，每次渲染时通过 `.visible(visible)` 传入。更新时保持元素 ID 不变，缩放和透明度即可从当前进度反向播放。`FabVisibilityAnimation` 默认以中心为缩放原点，隐藏比例为 `0.2`，并分别使用主题的快档空间动效和效果动效。用 `FabAlignment` 的逻辑位置指定缩放所围绕的边或角，起始侧与末尾侧随窗口文本方向镜像。将 `target_scale` 设为有限非负值，并分别设置 `scale_motion` 和 `alpha_motion`。无效比例（包括导致缩放后尺寸溢出的值）回退到 `0.2`。启用减少动态效果时直接使用最终状态。
+
+FAB 开始隐藏时立即退出焦点导航并停止响应输入。淡出期间保留布局空间，透明度降到零时释放空间。初始隐藏的 FAB 不占空间。图标仅用于装饰，由 FAB 自己管理激活和焦点。需要随动效缩放的自定义图标应采用继承的文字大小或相对尺寸。
+
 <a id="content-and-feedback"></a>
 
 ## 内容与反馈

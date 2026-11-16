@@ -24,8 +24,8 @@
   en: "cec1ef65bc09216b"
   zh: "8935c390996df97a"
 /components/content-and-feedback:
-  en: "871545cc7a6c2fac"
-  zh: "eba96bba5f80ab54"
+  en: "95e3e207dbc25553"
+  zh: "4b41e41149a8fcc1"
 /components/content-and-feedback/cards:
   en: "4d2f6789dacad3ba"
   zh: "072abf03f19a86b4"
@@ -42,8 +42,11 @@
   en: "590a1189d2e904c8"
   zh: "1209dca765dea1cd"
 /components/content-and-feedback/loading-indicator:
-  en: "5e1d84fabb52dad5"
-  zh: "6f85457e27afdae2"
+  en: "782f9489b482a7cf"
+  zh: "d6101796c847775d"
+/components/content-and-feedback/snackbars:
+  en: "4abf3a4c63379a98"
+  zh: "7287d856b448e533"
 /components/input-and-overlays:
   en: "13367d3b0ca895aa"
   zh: "5d3d6261f7f67aef"

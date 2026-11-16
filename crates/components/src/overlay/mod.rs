@@ -13,7 +13,9 @@ pub use dialog::{Dialog, DialogState, DialogVariant};
 pub use sheet::{Sheet, SheetEdge, SheetMode};
 mod snackbar;
 
-pub use snackbar::{Snackbar, SnackbarHost};
+pub use snackbar::{
+    Snackbar, SnackbarColors, SnackbarHost, SnackbarId, SnackbarParts, SnackbarResult,
+};
 
 /// Wrapping overlay copy uses the same theme font and type role as shaped
 /// single-line labels. Keep animation scale separate from component geometry.

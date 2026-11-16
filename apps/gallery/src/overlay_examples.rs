@@ -5,8 +5,8 @@ use gpui::{
 use gpui::{FocusHandle, SharedString};
 use gpui_base::TestSupportExt as _;
 use gpui_material::{
-    Button, Dialog, DialogState, DialogVariant, Sheet, SheetEdge, SheetMode, Snackbar,
-    SnackbarHost, TextField, TextFieldState, TextFieldVariant,
+    Button, Dialog, DialogState, DialogVariant, Icon, IconName, Sheet, SheetEdge, SheetMode,
+    Snackbar, SnackbarColors, SnackbarHost, TextField, TextFieldState, TextFieldVariant,
 };
 use gpui_material::{
     Menu, MenuColor, MenuItem, Text, Tooltip, TooltipCaret, TooltipPlacement, TooltipState,
@@ -14,6 +14,8 @@ use gpui_material::{
 
 use crate::story::{Story, section, stack};
 
+#[cfg(all(test, feature = "test-support"))]
+mod snackbar_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod tooltip_tests;
 
@@ -578,7 +580,29 @@ impl Render for SnackbarExamples {
                                                     );
                                                 });
                                             },
-                                        ),
+                                        )
+                                        .message_content(|_, _| {
+                                            div().flex().items_center().gap_2()
+                                                .child(Icon::new(IconName::Archive).size(px(20.)))
+                                                .child("Draft archived")
+                                        })
+                                        .action_content(|_, _| div().child("Undo archive"))
+                                        .dismiss_content("Dismiss archive message", |_, _| {
+                                            Icon::new(IconName::Close).size(px(20.))
+                                        })
+                                        .action_on_new_line(true)
+                                        .shape(gpui_material::theme::CornerShape::Radii([12., 4., 12., 4.]))
+                                        .colors(gpui_material::foundation::window_material_theme(window, cx).colors
+                                            .pair(gpui_material::theme::ColorRole::PrimaryContainer)
+                                            .map_or_else(SnackbarColors::default, |pair| {
+                                                let tone = gpui_material::foundation::color;
+                                                SnackbarColors {
+                                                    container: Some(tone(pair.background)),
+                                                    content: Some(tone(pair.foreground)),
+                                                    action: Some(tone(pair.foreground)),
+                                                    dismiss: Some(tone(pair.foreground)),
+                                                }
+                                            })),
                                         window,
                                         cx,
                                     );

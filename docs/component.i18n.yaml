@@ -60,8 +60,11 @@
   en: "10e576b11f1c2adf"
   zh: "8b514df686bbc572"
 /components/navigation-and-adaptive-layout:
-  en: "518282e9777ee133"
-  zh: "41823f6c2831db56"
+  en: "95867e79e12c798c"
+  zh: "232f28c160c96a5a"
+/components/navigation-and-adaptive-layout/app-bars:
+  en: "79b650d089fcfb3d"
+  zh: "a14d94149ba7031f"
 /components/navigation-and-adaptive-layout/vertical-drag-handle:
   en: "c9ce9bd62d6df8f7"
   zh: "69452f32921b5f85"

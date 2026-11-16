@@ -19,7 +19,7 @@
 | `Radio`、`RadioGroup` | 互斥选择、组内键盘导航、单项颜色配置和可选的交互观察。 | [单选按钮](https://m3.material.io/components/radio-button/specs) |
 | `Switch` | 开启和关闭状态，支持可选滑块图标或自定义内容、各状态配色和共享交互观察。 | [开关](https://m3.material.io/components/switch/overview) |
 | `Chip` | Assist、Filter、Input、Suggestion，支持内容插槽和自定义外观，适用的变体支持独立选中和移除。 | [标签组件](https://m3.material.io/components/chips/overview) |
-| `Slider` | 单值、居中和范围滑块，支持横向或纵向布局，以及连续值或步进值。 | [滑块](https://m3.material.io/components/sliders/overview) |
+| `Slider` | 单值、居中和范围滑块，可自定义轨道、滑柄和指示器，支持横向及可反转的纵向布局，以及连续值或步进值。 | [滑块](https://m3.material.io/components/sliders/specs) |
 
 使用 `.content(element)` 自定义显示的标签。构造器提供的无障碍名称和前后图标插槽仍然生效。内容中应避免放置独立控件，由按钮负责激活和焦点。可通过 `.shapes(ButtonShapes)`、`.colors(ButtonColors)`、`.border(ButtonBorder)`、`.content_padding(ButtonPadding)` 和 `.elevations(ButtonElevations)` 配置单个实例。未指定的形状、颜色和 elevation 字段沿用对应状态的尺寸或变体默认值。`ButtonPadding` 随窗口文本方向调整。零宽度边框会移除默认描边。
 
@@ -68,6 +68,18 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 `.border(ButtonBorder)` 设置轮廓宽度和回退颜色。零宽度隐藏轮廓。`.elevations(ChipElevations)` 可覆盖静止、按下、焦点、悬停、拖动和禁用时的阴影层级。`.dragged(bool)` 显示由应用持有的拖动状态，同时取消尚未完成的指针激活；手势由应用管理。`.spacing(width)` 设置内容插槽之间的水平间距，`.content_padding(ButtonPadding)` 设置逻辑内边距。默认间距为 8 dp，纯标签边缘为 16 dp，图标侧为 8 dp，头像起始侧为 4 dp。
 
 为各标签提供不同的 ID，再用调用方持有的 `Entity<InteractionSource>` 和 `.interaction_source(&source)` 按该 ID 观察主操作。交互源报告悬停、按下、键盘焦点、拖动和禁用反馈；选中与移除仍由调用方控制。
+
+### 滑块
+
+调用方持有 `SliderState` 实体，范围与步进由 Base 管理。`SliderEvent::Change` 报告数值编辑，`SliderEvent::Release` 报告指针手势结束。使用 `Slider::range` 时传入范围值和两个无障碍名称。单值滑块使用 `.kind(SliderKind::Centered)` 从中点开始填充。`.axis(Axis::Vertical)` 默认从下往上递增。设置 `.reverse_vertical(true)` 后，布局、指针移动和上下方向键改为从上往下递增。横向布局和方向键随窗口方向调整。两种方向下，无障碍的值和边界都遵循数值顺序。
+
+`.track_style(SliderTrackStyle)` 可按逻辑像素设置 `thickness`、`outer_radius`、`inner_radius` 和 `thumb_gap`。省略时沿用对应尺寸的默认轨道厚度和外侧圆角、2 dp 内侧圆角，以及距滑柄边缘 6 dp 的间隙。使用 `.thumb_style(RangeThumb, SliderThumbStyle)` 分别为滑柄设置 `size`、`pressed_width`、`color`、`disabled_color` 和 `focused_color`。`size` 的第一维沿数值轴，第二维垂直于数值轴。滑柄沿数值轴默认宽 4 dp，拖动时缩到 2 dp，另一维随当前尺寸变化。非有限数值和非正尺寸使用默认值。圆角和间隙可设为零。单值滑块使用 `RangeThumb::End`。
+
+`.colors(SliderColors)` 可配置滑柄、激活和未激活轨道、激活和未激活刻度在启用和禁用时的颜色。省略的字段沿用窗口配色。启用时滑柄和激活轨道使用 Primary，未激活轨道使用 Secondary Container，激活和未激活刻度分别使用 On Primary 和 On Secondary Container。禁用时，滑柄、激活轨道和刻度默认使用 38% 不透明度的 On Surface，未激活轨道使用 12% 不透明度的 On Surface。单个滑柄的配色优先于滑块配色。键盘焦点默认使用 Secondary。通过 `.thumb(RangeThumb, element)` 和 `.track(element)` 用装饰性内容替换默认滑柄和轨道。输入、焦点和无障碍语义由滑块处理，插槽内应避免放置独立控件。使用自定义轨道时，按需绘制内嵌图标、刻度和端点标记。
+
+`.tick_intervals(count)` 设置可见刻度的区间数，Base 的步进单独配置。`.draw_ticks(...)` 和 `.draw_stop_indicators(...)` 接收带窗口坐标、默认颜色和默认直径的 `SliderMarker`，默认直径为 4 dp。设置 `.show_stop_indicators(false)` 可隐藏端点标记。拖动或通过键盘聚焦滑柄时默认显示数值指示器，保留两位小数。通过 `.value_indicator(false)` 关闭指示器，或传入 `.format_value(...)` 格式化当前显示值。
+
+`.interaction_source(RangeThumb, &source)` 可独立观察每个滑柄。查询键为 `ElementId::from((slider_id, "start"))` 和 `ElementId::from((slider_id, "end"))`。两个滑柄可共用一个交互源，也可分别观察。移除滑柄或更换交互源时，原快照会清除。
 
 <a id="content-and-feedback"></a>
 

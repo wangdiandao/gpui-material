@@ -27,7 +27,10 @@ mod chip;
 pub use chip::{Chip, ChipColors, ChipElevations, ChipStateColors, ChipVariant};
 
 mod slider;
-pub use slider::{Slider, SliderEvent, SliderKind, SliderScale, SliderState, SliderValue};
+pub use slider::{
+    RangeThumb, Slider, SliderColors, SliderEvent, SliderKind, SliderMarker, SliderScale,
+    SliderState, SliderThumbStyle, SliderTrackStyle, SliderValue,
+};
 
 mod card;
 mod display;

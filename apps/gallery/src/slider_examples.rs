@@ -1,12 +1,25 @@
-use gpui::{AppContext, Axis, Context, Entity, IntoElement, ParentElement, Render, Window, div};
-use gpui_material::{ControlSize, Icon, IconName, Slider, SliderKind, SliderState};
+use gpui::{
+    AppContext, Axis, Bounds, Context, Entity, IntoElement, ParentElement, Render, Styled, Window,
+    div, point, px, quad, relative, size,
+};
+use gpui_material::{
+    ControlSize, Icon, IconName, InteractionSource, RangeThumb, Slider, SliderColors, SliderKind,
+    SliderState, SliderThumbStyle, SliderTrackStyle,
+    foundation::{color, window_material_theme},
+    theme::ColorRole,
+};
 
 use crate::story::{section, stack};
+
+#[cfg(all(test, feature = "test-support"))]
+mod customization_tests;
 
 pub(crate) struct SliderExamples {
     level: Entity<SliderState>,
     range: Entity<SliderState>,
+    range_sources: [Entity<InteractionSource>; 2],
     centered: Entity<SliderState>,
+    reversed: Entity<SliderState>,
     sizes: [Entity<SliderState>; 3],
     overlap: Entity<SliderState>,
 }
@@ -16,7 +29,9 @@ impl SliderExamples {
         Self {
             level: cx.new(|_| SliderState::new().max(10.).step(1.).default_value(3.)),
             range: cx.new(|_| SliderState::new().max(10.).step(1.).default_value(3.0..7.0)),
+            range_sources: std::array::from_fn(|_| cx.new(|_| InteractionSource::new())),
             centered: cx.new(|_| SliderState::new().min(-1.).max(1.).default_value(0.4)),
+            reversed: cx.new(|_| SliderState::new().max(10.).step(1.).default_value(3.)),
             sizes: std::array::from_fn(|index| {
                 cx.new(|_| {
                     SliderState::new()
@@ -30,10 +45,16 @@ impl SliderExamples {
 }
 
 impl Render for SliderExamples {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let level = self.level.read(cx).value().end();
         let range = self.range.read(cx).value();
         let balance = self.centered.read(cx).value().end();
+        let reversed = self.reversed.read(cx).percentage().end;
+        let colors = &window_material_theme(window, cx).colors;
+        let primary = color(colors.color(ColorRole::Primary));
+        let secondary = color(colors.color(ColorRole::Secondary));
+        let tertiary = color(colors.color(ColorRole::Tertiary));
+        let inactive = color(colors.color(ColorRole::TertiaryContainer));
         stack()
             .child(
                 section("Discrete")
@@ -47,7 +68,7 @@ impl Render for SliderExamples {
                     ),
             )
             .child(
-                section("Range")
+                section("Styled range")
                     .child(div().child(format!("Range {}–{}", range.start(), range.end())))
                     .child(
                         Slider::range(
@@ -57,8 +78,80 @@ impl Render for SliderExamples {
                             &self.range,
                         )
                         .tick_intervals(10)
-                        .size(ControlSize::ExtraSmall),
+                        .track_style(SliderTrackStyle {
+                            thickness: Some(px(20.)),
+                            outer_radius: Some(px(6.)),
+                            inner_radius: Some(px(1.)),
+                            thumb_gap: Some(px(4.)),
+                        })
+                        .colors(SliderColors {
+                            active_track: Some(tertiary),
+                            inactive_track: Some(inactive),
+                            ..Default::default()
+                        })
+                        .thumb_style(
+                            RangeThumb::Start,
+                            SliderThumbStyle {
+                                size: Some(size(px(10.), px(40.))),
+                                pressed_width: Some(px(6.)),
+                                ..Default::default()
+                            },
+                        )
+                        .thumb_style(
+                            RangeThumb::End,
+                            SliderThumbStyle {
+                                size: Some(size(px(12.), px(32.))),
+                                pressed_width: Some(px(8.)),
+                                ..Default::default()
+                            },
+                        )
+                        .thumb(
+                            RangeThumb::Start,
+                            div().size_full().rounded_full().bg(primary),
+                        )
+                        .thumb(RangeThumb::End, div().size_full().rounded_md().bg(tertiary))
+                        .interaction_source(RangeThumb::Start, &self.range_sources[0])
+                        .interaction_source(RangeThumb::End, &self.range_sources[1])
+                        .draw_stop_indicators(|marker, window, _| {
+                            let half = marker.diameter / 2.;
+                            window.paint_quad(quad(
+                                Bounds::from_corners(
+                                    marker.center - point(half, half),
+                                    marker.center + point(half, half),
+                                ),
+                                px(0.),
+                                marker.color,
+                                px(0.),
+                                marker.color,
+                                gpui::BorderStyle::Solid,
+                            ));
+                        })
+                        .format_value(|value| format!("{value:.0} steps").into()),
                     ),
+            )
+            .child(
+                section("Reversed vertical").child(
+                    Slider::new("reversed", "Reversed level", &self.reversed)
+                        .axis(Axis::Vertical)
+                        .reverse_vertical(true)
+                        .track_style(SliderTrackStyle {
+                            thickness: Some(px(8.)),
+                            ..Default::default()
+                        })
+                        .track(
+                            div()
+                                .size_full()
+                                .overflow_hidden()
+                                .rounded_full()
+                                .bg(inactive)
+                                .child(div().w_full().h(relative(reversed)).bg(tertiary)),
+                        )
+                        .colors(SliderColors {
+                            thumb: Some(secondary),
+                            ..Default::default()
+                        })
+                        .value_indicator(false),
+                ),
             )
             .child(
                 section("Centered, vertical")

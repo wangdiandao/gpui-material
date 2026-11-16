@@ -20,7 +20,7 @@ pub use fab::{
 mod selection;
 pub use selection::{
     Checkbox, CheckboxColors, CheckboxState, CheckboxStateColors, Radio, RadioColors, RadioGroup,
-    Switch,
+    Switch, SwitchColors, SwitchStateColors,
 };
 
 mod chip;

@@ -17,7 +17,7 @@
 | `Fab`、`ExtendedFab` | Small、Medium、Large 尺寸和多种颜色角色。`ExtendedFab` 支持文字标签和图标。 | [悬浮操作按钮](https://m3.material.io/components/floating-action-button/overview) · [扩展悬浮操作按钮](https://m3.material.io/components/extended-fab/overview) |
 | `Checkbox` | 未选中、选中、混合、错误和禁用状态，可配置实例颜色和描边并观察交互。 | [复选框](https://m3.material.io/components/checkbox/overview) |
 | `Radio`、`RadioGroup` | 互斥选择、组内键盘导航、单项颜色配置和可选的交互观察。 | [单选按钮](https://m3.material.io/components/radio-button/specs) |
-| `Switch` | 开启和关闭状态，可选滑块图标。 | [开关](https://m3.material.io/components/switch/overview) |
+| `Switch` | 开启和关闭状态，支持可选滑块图标或自定义内容、各状态配色和共享交互观察。 | [开关](https://m3.material.io/components/switch/overview) |
 | `Chip` | Assist、Filter、Input、Suggestion，支持内容插槽和自定义外观，适用的变体支持独立选中和移除。 | [标签组件](https://m3.material.io/components/chips/overview) |
 | `Slider` | 单值、居中和范围滑块，支持横向或纵向布局，以及连续值或步进值。 | [滑块](https://m3.material.io/components/sliders/overview) |
 
@@ -48,6 +48,14 @@ FAB 开始隐藏时立即退出焦点导航并停止响应输入。淡出期间�
 使用 `Radio::colors(RadioColors)` 分别覆盖选中、未选中、禁用且选中、禁用且未选中时的指示器颜色。省略的字段沿用当前窗口配色。选中默认使用 Primary，未选中使用 On Surface Variant，两种禁用状态默认均使用 38% 不透明度的 On Surface。
 
 传入 `.interaction_source(&source)` 可观察独立的单选按钮或 `RadioGroup` 中的单项。组内快照使用渲染标识 `ElementId::from((group_id, option_id.to_string()))`，不同组可共享同一个 `Entity<InteractionSource>`。移除选项或更换其交互源时，原交互源中的快照会清除。选择状态由调用方持有，并根据 `.on_select(...)` 请求更新。每组有一个 Tab 焦点，导航会跳过禁用选项，并在 RTL 中镜像横向方向键的行为。
+
+### 开关
+
+将应用的当前值传给 `Switch::new(id, label, checked)`，并通过 `.on_change(...)` 处理请求的新值。指针、键盘和无障碍激活都会发出相同的变更请求。`.disabled(true)` 阻止用户更改。构造器提供的标签同时用于显示和无障碍名称。
+
+用 `.checked_icon` 和 `.unchecked_icon` 提供可选图标，也可通过 `.thumb_content(element)` 传入装饰性 GPUI 元素。在本次渲染中，自定义元素优先。调用方可使用自己的选中值决定各状态渲染的内容。自定义内容位于居中的 16 px 插槽内，并继承该状态的内容颜色。请将标签和独立控件放在滑块之外。
+
+通过 `.colors(SwitchColors)` 设置选中、未选中、禁用且选中、禁用且未选中四种状态的 `SwitchStateColors` 配色。每种配色可分别覆盖 `track`、`border`、`thumb` 和 `content`。省略的字段沿用主题默认值。使用 `.interaction_source(&source)` 接入调用方持有的 `Entity<InteractionSource>`，观察悬停、焦点、按下和禁用变化，选中值仍由应用持有。
 
 ### 标签组件
 

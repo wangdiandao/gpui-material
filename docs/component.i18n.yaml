@@ -3,8 +3,8 @@
   en: "04d1812e593709d7"
   zh: "f4acb7f93a6372a7"
 /components/actions-and-selection:
-  en: "940869af12cd5350"
-  zh: "94b38dd09949ad11"
+  en: "f563f672dcd89a48"
+  zh: "ff8e84a140e05603"
 /components/actions-and-selection/floating-action-button:
   en: "c77a57b086907ad0"
   zh: "e5c132ba393b8843"
@@ -14,6 +14,9 @@
 /components/actions-and-selection/radio-buttons:
   en: "9680b8f7ca73c7fa"
   zh: "0da9f89533393fbf"
+/components/actions-and-selection/switches:
+  en: "1a13309ab9e66c00"
+  zh: "1d9aefc71da5ba42"
 /components/actions-and-selection/chips:
   en: "c30eb9a0cc9402aa"
   zh: "c44ffc65148a09bd"

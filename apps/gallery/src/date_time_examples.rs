@@ -9,9 +9,10 @@ use gpui_material::{
     date_time::{
         DatePicker, DatePickerLocale, DatePickerState, DatePickerVariant, DateSelection, NaiveDate,
         NaiveTime, ScrollField, ScrollFieldState, TimeFormat, TimePicker, TimePickerLayout,
-        TimePickerState, TimePickerVariant, Weekday,
+        TimePickerLocale, TimePickerState, TimePickerStyle, TimePickerVariant,
+        VibrantTimePickerDialog, Weekday,
     },
-    theme::TypeRole,
+    theme::{CornerShape, TypeRole},
 };
 
 use crate::story::{Story, section, stack};
@@ -26,6 +27,7 @@ pub(crate) struct DateTimeExamples {
     second_date: DateSelection,
     first_time: NaiveTime,
     second_time: NaiveTime,
+    vibrant_time: NaiveTime,
     scroll_locked: bool,
     result: SharedString,
 }
@@ -34,6 +36,7 @@ enum PickerStates {
     Dates([Entity<DatePickerState>; 3]),
     Times {
         dialogs: [Entity<TimePickerState>; 2],
+        vibrant: Entity<TimePickerState>,
         hours: Entity<ScrollFieldState>,
         minutes: Entity<ScrollFieldState>,
     },
@@ -53,7 +56,27 @@ impl DateTimeExamples {
             };
             let hours = scroll_field(24, 14);
             let minutes = scroll_field(60, 35);
+            let vibrant = cx.new(|cx| {
+                let mut state = TimePickerState::new(window, cx);
+                state.set_format(TimeFormat::TwelveHour, window, cx);
+                state.set_locale(
+                    TimePickerLocale::default()
+                        .labels(
+                            "Meeting hour",
+                            "Meeting minute",
+                            ":",
+                            "Morning",
+                            "Afternoon",
+                        )
+                        .validation_message("Enter a valid meeting time"),
+                    window,
+                    cx,
+                );
+                state
+            });
+            cx.observe(&vibrant, |_, _, cx| cx.notify()).detach();
             PickerStates::Times {
+                vibrant,
                 dialogs: std::array::from_fn(|_| {
                     let state = cx.new(|cx| TimePickerState::new(window, cx));
                     cx.observe(&state, |_, _, cx| cx.notify()).detach();
@@ -85,6 +108,7 @@ impl DateTimeExamples {
             second_date: initial_date,
             first_time: NaiveTime::from_hms_opt(14, 35, 0).unwrap(),
             second_time: NaiveTime::from_hms_opt(9, 15, 0).unwrap(),
+            vibrant_time: NaiveTime::from_hms_opt(23, 59, 0).unwrap(),
             scroll_locked: false,
             result: "No changes yet".into(),
         }
@@ -246,6 +270,60 @@ impl DateTimeExamples {
             )
             .into_any_element()
     }
+    fn vibrant_time(&self, state: &Entity<TimePickerState>, cx: &Context<Self>) -> AnyElement {
+        let initial = self.vibrant_time;
+        let opener = state.clone();
+        let view = cx.weak_entity();
+        section("Vibrant time picker")
+            .child(
+                Button::new("open-vibrant-time", "Choose a meeting time")
+                    .variant(ButtonVariant::Outlined)
+                    .on_activate(move |window, cx| {
+                        opener.update(cx, |state, cx| {
+                            state.set_mode(TimePickerVariant::Scroll, window, cx);
+                            state.open(initial, window, cx);
+                        });
+                    }),
+            )
+            .child(
+                VibrantTimePickerDialog::new("vibrant-time", "Meeting time", state)
+                    .title_content(Text::new("Meeting time"))
+                    .style(TimePickerStyle {
+                        time_field_shape: Some(CornerShape::Radii([12., 20., 20., 12.])),
+                        period_selector_shape: Some(CornerShape::Full),
+                        ..Default::default()
+                    })
+                    .mode_toggle_content(|action| {
+                        Button::new(
+                            "meeting-mode",
+                            if action.target() == TimePickerVariant::Input {
+                                "Type meeting time"
+                            } else {
+                                "Use meeting wheels"
+                            },
+                        )
+                        .variant(ButtonVariant::Text)
+                        .on_activate(move |window, cx| action.activate(window, cx))
+                    })
+                    .confirm_content(|action| {
+                        Button::new("meeting-confirm", "Save meeting time")
+                            .on_activate(move |window, cx| action.activate(window, cx))
+                    })
+                    .dismiss_content(|action| {
+                        Button::new("meeting-dismiss", "Discard meeting time")
+                            .variant(ButtonVariant::Text)
+                            .on_activate(move |window, cx| action.activate(window, cx))
+                    })
+                    .on_confirm(move |time, _, cx| {
+                        let _ = view.update(cx, |view, cx| {
+                            view.vibrant_time = time;
+                            view.result = format!("Meeting at {}", time.format("%H:%M")).into();
+                            cx.notify();
+                        });
+                    }),
+            )
+            .into_any_element()
+    }
 }
 
 impl Render for DateTimeExamples {
@@ -254,6 +332,7 @@ impl Render for DateTimeExamples {
             PickerStates::Dates(states) => self.dates(states, cx),
             PickerStates::Times {
                 dialogs,
+                vibrant,
                 hours,
                 minutes,
             } => {
@@ -262,6 +341,7 @@ impl Render for DateTimeExamples {
                 let view = cx.weak_entity();
                 stack()
                     .child(self.times(dialogs, cx))
+                    .child(self.vibrant_time(vibrant, cx))
                     .child(
                         section("Scroll fields")
                             .description(
@@ -342,7 +422,10 @@ mod tests {
         TouchPhase, WindowOptions, point, rgb,
     };
     use gpui_base::test_support::{ElementSnapshot, find};
-    use gpui_material::MaterialRoot;
+    use gpui_material::{
+        DialogCloseReason, MaterialRoot,
+        date_time::{TimePickerDialog, TimePickerPanel, TimePickerSegment, TimeScroll},
+    };
 
     use super::*;
 
@@ -546,6 +629,17 @@ mod tests {
         .unwrap();
     }
 
+    fn assert_colors(handle: AnyWindowHandle, colors: &[u32], cx: &mut TestAppContext) {
+        cx.update_window(handle, |_, window, _| {
+            let quads = window.painted_quads();
+            for &color in colors {
+                let fill: gpui::Hsla = rgb(color).into();
+                assert!(quads.iter().any(|quad| quad.background == fill.into()));
+            }
+        })
+        .unwrap();
+    }
+
     #[gpui::test]
     fn scroll_field_accepts_pointer_wheel_touchpad_and_keyboard_with_dynamic_count(
         cx: &mut TestAppContext,
@@ -564,17 +658,7 @@ mod tests {
             .center()
             - field.bounds().center();
         assert!(offset.x.abs() <= px(1.) && offset.y.abs() <= px(1.));
-        let assert_colors = |colors: &[u32], cx: &mut TestAppContext| {
-            cx.update_window(handle, |_, window, _| {
-                let quads = window.painted_quads();
-                for &color in colors {
-                    let fill: gpui::Hsla = rgb(color).into();
-                    assert!(quads.iter().any(|quad| quad.background == fill.into()));
-                }
-            })
-            .unwrap();
-        };
-        assert_colors(&FIELD_COLORS[..3], cx);
+        assert_colors(handle, &FIELD_COLORS[..3], cx);
 
         click(handle, ("scroll-field-row", 1_usize), cx);
         assert_eq!(wheel_selection(&state, cx), (Some(7), Some(7), false));
@@ -657,7 +741,7 @@ mod tests {
             })
         });
         frame(handle, cx);
-        assert_colors(&FIELD_COLORS[3..], cx);
+        assert_colors(handle, &FIELD_COLORS[3..], cx);
         assert_eq!(wheel_selection(&state, cx), (Some(11), Some(11), false));
         cx.executor()
             .advance_clock(std::time::Duration::from_millis(140));
@@ -834,5 +918,346 @@ mod tests {
                 NaiveTime::from_hms_opt(12, 15, 0).unwrap()
             )
         });
+    }
+    #[gpui::test]
+    fn vibrant_time_scroll_wraps_validates_and_restores_focus(cx: &mut TestAppContext) {
+        let (window, view) = fixture(Story::TimePicker, cx);
+        click(window, "open-vibrant-time", cx);
+        let hour = part("vibrant-time", "hour-scroll");
+        let minute = part("vibrant-time", "minute-scroll");
+        let hour_value = element(window, hour.clone(), cx);
+        assert_eq!(hour_value.role(), Some(Role::Slider));
+        assert_eq!(hour_value.label(), Some("Meeting hour"));
+        assert_eq!(hour_value.value(), Some("11"));
+        assert_eq!(hour_value.focused(), Some(true));
+        assert_eq!(element(window, minute.clone(), cx).value(), Some("59"));
+        cx.simulate_keystrokes(window, "down");
+        frame(window, cx);
+        assert_eq!(element(window, hour.clone(), cx).value(), Some("12"));
+        cx.simulate_keystrokes(window, "down tab down");
+        frame(window, cx);
+        assert_eq!(element(window, hour, cx).value(), Some("01"));
+        assert_eq!(element(window, minute, cx).value(), Some("00"));
+        cx.update(|cx| {
+            let PickerStates::Times { vibrant, .. } = &view.read(cx).states else {
+                unreachable!()
+            };
+            let state = vibrant.read(cx);
+            assert_eq!((state.hour(), state.minute()), (13, 0));
+            assert_eq!(state.segment(), TimePickerSegment::Minute);
+        });
+
+        click(window, "meeting-mode", cx);
+        let minute_input = part("vibrant-time", "minute");
+        assert_eq!(
+            element(window, minute_input.clone(), cx).focused(),
+            Some(true)
+        );
+        let select_all = if cfg!(target_os = "macos") {
+            "cmd-a"
+        } else {
+            "ctrl-a"
+        };
+        cx.simulate_keystrokes(window, select_all);
+        cx.simulate_input(window, "60");
+        click(window, "meeting-confirm", cx);
+        assert_eq!(
+            element(window, "picker-status", cx).label(),
+            Some("Enter a valid meeting time")
+        );
+        assert_eq!(element(window, minute_input, cx).focused(), Some(true));
+        cx.simulate_keystrokes(window, select_all);
+        cx.simulate_input(window, "08");
+        click(window, "meeting-confirm", cx);
+        assert_eq!(
+            element(window, "open-vibrant-time", cx).focused(),
+            Some(true)
+        );
+        cx.update(|cx| {
+            assert_eq!(
+                view.read(cx).vibrant_time,
+                NaiveTime::from_hms_opt(13, 8, 0).unwrap()
+            )
+        });
+
+        click(window, "open-vibrant-time", cx);
+        click(window, part("vibrant-time", "am"), cx);
+        click(window, "meeting-dismiss", cx);
+        assert_eq!(
+            element(window, "open-vibrant-time", cx).focused(),
+            Some(true)
+        );
+        cx.update(|cx| {
+            assert_eq!(
+                view.read(cx).vibrant_time,
+                NaiveTime::from_hms_opt(13, 8, 0).unwrap()
+            )
+        });
+    }
+
+    struct StandaloneTime {
+        state: Entity<TimePickerState>,
+    }
+
+    impl Render for StandaloneTime {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let style = TimePickerStyle {
+                time_field_shape: Some(CornerShape::Radii([4., 12., 16., 8.])),
+                clock_dial: Some(rgb(0x281e4a).into()),
+                selector: Some(rgb(0xef9540).into()),
+                scroll: gpui_material::date_time::ScrollFieldColors {
+                    container: Some(rgb(0x345a85).into()),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            div().p_4().child(match self.state.read(cx).mode() {
+                TimePickerVariant::Dial => TimePickerPanel::dial("standalone-time", &self.state)
+                    .style(style)
+                    .into_any_element(),
+                TimePickerVariant::Input => TimePickerPanel::input("standalone-time", &self.state)
+                    .style(style)
+                    .into_any_element(),
+                TimePickerVariant::Scroll => TimeScroll::new("standalone-time", &self.state)
+                    .style(style)
+                    .mode_toggle_content(|mode| {
+                        Button::new("wheel-to-input", "Use text")
+                            .on_activate(move |window, cx| mode.activate(window, cx))
+                    })
+                    .into_any_element(),
+            })
+        }
+    }
+
+    #[gpui::test]
+    fn standalone_time_panels_share_external_state_locale_and_rtl(cx: &mut TestAppContext) {
+        use gpui_material::{material_theme, set_material_theme, theme::Direction};
+
+        let mut state = None;
+        let window = cx.update(|cx| {
+            crate::init_gallery(cx);
+            cx.set_reduce_motion(true);
+            let mut theme = material_theme(cx).clone();
+            theme.layout.direction = Direction::Rtl;
+            set_material_theme(theme, cx);
+            MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+                let picker = cx.new(|cx| {
+                    let mut time = TimePickerState::new(window, cx);
+                    time.set_mode(TimePickerVariant::Scroll, window, cx);
+                    time.set_value(NaiveTime::from_hms_opt(23, 59, 45).unwrap(), window, cx);
+                    time.set_locale(
+                        TimePickerLocale::default()
+                            .numbers(
+                                |value| format!("{value:02} u").into(),
+                                |text| text.strip_suffix(" u")?.parse().ok(),
+                            )
+                            .labels(
+                                "Localized hour",
+                                "Localized minute",
+                                "h",
+                                "Morning",
+                                "Evening",
+                            ),
+                        window,
+                        cx,
+                    );
+                    time
+                });
+                state = Some(picker.clone());
+                cx.new(|cx| {
+                    cx.observe(&picker, |_, _, cx| cx.notify()).detach();
+                    StandaloneTime { state: picker }
+                })
+            })
+            .unwrap()
+        });
+        let window = window.into();
+        let state = state.unwrap();
+        frame(window, cx);
+        let hour = part("standalone-time", "hour-scroll");
+        let minute = part("standalone-time", "minute-scroll");
+        assert!(
+            element(window, hour.clone(), cx).bounds().left()
+                > element(window, minute.clone(), cx).bounds().left()
+        );
+        assert_eq!(element(window, hour.clone(), cx).value(), Some("23 u"));
+        click(window, hour.clone(), cx);
+        cx.simulate_keystrokes(window, "down tab down");
+        frame(window, cx);
+        assert_eq!(element(window, hour, cx).value(), Some("00 u"));
+        assert_eq!(element(window, minute.clone(), cx).value(), Some("00 u"));
+        cx.update_window(window, |_, window, cx| {
+            state.update(cx, |state, cx| {
+                assert_eq!((state.hour(), state.minute()), (0, 0));
+                assert!(state.set_hour(14, window, cx));
+                assert!(state.set_minute(7, window, cx));
+                assert!(!state.set_hour(24, window, cx));
+                assert!(!state.set_minute(60, window, cx));
+            });
+        })
+        .unwrap();
+        frame(window, cx);
+        cx.update(|cx| cx.set_reduce_motion(false));
+        click(window, minute.clone(), cx);
+        cx.simulate_keystrokes(window, "down");
+        frame(window, cx);
+        assert_eq!(element(window, minute.clone(), cx).value(), Some("08 u"));
+        cx.update(|cx| assert_eq!(state.read(cx).minute(), 7));
+        cx.update_window(window, |_, window, cx| {
+            state.update(cx, |state, cx| assert!(state.set_minute(7, window, cx)));
+        })
+        .unwrap();
+        cx.executor()
+            .advance_clock(std::time::Duration::from_secs(1));
+        frame(window, cx);
+        assert_eq!(element(window, minute, cx).value(), Some("07 u"));
+        cx.update(|cx| cx.set_reduce_motion(true));
+        click(window, "wheel-to-input", cx);
+        let minute_input = part("standalone-time", "minute");
+        assert_eq!(element(window, minute_input, cx).focused(), Some(true));
+        cx.update_window(window, |_, window, cx| {
+            state.update(cx, |state, cx| {
+                assert_eq!(state.mode(), TimePickerVariant::Input);
+                assert_eq!(state.hour_input(cx).as_ref(), "14 u");
+                state.set_hour_input("05 u", window, cx);
+                state.set_minute_input("60 u", window, cx);
+                assert_eq!((state.hour(), state.minute()), (5, 7));
+                assert!(state.is_hour_input_valid(cx));
+                assert!(!state.is_minute_input_valid(cx));
+                assert!(!state.is_input_valid(cx));
+                state.set_format(TimeFormat::TwelveHour, window, cx);
+                assert!(state.is_input_valid(cx));
+                state.set_segment(TimePickerSegment::Hour, cx);
+                state.set_mode(TimePickerVariant::Dial, window, cx);
+            });
+        })
+        .unwrap();
+        frame(window, cx);
+        let dial = element(window, part("standalone-time", "dial"), cx);
+        assert_eq!(dial.label(), Some("Localized hour, 05 uh07 u Morning"));
+        assert_eq!(dial.focused(), Some(true));
+        assert_colors(window, &[0x281e4a, 0xef9540], cx);
+        cx.simulate_keystrokes(window, "space right");
+        frame(window, cx);
+        cx.update(|cx| {
+            let time = state.read(cx);
+            assert_eq!((time.hour(), time.minute()), (5, 8));
+            assert_eq!(time.segment(), TimePickerSegment::Minute);
+        });
+    }
+
+    struct CustomTimeDialog {
+        state: Entity<TimePickerState>,
+        allow: std::rc::Rc<std::cell::Cell<bool>>,
+        requests: std::rc::Rc<std::cell::RefCell<Vec<DialogCloseReason>>>,
+        closes: std::rc::Rc<std::cell::RefCell<Vec<DialogCloseReason>>>,
+    }
+
+    impl Render for CustomTimeDialog {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let state = self.state.clone();
+            let (allow, requests, closes) = (
+                self.allow.clone(),
+                self.requests.clone(),
+                self.closes.clone(),
+            );
+            div()
+                .p_4()
+                .child(
+                    Button::new("custom-time-trigger", "Open schedule").on_activate(
+                        move |window, cx| {
+                            state.update(cx, |state, cx| state.open(NaiveTime::MIN, window, cx));
+                        },
+                    ),
+                )
+                .child(
+                    TimePickerDialog::new("custom-time-dialog", "Schedule", &self.state)
+                        .body(TimePickerPanel::input("custom-time-body", &self.state))
+                        .title_content(Text::new("Set schedule").id("custom-time-title"))
+                        .show_mode_toggle(false)
+                        .on_dismiss_request(move |reason, _, _| {
+                            requests.borrow_mut().push(reason);
+                            allow.get()
+                        })
+                        .on_close(move |reason, _, _| closes.borrow_mut().push(reason)),
+                )
+        }
+    }
+
+    #[gpui::test]
+    fn time_dialog_reports_only_accepted_user_closes(cx: &mut TestAppContext) {
+        use std::{
+            cell::{Cell, RefCell},
+            rc::Rc,
+        };
+
+        let allow = Rc::new(Cell::new(false));
+        let requests = Rc::new(RefCell::new(Vec::new()));
+        let closes = Rc::new(RefCell::new(Vec::new()));
+        let mut state = None;
+        let window = cx
+            .update(|cx| {
+                crate::init_gallery(cx);
+                cx.set_reduce_motion(true);
+                MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+                    let picker = cx.new(|cx| {
+                        let mut picker = TimePickerState::new(window, cx);
+                        picker.set_mode(TimePickerVariant::Input, window, cx);
+                        picker
+                    });
+                    state = Some(picker.clone());
+                    cx.new(|cx| {
+                        cx.observe(&picker, |_, _, cx| cx.notify()).detach();
+                        CustomTimeDialog {
+                            state: picker,
+                            allow: allow.clone(),
+                            requests: requests.clone(),
+                            closes: closes.clone(),
+                        }
+                    })
+                })
+                .unwrap()
+            })
+            .into();
+        let state = state.unwrap();
+        click(window, "custom-time-trigger", cx);
+        assert_eq!(
+            element(window, "custom-time-title", cx).label(),
+            Some("Set schedule")
+        );
+        cx.simulate_keystrokes(window, "escape");
+        frame(window, cx);
+        cx.update(|cx| assert!(state.read(cx).is_open(cx)));
+        assert_eq!(*requests.borrow(), [DialogCloseReason::Escape]);
+        assert!(closes.borrow().is_empty());
+        allow.set(true);
+        cx.simulate_keystrokes(window, "escape");
+        frame(window, cx);
+        assert_eq!(
+            element(window, "custom-time-trigger", cx).focused(),
+            Some(true)
+        );
+
+        click(window, "custom-time-trigger", cx);
+        click(window, "cancel", cx);
+        assert_eq!(
+            *requests.borrow(),
+            [DialogCloseReason::Escape, DialogCloseReason::Escape]
+        );
+        assert_eq!(
+            *closes.borrow(),
+            [DialogCloseReason::Escape, DialogCloseReason::Cancel]
+        );
+        click(window, "custom-time-trigger", cx);
+        cx.update_window(window, |_, window, cx| {
+            state.update(cx, |state, cx| state.close(window, cx));
+        })
+        .unwrap();
+        frame(window, cx);
+        cx.update(|cx| assert!(!state.read(cx).is_open(cx)));
+        assert_eq!(
+            *closes.borrow(),
+            [DialogCloseReason::Escape, DialogCloseReason::Cancel]
+        );
     }
 }

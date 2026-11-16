@@ -27,11 +27,13 @@ mod slider;
 pub use slider::{Slider, SliderEvent, SliderKind, SliderScale, SliderState, SliderValue};
 
 mod display;
+mod loading_indicator;
 mod progress;
+mod swipe_to_dismiss;
 mod text;
 pub use display::{Badge, Card, CardVariant, Divider, List, ListItem, ListVariant};
-mod swipe_to_dismiss;
-pub use progress::{CircularProgress, LinearProgress, LoadingIndicator, ProgressShape};
+pub use loading_indicator::{LoadingIndicator, LoadingIndicatorShape, LoadingIndicatorShapes};
+pub use progress::{CircularProgress, LinearProgress, ProgressShape};
 pub use swipe_to_dismiss::{SwipeToDismiss, SwipeToDismissState, SwipeToDismissValue};
 pub use text::Text;
 mod icon;

@@ -2,22 +2,25 @@ use gpui::{
     AppContext, Axis, Context, ElementId, Entity, FocusHandle, IntoElement, ParentElement, Render,
     StrokeOptions, Styled, Window, div, prelude::FluentBuilder, px, rgb,
 };
-use gpui_material::foundation::window_material_theme;
-use gpui_material::theme::Direction;
+use gpui_material::foundation::{color, window_material_theme};
+use gpui_material::theme::{ColorRole, Direction};
 use gpui_material::{
     Checkbox, CheckboxColors, CheckboxState, CheckboxStateColors, Chip, ChipVariant, Icon,
-    IconName, InteractionSource, Radio, RadioGroup, Switch, Text,
+    IconName, InteractionSource, Radio, RadioColors, RadioGroup, Switch, Text,
 };
 
 use crate::story::{Story, section};
 
 #[cfg(all(test, feature = "test-support"))]
 mod checkbox_tests;
+#[cfg(all(test, feature = "test-support"))]
+mod radio_tests;
 
 pub(crate) struct SelectionExamples {
     story: Option<Story>,
     colors: [CheckboxState; 2],
     alignment: ElementId,
+    density: ElementId,
     notifications: bool,
     plain_switch: bool,
     filter: bool,
@@ -35,6 +38,7 @@ impl SelectionExamples {
             story: None,
             colors: [CheckboxState::Checked, CheckboxState::Unchecked],
             alignment: "start".into(),
+            density: "standard".into(),
             notifications: false,
             plain_switch: false,
             filter: false,
@@ -224,25 +228,64 @@ impl Render for SelectionExamples {
                 (self.story == Some(Story::Checkbox)).then(|| self.custom_checkboxes(window, cx)),
             )
             .children(self.shows(Story::Radio).then(|| {
-                section("Horizontal group")
-                    .description("Use the arrow keys to move between Start and End.")
-                    .child({
-                        let owner = cx.entity();
-                        RadioGroup::new("alignment", "Alignment")
-                            .axis(Axis::Horizontal)
-                            .selected(self.alignment.clone())
-                            .options([
+                let theme = window_material_theme(window, cx);
+                let tone = |role| color(theme.colors.color(role));
+                let alignment_colors = RadioColors {
+                    selected: Some(tone(ColorRole::Secondary)),
+                    unselected: Some(tone(ColorRole::Outline)),
+                    ..Default::default()
+                };
+                let density_colors = RadioColors {
+                    selected: Some(tone(ColorRole::Tertiary)),
+                    unselected: Some(tone(ColorRole::OnSurfaceVariant)),
+                    ..Default::default()
+                };
+                let radio_story = self.story == Some(Story::Radio);
+                section(if radio_story {
+                    "Alignment and density"
+                } else {
+                    "Horizontal group"
+                })
+                .description("Use the arrow keys to navigate each group.")
+                .child({
+                    let owner = cx.entity();
+                    RadioGroup::new("alignment", "Alignment")
+                        .axis(Axis::Horizontal)
+                        .selected(self.alignment.clone())
+                        .options(
+                            [
                                 Radio::new("start", "Start"),
                                 Radio::new("center", "Center").disabled(true),
                                 Radio::new("end", "End"),
-                            ])
-                            .on_select(move |id, _, cx| {
-                                owner.update(cx, |this, cx| {
-                                    this.alignment = id.clone();
-                                    cx.notify();
-                                });
-                            })
-                    })
+                            ]
+                            .map(|radio| radio.colors(alignment_colors)),
+                        )
+                        .on_select(move |id, _, cx| {
+                            owner.update(cx, |this, cx| {
+                                this.alignment = id.clone();
+                                cx.notify();
+                            });
+                        })
+                })
+                .children(radio_story.then(|| {
+                    let owner = cx.entity();
+                    RadioGroup::new("density", "Density")
+                        .selected(self.density.clone())
+                        .options(
+                            [
+                                Radio::new("compact", "Compact"),
+                                Radio::new("standard", "Standard"),
+                                Radio::new("comfortable", "Comfortable"),
+                            ]
+                            .map(|radio| radio.colors(density_colors)),
+                        )
+                        .on_select(move |id, _, cx| {
+                            owner.update(cx, |this, cx| {
+                                this.density = id.clone();
+                                cx.notify();
+                            });
+                        })
+                }))
             }))
             .children(self.shows(Story::Switch).then(|| {
                 section("With icons, without icons and disabled")

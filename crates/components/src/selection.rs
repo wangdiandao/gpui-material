@@ -516,6 +516,27 @@ mod checkbox_tests {
     }
 }
 
+/// Radio indicator pigments. Omitted values use the current window theme.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct RadioColors {
+    pub selected: Option<Hsla>,
+    pub unselected: Option<Hsla>,
+    pub disabled_selected: Option<Hsla>,
+    pub disabled_unselected: Option<Hsla>,
+}
+
+impl RadioColors {
+    fn resolve(self, selected: bool, disabled: bool, window: &Window, cx: &App) -> Hsla {
+        match (selected, disabled) {
+            (true, false) => self.selected,
+            (false, false) => self.unselected,
+            (true, true) => self.disabled_selected,
+            (false, true) => self.disabled_unselected,
+        }
+        .unwrap_or_else(|| selection_tone(selected, disabled, window, cx))
+    }
+}
+
 /// A radio option. A group owns the tab stop and the caller owns selection.
 #[derive(IntoElement)]
 pub struct Radio {
@@ -524,6 +545,8 @@ pub struct Radio {
     selected: bool,
     disabled: bool,
     on_select: Option<crate::action::Activate>,
+    colors: RadioColors,
+    interaction_source: Option<Entity<InteractionSource>>,
 }
 
 impl Radio {
@@ -534,6 +557,8 @@ impl Radio {
             selected: false,
             disabled: false,
             on_select: None,
+            colors: RadioColors::default(),
+            interaction_source: None,
         }
     }
 
@@ -549,6 +574,19 @@ impl Radio {
 
     pub fn on_select(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
         self.on_select = Some(Rc::new(handler));
+        self
+    }
+
+    /// Overrides indicator colors for the four enabled and selected combinations.
+    pub fn colors(mut self, colors: RadioColors) -> Self {
+        self.colors = colors;
+        self
+    }
+
+    /// Observes hover, press, keyboard focus, and disabled state.
+    /// Group options are observed under their rendered, group-scoped IDs.
+    pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
+        self.interaction_source = Some(source.clone());
         self
     }
 
@@ -579,8 +617,8 @@ impl Radio {
         )
         .clamp(0., 1.);
         let accent = crate::motion::mix(
-            selection_tone(false, self.disabled, window, cx),
-            selection_tone(true, self.disabled, window, cx),
+            self.colors.resolve(false, self.disabled, window, cx),
+            self.colors.resolve(true, self.disabled, window, cx),
             tint,
         );
         let indicator = div()
@@ -594,10 +632,29 @@ impl Radio {
             .child(div().size(px(10. * dot)).rounded_full().bg(accent));
         let direction = window_material_theme(window, cx).layout.direction;
         let ripple = ripple_state(&self.id, !self.disabled, window, cx);
+        let focus = focus.cloned().unwrap_or_else(|| {
+            // Match Base's standalone focus ID so changing the source retains focus.
+            window
+                .use_keyed_state(self.id.clone(), cx, |_, cx| cx.focus_handle())
+                .read(cx)
+                .clone()
+        });
+        let tracker = self
+            .interaction_source
+            .as_ref()
+            .map(|source| InteractionSource::track(source, &self.id, window, cx));
+        let observed = tracker.is_some();
+        ripple
+            .borrow_mut()
+            .track(!self.disabled, &focus, tracker, window, cx);
         let group: SharedString = format!("material-radio/{}", self.id).into();
         let radio = BaseRadio::new(self.id)
             .when(!self.disabled, |control| {
-                ripple_target(control, ripple.clone())
+                if observed {
+                    feedback_target(control, ripple.clone(), true, Some(focus.clone()))
+                } else {
+                    ripple_target(control, ripple.clone())
+                }
             })
             .checked(self.selected)
             .disabled(self.disabled)
@@ -621,7 +678,7 @@ impl Radio {
                     ))
                     .child(div().min_w_0().truncate().child(self.label)),
             )
-            .when_some(focus, |radio, focus| radio.track_focus(focus))
+            .track_focus(&focus)
             .when_some(position, |radio, (position, size)| {
                 radio.set_position(position, size)
             });

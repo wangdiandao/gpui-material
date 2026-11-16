@@ -127,6 +127,11 @@ impl Icon {
         self
     }
 
+    pub(crate) fn inherit_color(mut self) -> Self {
+        self.color = None;
+        self
+    }
+
     pub fn mirror_in_rtl(mut self, mirror: bool) -> Self {
         self.mirror = mirror;
         self

@@ -1,23 +1,52 @@
 use std::{collections::HashMap, rc::Rc};
 
 use gpui::{
-    AccessibleAction, AnyElement, App, ElementId, Entity, FocusHandle, InteractiveElement,
+    AccessibleAction, AnyElement, App, ElementId, Entity, FocusHandle, Hsla, InteractiveElement,
     IntoElement, ParentElement, RenderOnce, Role, ScrollHandle, SharedString,
     StatefulInteractiveElement, Styled, TextAlign, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{Button, TestSupportExt};
-use gpui_material_foundation::{animate, color, text_style, window_material_theme};
+use gpui_material_foundation::{
+    InteractionSource, animate, color,
+    control_feedback::{activate_feedback, feedback_target, ripple_state},
+    text_style, window_material_theme,
+};
 use gpui_material_theme::{
     ColorRole, Direction, MotionKind, MotionSpeed, TypeRole, TypographyEmphasis,
 };
 
-use crate::Icon;
+use crate::{Badge, Icon};
+
+/// Placement of a navigation item's icon relative to its label.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NavigationItemIconPosition {
+    Top,
+    Start,
+}
+
+/// Optional pigments for an Expressive navigation destination.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct NavigationItemColors {
+    pub selected_icon: Option<Hsla>,
+    pub selected_label_top: Option<Hsla>,
+    pub selected_label_start: Option<Hsla>,
+    pub selected_indicator: Option<Hsla>,
+    pub unselected_icon: Option<Hsla>,
+    pub unselected_label: Option<Hsla>,
+    pub disabled_icon: Option<Hsla>,
+    pub disabled_label: Option<Hsla>,
+}
 
 /// One destination or tab with an ID unique within its collection.
 pub struct NavigationItem {
     id: SharedString,
     label: SharedString,
     icon: Option<Icon>,
+    icon_position: Option<NavigationItemIconPosition>,
+    label_content: Option<AnyElement>,
+    badge: Option<Badge>,
+    colors: NavigationItemColors,
+    interaction_source: Option<Entity<InteractionSource>>,
     disabled: bool,
 }
 
@@ -27,6 +56,11 @@ impl NavigationItem {
             id: id.into(),
             label: label.into(),
             icon: None,
+            icon_position: None,
+            label_content: None,
+            badge: None,
+            colors: NavigationItemColors::default(),
+            interaction_source: None,
             disabled: false,
         }
     }
@@ -38,6 +72,37 @@ impl NavigationItem {
 
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
+        self
+    }
+
+    /// Overrides the icon placement inherited from the short navigation bar.
+    pub fn icon_position(mut self, position: NavigationItemIconPosition) -> Self {
+        self.icon_position = Some(position);
+        self
+    }
+
+    /// Replaces the visible bar label while retaining the destination's accessible name.
+    pub fn label_content(mut self, content: impl IntoElement) -> Self {
+        self.label_content = Some(content.into_any_element());
+        self
+    }
+
+    /// Anchors a standalone badge to the icon, or to the label if there is no icon.
+    /// An accessible badge label becomes the destination's description.
+    pub fn badge(mut self, badge: Badge) -> Self {
+        self.badge = Some(badge);
+        self
+    }
+
+    /// Sets per-state pigments for this short navigation bar destination.
+    pub fn colors(mut self, colors: NavigationItemColors) -> Self {
+        self.colors = colors;
+        self
+    }
+
+    /// Observes the short navigation bar destination using its collection ID and item ID.
+    pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
+        self.interaction_source = Some(source.clone());
         self
     }
 }
@@ -164,11 +229,28 @@ pub enum NavigationBarLayout {
     Horizontal,
 }
 
+/// Distribution of the navigation items along the width of the bar.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum NavigationBarArrangement {
+    #[default]
+    EqualWeight,
+    Centered,
+}
+
+/// Short navigation bar pigments. Item overrides take precedence over `content`.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct NavigationBarColors {
+    pub container: Option<Hsla>,
+    pub content: Option<Hsla>,
+}
+
 /// Material Expressive short navigation bar.
 #[derive(IntoElement)]
 pub struct NavigationBar {
     items: NavigationItems,
     layout: NavigationBarLayout,
+    arrangement: NavigationBarArrangement,
+    colors: NavigationBarColors,
 }
 
 impl NavigationBar {
@@ -176,6 +258,8 @@ impl NavigationBar {
         Self {
             items,
             layout: NavigationBarLayout::Vertical,
+            arrangement: NavigationBarArrangement::default(),
+            colors: NavigationBarColors::default(),
         }
     }
 
@@ -183,19 +267,40 @@ impl NavigationBar {
         self.layout = layout;
         self
     }
+
+    pub fn arrangement(mut self, arrangement: NavigationBarArrangement) -> Self {
+        self.arrangement = arrangement;
+        self
+    }
+
+    pub fn colors(mut self, colors: NavigationBarColors) -> Self {
+        self.colors = colors;
+        self
+    }
 }
 
 impl RenderOnce for NavigationBar {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        self.items
-            .render_row(Presentation::Bar(self.layout), window, cx)
+        self.items.render_row(
+            Presentation::Bar {
+                layout: self.layout,
+                arrangement: self.arrangement,
+                colors: self.colors,
+            },
+            window,
+            cx,
+        )
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq)]
 pub(super) enum Presentation {
     Tabs(TabVariant, bool),
-    Bar(NavigationBarLayout),
+    Bar {
+        layout: NavigationBarLayout,
+        arrangement: NavigationBarArrangement,
+        colors: NavigationBarColors,
+    },
     Rail(bool),
 }
 
@@ -211,7 +316,27 @@ impl Presentation {
     fn horizontal_label(self) -> bool {
         matches!(
             self,
-            Self::Bar(NavigationBarLayout::Horizontal) | Self::Rail(true)
+            Self::Bar {
+                layout: NavigationBarLayout::Horizontal,
+                ..
+            } | Self::Rail(true)
+        )
+    }
+
+    fn bar_colors(self) -> Option<NavigationBarColors> {
+        match self {
+            Self::Bar { colors, .. } => Some(colors),
+            _ => None,
+        }
+    }
+
+    fn centered(self) -> bool {
+        matches!(
+            self,
+            Self::Bar {
+                arrangement: NavigationBarArrangement::Centered,
+                ..
+            }
         )
     }
 
@@ -223,7 +348,7 @@ impl Presentation {
         match self {
             Self::Tabs(..) if has_icons => 64.,
             Self::Tabs(..) => 48.,
-            Self::Bar(_) | Self::Rail(_) => 64.,
+            Self::Bar { .. } | Self::Rail(_) => 64.,
         }
     }
 }
@@ -252,11 +377,16 @@ impl NavigationItems {
         let ring = tone(ColorRole::Secondary);
         let state_layer = tone(ColorRole::OnSurface);
         let divider = tone(ColorRole::SurfaceVariant);
-        let background = tone(if matches!(presentation, Presentation::Bar(_)) {
-            ColorRole::SurfaceContainer
-        } else {
-            ColorRole::Surface
-        });
+        let bar_colors = presentation.bar_colors();
+        let background = bar_colors
+            .and_then(|colors| colors.container)
+            .unwrap_or_else(|| {
+                tone(if bar_colors.is_some() {
+                    ColorRole::SurfaceContainer
+                } else {
+                    ColorRole::Surface
+                })
+            });
         let rail = presentation.is_rail();
         let tab = presentation.is_tab();
         let scrollable = presentation.is_scrollable();
@@ -325,6 +455,13 @@ impl NavigationItems {
             state.selection = self.selected.clone();
         });
         let count = items.len();
+        let centered_widths = (presentation.centered() && count > 0).then(|| {
+            // Compose reserves side space for short labels, while capping wider
+            // destinations to their share of an equal-weight bar.
+            let share = 1. / count as f32;
+            let group = ((count.min(7) + 3) as f32 * 0.1).min(1.);
+            (gpui::relative(share * group), gpui::relative(share))
+        });
         let row = div()
             .id(self.id.clone())
             .test_support()
@@ -346,6 +483,7 @@ impl NavigationItems {
                 |row| row.flex_row().flex_none().min_h(height).bg(background),
             )
             .when(tab, |row| row.border_b_1().border_color(divider))
+            .when(centered_widths.is_some(), Styled::justify_center)
             .when(scrollable && !rail, |row| row.overflow_x_scroll())
             .when(matches!(presentation, Presentation::Tabs(_, true)), |row| {
                 row.px(px(52.))
@@ -369,7 +507,7 @@ impl NavigationItems {
                     cx.stop_propagation();
                 }
             });
-        row.children(items.into_iter().enumerate().map(|(index, item)| {
+        row.children(items.into_iter().enumerate().map(|(index, mut item)| {
             let selected = selected == Some(&item.id);
             let visual = ItemVisual {
                 presentation,
@@ -381,7 +519,20 @@ impl NavigationItems {
             let handle = &focus[&item.id];
             let is_tab_stop = tab_stop.as_ref() == Some(&item.id);
             let id = (self.id.clone(), item.id.clone()).into();
-            let content = visual.render(&id, item.icon, item.label.clone(), window, cx);
+            let description = bar_colors
+                .and(item.badge.as_mut())
+                .and_then(Badge::take_accessible_label);
+            let content = visual.render(&id, &mut item, window, cx);
+            let feedback = bar_colors
+                .and(item.interaction_source.as_ref())
+                .map(|source| {
+                    let feedback = ripple_state(&id, !item.disabled, window, cx);
+                    let tracker = InteractionSource::track(source, &id, window, cx);
+                    feedback
+                        .borrow_mut()
+                        .track(!item.disabled, handle, Some(tracker), window, cx);
+                    feedback
+                });
             let position = if rtl && !rail {
                 count - index
             } else {
@@ -393,6 +544,9 @@ impl NavigationItems {
                 .aria_position_in_set(position)
                 .aria_size_of_set(count)
                 .accessibility_label(item.label)
+                .when_some(description, |button, description| {
+                    button.aria_description(description)
+                })
                 .track_focus(handle)
                 .tab_stop(is_tab_stop)
                 .disabled(item.disabled)
@@ -408,6 +562,9 @@ impl NavigationItems {
                         )
                     },
                 )
+                .when_some(centered_widths, |button, (minimum, maximum)| {
+                    button.flex_none().min_w(minimum).max_w(maximum)
+                })
                 .border_color(gpui::transparent_black())
                 .border_2()
                 .when(!item.disabled, |button| {
@@ -415,6 +572,9 @@ impl NavigationItems {
                         .hover(|style| style.bg(state_layer.opacity(0.08)))
                         .active(|style| style.bg(state_layer.opacity(0.1)))
                         .focus_visible(|style| style.border_color(ring))
+                        .when_some(feedback.as_ref().cloned(), |button, feedback| {
+                            feedback_target(button, feedback, true, Some(handle.clone()))
+                        })
                         .when_some(self.on_select.clone(), |button, activate| {
                             let id = item.id.clone();
                             let on_accessibility_action = activate.clone();
@@ -422,13 +582,20 @@ impl NavigationItems {
                                 .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
                                     on_accessibility_action(&id, window, cx);
                                 })
-                                .on_click(move |_, window, cx| {
+                                .on_click(move |event, window, cx| {
                                     cx.stop_propagation();
+                                    if let Some(feedback) = &feedback {
+                                        activate_feedback(event, feedback, window, cx);
+                                    }
                                     activate(&item.id, window, cx);
                                 })
                         })
                 })
-                .opacity(if item.disabled { 0.38 } else { 1. })
+                .opacity(if item.disabled && bar_colors.is_none() {
+                    0.38
+                } else {
+                    1.
+                })
                 .child(content)
         }))
         .into_any_element()
@@ -460,8 +627,7 @@ impl ItemVisual {
     fn render(
         self,
         id: &ElementId,
-        icon: Option<Icon>,
-        label: SharedString,
+        item: &mut NavigationItem,
         window: &mut Window,
         cx: &mut App,
     ) -> impl IntoElement + use<> {
@@ -476,13 +642,67 @@ impl ItemVisual {
                 _ => ColorRole::Secondary,
             }
         };
-        let label_color = tone(foreground);
-        let icon_color = if self.selected && !self.presentation.is_tab() {
+        let icon_role = if self.selected && !self.presentation.is_tab() {
             ColorRole::OnSecondaryContainer
         } else {
             foreground
         };
-        let secondary_container = tone(ColorRole::SecondaryContainer);
+        let bar = self.presentation.bar_colors();
+        let in_bar = bar.is_some();
+        let horizontal = bar.and(item.icon_position).map_or_else(
+            || self.presentation.horizontal_label(),
+            |position| position == NavigationItemIconPosition::Start,
+        );
+        let (icon_color, label_color, selected_indicator) = if let Some(bar) = bar {
+            let colors = item.colors;
+            let resolve = |selected: Option<Hsla>,
+                           unselected: Option<Hsla>,
+                           disabled: Option<Hsla>,
+                           active_role| {
+                let unselected = unselected
+                    .or(bar.content)
+                    .unwrap_or_else(|| tone(ColorRole::OnSurfaceVariant));
+                if item.disabled {
+                    disabled.unwrap_or_else(|| unselected.opacity(0.38))
+                } else if self.selected {
+                    selected
+                        .or(bar.content)
+                        .unwrap_or_else(|| tone(active_role))
+                } else {
+                    unselected
+                }
+            };
+            let icon = resolve(
+                colors.selected_icon,
+                colors.unselected_icon,
+                colors.disabled_icon,
+                icon_role,
+            );
+            let label = resolve(
+                if horizontal {
+                    colors.selected_label_start
+                } else {
+                    colors.selected_label_top
+                },
+                colors.unselected_label,
+                colors.disabled_label,
+                foreground,
+            );
+            let selected_indicator = colors
+                .selected_indicator
+                .unwrap_or_else(|| tone(ColorRole::SecondaryContainer));
+            (
+                icon,
+                label,
+                selected_indicator.opacity(if item.disabled { 0.38 } else { 1. }),
+            )
+        } else {
+            (
+                tone(icon_role),
+                tone(foreground),
+                tone(ColorRole::SecondaryContainer),
+            )
+        };
         let indicator = tone(ColorRole::Primary);
         let motion = theme
             .motion
@@ -495,7 +715,6 @@ impl ItemVisual {
             cx,
         )
         .clamp(0., 1.);
-        let horizontal = self.presentation.horizontal_label();
         let rail = self.presentation.is_rail();
         let tab = self.presentation.is_tab();
         let text_role = if tab {
@@ -505,7 +724,7 @@ impl ItemVisual {
         } else {
             TypeRole::LabelMedium
         };
-        let label = text_style(
+        let mut label = text_style(
             div().min_w_0().truncate().text_color(label_color),
             text_role.style(TypographyEmphasis::Baseline),
             self.font_scale,
@@ -518,22 +737,53 @@ impl ItemVisual {
             TextAlign::Right
         } else {
             TextAlign::Left
-        })
-        .child(label);
-        let icon = icon.map(|icon| {
+        });
+        label = if let Some(content) = item.label_content.take().filter(|_| in_bar) {
+            label.child(
+                div()
+                    .id((id.clone(), "visual-label"))
+                    .role(Role::Group)
+                    .a11y_synthetic_children(|tree| tree.parent_node().set_hidden())
+                    .child(content),
+            )
+        } else {
+            label.child(item.label.clone())
+        };
+        let mut badge = item.badge.take().filter(|_| in_bar);
+        let icon = item.icon.take().map(|icon| {
+            let icon = if in_bar {
+                icon.inherit_color()
+            } else {
+                icon.color(icon_role)
+            };
+            let icon = if let Some(badge) = badge.take() {
+                badge.attach_to(icon).into_any_element()
+            } else {
+                icon.into_any_element()
+            };
             div()
                 .flex_none()
                 .flex()
                 .items_center()
                 .justify_center()
+                .text_color(icon_color)
                 .when(!tab && !horizontal, |icon| {
                     icon.w(px(56.))
                         .h(px(32.))
                         .rounded_full()
-                        .bg(secondary_container.opacity(selection))
+                        .bg(selected_indicator.opacity(selection))
                 })
-                .child(icon.color(icon_color))
+                .child(icon)
         });
+        let label = if let Some(badge) = badge {
+            div()
+                .min_w_0()
+                .max_w_full()
+                .child(badge.attach_to(label))
+                .into_any_element()
+        } else {
+            label.into_any_element()
+        };
         let content = div()
             .relative()
             .min_w_0()
@@ -549,7 +799,7 @@ impl ItemVisual {
                         .px(px(16.))
                         .min_h(px(if rail { 56. } else { 40. }))
                         .rounded_full()
-                        .bg(secondary_container.opacity(selection))
+                        .bg(selected_indicator.opacity(selection))
                         .when(rail, |content| content.w_full())
                 },
                 |content| content.flex_col().justify_center().gap(px(4.)).px(px(4.)),

@@ -660,6 +660,7 @@ mod tests {
             None
         );
     }
+    #[cfg(feature = "test-support")]
     #[gpui::test]
     fn time_dialog_waits_for_ime_then_confirms_the_unmarked_value(cx: &mut gpui::TestAppContext) {
         use std::cell::{Cell, RefCell};

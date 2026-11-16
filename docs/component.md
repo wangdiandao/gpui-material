@@ -45,6 +45,7 @@ A hiding FAB stops taking focus and input immediately. It occupies its layout sp
 | `Surface` | Themed background and tonal elevation for application content. | [Elevation](https://m3.material.io/styles/elevation/overview) |
 | `Card` | Elevated, Filled, and Outlined, with static and actionable forms. | [Cards](https://m3.material.io/components/cards/overview) |
 | `List`, `ListItem` | Standard and Segmented lists with leading, supporting, and trailing content. | [Lists](https://m3.material.io/components/lists/overview) |
+| `SwipeToDismiss` | Horizontal swipes with caller-owned content, background, and action. | [Lists](https://m3.material.io/components/lists/guidelines) · [Compose SwipeToDismissBox](https://developer.android.com/reference/kotlin/androidx/compose/material3/SwipeToDismissBox.composable) |
 | `Divider`, `Badge` | Horizontal and vertical dividers with logical insets, configurable thickness, and per-divider color. Standalone and anchored badges with dot, text, count, or custom content and optional colors. | [Divider](https://m3.material.io/components/divider/overview) · [Badges](https://m3.material.io/components/badges/overview) |
 | `LinearProgress`, `CircularProgress` | Determinate and indeterminate progress with straight and wavy styling. | [Progress indicators](https://m3.material.io/components/progress-indicators/overview) |
 | `LoadingIndicator` | Default and contained loading indicators. | [Loading indicator](https://m3.material.io/components/loading-indicator/overview) |
@@ -61,6 +62,14 @@ Use `.color(ColorRole::Primary)` to resolve a role against the window theme or `
 `Badge::dot(host)`, `Badge::label(host, text)`, and `Badge::count(host, count, maximum)` anchor a mark to the host's upper trailing edge. Pass the current count and cap when rendering. Counts above the cap display the cap followed by `+`. `Badge::standalone()` renders a dot in the surrounding layout. Use `.content(id, element)` to supply a short visual element for either placement. Give each custom mark a stable ID within its parent.
 
 Container and content colors default to the window theme's `Error` and `OnError` roles. Use `.container_color(color)` and `.content_color(color)` to set either independently. Keep custom content noninteractive and let the host's accessible name describe the anchored badge. For a standalone indicator that conveys information on its own, use `.accessible_label(id, label)` to give it a name without adding a focus stop.
+
+### Swipe to dismiss
+
+Keep an `Entity<SwipeToDismissState>` per item and pass it to `SwipeToDismiss::new(id, &state, content)`. The state starts at rest. Use `.initial_value(value)` when restoring an item at a dismissal anchor. Add a background with `.background(element)`. It fills the container behind the moving foreground. Observe the state to update the background with the logical `dismiss_direction()`, signed `offset()` in logical pixels, or outward `progress()` from 0 to 1. `current_value()` is the nearest anchor, `target_value()` is the expected landing anchor, and `settled_value()` changes when the movement completes.
+
+Both logical directions and gestures are enabled by default. Use `.enable_start_to_end(bool)`, `.enable_end_to_start(bool)`, and `.gestures_enabled(bool)` to configure them. The window's writing direction determines the physical swipe direction. The default threshold is 56 logical pixels. Use `SwipeToDismissState::positional_threshold(|width| ...)` to compute a threshold from the laid-out width. Finite results are clamped to the available travel and invalid values use the default. Vertical drags and scroll continue through the surrounding layout.
+
+`dismiss(direction, window, cx)` animates to an enabled direction, `reset(window, cx)` animates back to the resting position, and `snap_to(value, window, cx)` moves immediately. Reduced motion settles immediately. `.on_dismiss(|direction, window, cx| ...)` runs once when movement settles in a new dismissal direction. The foreground leaves keyboard traversal and the accessibility tree at that point. The application owns data changes such as removing the item, and can call `reset` to show it again. Provide a named, keyboard-focusable button or menu item for each offered action. Its activation calls the same `dismiss` method and remains available when gestures are disabled.
 
 <a id="输入与浮层"></a>
 

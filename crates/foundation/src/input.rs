@@ -50,6 +50,42 @@ impl DragCapture {
         cx: &App,
         on_lost: impl FnOnce(&mut Window, &mut App) + 'static,
     ) -> Self {
+        Self::watch_capture(
+            window,
+            cx,
+            |_, cx| cx.has_active_drag(),
+            move |window, cx| {
+                window.release_pointer();
+                cx.stop_active_drag(window);
+                on_lost(window, cx);
+            },
+        )
+    }
+
+    /// Watches a direct pointer gesture after calling `Window::capture_pointer`.
+    /// The owner retains this guard until the gesture ends or is cancelled.
+    pub fn watch_pointer(
+        window: &Window,
+        cx: &App,
+        on_lost: impl FnOnce(&mut Window, &mut App) + 'static,
+    ) -> Self {
+        Self::watch_capture(
+            window,
+            cx,
+            |window, _| window.captured_hitbox().is_some(),
+            move |window, cx| {
+                window.release_pointer();
+                on_lost(window, cx);
+            },
+        )
+    }
+
+    fn watch_capture(
+        window: &Window,
+        cx: &App,
+        is_active: fn(&Window, &App) -> bool,
+        on_lost: impl FnOnce(&mut Window, &mut App) + 'static,
+    ) -> Self {
         #[cfg(windows)]
         {
             use std::time::Duration;
@@ -65,14 +101,12 @@ impl DragCapture {
                     loop {
                         executor.timer(Duration::from_millis(16)).await;
                         let keep_watching = cx.update(|window, cx| {
-                            if !cx.has_active_drag() {
+                            if !is_active(window, cx) {
                                 return false;
                             }
                             if unsafe { GetCapture() } == capture {
                                 return true;
                             }
-                            window.release_pointer();
-                            cx.stop_active_drag(window);
                             if let Some(on_lost) = on_lost.take() {
                                 on_lost(window, cx);
                             }
@@ -88,7 +122,7 @@ impl DragCapture {
         }
         #[cfg(not(windows))]
         {
-            let _ = (window, cx, on_lost);
+            let _ = (window, cx, is_active, on_lost);
             Self {}
         }
     }

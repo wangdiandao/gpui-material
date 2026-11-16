@@ -34,6 +34,7 @@ pub use slider::{
 
 mod card;
 mod display;
+mod display_scrollbar;
 mod drag_handle;
 mod loading_indicator;
 mod progress;
@@ -41,6 +42,9 @@ mod swipe_to_dismiss;
 mod text;
 pub use card::{Card, CardBorder, CardColors, CardElevations, CardVariant};
 pub use display::{Badge, Divider, List, ListItem, ListVariant};
+pub use display_scrollbar::{
+    DisplayScrollbar, DisplayScrollbarFade, DisplayScrollbarStyle, ScrollbarHandle,
+};
 pub use drag_handle::{DragHandleColors, DragHandleShapes, DragHandleSizes, VerticalDragHandle};
 pub use loading_indicator::{LoadingIndicator, LoadingIndicatorShape, LoadingIndicatorShapes};
 pub use progress::{

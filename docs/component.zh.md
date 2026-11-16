@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | `Button`、`ToggleButton` | Elevated、Filled、Filled Tonal、Outlined。`Button` 还提供 Text 变体。两者支持 XS–XL 尺寸、圆形和方形外观、自定义内容和样式，以及可选的交互观察。 | [按钮](https://m3.material.io/components/buttons/overview) |
 | `IconButton`、`IconToggleButton` | Standard、Filled、Filled Tonal、Outlined，可选尺寸和宽度，可为单个实例配置形状、颜色和描边，并可观察交互。 | [图标按钮](https://m3.material.io/components/icon-buttons/overview) |
-| `Fab`、`ExtendedFab` | Small、Medium、Large 尺寸和多种颜色角色。`ExtendedFab` 支持文字标签和图标。 | [悬浮操作按钮](https://m3.material.io/components/floating-action-button/overview) · [扩展悬浮操作按钮](https://m3.material.io/components/extended-fab/overview) |
+| `Fab`、`ExtendedFab` | Small、Medium、Large 尺寸，可配置实例外观和控制显示状态。`ExtendedFab` 支持文字标签、可选图标和自定义内容。 | [悬浮操作按钮](https://m3.material.io/components/floating-action-button/overview) · [扩展悬浮操作按钮](https://m3.material.io/components/extended-fab/overview) |
 | `Checkbox` | 未选中、选中、混合、错误和禁用状态，可配置实例颜色和描边并观察交互。 | [复选框](https://m3.material.io/components/checkbox/overview) |
 | `Radio`、`RadioGroup` | 互斥选择、组内键盘导航、单项颜色配置和可选的交互观察。 | [单选按钮](https://m3.material.io/components/radio-button/specs) |
 | `Switch` | 开启和关闭状态，支持可选滑块图标或自定义内容、各状态配色和共享交互观察。 | [开关](https://m3.material.io/components/switch/overview) |
@@ -34,6 +34,14 @@
 应用持有显示状态，每次渲染时通过 `.visible(visible)` 传入。更新时保持元素 ID 不变，缩放和透明度即可从当前进度反向播放。`FabVisibilityAnimation` 默认以中心为缩放原点，隐藏比例为 `0.2`，并分别使用主题的快档空间动效和效果动效。用 `FabAlignment` 的逻辑位置指定缩放所围绕的边或角，起始侧与末尾侧随窗口文本方向镜像。将 `target_scale` 设为有限非负值，并分别设置 `scale_motion` 和 `alpha_motion`。无效比例（包括导致缩放后尺寸溢出的值）回退到 `0.2`。启用减少动态效果时直接使用最终状态。
 
 FAB 开始隐藏时立即退出焦点导航并停止响应输入。淡出期间保留布局空间，透明度降到零时释放空间。初始隐藏的 FAB 不占空间。图标仅用于装饰，由 FAB 自己管理激活和焦点。需要随动效缩放的自定义图标应采用继承的文字大小或相对尺寸。
+
+### 扩展悬浮操作按钮
+
+使用 `ExtendedFab::new(id, label, icon)` 创建带图标和标签的操作，或使用 `ExtendedFab::text(id, label)` 创建纯文字操作。`.content(element)` 替换显示的标签，同时保留构造器提供的无障碍名称和可选图标。图标和自定义内容只用于展示，由按钮负责激活和焦点。内置标签受可用宽度约束，完全展开后过长的文字显示省略号。自定义内容按标签可用空间布局，超出部分会裁剪。
+
+Small、Medium、Large 的默认高度分别为 56、80、96 dp。通过 `.expanded(expanded)` 传入调用方持有的展开状态。带图标的按钮收起时过渡为只显示图标的方形，无图标的按钮在两种状态下均保留文字或自定义内容。展开和收起共用一个操作和焦点句柄。在从右到左的窗口中，前置图标移至右侧。启用减少动态效果时直接应用目标状态。
+
+可使用与 `Fab` 相同的 `.shape`、`.colors`、`.elevations`、`.interaction_source`、`.visible` 和 `.visibility_animation` 方法。渲染时保持元素 ID 不变，展开和显示状态可以独立变化。显示动效缩放期间保留原有布局空间，透明度降为零时释放空间。开始隐藏时立即退出焦点导航和无障碍树。内置标签和图标插槽随按钮缩放。自定义标签内容在缩放后的插槽内布局，超出插槽的固定尺寸内容会被裁剪。
 
 ### 复选框
 

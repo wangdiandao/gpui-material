@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
+use gpui::prelude::FluentBuilder;
 use gpui::{
-    AnyElement, App, ElementId, Empty, Entity, FocusHandle, IntoElement, ParentElement, Point,
-    RenderOnce, SharedString, Styled, Window, anchored, deferred, div, point, px,
+    AnyElement, App, AvailableSpace, ElementId, Empty, Entity, FocusHandle, IntoElement,
+    ParentElement, Pixels, Point, RenderOnce, SharedString, Styled, Window, anchored, canvas,
+    deferred, div, point, px, size,
 };
-use gpui_material_foundation::{
-    InteractionSource, animate, color, logical_anchor, window_material_theme,
-};
+use gpui_material_foundation::{InteractionSource, animate, logical_anchor, window_material_theme};
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Direction, Elevation, MotionKind, MotionSpec, MotionSpeed,
     TypeRole, TypographyEmphasis,
@@ -175,7 +175,6 @@ impl FabVisibilityAnimation {
 struct FabContent {
     id: ElementId,
     name: SharedString,
-    icon: AnyElement,
     size: FabSize,
     color: FabColor,
     disabled: bool,
@@ -184,15 +183,10 @@ struct FabContent {
 }
 
 impl FabContent {
-    fn new(
-        id: impl Into<ElementId>,
-        name: impl Into<SharedString>,
-        icon: impl IntoElement,
-    ) -> Self {
+    fn new(id: impl Into<ElementId>, name: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
             name: name.into(),
-            icon: icon.into_any_element(),
             size: FabSize::default(),
             color: FabColor::default(),
             disabled: false,
@@ -239,6 +233,80 @@ impl FabContent {
             hover_elevation: Elevation::Level4,
         }
     }
+
+    fn action(self, content: impl IntoElement) -> ActionControl {
+        ActionControl {
+            style: self.style(),
+            id: self.id,
+            label: self.name,
+            focus: self.focus,
+            disabled: self.disabled,
+            action: Action::Invoke(self.on_activate),
+            content: content.into_any_element(),
+        }
+    }
+}
+
+#[derive(Default)]
+struct FabAppearance {
+    style: ButtonStyle,
+    interaction_source: Option<Entity<InteractionSource>>,
+    visible: Option<bool>,
+    animation: FabVisibilityAnimation,
+}
+
+impl FabAppearance {
+    fn motion(
+        &self,
+        id: &ElementId,
+        extent: f32,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> OverlayMotion {
+        self.visible.map_or(
+            OverlayMotion {
+                scale: 1.,
+                alpha: 1.,
+            },
+            |visible| self.animation.sample(id, visible, extent, window, cx),
+        )
+    }
+
+    fn interactive(
+        &self,
+        action: &ActionControl,
+        motion: OverlayMotion,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> bool {
+        let interactive = self.visible != Some(false) && motion.alpha > 0. && motion.scale > 0.;
+        if !interactive {
+            action.clear_interaction(window, cx);
+        }
+        interactive
+    }
+
+    fn control(
+        &self,
+        action: ActionControl,
+        scale: f32,
+        interactive: bool,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> AnyElement {
+        action.render_layout(
+            scale,
+            ActionLayout {
+                tab_stop: interactive,
+                decorative: !interactive,
+                appearance: self.style,
+                ..Default::default()
+            },
+            self.interaction_source.as_ref().filter(|_| interactive),
+            window,
+            cx,
+        )
+    }
 }
 
 macro_rules! fab_builders {
@@ -269,6 +337,43 @@ macro_rules! fab_builders {
             self.content.on_activate = Some(Rc::new(handler));
             self
         }
+
+        /// Overrides the container shape for all interaction states.
+        pub fn shape(mut self, shape: CornerShape) -> Self {
+            self.appearance.style.shapes.resting = Some(shape);
+            self.appearance.style.shapes.pressed = Some(shape);
+            self
+        }
+
+        /// Sets the enabled and disabled container and content colors.
+        pub fn colors(mut self, colors: ButtonColors) -> Self {
+            self.appearance.style.colors = colors;
+            self
+        }
+
+        /// Overrides the elevation for each interaction state.
+        pub fn elevations(mut self, elevations: ButtonElevations) -> Self {
+            self.appearance.style.elevations = elevations;
+            self
+        }
+
+        /// Reports interaction state through a caller-owned source.
+        pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
+            self.appearance.interaction_source = Some(source.clone());
+            self
+        }
+
+        /// Applies the caller's visibility state. Use a stable ID across updates.
+        pub fn visible(mut self, visible: bool) -> Self {
+            self.appearance.visible = Some(visible);
+            self
+        }
+
+        /// Sets the pivot, hidden scale, and independent scale and alpha motions.
+        pub fn visibility_animation(mut self, animation: FabVisibilityAnimation) -> Self {
+            self.appearance.animation = animation;
+            self
+        }
     };
 }
 
@@ -277,10 +382,8 @@ macro_rules! fab_builders {
 #[derive(IntoElement)]
 pub struct Fab {
     content: FabContent,
-    appearance: ButtonStyle,
-    interaction_source: Option<Entity<InteractionSource>>,
-    visible: Option<bool>,
-    animation: FabVisibilityAnimation,
+    icon: AnyElement,
+    appearance: FabAppearance,
 }
 
 impl Fab {
@@ -290,52 +393,13 @@ impl Fab {
         icon: impl IntoElement,
     ) -> Self {
         Self {
-            content: FabContent::new(id, name, icon),
-            appearance: ButtonStyle::default(),
-            interaction_source: None,
-            visible: None,
-            animation: FabVisibilityAnimation::default(),
+            content: FabContent::new(id, name),
+            icon: icon.into_any_element(),
+            appearance: FabAppearance::default(),
         }
     }
 
     fab_builders!();
-
-    /// Overrides the container shape for all interaction states.
-    pub fn shape(mut self, shape: CornerShape) -> Self {
-        self.appearance.shapes.resting = Some(shape);
-        self.appearance.shapes.pressed = Some(shape);
-        self
-    }
-
-    /// Sets the enabled and disabled container and icon colors.
-    pub fn colors(mut self, colors: ButtonColors) -> Self {
-        self.appearance.colors = colors;
-        self
-    }
-
-    /// Overrides the elevation for each interaction state.
-    pub fn elevations(mut self, elevations: ButtonElevations) -> Self {
-        self.appearance.elevations = elevations;
-        self
-    }
-
-    /// Reports this FAB's interaction state through a caller-owned source.
-    pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
-        self.interaction_source = Some(source.clone());
-        self
-    }
-
-    /// Applies the caller's visibility state. Use a stable ID across updates.
-    pub fn visible(mut self, visible: bool) -> Self {
-        self.visible = Some(visible);
-        self
-    }
-
-    /// Sets the pivot, hidden scale, and independent scale and alpha motions.
-    pub fn visibility_animation(mut self, animation: FabVisibilityAnimation) -> Self {
-        self.animation = animation;
-        self
-    }
 }
 
 impl RenderOnce for Fab {
@@ -350,56 +414,25 @@ impl RenderOnce for Fab {
         let theme = window_material_theme(window, cx);
         let direction = theme.layout.direction;
         let extent = theme.layout.density.interactive_size(style.height);
-        let motion = self.visible.map(|visible| {
-            self.animation
-                .sample(&self.content.id, visible, extent, window, cx)
-        });
-        let action = ActionControl {
-            id: self.content.id,
-            label: self.content.name,
-            focus: self.content.focus,
-            disabled: self.content.disabled,
-            action: Action::Invoke(self.content.on_activate),
-            style,
-            content: icon_slot(
-                self.content.icon,
-                icon_size * motion.map_or(1., |sample| sample.scale),
-            )
-            .into_any_element(),
-        };
-        let Some(motion) = motion else {
-            return action.render_scaled(
-                1.,
-                self.interaction_source.as_ref(),
-                self.appearance,
-                window,
-                cx,
-            );
-        };
-        let interactive = self.visible == Some(true) && motion.alpha > 0. && motion.scale > 0.;
-        if !interactive {
-            action.clear_interaction(window, cx);
+        let motion = self.appearance.motion(&self.content.id, extent, window, cx);
+        let action = self
+            .content
+            .action(icon_slot(self.icon, icon_size * motion.scale));
+        if self.appearance.visible.is_none() {
+            return self.appearance.control(action, 1., true, window, cx);
         }
+        let interactive = self.appearance.interactive(&action, motion, window, cx);
         if motion.alpha == 0. {
             return Empty.into_any_element();
         }
         let extent = px(extent);
         let mut footprint = div().relative().size(extent).min_w(extent).min_h(extent);
         if motion.scale > 0. {
-            let pivot = self.animation.alignment.pivot(direction);
+            let pivot = self.appearance.animation.alignment.pivot(direction);
             let distance = extent * (1. - motion.scale);
-            let control = action.render_layout(
-                motion.scale,
-                ActionLayout {
-                    tab_stop: interactive,
-                    decorative: !interactive,
-                    appearance: self.appearance,
-                    ..Default::default()
-                },
-                self.interaction_source.as_ref().filter(|_| interactive),
-                window,
-                cx,
-            );
+            let control = self
+                .appearance
+                .control(action, motion.scale, interactive, window, cx);
             footprint = footprint.child(
                 div()
                     .absolute()
@@ -413,28 +446,52 @@ impl RenderOnce for Fab {
     }
 }
 
-/// An elevated icon and label action. Expansion is controlled by the caller.
-/// Both presentations share the same focus handle, action and accessible name.
+/// An elevated action with a label or custom content and an optional icon.
+/// All presentations share one action, accessible name, and focus handle.
 #[derive(IntoElement)]
 pub struct ExtendedFab {
     content: FabContent,
+    icon: Option<AnyElement>,
+    custom_content: Option<AnyElement>,
     expanded: bool,
+    appearance: FabAppearance,
 }
 
 impl ExtendedFab {
+    /// Creates an action with a leading icon and a label.
     pub fn new(
         id: impl Into<ElementId>,
         label: impl Into<SharedString>,
         icon: impl IntoElement,
     ) -> Self {
         Self {
-            content: FabContent::new(id, label, icon),
+            icon: Some(icon.into_any_element()),
+            ..Self::text(id, label)
+        }
+    }
+
+    /// Creates a text-only action. The label also supplies its accessible name.
+    pub fn text(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
+        Self {
+            content: FabContent::new(id, label),
+            icon: None,
+            custom_content: None,
             expanded: true,
+            appearance: FabAppearance::default(),
         }
     }
 
     fab_builders!();
 
+    /// Replaces the rendered label with decorative content. The constructor's
+    /// accessible name and optional icon still belong to the action.
+    pub fn content(mut self, content: impl IntoElement) -> Self {
+        self.custom_content = Some(content.into_any_element());
+        self
+    }
+
+    /// Applies the caller's expansion state. An icon-bearing action collapses
+    /// to a square. Iconless actions retain their content in both states.
     pub fn expanded(mut self, expanded: bool) -> Self {
         self.expanded = expanded;
         self
@@ -443,75 +500,195 @@ impl ExtendedFab {
 
 impl RenderOnce for ExtendedFab {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let style = self.content.style();
-        let (_, icon_size, _, padding, gap, role) = self.content.size.metrics();
+        let (height, icon, _, padding, gap, role) = self.content.size.metrics();
         let theme = window_material_theme(window, cx);
         let direction = theme.layout.direction;
-        let foreground = if self.content.disabled {
-            color(theme.colors.color(ColorRole::OnSurface)).opacity(0.38)
+        let extent = theme.layout.density.interactive_size(height);
+        let visual_height = theme.layout.density.visual_size(height);
+        let scheme = theme.motion;
+        let motion = self.appearance.motion(
+            &self.content.id,
+            extent.max(f32::from(window.viewport_size().width)),
+            window,
+            cx,
+        );
+        let action = self.content.action(Empty);
+        let interactive = self.appearance.interactive(&action, motion, window, cx);
+        if motion.alpha == 0. {
+            return Empty.into_any_element();
+        }
+        let (progress, opacity) = if self.icon.is_some() {
+            let reduced = cx.reduce_motion();
+            let mut sample = |channel, kind| {
+                animate(
+                    (action.id.clone(), channel),
+                    f32::from(self.expanded),
+                    scheme.spec(kind, MotionSpeed::Fast, reduced),
+                    window,
+                    cx,
+                )
+                .clamp(0., 1.)
+            };
+            (
+                sample("expansion", MotionKind::Spatial),
+                sample("label-opacity", MotionKind::Effects),
+            )
         } else {
-            color(theme.colors.color(style.foreground))
+            (1., 1.)
         };
-        let reduced = cx.reduce_motion();
-        let motion = theme
-            .motion
-            .spec(MotionKind::Spatial, MotionSpeed::Fast, reduced);
-        let effects = theme
-            .motion
-            .spec(MotionKind::Effects, MotionSpeed::Fast, reduced);
-        let progress = animate(
-            ElementId::from((self.content.id.clone(), "expansion")),
-            f32::from(self.expanded),
-            motion,
-            window,
-            cx,
-        )
-        .clamp(0., 1.);
-        let opacity = animate(
-            (self.content.id.clone(), "label-opacity"),
-            f32::from(self.expanded),
-            effects,
-            window,
-            cx,
-        )
-        .clamp(0., 1.);
-        // Interpolate from a square FAB with its icon centered to the label layout.
-        let collapsed_padding = (style.height - icon_size) / 2.;
-        let start_padding = collapsed_padding + (padding - collapsed_padding) * progress;
+        let (icon_size, padding, gap) = if self.icon.is_some() {
+            let collapsed_padding = (height - icon) / 2.;
+            (
+                icon,
+                collapsed_padding + (padding - collapsed_padding) * progress,
+                gap * progress,
+            )
+        } else {
+            (0., padding, 0.)
+        };
+        let ink = self
+            .appearance
+            .style
+            .colors
+            .content(action.disabled, false)
+            .unwrap_or_else(|| action.style.foreground(action.disabled, window, cx));
         let typography = role.style(TypographyEmphasis::Baseline);
-        let mut row = div()
-            .flex()
-            .items_center()
-            .min_w_0()
+        let mut custom_content = self.custom_content;
+        let label_width = if progress == 0. {
+            px(0.)
+        } else if let Some(content) = &mut custom_content {
+            window
+                .with_text_style(
+                    Some(gpui::TextStyleRefinement {
+                        color: Some(ink),
+                        font_size: Some(px(typography.size).into()),
+                        line_height: Some(px(typography.line_height).into()),
+                        ..Default::default()
+                    }),
+                    |window| {
+                        content.layout_as_root(
+                            size(AvailableSpace::MaxContent, AvailableSpace::MaxContent),
+                            window,
+                            cx,
+                        )
+                    },
+                )
+                .width
+        } else {
+            crate::text::single_line_width(&action.label, typography, ink, window, cx)
+        };
+        let fixed_width = px(icon_size + gap + padding * 2.);
+        let width = (fixed_width + label_width * progress).max(px(extent));
+        // Keep the nominal width through visibility scaling. Only the resolved
+        // action is prepainted, so measurement creates no hitboxes or semantics.
+        let control = canvas(
+            move |bounds, window, cx| {
+                if motion.scale == 0. {
+                    return None;
+                }
+                let scale = if f32::from(bounds.size.width * motion.scale).is_finite() {
+                    motion.scale
+                } else {
+                    1.
+                };
+                let motion = OverlayMotion { scale, ..motion };
+                let pivot = self.appearance.animation.alignment.pivot(direction);
+                let assigned_width = bounds.size.width * scale;
+                let mut row = div()
+                    .flex()
+                    .items_center()
+                    .w(assigned_width)
+                    .px(px(padding * scale))
+                    .gap(px(gap * scale))
+                    .when(direction == Direction::Rtl, Styled::flex_row_reverse);
+                if let Some(icon) = self.icon {
+                    row = row.child(icon_slot(icon, icon_size * scale));
+                }
+                let mut action = action;
+                let available = (bounds.size.width - fixed_width).max(px(0.));
+                let label_width = (label_width * progress).min(available) * scale;
+                if label_width > px(0.) {
+                    if let Some(content) = custom_content {
+                        row = row.child(custom_label(
+                            content,
+                            label_width,
+                            px(visual_height * scale),
+                            opacity,
+                        ));
+                    } else {
+                        row = row.child(crate::text::single_line(
+                            action.label.clone(),
+                            typography,
+                            scale,
+                            ink,
+                            (Some(label_width / progress), progress, opacity),
+                            window,
+                            cx,
+                        ));
+                    }
+                }
+                action.content = row.into_any_element();
+                let action = self
+                    .appearance
+                    .control(action, scale, interactive, window, cx);
+                let mut target = div()
+                    .w(assigned_width)
+                    .opacity(motion.alpha)
+                    .child(action)
+                    .into_any_element();
+                target.prepaint_as_root(
+                    motion.origin(bounds, pivot),
+                    bounds
+                        .size
+                        .map(|side| AvailableSpace::Definite(side * scale)),
+                    window,
+                    cx,
+                );
+                Some(target)
+            },
+            |_, target, window, cx| {
+                if let Some(mut target) = target {
+                    target.paint(window, cx);
+                }
+            },
+        );
+        div()
+            .w(width)
+            .h(px(extent))
+            .min_w(px(extent))
+            .min_h(px(extent))
             .max_w_full()
-            .px(px(start_padding))
-            .gap(px(gap * progress));
-        if direction == Direction::Rtl {
-            row = row.flex_row_reverse();
-        }
-        row = row.child(icon_slot(self.content.icon, icon_size));
-        if progress > 0. {
-            row = row.child(crate::text::single_line(
-                self.content.name.clone(),
-                typography,
-                1.,
-                foreground,
-                (None, progress, opacity),
-                window,
-                cx,
-            ));
-        }
-        ActionControl {
-            id: self.content.id,
-            label: self.content.name,
-            focus: self.content.focus,
-            disabled: self.content.disabled,
-            action: Action::Invoke(self.content.on_activate),
-            style,
-            content: row.into_any_element(),
-        }
-        .render(window, cx)
+            .child(control.size_full())
+            .into_any_element()
     }
+}
+
+fn custom_label(mut content: AnyElement, width: Pixels, height: Pixels, opacity: f32) -> gpui::Div {
+    div()
+        .w(width)
+        .h(height)
+        .min_w_0()
+        .overflow_hidden()
+        .opacity(opacity)
+        .child(
+            canvas(
+                move |bounds, window, cx| {
+                    let actual = content.layout_as_root(
+                        bounds.size.map(AvailableSpace::Definite),
+                        window,
+                        cx,
+                    );
+                    let origin = point(
+                        bounds.origin.x,
+                        bounds.origin.y + ((bounds.size.height - actual.height) / 2.).max(px(0.)),
+                    );
+                    content.prepaint_at(origin, window, cx);
+                    content
+                },
+                |_, mut content, window, cx| content.paint(window, cx),
+            )
+            .size_full(),
+        )
 }
 
 /// Places a FAB inside the current window viewport at logical bottom-end.

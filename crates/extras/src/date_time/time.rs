@@ -406,6 +406,7 @@ impl TimePickerState {
     /// Closes this session programmatically through the Material dialog.
     pub fn close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.is_open(cx) {
+            self.discard_composition(window, cx);
             self.sync_wheels(cx);
             self.dialog
                 .update(cx, |dialog, cx| dialog.close(window, cx));
@@ -446,6 +447,7 @@ impl TimePickerState {
             let text = self.field(segment).read(cx).value();
             if let Some(value) = self.parse_segment(segment, &text) {
                 self.update_draft(segment, value);
+                self.sync_wheel(segment, cx);
             }
         }
         cx.notify();

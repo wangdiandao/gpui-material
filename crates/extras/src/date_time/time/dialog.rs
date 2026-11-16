@@ -41,10 +41,10 @@ impl TimePickerModeAction {
     pub fn activate(&self, window: &mut Window, cx: &mut App) {
         let _ = self.state.update(cx, |state, cx| {
             if state.mode_revision == self.revision && (!self.dialog || state.is_open(cx)) {
-                if self.target == TimePickerVariant::Input {
+                state.set_mode(self.target, window, cx);
+                if state.mode == self.target && self.target == TimePickerVariant::Input {
                     state.picker_mode = self.displayed;
                 }
-                state.set_mode(self.target, window, cx);
                 state.focus_editor(window, cx);
             }
         });

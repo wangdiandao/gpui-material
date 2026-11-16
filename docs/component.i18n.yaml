@@ -108,8 +108,8 @@
   en: "f749e65450d351e3"
   zh: "fdbeaa7d7dfdc868"
 /components/optional-components:
-  en: "78416b38981d43b8"
-  zh: "50662040391baea0"
+  en: "ea5ce807bc41b0f3"
+  zh: "1aee1a8343d4c78f"
 /components/optional-components/search:
   en: "b67194606d49b75f"
   zh: "3888b8816683cb39"
@@ -125,9 +125,12 @@
 /components/optional-components/toolbars:
   en: "be4f9791b41356d4"
   zh: "5ef25bbf22730ef0"
+/components/optional-components/date-pickers:
+  en: "2191eb74db1f7803"
+  zh: "fb5992e54b1d8ea1"
 /components/optional-components/time-pickers:
-  en: "b2e4ffbf8ca1a9a3"
-  zh: "e74b87789146c53a"
+  en: "1bee5f23c205b79d"
+  zh: "e4f861621bd4d80c"
 /components/optional-components/scroll-fields:
   en: "5881f1d730e7138a"
   zh: "a30907506d331a76"

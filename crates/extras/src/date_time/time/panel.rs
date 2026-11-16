@@ -280,12 +280,8 @@ fn time_input(
         div().flex_1().min_w_0().child(control)
     };
     div()
-        .capture_key_down(move |event, window, cx| {
-            let key = &event.keystroke;
-            if key.key == "escape"
-                && !key.modifiers.modified()
-                && state.update(cx, |state, cx| state.finish_composition(window, cx))
-            {
+        .capture_action(move |_: &gpui_base::input::Escape, window, cx| {
+            if state.update(cx, |state, cx| state.finish_composition(window, cx)) {
                 cx.stop_propagation();
             }
         })

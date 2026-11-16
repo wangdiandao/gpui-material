@@ -24,7 +24,7 @@ pub use selection::{
 };
 
 mod chip;
-pub use chip::{Chip, ChipVariant};
+pub use chip::{Chip, ChipColors, ChipElevations, ChipStateColors, ChipVariant};
 
 mod slider;
 pub use slider::{Slider, SliderEvent, SliderKind, SliderScale, SliderState, SliderValue};

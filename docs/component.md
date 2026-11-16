@@ -18,7 +18,7 @@ The [pinned Material 3 specification](design-sources.md#material-specification) 
 | `Checkbox` | Unchecked, checked, mixed, error, and disabled states, with per-instance colors, strokes, and interaction observation. | [Checkbox](https://m3.material.io/components/checkbox/overview) |
 | `Radio`, `RadioGroup` | Mutually exclusive selection, group keyboard navigation, per-option colors, and optional interaction observation. | [Radio button](https://m3.material.io/components/radio-button/specs) |
 | `Switch` | On and off states with optional thumb icons or custom content, per-state colors, and shared interaction observation. | [Switch](https://m3.material.io/components/switch/overview) |
-| `Chip` | Assist, Filter, Input, and Suggestion, with selection and removal where applicable. | [Chips](https://m3.material.io/components/chips/overview) |
+| `Chip` | Assist, Filter, Input, and Suggestion, with content slots, custom appearance, and independent selection and removal where applicable. | [Chips](https://m3.material.io/components/chips/overview) |
 | `Slider` | Single-value, centered, and range sliders, with horizontal or vertical layouts and continuous or stepped values. | [Sliders](https://m3.material.io/components/sliders/overview) |
 
 Use `.content(element)` to customize the rendered label while retaining the constructor's accessible name and any leading or trailing icon slots. Keep the content free of independent controls so the button owns activation and focus. Set `.shapes(ButtonShapes)`, `.colors(ButtonColors)`, `.border(ButtonBorder)`, `.content_padding(ButtonPadding)`, and `.elevations(ButtonElevations)` per instance. Unspecified shape, color, and elevation fields keep the size and variant defaults for that state. `ButtonPadding` follows the window's text direction. A zero-width border removes the default outline.
@@ -56,6 +56,18 @@ Pass the application's current value to `Switch::new(id, label, checked)` and ha
 Use `.checked_icon` and `.unchecked_icon` for optional icons, or pass a decorative GPUI element through `.thumb_content(element)`. The custom element takes precedence for that render. Choose it from the caller's checked value to show different elements in each state. Custom content sits in a centered 16 px slot and inherits the state's content color. Keep labels and independent controls outside the thumb.
 
 Use `.colors(SwitchColors)` to configure each `SwitchStateColors` palette for checked, unchecked, disabled checked and disabled unchecked states. Each palette can override `track`, `border`, `thumb` and `content` independently. Omitted fields retain the theme defaults. Attach a caller-owned `Entity<InteractionSource>` with `.interaction_source(&source)` to observe hover, focus, press and disabled changes while the application continues to own the checked value.
+
+### Chips
+
+`Chip::new(id, label)` uses the label as its accessible name. Use `.content(element)` to replace the displayed label in any variant and `.leading_icon(element)` for a leading icon. Input chips accept `.avatar(element)`, a 24 dp circular slot that takes precedence over the leading icon. `.trailing(element)` adds visual content to an Assist, Filter, or Input chip. When a Filter or Input chip has `.on_remove(...)`, that content becomes the removal button's visual label and the removal action keeps its separate accessible name and focus stop. Without custom trailing content, removal uses the Close icon. Keep all visual slot content free of independent controls.
+
+Filter and Input render the owner's `.selected(value)` and request changes through `.on_change`. Assist and Suggestion use `.on_activate`. Removal invokes only the removal callback. `.disabled(true)` disables both actions. Leading and trailing content and removal position mirror in RTL. Keyboard traversal reaches the main action before removal.
+
+`.tonal(true)` selects the expressive Tonal defaults for Filter, elevated Filter, and Input. These presets use Medium resting, Full selected, and Small pressed corners and the theme's `OnSurfaceVariant` for the unselected leading icon. The normal constructor retains the current flat Assist and Small corners. Use `.shapes(ButtonShapes)` to set corners by state. Set `.colors(ChipColors)` with a `ChipStateColors` entry for enabled, selected, disabled, or disabled-selected appearance. Each entry can set the container, label, leading, trailing, and border colors. Missing fields use the chosen variant's defaults, with disabled-selected fields falling back to disabled overrides.
+
+Use `.border(ButtonBorder)` to change the outline width and its fallback color. A zero width hides the outline. `.elevations(ChipElevations)` overrides rest, press, focus, hover, drag, and disabled shadow levels. `.dragged(bool)` reflects an application-owned drag and cancels the pending pointer activation; the application owns the gesture. `.spacing(width)` sets the horizontal gap between content slots, and `.content_padding(ButtonPadding)` sets logical inner edges. The default gap is 8 dp, label-only edges are 16 dp, icon edges are 8 dp, and the avatar starts at 4 dp.
+
+Give each chip a distinct ID and use a caller-owned `Entity<InteractionSource>` with `.interaction_source(&source)` to observe the main action by that ID. The source reports hover, press, keyboard focus, dragged, and disabled feedback; selection and removal remain controlled by the caller.
 
 <a id="内容与反馈"></a>
 

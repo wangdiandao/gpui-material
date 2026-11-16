@@ -72,6 +72,8 @@ pub(crate) struct ActionLayout {
     pub(crate) semantic_only: bool,
     pub(crate) decorative: bool,
     pub(crate) appearance: ButtonStyle,
+    pub(crate) dragged: bool,
+    pub(crate) dragged_elevation: Option<Elevation>,
 }
 
 #[derive(Clone, Copy)]
@@ -172,7 +174,9 @@ impl FeedbackState {
     }
 
     pub(crate) fn blocks_activation(&self, event: &ClickEvent) -> bool {
-        self.dragged || self.pointer_cancelled && matches!(event, ClickEvent::Mouse(_))
+        self.dragged
+            || self.pointer_cancelled
+                && matches!(event, ClickEvent::Mouse(_) | ClickEvent::Touch(_))
     }
 }
 
@@ -244,9 +248,34 @@ impl ActionControl {
         window: &mut Window,
         cx: &mut App,
     ) -> AnyElement {
-        let (feedback, focus) = self.feedback(window, cx);
         let tracker =
             interaction_source.map(|source| InteractionSource::track(source, &self.id, window, cx));
+        self.render_with_tracker(scale, layout, tracker, window, cx)
+    }
+
+    pub(crate) fn interaction_snapshot(
+        &self,
+        dragged: bool,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> InteractionState {
+        let (feedback, focus) = self.feedback(window, cx);
+        let mut state = feedback.borrow_mut();
+        let enabled = !self.disabled;
+        state.cancel_unavailable(enabled, window);
+        state.set_dragged(enabled && dragged);
+        state.interaction(enabled, &focus, window)
+    }
+
+    pub(crate) fn render_with_tracker(
+        self,
+        scale: f32,
+        layout: ActionLayout,
+        tracker: Option<InteractionTracker>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> AnyElement {
+        let (feedback, focus) = self.feedback(window, cx);
         let style = self.style;
         let theme = window_material_theme(window, cx);
         let density = theme.layout.density;
@@ -308,6 +337,7 @@ impl ActionControl {
         let interaction = {
             let mut state = feedback.borrow_mut();
             state.cancel_unavailable(enabled, window);
+            state.set_dragged(enabled && layout.dragged);
             let interaction = if layout.decorative {
                 let mut interaction = InteractionState::default();
                 interaction.disabled = self.disabled;
@@ -376,11 +406,12 @@ impl ActionControl {
         };
         let elevation = animate(
             (self.id.clone(), "elevation"),
-            layout
-                .appearance
-                .elevations
-                .for_state(interaction)
-                .map_or(default_elevation, Elevation::dp),
+            (if interaction.dragged {
+                layout.dragged_elevation
+            } else {
+                layout.appearance.elevations.for_state(interaction)
+            })
+            .map_or(default_elevation, Elevation::dp),
             effects,
             window,
             cx,
@@ -487,15 +518,22 @@ impl ActionControl {
                     Some(on_activate) if enabled => {
                         let feedback = feedback.clone();
                         let invoke = on_activate.clone();
-                        let control = control
-                            .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
-                                invoke(window, cx)
-                            });
+                        let semantic_feedback = feedback.clone();
+                        let control = control.on_a11y_action(
+                            AccessibleAction::Click,
+                            move |_, window, cx| {
+                                if !semantic_feedback.borrow().dragged {
+                                    invoke(window, cx);
+                                }
+                            },
+                        );
                         control.when(!layout.semantic_only, |control| {
                             control.on_click(move |event, window, cx| {
-                                activate_feedback(event, &feedback, window, cx);
                                 cx.stop_propagation();
-                                on_activate(window, cx);
+                                if !feedback.borrow().blocks_activation(event) {
+                                    activate_feedback(event, &feedback, window, cx);
+                                    on_activate(window, cx);
+                                }
                             })
                         })
                     }
@@ -525,14 +563,19 @@ impl ActionControl {
                     Some(on_change) if enabled => {
                         let feedback = feedback.clone();
                         let toggle = on_change.clone();
+                        let semantic_feedback = feedback.clone();
                         control
                             .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
-                                toggle(!selected, window, cx)
+                                if !semantic_feedback.borrow().dragged {
+                                    toggle(!selected, window, cx);
+                                }
                             })
                             .on_change(move |selected, event, window, cx| {
-                                activate_feedback(event, &feedback, window, cx);
                                 cx.stop_propagation();
-                                on_change(selected, window, cx);
+                                if !feedback.borrow().blocks_activation(event) {
+                                    activate_feedback(event, &feedback, window, cx);
+                                    on_change(selected, window, cx);
+                                }
                             })
                     }
                     _ => control,
@@ -616,7 +659,7 @@ fn start_ripple(state: &mut FeedbackState, pointer: Option<Point<Pixels>>, cx: &
     });
 }
 
-fn interpolated_corners(
+pub(crate) fn interpolated_corners(
     bounds: Bounds<Pixels>,
     style: ActionStyle,
     selection: f32,
@@ -690,6 +733,9 @@ where
     control
         .on_mouse_down(MouseButton::Left, move |event, window, cx| {
             let mut state = press.borrow_mut();
+            if state.dragged {
+                return;
+            }
             state.pointer_cancelled = false;
             state.pressed = true;
             state.keyboard_focus = None;
@@ -739,6 +785,9 @@ where
                     .is_none_or(|owner| owner.is_focused(window))
             {
                 let mut state = keyboard.borrow_mut();
+                if state.dragged {
+                    return;
+                }
                 state.pressed = true;
                 state.keyboard_focus = window.focused(cx);
                 start_ripple(&mut state, None, cx);

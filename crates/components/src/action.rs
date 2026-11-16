@@ -76,6 +76,7 @@ pub(crate) struct ActionLayout {
     pub(crate) semantic_only: bool,
     pub(crate) decorative: bool,
     pub(crate) appearance: ButtonStyle,
+    pub(crate) presentation_selected: Option<bool>,
     pub(crate) dragged: bool,
     pub(crate) dragged_elevation: Option<Elevation>,
 }
@@ -202,7 +203,10 @@ impl ActionControl {
         let effects = theme
             .motion
             .spec(MotionKind::Effects, MotionSpeed::Fast, reduced);
-        let selected = matches!(&self.action, Action::Toggle { selected: true, .. });
+        let selected = layout.presentation_selected.unwrap_or(matches!(
+            &self.action,
+            Action::Toggle { selected: true, .. }
+        ));
         let ring = color(theme.colors.color(ColorRole::Secondary));
         let shadow = color(theme.colors.color(ColorRole::Shadow));
         let foreground = layout
@@ -544,32 +548,32 @@ pub(crate) fn interpolated_corners(
         |shape: CornerShape| shape.radii(width, height, gpui_material_theme::Direction::Ltr);
     let ButtonShapes {
         resting,
-        pressed,
+        pressed: pressed_shape,
         checked,
     } = layout.appearance.shapes;
     let mut rest = radii(resting.unwrap_or_else(|| style.corner.shape()));
     let mut selected =
         radii(checked.unwrap_or_else(|| style.selected_corner.unwrap_or(style.corner).shape()));
-    let mut pressed = radii(pressed.unwrap_or_else(|| style.pressed_corner.shape()));
+    let mut pressed = radii(pressed_shape.unwrap_or_else(|| style.pressed_corner.shape()));
     if let Some(segment) = layout.segment {
         let inner = radii(segment.inner.shape())[0];
         let inner_pressed = radii(segment.pressed.shape())[0];
         let outer = width.min(height) * 0.5;
-        rest = [
+        let outside = [
             segment.leading,
             segment.trailing,
             segment.trailing,
             segment.leading,
-        ]
-        .map(|outer_edge| if outer_edge { outer } else { inner });
-        selected = [outer; 4];
-        pressed = [
-            segment.leading,
-            segment.trailing,
-            segment.trailing,
-            segment.leading,
-        ]
-        .map(|outer_edge| if outer_edge { outer } else { inner_pressed });
+        ];
+        if resting.is_none() {
+            rest = outside.map(|outer_edge| if outer_edge { outer } else { inner });
+        }
+        if checked.is_none() {
+            selected = [outer; 4];
+        }
+        if pressed_shape.is_none() {
+            pressed = outside.map(|outer_edge| if outer_edge { outer } else { inner_pressed });
+        }
     }
     CornerShape::Radii(std::array::from_fn(|ix| {
         let resting = rest[ix] + (selected[ix] - rest[ix]) * selection;

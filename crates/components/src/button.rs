@@ -686,10 +686,13 @@ pub mod composition {
         common: Common,
         variant: ButtonVariant,
         selected: Option<bool>,
+        presentation_selected: Option<bool>,
         on_activate: Option<Activate>,
+        on_change: Option<Change>,
         segment: Option<Segment>,
         icon: Option<AnyElement>,
-        width: Pixels,
+        slots: Slots,
+        width: Option<Pixels>,
         tab_stop: bool,
         semantic_only: bool,
     }
@@ -704,16 +707,27 @@ pub mod composition {
                 common: Common::new(id, label),
                 variant: ButtonVariant::default(),
                 selected: None,
+                presentation_selected: None,
                 on_activate: None,
+                on_change: None,
                 segment: None,
                 icon: None,
-                width,
+                slots: Slots::default(),
+                width: Some(width),
                 tab_stop: true,
                 semantic_only: false,
             }
         }
 
+        pub fn intrinsic(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
+            let mut part = Self::new(id, label, px(0.));
+            part.width = None;
+            part
+        }
+
         common_builders!();
+        appearance_builders!();
+        slot_builders!();
 
         pub fn variant(mut self, variant: ButtonVariant) -> Self {
             self.variant = variant;
@@ -727,6 +741,19 @@ pub mod composition {
 
         pub fn selected(mut self, selected: Option<bool>) -> Self {
             self.selected = selected;
+            self
+        }
+
+        pub fn presentation_selected(mut self, selected: bool) -> Self {
+            self.presentation_selected = Some(selected);
+            self
+        }
+
+        pub fn on_change(
+            mut self,
+            callback: impl Fn(bool, &mut Window, &mut App) + 'static,
+        ) -> Self {
+            self.on_change = Some(Rc::new(callback));
             self
         }
 
@@ -756,7 +783,7 @@ pub mod composition {
     }
 
     impl RenderOnce for ButtonPart {
-        fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
             let mut metrics = self.common.size.metrics();
             let segment = self.segment.map(|segment| {
                 use CornerRole::*;
@@ -782,47 +809,82 @@ pub mod composition {
                     pressed,
                 }
             });
-            let mut style =
-                button_appearance(self.variant, self.selected).style(metrics, CornerRole::Full, 0.);
-            if self.selected.is_some() {
+            let split = matches!(
+                self.segment,
+                Some(Segment::SplitLeading | Segment::SplitTrailing)
+            );
+            let palette_selection = if split { None } else { self.selected };
+            let mut style = button_appearance(self.variant, palette_selection).style(
+                metrics,
+                CornerRole::Full,
+                0.,
+            );
+            if self.selected.is_some() || self.presentation_selected.is_some() {
                 style.selected_corner = Some(metrics.square);
             }
             if matches!(self.segment, Some(Segment::SplitTrailing)) {
                 metrics.icon = split_trailing_size(self.common.size).0;
             }
-            let content = if let Some(icon) = self.icon {
-                icon_slot(icon, metrics.icon).into_any_element()
+            if split {
+                let colors = &mut self.common.appearance.colors;
+                colors.checked_content = colors.checked_content.or(colors.content);
+                colors.checked_container = colors.checked_container.or(colors.container);
+            }
+            let checked = self
+                .presentation_selected
+                .or(self.selected)
+                .unwrap_or(false);
+            let tint = self
+                .common
+                .appearance
+                .colors
+                .content(self.common.disabled, checked)
+                .unwrap_or_else(|| style.foreground(self.common.disabled, window, cx));
+            let content = if let Some(width) = self.width {
+                if let Some(icon) = self.icon {
+                    icon_slot(icon, metrics.icon).into_any_element()
+                } else {
+                    let typography = metrics.label.style(TypographyEmphasis::Baseline);
+                    let padding = metrics.padding.min((f32::from(width) - 16.).max(0.) / 2.);
+                    let label_width = (width - px(2. * padding)).max(px(0.));
+                    div()
+                        .flex()
+                        .min_w_0()
+                        .max_w_full()
+                        .w(width)
+                        .justify_center()
+                        .px(px(padding))
+                        .child(crate::text::single_line(
+                            self.common.label.clone(),
+                            typography,
+                            1.,
+                            tint,
+                            (Some(label_width), 1., 1.),
+                            window,
+                            cx,
+                        ))
+                        .into_any_element()
+                }
             } else {
-                let tint = style.foreground(self.common.disabled, window, cx);
-                let typography = metrics.label.style(TypographyEmphasis::Baseline);
-                let padding = metrics
+                if let Some(icon) = self.icon {
+                    self.slots.content = Some(icon_slot(icon, metrics.icon).into_any_element());
+                }
+                self.slots.padding = self
+                    .slots
                     .padding
-                    .min((f32::from(self.width) - 16.).max(0.) / 2.);
-                let label_width = (self.width - px(2. * padding)).max(px(0.));
-                div()
-                    .flex()
-                    .min_w_0()
-                    .max_w_full()
-                    .w(self.width)
-                    .justify_center()
-                    .px(px(padding))
-                    .child(crate::text::single_line(
-                        self.common.label.clone(),
-                        typography,
-                        1.,
-                        tint,
-                        (Some(label_width), 1., 1.),
-                        window,
-                        cx,
-                    ))
-                    .into_any_element()
+                    .or_else(|| split_padding(self.common.size, self.segment));
+                self.slots
+                    .render(self.common.label.clone(), metrics, 1., window, tint, cx)
             };
             let action = if let Some(selected) = self.selected {
                 Action::Toggle {
                     selected,
-                    on_change: self.on_activate.map(|callback| {
-                        Rc::new(move |_, window: &mut Window, cx: &mut App| callback(window, cx))
-                            as Change
+                    on_change: self.on_change.or_else(|| {
+                        self.on_activate.map(|callback| {
+                            Rc::new(move |_, window: &mut Window, cx: &mut App| {
+                                callback(window, cx)
+                            }) as Change
+                        })
                     }),
                 }
             } else {
@@ -841,16 +903,41 @@ pub mod composition {
                 1.,
                 ActionLayout {
                     segment,
-                    width: Some(self.width),
+                    width: self.width,
                     tab_stop: self.tab_stop,
                     semantic_only: self.semantic_only,
+                    appearance: self.common.appearance,
+                    presentation_selected: self.presentation_selected,
                     ..Default::default()
                 },
-                None,
+                self.common.interaction_source.as_ref(),
                 window,
                 cx,
             )
         }
+    }
+
+    fn split_padding(size: ControlSize, segment: Option<Segment>) -> Option<ButtonPadding> {
+        let (start, end) = match segment {
+            Some(Segment::SplitLeading) => match size {
+                ControlSize::ExtraSmall => (12., 10.),
+                ControlSize::Small => (16., 12.),
+                ControlSize::Medium => (24., 24.),
+                ControlSize::Large => (48., 48.),
+                ControlSize::ExtraLarge => (64., 64.),
+            },
+            Some(Segment::SplitTrailing) => {
+                let (icon, footprint) = split_trailing_size(size);
+                let edge = (footprint - icon) / 2.;
+                (edge, edge)
+            }
+            _ => return None,
+        };
+        Some(ButtonPadding {
+            start: px(start),
+            end: px(end),
+            ..Default::default()
+        })
     }
 
     pub fn label_width(

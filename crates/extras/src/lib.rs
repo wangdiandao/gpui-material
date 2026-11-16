@@ -14,6 +14,10 @@ pub use carousel::{
 mod groups;
 #[cfg(feature = "expressive-groups")]
 pub use groups::*;
+#[cfg(feature = "expressive-groups")]
+mod split_button;
+#[cfg(feature = "expressive-groups")]
+pub use split_button::{SplitButton, SplitButtonSegmentStyle};
 #[cfg(feature = "search")]
 mod search;
 #[cfg(feature = "search")]

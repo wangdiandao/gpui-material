@@ -81,8 +81,11 @@
   en: "f749e65450d351e3"
   zh: "fdbeaa7d7dfdc868"
 /components/optional-components:
-  en: "d8a52add8f1988f1"
-  zh: "36cdf14081353c1b"
+  en: "f5ce066904fbe3ce"
+  zh: "90c846193be2f9a7"
+/components/optional-components/split-buttons:
+  en: "925c4848924530f5"
+  zh: "e9bac206204f6f05"
 /components/optional-components/scroll-fields:
   en: "5881f1d730e7138a"
   zh: "a30907506d331a76"

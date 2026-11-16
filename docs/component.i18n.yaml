@@ -6,11 +6,14 @@
   en: "13b2a36b91df87da"
   zh: "ae5c42c66bbd11b4"
 /components/content-and-feedback:
-  en: "f4c33402f94306c3"
-  zh: "b3520221d48bd163"
+  en: "d54ec6149943ea00"
+  zh: "a7962e0d72a8d203"
 /components/content-and-feedback/divider:
-  en: "fad1e63719cb272b"
-  zh: "2c2f6b6b9d145c47"
+  en: "91017ca9ca1e50e9"
+  zh: "552fa38bdd6c09d0"
+/components/content-and-feedback/badges:
+  en: "40bd70f38fcd69ad"
+  zh: "82fe652aba01e153"
 /components/input-and-overlays:
   en: "013e52ce564f25df"
   zh: "0beebeb1db52c5eb"

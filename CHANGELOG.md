@@ -8,6 +8,7 @@ See [versioning and releases](docs/release.md) for the release process.
 
 - Compose exposed dropdowns with custom editors, anchors and options, caller-controlled visibility, and configurable popup size, scroll state and appearance.
 - Add display-only scrollbars with per-axis viewport tracking, custom geometry and colors, and configurable fading.
+- Customize both Split Button segments and use a menu, independent command, or controlled toggle for the trailing segment.
 - Configure carousel layout and fling behavior, read and control the retained item position, and apply standalone scroll parallax to custom content.
 - Customize Snackbar content, controls, layout, and appearance, and observe action or dismissal results from the queue.
 - Add customizable TwoRows app bars, logical multiline headings and logo slots, retained scroll strategies, and responsive app bar action rows and columns.

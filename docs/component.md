@@ -266,11 +266,21 @@ Enable features on the `gpui-material` dependency. Import date pickers, time pic
 
 | Feature | Component | Supported variants and behavior | Material 3 |
 | --- | --- | --- | --- |
-| `expressive-groups` | `ButtonGroup`, `SplitButton` | Standard and Connected button groups, and a split button with separate primary and secondary actions. | [Button groups](https://m3.material.io/components/button-groups/overview) · [Split button](https://m3.material.io/components/split-button/overview) |
+| `expressive-groups` | `ButtonGroup`, `SplitButton` | Standard and Connected button groups, and split buttons with independent content, appearance, and activation. | [Button groups](https://m3.material.io/components/button-groups/overview) · [Split button](https://m3.material.io/components/split-button/overview) |
 | `toolbars` | `FabMenu`, `Toolbar` | Expandable FAB menus and floating or docked toolbars with horizontal and vertical layouts. | [FAB menu](https://m3.material.io/components/fab-menu/overview) · [Toolbars](https://m3.material.io/components/toolbars/overview) |
 | `search` | `SearchBar`, `SearchView` | Collapsed search bars and docked or full-screen search views. | [Search](https://m3.material.io/components/search/overview) |
 | `date-time` | `DatePicker`, `TimePicker`, `ScrollField` | Single dates and date ranges in Docked, Modal, or Modal Input pickers. Dial and Input time pickers with 12- and 24-hour formats. Standalone scrolling selection. | [Date pickers](https://m3.material.io/components/date-pickers/overview) · [Time pickers](https://m3.material.io/components/time-pickers/overview) |
 | `carousel` | `Carousel`, `CarouselParallax` | Multi-browse, Uncontained, Uncontained Multi-aspect Ratio, Hero, Centered Hero, and Full-screen. Standalone scroll parallax for arbitrary GPUI content. | [Carousel](https://m3.material.io/components/carousel/overview) |
+
+### Split buttons
+
+`SplitButton::new(id, leading_name, trailing_name, menu_items)` names the two segments for accessibility. The leading command uses `.on_activate(...)`. Use `.leading_icon(element)` for an icon beside the label, `.leading_icon_only(element)` for an icon in place of the label, or `.leading_content(element)` for arbitrary content. The trailing segment defaults to a menu arrow. Use `.trailing_icon(element)` for an icon sized to its tier or `.trailing_content(element)` for arbitrary trailing content. Each segment uses its most recent content setter. Keep elements in these slots presentational so each segment owns its focus, name, and activation.
+
+The trailing segment opens the supplied menu by default and restores trigger focus when the menu closes. Use `.on_trailing_activate(callback)` for an independent command or `.trailing_toggle(selected, callback)` for a controlled toggle. The last trailing action or toggle setter wins and takes the place of the constructor menu. Toggle activation requests the next value without changing the supplied selection. `.disabled(true)` disables the leading command. `.trailing_disabled(true)` disables the trailing segment independently. An empty menu disables the default menu trigger. The segments mirror in RTL. Keyboard traversal visits the leading segment before the trailing segment.
+
+The Filled, Filled Tonal, Elevated, and Outlined presets provide the base appearance at each Material size. `.spacing(width)` sets the gap between segments. The default is 2 dp. Use `.leading_style(SplitButtonSegmentStyle)` and `.trailing_style(SplitButtonSegmentStyle)` to override logical resting, pressed, and checked corners with `ButtonShapes`, state pigments with `ButtonColors`, stroke with `ButtonBorder`, shadows with `ButtonElevations`, and logical insets with `ButtonPadding`. Omitted fields keep the segment defaults. A selected trailing toggle or open menu uses the checked appearance. The menu trigger retains button semantics. The default checked shape rounds the inner trailing corners. Checked colors fall back to the enabled colors, and disabled colors take precedence. Reduced motion applies the resulting shape immediately.
+
+Pass caller-owned entities through `.leading_interaction_source(&source)` and `.trailing_interaction_source(&source)` to observe either segment. They report under `ElementId::from((id, "primary"))` and `ElementId::from((id, "secondary"))` respectively. The same entity can observe both keys. Replacing an attachment clears that segment's snapshot from its previous source.
 
 ### Scroll fields
 

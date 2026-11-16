@@ -1,17 +1,21 @@
 use gpui::prelude::FluentBuilder;
-use gpui::{Context, FocusHandle, ParentElement, Render, SharedString, Styled, Window, div};
+use gpui::{Context, FocusHandle, ParentElement, Render, SharedString, Styled, Window, div, px};
 use gpui_material::{
     ButtonGroup, ButtonGroupItem, ButtonGroupSelection, ButtonGroupVariant, ButtonVariant,
-    ControlSize, MenuItem, SplitButton, Text,
+    ControlSize, Icon, IconName, MenuItem, SplitButton, Text,
 };
 
 use crate::story::{Story, section, stack};
+
+#[cfg(all(test, feature = "test-support"))]
+mod split_button_tests;
 
 pub(crate) struct GroupExamples {
     story: Story,
     selected: Vec<SharedString>,
     message: SharedString,
     split_focus: (FocusHandle, FocusHandle),
+    keep_export: bool,
 }
 
 impl GroupExamples {
@@ -21,6 +25,7 @@ impl GroupExamples {
             selected: vec!["week".into()],
             message: "No action yet".into(),
             split_focus: (cx.focus_handle(), cx.focus_handle()),
+            keep_export: false,
         }
     }
 
@@ -86,6 +91,31 @@ impl Render for GroupExamples {
                     ),
             );
         } else {
+            let owner = cx.weak_entity();
+            body = body.child(
+                section("Command and toggle")
+                    .child(
+                        SplitButton::new("export-split", "Export report", "Keep latest export", [])
+                            .variant(ButtonVariant::FilledTonal)
+                            .leading_icon(Icon::new(IconName::Description))
+                            .trailing_icon(Icon::new(IconName::Favorite).filled(self.keep_export))
+                            .spacing(px(4.))
+                            .on_activate(Self::command("Exported report", cx))
+                            .trailing_toggle(self.keep_export, move |selected, _, cx| {
+                                let _ = owner.update(cx, |this, cx| {
+                                    this.keep_export = selected;
+                                    this.message = if selected {
+                                        "Keeping latest export"
+                                    } else {
+                                        "Export unpinned"
+                                    }
+                                    .into();
+                                    cx.notify();
+                                });
+                            }),
+                    )
+                    .child(Text::new(self.message.clone()).id("split-action-result")),
+            );
             let sizes = [
                 (
                     "Extra small",
@@ -128,7 +158,7 @@ impl Render for GroupExamples {
         div()
             .w_full()
             .child(body)
-            .child(Text::new(self.message.clone()))
+            .children((self.story == Story::ButtonGroup).then(|| Text::new(self.message.clone())))
     }
 }
 #[cfg(all(test, feature = "test-support"))]

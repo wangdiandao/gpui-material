@@ -10,6 +10,7 @@ pub use gpui_material_extras::date_time;
 #[cfg(feature = "expressive-groups")]
 pub use gpui_material_extras::{
     ButtonGroup, ButtonGroupItem, ButtonGroupSelection, ButtonGroupVariant, SplitButton,
+    SplitButtonSegmentStyle,
 };
 #[cfg(feature = "carousel")]
 pub use gpui_material_extras::{

@@ -266,11 +266,21 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 | Feature | 组件 | 支持的变体与行为 | Material 3 |
 | --- | --- | --- | --- |
-| `expressive-groups` | `ButtonGroup`、`SplitButton` | Standard 和 Connected 按钮组，以及主操作与次操作独立的拆分按钮。 | [按钮组](https://m3.material.io/components/button-groups/overview) · [拆分按钮](https://m3.material.io/components/split-button/overview) |
+| `expressive-groups` | `ButtonGroup`、`SplitButton` | Standard 和 Connected 按钮组，以及内容、外观和激活行为各自独立的拆分按钮。 | [按钮组](https://m3.material.io/components/button-groups/overview) · [拆分按钮](https://m3.material.io/components/split-button/overview) |
 | `toolbars` | `FabMenu`、`Toolbar` | 可展开的悬浮操作菜单。工具栏支持悬浮或停靠，以及横向或纵向布局。 | [悬浮操作菜单](https://m3.material.io/components/fab-menu/overview) · [工具栏](https://m3.material.io/components/toolbars/overview) |
 | `search` | `SearchBar`、`SearchView` | 收起的搜索栏，以及停靠或全屏的搜索视图。 | [搜索](https://m3.material.io/components/search/overview) |
 | `date-time` | `DatePicker`、`TimePicker`、`ScrollField` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input。时间选择支持 Dial、Input 和 12、24 小时制。支持独立的滚动选择字段。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
 | `carousel` | `Carousel`、`CarouselParallax` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。 任意 GPUI 内容可使用独立滚动视差效果。 | [轮播](https://m3.material.io/components/carousel/overview) |
+
+### 拆分按钮
+
+`SplitButton::new(id, leading_name, trailing_name, menu_items)` 提供两段各自的无障碍名称。前段命令使用 `.on_activate(...)`。通过 `.leading_icon(element)` 在标签旁加入图标，`.leading_icon_only(element)` 用图标替代标签，`.leading_content(element)` 提供自定义内容。尾段默认显示菜单箭头。使用 `.trailing_icon(element)` 可按当前尺寸设置图标，或用 `.trailing_content(element)` 提供自定义内容。每段以最后一次内容设置为准。各插槽仅用于呈现，由对应段负责焦点、名称和激活。
+
+尾段默认打开指定的菜单，菜单关闭时焦点返回触发按钮。通过 `.on_trailing_activate(callback)` 设置独立命令，或通过 `.trailing_toggle(selected, callback)` 设置受控切换。尾段命令与切换按最后一次设置生效，并取代构造器提供的菜单。激活切换时请求下一状态，选中值仍由调用方持有。`.disabled(true)` 禁用前段命令，`.trailing_disabled(true)` 单独禁用尾段。菜单为空时，默认菜单触发按钮禁用。两段在 RTL 中镜像，键盘先访问前段再访问尾段。
+
+Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供基础外观。`.spacing(width)` 设置段间距，默认 2 dp。用 `.leading_style(SplitButtonSegmentStyle)` 和 `.trailing_style(SplitButtonSegmentStyle)` 单独配置每段。可通过 `ButtonShapes` 设置静止、按下、选中时的逻辑圆角，通过 `ButtonColors` 设置各状态配色，用 `ButtonBorder` 设置描边、`ButtonElevations` 设置阴影及 `ButtonPadding` 设置逻辑内边距。省略的字段沿用该段默认值。已选中的尾段切换和已打开的菜单使用选中外观，菜单触发器保留按钮语义。选中外观默认增大尾段内侧圆角。未设置选中颜色时沿用启用配色，禁用配色优先。减少动效时立即应用目标形状。
+
+使用 `.leading_interaction_source(&source)` 和 `.trailing_interaction_source(&source)` 传入调用方持有的交互源，可分别用 `ElementId::from((id, "primary"))` 和 `ElementId::from((id, "secondary"))` 读取快照。同一个实体可以观察两个标识。更换交互源时，对应段的快照会从原交互源清除。
 
 ### 滚动选择字段
 

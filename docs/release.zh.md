@@ -6,7 +6,7 @@
 
 ## 版本规则
 
-最新版本为 0.1.0。Material 各库与 Gallery 统一使用根清单 `[workspace.package]` 的版本。[公开门面及受支持的集成契约](integration.zh.md#api-与迁移)界定兼容范围，包括文档列出的 feature、公开签名中的上游类型，以及受支持的平台行为。
+最新版本为 0.1.1。Material 各库与 Gallery 统一使用根清单 `[workspace.package]` 的版本。[公开门面及受支持的集成契约](integration.zh.md#api-与迁移)界定兼容范围，包括文档列出的 feature、公开签名中的上游类型，以及受支持的平台行为。
 
 - 在 `1.0.0` 之前，向后兼容的修复递增 patch，向后兼容的新功能或破坏性变更递增 minor。递增 minor 时将 patch 归零。同一版本包含不同类型的变更时，采用最高的适用级别。
 - 由仓库所有者决定何时以 `1.0.0` 承诺 API 稳定。从 `1.0.0` 起遵循 [SemVer](https://semver.org/lang/zh-CN/)。公开 API 的不兼容变更递增 major，兼容的新功能和公开 API 弃用递增 minor，兼容修复递增 patch。
@@ -16,7 +16,7 @@
 
 ## 变更日志
 
-Material 各 crate 和 Gallery 中影响用户或下游应用的变更合并时，写入 [CHANGELOG.md](../CHANGELOG.md) 的 `Unreleased`。记录新功能、可感知的修复、无障碍和性能改进、影响集成的平台或依赖变化，以及迁移方式。网站和文档变更均不写入变更日志，包括与 crate 或 Gallery 改动一起提交的情况。按受影响的模块组织条目，说明实际影响，并附对应 PR 或 Issue，适用时注明贡献者。格式参考 [GPUI Kit v0.9.1 Release](https://github.com/longbridge/gpui-kit/releases/tag/v0.9.1)。
+Material 各 crate 和 Gallery 中影响用户或下游应用的变更合并时，写入 [CHANGELOG.md](../CHANGELOG.md) 的 `Unreleased`。记录新功能、可感知的修复、无障碍和性能改进、影响集成的平台或依赖变化，以及迁移方式。网站和文档变更均不写入变更日志，包括与 crate 或 Gallery 改动一起提交的情况。按受影响的模块组织条目，说明实际影响，适用时注明贡献者。实现与验证记录放在对应 Issue 或 PR。格式参考 [GPUI Kit v0.9.1 Release](https://github.com/longbridge/gpui-kit/releases/tag/v0.9.1)。
 
 仓库所有者敲定版本号与发版范围后，核对上次发布 tag 到本次发版提交之间的全部变更。`0.1.0` 以最近的 Gallery 预发行版 `v0.0.4` 为基线。对照该范围补齐条目，将本次发布的变更移到带实际发布日期的版本标题下，并保留 `Unreleased` 收集后续变更。使用该版本条目作为 GitHub Release 正文，适用时列出贡献者，并附起止 tag 的 `Full Changelog` 比较链接。
 

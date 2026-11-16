@@ -2218,6 +2218,7 @@ dependencies = [
  "gpui-material-foundation",
  "gpui-material-theme",
  "gpui-pre",
+ "web-time",
 ]
 
 [[package]]

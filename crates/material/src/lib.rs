@@ -27,8 +27,9 @@ pub use gpui_material_extras::{
 };
 #[cfg(feature = "search")]
 pub use gpui_material_extras::{
-    SearchBar, SearchEvent, SearchOutcome, SearchRequest, SearchResult, SearchState, SearchView,
-    SearchViewVariant,
+    SearchBar, SearchEvent, SearchMotion, SearchOutcome, SearchPopupOptions, SearchRequest,
+    SearchResult, SearchScrim, SearchScrollState, SearchState, SearchStyle, SearchValue,
+    SearchView, SearchViewVariant, SearchWindowOptions,
 };
 pub use gpui_material_foundation as foundation;
 pub use gpui_material_foundation::{

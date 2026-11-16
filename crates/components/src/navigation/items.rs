@@ -20,6 +20,8 @@ use super::tabs::{
 };
 use crate::{Badge, Icon};
 
+use super::rail::{NavigationRailArrangement, NavigationRailPadding, RailPresentation, length};
+
 /// Placement of a navigation item's icon relative to its label.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NavigationItemIconPosition {
@@ -48,6 +50,7 @@ pub struct NavigationItem {
     icon_position: Option<NavigationItemIconPosition>,
     label_content: Option<AnyElement>,
     badge: Option<Badge>,
+    indicator_padding: Option<(NavigationRailPadding, NavigationRailPadding)>,
     colors: NavigationItemColors,
     interaction_source: Option<Entity<InteractionSource>>,
     disabled: bool,
@@ -62,6 +65,7 @@ impl NavigationItem {
             icon_position: None,
             label_content: None,
             badge: None,
+            indicator_padding: None,
             colors: NavigationItemColors::default(),
             interaction_source: None,
             disabled: false,
@@ -78,13 +82,13 @@ impl NavigationItem {
         self
     }
 
-    /// Overrides icon placement in a tab or short navigation bar.
+    /// Overrides icon placement inherited from the tab, bar, or rail.
     pub fn icon_position(mut self, position: NavigationItemIconPosition) -> Self {
         self.icon_position = Some(position);
         self
     }
 
-    /// Replaces a visible tab or bar label while retaining the accessible name.
+    /// Replaces the visible label while retaining the accessible name.
     pub fn label_content(mut self, content: impl IntoElement) -> Self {
         self.label_content = Some(content.into_any_element());
         self
@@ -97,13 +101,23 @@ impl NavigationItem {
         self
     }
 
-    /// Sets per-state pigments for this tab or short navigation bar destination.
+    /// Sets the rail indicator's logical content padding without shrinking its target.
+    pub fn indicator_padding(
+        mut self,
+        collapsed: NavigationRailPadding,
+        expanded: NavigationRailPadding,
+    ) -> Self {
+        self.indicator_padding = Some((collapsed, expanded));
+        self
+    }
+
+    /// Sets per-state pigments for a navigation or tab destination.
     pub fn colors(mut self, colors: NavigationItemColors) -> Self {
         self.colors = colors;
         self
     }
 
-    /// Observes this tab or bar destination using its collection ID and item ID.
+    /// Observes the destination using its collection ID and item ID.
     pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
         self.interaction_source = Some(source.clone());
         self
@@ -122,6 +136,7 @@ pub struct NavigationItems {
     on_select: Option<Select>,
     font_scale: f32,
     state: Option<Entity<RowState>>,
+    rail_dividers: HashMap<SharedString, AnyElement>,
 }
 
 impl NavigationItems {
@@ -138,6 +153,7 @@ impl NavigationItems {
             on_select: None,
             font_scale: 1.,
             state: None,
+            rail_dividers: HashMap::new(),
         }
     }
 
@@ -165,11 +181,21 @@ impl NavigationItems {
         self
     }
 
+    pub(super) fn with_rail_dividers(
+        mut self,
+        dividers: HashMap<SharedString, AnyElement>,
+    ) -> Self {
+        self.rail_dividers = dividers;
+        self
+    }
+
     // Resolve the state before the adaptive scaffold puts it under a different
     // element path. Otherwise switching from its bar slot to its rail slot
     // replaces the destination focus handles.
     pub(super) fn retain(mut self, window: &mut Window, cx: &mut App) -> Self {
-        self.state = Some(self.row_state(window, cx));
+        if self.state.is_none() {
+            self.state = Some(self.row_state(window, cx));
+        }
         self
     }
 
@@ -259,7 +285,7 @@ pub(super) enum Presentation {
         arrangement: NavigationBarArrangement,
         colors: NavigationBarColors,
     },
-    Rail(bool),
+    Rail(RailPresentation),
 }
 
 impl Presentation {
@@ -277,7 +303,7 @@ impl Presentation {
             Self::Bar {
                 layout: NavigationBarLayout::Horizontal,
                 ..
-            } | Self::Rail(true)
+            } | Self::Rail(RailPresentation { expanded: true, .. })
         )
     }
 
@@ -285,6 +311,23 @@ impl Presentation {
         match self {
             Self::Bar { colors, .. } => Some(colors),
             _ => None,
+        }
+    }
+
+    fn rail_options(self) -> Option<RailPresentation> {
+        match self {
+            Self::Rail(options) => Some(options),
+            _ => None,
+        }
+    }
+
+    fn item_colors(self) -> Option<NavigationBarColors> {
+        match self {
+            Self::Rail(options) => Some(NavigationBarColors {
+                content: options.content,
+                container: None,
+            }),
+            _ => self.bar_colors(),
         }
     }
 
@@ -361,6 +404,8 @@ impl NavigationItems {
                     ColorRole::Surface
                 })
             });
+        let options = presentation.rail_options();
+        let item_colors = presentation.item_colors();
         let rail = presentation.is_rail();
         let tab = presentation.is_tab();
         let scrollable = presentation.is_scrollable();
@@ -373,6 +418,7 @@ impl NavigationItems {
             .state
             .clone()
             .unwrap_or_else(|| self.row_state(window, cx));
+        let mut rail_dividers = self.rail_dividers;
         let (focus, scroll) = state.update(cx, |state, cx| {
             let mut previous = std::mem::take(&mut state.focus);
             state.focus = self
@@ -535,7 +581,7 @@ impl NavigationItems {
                 rail,
                 |row| {
                     row.flex_col()
-                        .gap(px(4.))
+                        .gap(options.map_or(px(4.), |options| options.spacing))
                         .min_h_0()
                         .flex_1()
                         .overflow_y_scroll()
@@ -550,6 +596,12 @@ impl NavigationItems {
             )
             .when(tab && custom_divider.is_none(), |row| {
                 row.border_b_1().border_color(divider)
+            })
+            .when_some(options, |row, options| match options.arrangement {
+                NavigationRailArrangement::SpaceBetween => row.justify_between(),
+                NavigationRailArrangement::SpaceAround => row.justify_around(),
+                NavigationRailArrangement::SpaceEvenly => row.justify_evenly(),
+                _ => row,
             })
             .when(centered_widths.is_some(), Styled::justify_center)
             .when(scrollable && !rail, |row| row.overflow_x_scroll())
@@ -580,6 +632,9 @@ impl NavigationItems {
             let styled_item = bar_colors.is_some()
                 || tab
                     && (tab_colors.content.is_some()
+                        || item.colors != NavigationItemColors::default())
+                || rail
+                    && (options.is_some_and(|options| options.content.is_some())
                         || item.colors != NavigationItemColors::default());
             let visual = ItemVisual {
                 presentation,
@@ -599,7 +654,7 @@ impl NavigationItems {
             let handle = &focus[&item.id];
             let is_tab_stop = tab_stop.as_ref() == Some(&item.id);
             let id = (self.id.clone(), item.id.clone()).into();
-            let customize_item = tab || bar_colors.is_some();
+            let customize_item = tab || item_colors.is_some();
             let description = item
                 .badge
                 .as_mut()
@@ -623,7 +678,9 @@ impl NavigationItems {
             } else {
                 index + 1
             };
-            Button::new(item.id.clone())
+            let divider = rail_dividers.remove(&item.id);
+            let slot_id = (id, "rail-destination");
+            let button = Button::new(item.id.clone())
                 .role(if tab { Role::Tab } else { Role::ListBoxOption })
                 .aria_selected(selected)
                 .aria_position_in_set(position)
@@ -681,7 +738,30 @@ impl NavigationItems {
                 } else {
                     1.
                 })
-                .child(content)
+                .child(content);
+            if let Some(options) = options {
+                div()
+                    .id(slot_id)
+                    .flex_none()
+                    .when(
+                        index == 0
+                            && matches!(
+                                options.arrangement,
+                                NavigationRailArrangement::Center | NavigationRailArrangement::End
+                            ),
+                        |slot| slot.mt_auto(),
+                    )
+                    .when(
+                        index + 1 == count
+                            && options.arrangement == NavigationRailArrangement::Center,
+                        |slot| slot.mb_auto(),
+                    )
+                    .child(button)
+                    .children(divider.map(|divider| div().id("rail-divider").child(divider)))
+                    .into_any_element()
+            } else {
+                button.into_any_element()
+            }
         }));
         if custom_divider.is_some() || decoration.is_some() {
             div()
@@ -754,10 +834,25 @@ impl ItemVisual {
         } else {
             foreground
         };
-        let bar = self.presentation.bar_colors();
+        let bar = self.presentation.item_colors();
         let tab = self.presentation.is_tab();
         let customize_item = bar.is_some() || tab;
         let fallback = bar.and_then(|colors| colors.content).or(self.tab_content);
+        let rail_padding = self.presentation.rail_options().and_then(|options| {
+            item.indicator_padding.map(|(collapsed, expanded)| {
+                if options.expanded {
+                    expanded
+                } else {
+                    collapsed
+                }
+            })
+        });
+        let indicator_padding = rail_padding.map(|padding| {
+            let (left, right) = theme
+                .layout
+                .horizontal(length(padding.start), length(padding.end));
+            (left, right, length(padding.top), length(padding.bottom))
+        });
         let horizontal = item.icon_position.filter(|_| customize_item).map_or_else(
             || self.presentation.horizontal_label(),
             |position| position == NavigationItemIconPosition::Start,
@@ -898,6 +993,17 @@ impl ItemVisual {
                         .rounded_full()
                         .bg(selected_indicator.opacity(selection))
                 })
+                .when_some(
+                    indicator_padding.filter(|_| !horizontal),
+                    |icon, (left, right, top, bottom)| {
+                        icon.w(px(24.) + left + right)
+                            .h(px(24.) + top + bottom)
+                            .pl(left)
+                            .pr(right)
+                            .pt(top)
+                            .pb(bottom)
+                    },
+                )
                 .child(icon)
         });
         let label = if let Some(badge) = badge {
@@ -933,6 +1039,10 @@ impl ItemVisual {
                 |content| content.flex_col().justify_center().gap(px(4.)),
             )
             .px(padding)
+            .when_some(
+                indicator_padding.filter(|_| horizontal),
+                |content, (left, right, top, bottom)| content.pl(left).pr(right).pt(top).pb(bottom),
+            )
             .children(icon)
             .child(label)
             .children(self.indicator_target.map(|target| {

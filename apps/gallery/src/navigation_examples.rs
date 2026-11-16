@@ -6,9 +6,10 @@ use gpui_material::{
     AppBar, AppBarAlignment, AppBarItem, AppBarRow, AppBarScrollBehavior, AppBarScrollState,
     AppBarVariant, Badge, Button, ButtonVariant, DialogState, Divider, Fab, Icon, IconButton,
     IconName, NavigationBar, NavigationBarArrangement, NavigationBarLayout, NavigationItem,
-    NavigationItemIconPosition, NavigationItems, NavigationRail, RailMode, TabIndicatorStyle,
-    TabIndicatorWidth, TabVariant, Tabs, Text,
-    theme::{CornerShape, TypeRole},
+    NavigationItemIconPosition, NavigationItems, NavigationRail, NavigationRailColors,
+    NavigationRailPadding, NavigationRailShapes, NavigationRailState, RailModalOptions, RailMode,
+    TabIndicatorStyle, TabIndicatorWidth, TabVariant, Tabs, Text,
+    theme::{CornerRole, CornerShape, TypeRole},
 };
 
 use crate::story::{Story, section, stack};
@@ -22,6 +23,9 @@ mod bar_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod tabs_tests;
 
+#[cfg(all(test, feature = "test-support"))]
+mod rail_tests;
+
 const DESTINATIONS: &[(&str, &str, IconName)] = &[
     ("inbox", "Inbox", IconName::Inbox),
     ("favorites", "Favorites", IconName::Favorite),
@@ -34,7 +38,7 @@ const DESTINATIONS: &[(&str, &str, IconName)] = &[
 pub(crate) struct NavigationExamples {
     story: Story,
     selected: SharedString,
-    expanded: bool,
+    rail_state: Entity<NavigationRailState>,
     font_scale: f32,
     modal: Entity<DialogState>,
     scroll: ScrollHandle,
@@ -47,7 +51,7 @@ impl NavigationExamples {
         Self {
             story,
             selected: "inbox".into(),
-            expanded: false,
+            rail_state: cx.new(|_| NavigationRailState::default()),
             font_scale: 1.,
             modal: cx.new(DialogState::new),
             scroll: ScrollHandle::new(),
@@ -223,8 +227,46 @@ impl NavigationExamples {
 
     fn rail(&self, cx: &mut Context<Self>) -> AnyElement {
         let modal = self.modal.clone();
-        let rail_owner = cx.weak_entity();
-        let fab_owner = rail_owner.clone();
+        let rail = self.rail_state.clone();
+        let hide = rail.clone();
+        let mode = rail.read(cx).target_value();
+        let fab_owner = cx.weak_entity();
+        let items = NavigationItems::new(
+            "rail-items",
+            "Destinations",
+            DESTINATIONS.iter().map(|&(id, label, glyph)| {
+                let item = NavigationItem::new(id, label)
+                    .icon(Icon::new(glyph))
+                    .disabled(id == "favorites");
+                if id == "inbox" {
+                    item.badge(
+                        Badge::standalone()
+                            .accessible_label("rail-unread-status", "Unread updates"),
+                    )
+                    .indicator_padding(
+                        NavigationRailPadding {
+                            start: px(12.),
+                            end: px(12.),
+                            top: px(4.),
+                            bottom: px(4.),
+                        },
+                        NavigationRailPadding {
+                            start: px(18.),
+                            end: px(12.),
+                            top: px(4.),
+                            bottom: px(4.),
+                        },
+                    )
+                } else {
+                    item
+                }
+            }),
+        )
+        .selected(self.selected.clone())
+        .on_select(cx.listener(|this, id: &SharedString, _, cx| {
+            this.selected = id.clone();
+            cx.notify();
+        }));
         let toolbar = div()
             .flex()
             .flex_wrap()
@@ -239,7 +281,7 @@ impl NavigationExamples {
             .child(
                 Button::new(
                     "rail-toggle",
-                    if self.expanded {
+                    if mode == RailMode::Expanded {
                         "Collapse rail"
                     } else {
                         "Expand rail"
@@ -247,12 +289,27 @@ impl NavigationExamples {
                 )
                 .variant(ButtonVariant::Outlined)
                 .on_activate(move |_, cx| {
-                    rail_owner
-                        .update(cx, |this, cx| {
-                            this.expanded = !this.expanded;
-                            cx.notify();
-                        })
-                        .ok();
+                    rail.update(cx, |state, cx| state.toggle(cx));
+                }),
+            )
+            .child(
+                Button::new(
+                    "rail-visibility",
+                    if mode == RailMode::Hidden {
+                        "Show rail"
+                    } else {
+                        "Hide rail"
+                    },
+                )
+                .variant(ButtonVariant::Text)
+                .on_activate(move |_, cx| {
+                    hide.update(cx, |state, cx| {
+                        if state.target_value() == RailMode::Hidden {
+                            state.collapse(cx);
+                        } else {
+                            state.hide(cx);
+                        }
+                    });
                 }),
             );
         let selected = DESTINATIONS
@@ -268,18 +325,20 @@ impl NavigationExamples {
                     .min_w_0()
                     .gap_2()
                     .child(
-                        NavigationRail::new(
-                            "standard-rail",
-                            self.items("rail-items", "Destinations", 6, true, false, cx),
-                        )
-                        .mode(if self.expanded {
-                            RailMode::Expanded
-                        } else {
-                            RailMode::Collapsed
-                        })
-                        .title("Workspace")
-                        .fab(
-                            Fab::new("rail-create", "Create document", Icon::new(IconName::Add))
+                        NavigationRail::new("standard-rail", items)
+                            .state(&self.rail_state)
+                            .shapes(NavigationRailShapes {
+                                expanded: Some(CornerRole::Medium.shape()),
+                                ..Default::default()
+                            })
+                            .divider_after("archive", Divider::horizontal())
+                            .title("Workspace")
+                            .fab(
+                                Fab::new(
+                                    "rail-create",
+                                    "Create document",
+                                    Icon::new(IconName::Add),
+                                )
                                 .on_activate(move |_, cx| {
                                     fab_owner
                                         .update(cx, |this, cx| {
@@ -288,7 +347,7 @@ impl NavigationExamples {
                                         })
                                         .ok();
                                 }),
-                        ),
+                            ),
                     )
                     .child(
                         div()
@@ -304,6 +363,14 @@ impl NavigationExamples {
                 )
                 .mode(RailMode::Hidden)
                 .modal(&self.modal)
+                .modal_options(RailModalOptions {
+                    placement: gpui_material::SheetPlacement::Detached,
+                    ..Default::default()
+                })
+                .colors(NavigationRailColors {
+                    scrim_opacity: Some(0.25),
+                    ..Default::default()
+                })
                 .title("Workspace navigation"),
             )
             .into_any_element()

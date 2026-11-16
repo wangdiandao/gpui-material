@@ -20,7 +20,10 @@ pub use multi_pane::{
     PaneDestination, PaneExpansionAnchor, PaneLayoutDirective, PaneLayoutValue, PaneMargins,
     PaneOverlayAlignment, PanePlacement, PaneRole, PaneSeparator,
 };
-pub use rail::{NavigationRail, RailMode};
+pub use rail::{
+    NavigationRail, NavigationRailArrangement, NavigationRailColors, NavigationRailPadding,
+    NavigationRailShapes, NavigationRailState, RailModalOptions, RailMode,
+};
 pub use scaffold::{Scaffold, ScaffoldContentLayout, ScaffoldFabPosition, ScaffoldInsets};
 pub use tabs::{
     TabIndicatorLayout, TabIndicatorStyle, TabIndicatorWidth, TabVariant, Tabs, TabsColors,

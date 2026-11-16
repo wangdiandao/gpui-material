@@ -48,7 +48,7 @@ A hiding FAB stops taking focus and input immediately. It occupies its layout sp
 | `SwipeToDismiss` | Horizontal swipes with caller-owned content, background, and action. | [Lists](https://m3.material.io/components/lists/guidelines) · [Compose SwipeToDismissBox](https://developer.android.com/reference/kotlin/androidx/compose/material3/SwipeToDismissBox.composable) |
 | `Divider`, `Badge` | Horizontal and vertical dividers with logical insets, configurable thickness, and per-divider color. Standalone and anchored badges with dot, text, count, or custom content and optional colors. | [Divider](https://m3.material.io/components/divider/overview) · [Badges](https://m3.material.io/components/badges/overview) |
 | `LinearProgress`, `CircularProgress` | Determinate and indeterminate progress with straight and wavy styling. | [Progress indicators](https://m3.material.io/components/progress-indicators/overview) |
-| `LoadingIndicator` | Default and contained loading indicators. | [Loading indicator](https://m3.material.io/components/loading-indicator/overview) |
+| `LoadingIndicator` | Default and Contained, with determinate and indeterminate modes, custom morph sequences and instance colors. | [Loading indicator](https://m3.material.io/components/loading-indicator/overview) |
 | `Snackbar`, `SnackbarHost` | Queued messages with optional actions, timed or persistent display, and dismissal. | [Snackbars](https://m3.material.io/components/snackbar/overview) |
 
 ### Divider
@@ -70,6 +70,14 @@ Keep an `Entity<SwipeToDismissState>` per item and pass it to `SwipeToDismiss::n
 Both logical directions and gestures are enabled by default. Use `.enable_start_to_end(bool)`, `.enable_end_to_start(bool)`, and `.gestures_enabled(bool)` to configure them. The window's writing direction determines the physical swipe direction. The default threshold is 56 logical pixels. Use `SwipeToDismissState::positional_threshold(|width| ...)` to compute a threshold from the laid-out width. Finite results are clamped to the available travel and invalid values use the default. Vertical drags and scroll continue through the surrounding layout.
 
 `dismiss(direction, window, cx)` animates to an enabled direction, `reset(window, cx)` animates back to the resting position, and `snap_to(value, window, cx)` moves immediately. Reduced motion settles immediately. `.on_dismiss(|direction, window, cx| ...)` runs once when movement settles in a new dismissal direction. The foreground leaves keyboard traversal and the accessibility tree at that point. The application owns data changes such as removing the item, and can call `reset` to show it again. Provide a named, keyboard-focusable button or menu item for each offered action. Its activation calls the same `dismiss` method and remains available when gestures are disabled.
+
+### Loading indicator
+
+`LoadingIndicator::new(id, label)` uses a 48 dp footprint and a seven-shape indeterminate loop. Add `.contained(true)` for a rounded container. The Default indicator uses the window's `Primary` color. Contained uses `OnPrimaryContainer` for the indicator and `PrimaryContainer` for the container. Override either indicator with `.indicator_color(color)`. Set `.container_color(color)` and `.container_shape(CornerShape)` on Contained instances. Start and end corners follow the window's layout direction.
+
+The application owns determinate progress. Pass it as `.value(fraction)` on each render. The fraction is clamped to `0..=1`, and NaN becomes zero. With the default sequence, zero shows a circle and one shows the Soft Burst shape. Create a reusable `LoadingIndicatorShapes` with at least two `LoadingIndicatorShape` values and pass it by reference with `.shapes(&shapes)`. Use `LoadingIndicatorShape::circle()` or `LoadingIndicatorShape::rounded_polygon(&vertices, radius)` with GPUI points and a radius in the same units. Polygon construction returns `None` for non-finite, degenerate or self-intersecting geometry. The sequence constructor returns `None` if given fewer than two shapes. A determinate sequence goes from first to last, and an indeterminate sequence also morphs from last to first.
+
+The label names a progress indicator. Determinate mode exposes a numeric percentage and draws the supplied value directly. Indeterminate mode exposes no numeric value and uses a polite live status. Reduced motion holds the first indeterminate shape and keeps determinate progress responsive. `.active(false)` retains the footprint and suppresses visuals and progress semantics. Only an active indeterminate indicator in an active window requests animation frames.
 
 <a id="输入与浮层"></a>
 

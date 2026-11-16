@@ -9,8 +9,8 @@
   en: "3d8a9047d10a09a5"
   zh: "c408bc48d491c893"
 /components/content-and-feedback:
-  en: "d03889b02f0d4619"
-  zh: "1eb51b2301fd013a"
+  en: "10307e5c32c54f8a"
+  zh: "a5dfa3a6c398a52e"
 /components/content-and-feedback/divider:
   en: "91017ca9ca1e50e9"
   zh: "552fa38bdd6c09d0"
@@ -18,8 +18,11 @@
   en: "3b4731e1ca05ba87"
   zh: "df321083c3b7761c"
 /components/content-and-feedback/swipe-to-dismiss:
-  en: "66b80166a206eb5b"
-  zh: "9ebdb99a15d30ccf"
+  en: "9fe72312679c3039"
+  zh: "0f1e8979db2e2a18"
+/components/content-and-feedback/loading-indicator:
+  en: "5e1d84fabb52dad5"
+  zh: "6f85457e27afdae2"
 /components/input-and-overlays:
   en: "013e52ce564f25df"
   zh: "0beebeb1db52c5eb"

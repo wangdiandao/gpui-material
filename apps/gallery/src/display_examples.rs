@@ -1,17 +1,25 @@
-use gpui::{Context, IntoElement, ParentElement, Render, ScrollHandle, Styled, Window, div, px};
+use gpui::{
+    Context, IntoElement, ParentElement, Render, ScrollHandle, Styled, Window, div, point, px,
+};
 use gpui_material::foundation::isolated_scroll;
-use gpui_material::theme::{ColorRole, TypeRole};
+use gpui_material::theme::{ColorRole, CornerShape, TypeRole};
 use gpui_material::{
     Badge, Button, ButtonVariant, Card, CardVariant, CircularProgress, Divider, Icon, IconName,
-    LinearProgress, List, ListItem, ListVariant, LoadingIndicator, ProgressShape, Text,
+    LinearProgress, List, ListItem, ListVariant, LoadingIndicator, LoadingIndicatorShape,
+    LoadingIndicatorShapes, ProgressShape, Text,
 };
 
 use crate::story::{Story, section, stack};
+
+#[cfg(all(test, feature = "test-support"))]
+mod loading_tests;
 
 pub(crate) struct DisplayExamples {
     story: Option<Story>,
     progress: f32,
     loading: bool,
+    loading_progress: f32,
+    loading_shapes: Option<LoadingIndicatorShapes>,
     selected: bool,
     opened: bool,
     child_count: usize,
@@ -27,6 +35,8 @@ impl Default for DisplayExamples {
             story: None,
             progress: 0.35,
             loading: false,
+            loading_progress: 0.,
+            loading_shapes: None,
             selected: false,
             opened: false,
             child_count: 0,
@@ -42,6 +52,7 @@ impl DisplayExamples {
     pub(crate) fn for_story(story: Story) -> Self {
         Self {
             story: Some(story),
+            loading: story == Story::LoadingIndicator,
             ..Self::default()
         }
     }
@@ -379,7 +390,7 @@ impl Render for DisplayExamples {
                     )
             }))
             .children(self.shows(Story::LoadingIndicator).then(|| {
-                section("Uncontained and contained").child(
+                section("Indeterminate").child(
                     div()
                         .flex()
                         .flex_wrap()
@@ -412,6 +423,62 @@ impl Render for DisplayExamples {
                             }),
                         ),
                 )
+            }))
+            .children(self.shows(Story::LoadingIndicator).then(|| {
+                let shapes = self.loading_shapes.get_or_insert_with(|| {
+                    LoadingIndicatorShapes::new([
+                        LoadingIndicatorShape::rounded_polygon(
+                            &[point(-1., -1.), point(1., -1.), point(1., 1.), point(-1., 1.)],
+                            0.25,
+                        ).expect("valid square"),
+                        LoadingIndicatorShape::circle(),
+                        LoadingIndicatorShape::rounded_polygon(
+                            &[point(0., -1.), point(1., 1.), point(-1., 1.)],
+                            0.2,
+                        ).expect("valid triangle"),
+                    ])
+                    .expect("valid Gallery shape sequence")
+                });
+                section("Determinate")
+                    .description("Set progress to compare the default and custom shape sequences.")
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_3()
+                            .child(
+                                LoadingIndicator::new("measured-loading", "Document loading progress")
+                                    .value(self.loading_progress),
+                            )
+                            .child(
+                                LoadingIndicator::new(
+                                    "measured-contained-loading",
+                                    "Archive loading progress",
+                                )
+                                .value(self.loading_progress)
+                                .contained(true)
+                                .shapes(shapes)
+                                .indicator_color(gpui::rgb(0x263a62))
+                                .container_color(gpui::rgb(0xd7e4ff))
+                                .container_shape(CornerShape::Radii([8., 16., 8., 16.])),
+                            ),
+                    )
+                    .child(div().flex().flex_wrap().gap_2().children(
+                        [(0., "Reset"), (0.5, "Halfway"), (1., "Complete")]
+                            .into_iter()
+                            .enumerate()
+                            .map(|(index, (value, label))| {
+                                let owner = cx.entity();
+                                Button::new(("loading-progress", index), label)
+                                    .variant(ButtonVariant::Outlined)
+                                    .on_activate(move |_, cx| {
+                                        owner.update(cx, |this, cx| {
+                                            this.loading_progress = value;
+                                            cx.notify();
+                                        });
+                                    })
+                            }),
+                    ))
             }))
             .children(self.shows(Story::List).then(|| {
                 section("Standard list")

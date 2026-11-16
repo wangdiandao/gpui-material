@@ -33,8 +33,11 @@
   en: "10e576b11f1c2adf"
   zh: "8b514df686bbc572"
 /components/navigation-and-adaptive-layout:
-  en: "3a58972da8ae8b54"
-  zh: "3a53869c0dec4d43"
+  en: "80242f4bbf41f161"
+  zh: "6a30aad3d04ff3db"
+/components/navigation-and-adaptive-layout/scaffold:
+  en: "f749e65450d351e3"
+  zh: "fdbeaa7d7dfdc868"
 /components/optional-components:
   en: "afa0f713a9507dcd"
   zh: "90708c1861bba663"

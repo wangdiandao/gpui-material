@@ -1,13 +1,14 @@
 use gpui::{
-    AnyElement, App, ElementId, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce,
-    Styled, Window, div, prelude::FluentBuilder, px,
+    AnyElement, App, ElementId, Entity, InteractiveElement, IntoElement, ParentElement, Pixels,
+    RenderOnce, Size, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
 use gpui_material_foundation::window_material_theme;
 use gpui_material_theme::{Direction, WidthClass};
 
 use super::{
-    NavigationBar, NavigationBarLayout, NavigationItems, NavigationRail, RailMode, Scaffold,
+    AdaptivePane, AdaptivePaneLayout, AdaptivePaneState, NavigationBar, NavigationBarLayout,
+    NavigationItems, NavigationRail, PaneAdaptStrategy, PaneRole, RailMode, Scaffold,
 };
 
 /// Material 3 navigation suite. Compact and medium widths use a short bar;
@@ -81,6 +82,20 @@ impl ListDetail {
             active: ListDetailPane::List,
             list_width: px(360.),
         }
+    }
+
+    /// Creates the adaptive three-role form with the list at logical start.
+    pub fn adaptive(
+        id: impl Into<ElementId>,
+        viewport: Size<Pixels>,
+        state: &Entity<AdaptivePaneState>,
+        list: AdaptivePane,
+        detail: AdaptivePane,
+    ) -> AdaptivePaneLayout {
+        AdaptivePaneLayout::new(id, viewport, state)
+            .order([PaneRole::Secondary, PaneRole::Primary, PaneRole::Tertiary])
+            .pane(PaneRole::Secondary, list)
+            .pane(PaneRole::Primary, detail)
     }
 
     /// Shows detail full-width when the app has hidden its list.
@@ -175,6 +190,25 @@ impl SupportingPane {
             width,
             show_support: false,
         }
+    }
+
+    /// Creates the adaptive form with a workspace and a supporting pane that
+    /// reflows underneath it when the directive allows a tall single column.
+    pub fn adaptive(
+        id: impl Into<ElementId>,
+        viewport: Size<Pixels>,
+        state: &Entity<AdaptivePaneState>,
+        primary: AdaptivePane,
+        supporting: AdaptivePane,
+    ) -> AdaptivePaneLayout {
+        let supporting = if supporting.has_adaptation() {
+            supporting
+        } else {
+            supporting.adapt(PaneAdaptStrategy::Reflow(PaneRole::Primary))
+        };
+        AdaptivePaneLayout::new(id, viewport, state)
+            .pane(PaneRole::Primary, primary)
+            .pane(PaneRole::Secondary, supporting)
     }
 
     pub fn show_support(mut self, show_support: bool) -> Self {

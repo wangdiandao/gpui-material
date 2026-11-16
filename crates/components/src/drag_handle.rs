@@ -74,6 +74,8 @@ pub struct VerticalDragHandle {
     shapes: DragHandleShapes,
     source: Option<Entity<InteractionSource>>,
     resize: Option<Rc<ResizeBinding>>,
+    on_resize_end: Option<ResizeRequest>,
+    resize_context: Option<Size<Pixels>>,
     keyboard_step: Pixels,
 }
 
@@ -87,6 +89,8 @@ impl VerticalDragHandle {
             shapes: DragHandleShapes::default(),
             source: None,
             resize: None,
+            on_resize_end: None,
+            resize_context: None,
             keyboard_step: DEFAULT_STEP,
         }
     }
@@ -136,6 +140,21 @@ impl VerticalDragHandle {
                 request: Rc::new(on_resize),
             })
         });
+        self
+    }
+
+    /// Final pointer value after a completed drag. Cancellation skips this callback.
+    pub(crate) fn on_resize_end(
+        mut self,
+        callback: impl Fn(Pixels, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.on_resize_end = Some(Rc::new(callback));
+        self
+    }
+
+    /// A consumer can invalidate the pointer origin when its viewport changes.
+    pub(crate) fn resize_context(mut self, viewport: Size<Pixels>) -> Self {
+        self.resize_context = Some(viewport);
         self
     }
 
@@ -193,6 +212,7 @@ struct HandleState {
     hovered: bool,
     direction: Direction,
     adjustable: bool,
+    resize_context: Option<Size<Pixels>>,
     tracker: Option<InteractionTracker>,
     _blur: Subscription,
     _activation: Subscription,
@@ -227,6 +247,7 @@ impl HandleState {
             hovered: false,
             direction: Direction::Ltr,
             adjustable: false,
+            resize_context: None,
             tracker: None,
             _blur: blur,
             _activation: activation,
@@ -259,6 +280,13 @@ impl HandleState {
         if let Some((hitbox, _)) = self.press.take().and_then(|press| press.mouse_capture) {
             release_pointer(hitbox, window);
         }
+    }
+
+    fn final_pointer_width(&self) -> Option<Pixels> {
+        self.press
+            .as_ref()
+            .filter(|press| press.dragged)?
+            .last_request
     }
 
     fn mouse_pressed(&self) -> bool {
@@ -323,13 +351,16 @@ impl RenderOnce for VerticalDragHandle {
             .as_ref()
             .map(|source| InteractionSource::track(source, &self.id, window, cx));
         let (focus, interaction) = state.update(cx, |state, cx| {
-            if (state.direction != direction || state.adjustable != self.resize.is_some())
+            if (state.direction != direction
+                || state.adjustable != self.resize.is_some()
+                || state.resize_context != self.resize_context)
                 && state.press.is_some()
             {
                 state.end(window);
             }
             state.adjustable = self.resize.is_some();
             state.direction = direction;
+            state.resize_context = self.resize_context;
             state.tracker = tracker;
             state.record(window, cx);
             (state.focus.clone(), state.snapshot(window))
@@ -369,6 +400,7 @@ impl RenderOnce for VerticalDragHandle {
         };
         let listeners = state.clone();
         let pointer_resize = self.resize.clone();
+        let pointer_end = self.on_resize_end;
         let target = canvas(
             |bounds, window, _| window.insert_hitbox(bounds, HitboxBehavior::Normal),
             move |bounds, hitbox, window, cx| {
@@ -399,7 +431,7 @@ impl RenderOnce for VerticalDragHandle {
                         window,
                     );
                 }
-                pointer_listeners(listeners, hitbox, pointer_resize, window);
+                pointer_listeners(listeners, hitbox, pointer_resize, pointer_end, window);
             },
         )
         .size_full();
@@ -470,6 +502,7 @@ fn pointer_listeners(
     state: Entity<HandleState>,
     hitbox: Hitbox,
     resize: Option<Rc<ResizeBinding>>,
+    on_resize_end: Option<ResizeRequest>,
     window: &mut Window,
 ) {
     window.on_mouse_event({
@@ -550,6 +583,7 @@ fn pointer_listeners(
         let state = state.clone();
         let hitbox = hitbox.clone();
         let resize = resize.clone();
+        let on_resize_end = on_resize_end.clone();
         move |event: &MouseUpEvent, phase, window, cx| {
             if !phase.capture()
                 || event.button != MouseButton::Left
@@ -557,15 +591,19 @@ fn pointer_listeners(
             {
                 return;
             }
-            let request = state.update(cx, |state, cx| {
+            let (request, finished) = state.update(cx, |state, cx| {
                 let request = state.move_pointer(event.position, resize.as_deref());
                 state.hovered = hitbox.is_hovered_at(event.position, window);
+                let finished = state.final_pointer_width();
                 state.end(window);
                 state.publish(window, cx);
-                request
+                (request, finished)
             });
             if let (Some(width), Some(resize)) = (request, &resize) {
                 resize.request(width, window, cx);
+            }
+            if let (Some(position), Some(end)) = (finished, &on_resize_end) {
+                end(position, window, cx);
             }
             cx.stop_propagation();
         }
@@ -586,7 +624,7 @@ fn pointer_listeners(
             } else if !phase.capture() || current.press.is_none() || current.mouse_pressed() {
                 return;
             }
-            let request = state.update(cx, |state, cx| {
+            let (request, finished) = state.update(cx, |state, cx| {
                 if event.phase == TouchPhase::Started {
                     let width = resize.as_ref().map(|resize| {
                         state.focus.focus(window, cx);
@@ -599,14 +637,20 @@ fn pointer_listeners(
                 } else {
                     state.move_pointer(event.position, resize.as_deref())
                 };
+                let finished = (event.phase == TouchPhase::Ended)
+                    .then(|| state.final_pointer_width())
+                    .flatten();
                 if matches!(event.phase, TouchPhase::Ended | TouchPhase::Cancelled) {
                     state.end(window);
                 }
                 state.publish(window, cx);
-                request
+                (request, finished)
             });
             if let (Some(width), Some(resize)) = (request, &resize) {
                 resize.request(width, window, cx);
+            }
+            if let (Some(position), Some(end)) = (finished, &on_resize_end) {
+                end(position, window, cx);
             }
             cx.stop_propagation();
         }

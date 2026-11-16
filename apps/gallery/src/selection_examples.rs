@@ -426,8 +426,76 @@ impl Render for SelectionExamples {
                             ),
                     )
             }))
+            .children((self.story == Some(Story::Chip)).then(chip_content_examples))
     }
 }
+
+fn chip_content_examples() -> impl IntoElement {
+    use gpui::{px, rgb};
+    use gpui_material::{ButtonPadding, ChipColors, ChipStateColors};
+
+    section("Custom chip content").child(
+        div()
+            .flex()
+            .flex_wrap()
+            .items_center()
+            .gap_2()
+            .child(
+                Chip::new("chip-avatar-example", "Workspace attendee")
+                    .variant(ChipVariant::Input)
+                    .tonal(true)
+                    .avatar(
+                        div()
+                            .size_full()
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .bg(rgb(0xd6e4ff))
+                            .text_color(rgb(0x153a65))
+                            .text_size(px(12.))
+                            .child("JD"),
+                    )
+                    .content(
+                        div()
+                            .font_weight(gpui::FontWeight::SEMIBOLD)
+                            .child("Jordan"),
+                    ),
+            )
+            .child(
+                Chip::new("chip-trailing-example", "Pending items")
+                    .variant(ChipVariant::Assist)
+                    .trailing(
+                        div()
+                            .rounded_full()
+                            .px_2()
+                            .bg(rgb(0xd6eee1))
+                            .text_size(px(12.))
+                            .child("3"),
+                    )
+                    .colors(ChipColors {
+                        enabled: ChipStateColors {
+                            trailing: Some(rgb(0x204e3d).into()),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    })
+                    .content_padding(ButtonPadding {
+                        start: px(12.),
+                        end: px(4.),
+                        ..Default::default()
+                    }),
+            )
+            .child(
+                Chip::new("chip-tonal-example", "Selected label")
+                    .variant(ChipVariant::Filter)
+                    .selected(true)
+                    .tonal(true),
+            ),
+    )
+}
+
+#[cfg(all(test, feature = "test-support"))]
+mod chip_tests;
 
 #[cfg(all(test, feature = "test-support"))]
 mod tests {

@@ -6,6 +6,7 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ### Components
 
+- Compose Chips with custom content and Input avatars, apply Expressive Tonal presets and per-state appearance, and observe their interactions.
 - Customize Card shape, border, colors, and per-state elevation, and observe shared interactions.
 - Customize Checkbox state colors and the mark and outline strokes, and observe interaction through a shared source.
 - Customize selected, unselected, and disabled radio indicator colors and observe shared radio interactions.

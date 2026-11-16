@@ -54,6 +54,10 @@ See [versioning and releases](docs/release.md) for the release process.
 - Show persistent rich tooltips with caller-owned visibility and customizable focus, content, placement, caret and appearance.
 - Customize switch thumb content and individual state colors, and observe switch interactions through a shared source.
 
+### Slider event migration
+
+- Keyboard and accessibility adjustments that change the slider value now emit `Change` followed by `Release`. Update subscribers that used `Release` as a pointer-only signal.
+
 ### Gallery
 
 - The GPUI Material Gallery uses the project logo as its Windows application icon.
@@ -66,6 +70,7 @@ See [versioning and releases](docs/release.md) for the release process.
 ### Distribution
 
 - The Gallery now ships as source. Run `cargo gallery` from a checkout.
+- Use GPUI Kit's Base 0.10.0 with its paired GPUI 0.3.12 snapshot. Downstream apps that import Base directly must match the new Base pin. The Base slider handles Windows UI Automation RangeValue SetValue.
 
 ## 0.1.0 - 2026-11-15
 

@@ -356,7 +356,7 @@ fn slider_reversal_mirrors_geometry_and_physical_keys(cx: &mut TestAppContext) {
     let movement = range_events(&view, cx);
     assert_eq!(movement.changes, before.changes + 1);
     assert_eq!(movement.latest_change, Some((5., 5.).into()));
-    assert_eq!(movement.releases, before.releases);
+    assert_eq!(movement.releases, before.releases + 1);
     cx.simulate_keystrokes("left");
     draw(cx);
     assert_eq!(range_events(&view, cx), movement);

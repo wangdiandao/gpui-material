@@ -178,7 +178,7 @@ fn verify(target: &str, backend: &str, backend_features: &[&str], test: bool) ->
         }
     }
     for (name, version, features) in [
-        ("gpui-base", "0.9.1", &[][..]),
+        ("gpui-base", "0.10.0", &[][..]),
         ("gpui-pre", "0.3.12", &[][..]),
         (
             "gpui-pre-platform",

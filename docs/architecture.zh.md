@@ -48,8 +48,8 @@ Foundation 为各组件族共享排版、涟漪反馈和桌面阴影投影。按
 
 | 依赖或候选 | 用途与约束 | 验证与替换边界 |
 | --- | --- | --- |
-| `gpui-base =0.9.1` / `gpui-pre =0.3.12` / `gpui-pre-platform =0.3.12` | 固定 crates.io 来源，沿用上游平台的 font-kit、x11、wayland、runtime_shaders 配对；test-support 供验收，inspector 可选。Apache-2.0。 | `cargo metadata` 和 feature 图核对单一核心/平台身份，更新锁定版本时执行相关[平台检查](verification.zh.md)。Base 公共接口通过 foundation 封装。 |
-| [`material-color-utils 0.1.3`][mcu-rust] | HCT、色板和动态语义色。关闭默认 feature，避免 image、serde、rayon；直接依赖 bon、indexmap、papaya、thiserror。发布元数据使用 license-file，包内 LICENSE 为 Apache-2.0。 | 库类型由 theme 内部适配。见[主题 PR](https://github.com/wangdiandao/gpui-material/pull/78)。 |
+| `gpui-base =0.10.0` / `gpui-pre =0.3.12` / `gpui-pre-platform =0.3.12` | 固定 crates.io 来源，沿用上游平台的 font-kit、x11、wayland、runtime_shaders 配对；test-support 供验收，inspector 可选。Apache-2.0。 | `cargo metadata` 和 feature 图核对单一核心/平台身份，更新锁定版本时执行相关[平台检查](verification.zh.md)。Base 公共接口通过 foundation 封装。 |
+| [`material-color-utils 0.1.3`][mcu-rust] | HCT、色板和动态语义色。关闭默认 feature，避免 image、serde、rayon；直接依赖 bon、indexmap、papaya、thiserror。发布元数据使用 license-file，包内 LICENSE 为 Apache-2.0。 | 库类型由 theme 内部适配。 |
 | [`polymorpher 0.1.4`][polymorpher] | 圆角多边形和 morph，保留默认空 feature，只使用基础几何；直接依赖 euclid。Apache-2.0。 | 对照 AndroidX，检查输出曲线、边界、拓扑、裁剪、命中和性能。GPUI 路径转换集中在 foundation。 |
 | [Material Symbols][symbols] | 使用固定版本的必要资源，应用可替换图标。Apache-2.0。 | 验证资源映射、图标 fallback 与 RTL。逐项登记分发资产和许可证。 |
 | `chrono 0.4.45` 与 [Base Calendar][calendar] | `date-time` 特性在 extras 中启用直接 chrono 依赖，并关闭其默认特性。该依赖与现有 Base 和 GPUI 依赖图解析到同一个包。MIT 或 Apache-2.0。 | Base 管理日历及日期范围的草稿状态。Chrono 提供有边界检查的日历运算和日期时间类型。应用通过格式化和解析接口控制本地化显示与输入。 |
@@ -67,8 +67,8 @@ CI 和日常开发用包级命令隔离主题、组件及 Gallery。依据构建
 
 | 机制 | 适配与边界 |
 | --- | --- |
-| 激活与拖动 | Base 管理按钮激活与焦点，组合层保留 roving 焦点策略。Windows 捕获丢失、禁用和 Esc 汇入取消路径。固定 Windows GPUI 缺少捕获丢失事件，探针以 UI 线程的 Win32 捕获检查验证过渡方案。替换时复测原生捕获离开与下一次拖动。[Issue #48](https://github.com/wangdiandao/gpui-material/issues/48) |
-| 文本和语义 | Base 持有编辑状态、剪贴板、掩码和输入处理器，GPUI 持有原生桥接、字形回退和布局。同一 shaped line 用于度量及绘制。Windows UIA RangeValue 的 SetValue 经 GPUI 语义动作转给 Base SliderState。上游 Slider 直接处理此动作后移除适配并复测。[Issue #49](https://github.com/wangdiandao/gpui-material/issues/49) |
+| 激活与拖动 | Base 管理按钮激活与焦点，组合层保留 roving 焦点策略。Windows 捕获丢失、禁用和 Esc 汇入取消路径。固定版本的 Windows GPUI 缺少捕获丢失事件，Foundation 因此在拖动期间于 UI 线程检查 Win32 捕获所有权。 |
+| 文本和语义 | Base 持有编辑状态、剪贴板、掩码和输入处理器，GPUI 持有原生桥接、字形回退和布局。同一 shaped line 用于度量及绘制。Base 0.10.0 的 Slider 处理 Windows UI Automation RangeValue 的 SetValue 动作。Material 为每个自定义滑块提供独立的原生范围节点，将动作交给 Base SliderState 中对应的滑块。 |
 | 绘制与动效 | foundation 可复用 GPUI 的填充网格完成命中和状态层裁剪。Windows 探针的同形阴影由三层半透明填充近似。几何重定向、颜色和透明度沿用 Base spring/transition 的公共调度，系统低动效和静止停止调度均有验证。 |
 | 浮层与滚动 | Base Popover 和 Dialog 持有放置、遮罩和焦点范围。组合层映射逻辑对齐，管理开关、回焦与拖动取消。独占内层滚动可通过 GPUI 命中遮蔽实现。值标签订阅 Base SliderState。 |
 | 主题和日期 | Base 的 Theme 是 App 级 Global。Material 通过显式投影和局部样式支持窗口策略。主题 crate 直接验证色彩算法。日期边界和禁用行为复用 Base Calendar。 |
@@ -78,5 +78,5 @@ CI 和日常开发用包级命令隔离主题、组件及 Gallery。依据构建
 [mcu-rust]: https://github.com/RuurdBijlsma/material-color-utilities-rs/tree/d39ff59a1fca34bdc60e124de2f9f7541fff3c39
 [polymorpher]: https://github.com/Aiving/polymorpher/tree/aaeb6f69b0ced6cc7079713994832b5d7ee3ff50
 [symbols]: design-sources.zh.md#source-code-and-algorithm-references
-[calendar]: https://github.com/longbridge/gpui-kit/blob/39ab849a93b5f15507b969164d49891db8d5b470/crates/base/src/calendar.rs
+[calendar]: https://github.com/longbridge/gpui-kit/blob/f697c3133d55c64fa8a5b67926147fb3dadd276d/crates/base/src/calendar.rs
 [i18n]: https://github.com/longbridge/rust-i18n/tree/5f3ea5ba03395f2f2908e3587e01788cfdfd3555

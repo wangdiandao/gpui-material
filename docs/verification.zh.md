@@ -37,5 +37,5 @@ Windows 视觉检查使用真实窗口，macOS 和 Linux 可用无头渲染器�
 - 按上文适用的 Windows 检查项复测受影响的示例。输入与浮层还需检查微软拼音候选位置和上屏、键盘焦点及回焦，以及讲述人播报。
 - 关闭最后一个 Gallery 窗口并确认进程正常退出。在发布 Issue 或 PR 中记录提交、CI 运行、验收场景及硬件覆盖范围。
 
-[kit-test]: https://github.com/longbridge/gpui-kit/blob/39ab849a93b5f15507b969164d49891db8d5b470/website/docs/test.md
-[kit-a11y]: https://github.com/longbridge/gpui-kit/blob/39ab849a93b5f15507b969164d49891db8d5b470/website/docs/accessibility.md
+[kit-test]: https://github.com/longbridge/gpui-kit/blob/f697c3133d55c64fa8a5b67926147fb3dadd276d/website/docs/test.md
+[kit-a11y]: https://github.com/longbridge/gpui-kit/blob/f697c3133d55c64fa8a5b67926147fb3dadd276d/website/docs/accessibility.md

@@ -15,7 +15,7 @@ gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features =
 gpui-material = "0.1.0"
 ```
 
-An application that uses Base directly should also pin `gpui-base = "=0.9.1"`. For a source integration, use `{ path = "../gpui-material/crates/material" }` and pin the checkout commit. After an upgrade, run `cargo tree -d` to check for multiple versions and verify the platform and input behavior that the application relies on.
+An application that uses Base directly should pin `gpui-base = "=0.9.1"` with the published 0.1.0 facade. For a source integration, use `{ path = "../gpui-material/crates/material" }`, pin the checkout commit, and match its `gpui-base` version. The current source workspace uses `gpui-base = "=0.10.0"`. After an upgrade, run `cargo tree -d` to check for multiple versions and verify the platform and input behavior that the application relies on.
 
 ```rust
 use gpui::{AppContext, Context, IntoElement, QuitMode, Render, Window, WindowOptions};

@@ -15,7 +15,7 @@ publish = false
 
 [workspace.dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.12" }
-gpui-base = "=0.9.1"
+gpui-base = "=0.10.0"
 gpui-material-components = { version = "=0.1.0", path = "crates/components" }
 gpui-material-extras = { version = "=0.1.0", path = "crates/extras" }
 gpui-material-foundation = { version = "=0.1.0", path = "crates/foundation" }

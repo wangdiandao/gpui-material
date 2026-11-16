@@ -60,11 +60,11 @@ Pinned MCU vectors include tone 40 of blue `0xff0000ff` yielding `0xff343dff`, r
 
 ## GPUI and Base
 
-[GPUI Kit v0.9.1][kit-release] and the crates.io `gpui-base` metadata both point to [`39ab849a93b5f15507b969164d49891db8d5b470`][kit]. The [pinned workspace manifest][kit-manifest] and release package metadata establish the table. The workspace records the versions in its manifest and lockfile.
+[GPUI Kit v0.10.0][kit-release] and the crates.io `gpui-base` metadata both point to [`f697c3133d55c64fa8a5b67926147fb3dadd276d`][kit]. The [pinned workspace manifest][kit-manifest] and release package metadata establish the table. The workspace records the versions in its manifest and lockfile.
 
 | Cargo package | Exact version | crates.io SHA-256 |
 | --- | --- | --- |
-| `gpui-base` | `=0.9.1` | `f3e9ae5237737cfd110d0ff513fcd9c20f97d98ebabd0a73164068177f0aca4f` |
+| `gpui-base` | `=0.10.0` | `4f4e5aff50636223b268a687ad5788ec54fa77c8e57ca9e53d158f19e0425d95` |
 | `gpui-pre` (Rust import `gpui`) | `=0.3.12` | `29db89613527079737f53752eab27fb65c9a7dd94979256c65a0e590c9fd34d8` |
 | `gpui-pre-platform` (Rust import `gpui_platform`) | `=0.3.12` | `d2b785bdcbd229f762096aebf4f9ae913bdaa9db49794907cabaf516eb55227b` |
 
@@ -84,9 +84,9 @@ Both `gpui-pre` packages set `package.metadata.gpui-pre.zed-rev` to [`d2a4fb6ded
 [compose-tree]: https://github.com/androidx/androidx/tree/1f549b6f5ba84cb3553be9c79110c4c5f6413039/compose/material3
 [adaptive-release]: https://developer.android.com/jetpack/androidx/releases/compose-material3-adaptive#1.3.0
 [shapes-release]: https://developer.android.com/jetpack/androidx/releases/graphics#graphics-shapes-1.1.0
-[kit-release]: https://github.com/longbridge/gpui-kit/releases/tag/v0.9.1
-[kit]: https://github.com/longbridge/gpui-kit/tree/39ab849a93b5f15507b969164d49891db8d5b470
-[kit-manifest]: https://github.com/longbridge/gpui-kit/blob/39ab849a93b5f15507b969164d49891db8d5b470/Cargo.toml
+[kit-release]: https://github.com/longbridge/gpui-kit/releases/tag/v0.10.0
+[kit]: https://github.com/longbridge/gpui-kit/tree/f697c3133d55c64fa8a5b67926147fb3dadd276d
+[kit-manifest]: https://github.com/longbridge/gpui-kit/blob/f697c3133d55c64fa8a5b67926147fb3dadd276d/Cargo.toml
 [zed]: https://github.com/zed-industries/zed/commit/d2a4fb6ded7c470be25d1541281da3882495b65b
 [gpui-publish]: https://github.com/longbridge/gpui-kit/actions/runs/42539746081
-[base-theme]: https://github.com/longbridge/gpui-kit/blob/39ab849a93b5f15507b969164d49891db8d5b470/crates/base/src/theme.rs
+[base-theme]: https://github.com/longbridge/gpui-kit/blob/f697c3133d55c64fa8a5b67926147fb3dadd276d/crates/base/src/theme.rs

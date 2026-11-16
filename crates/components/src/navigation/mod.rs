@@ -1,4 +1,5 @@
 mod adaptive;
+mod adaptive_navigation;
 mod app_bar;
 mod items;
 mod multi_pane;
@@ -6,7 +7,11 @@ mod rail;
 mod scaffold;
 mod tabs;
 
-pub use adaptive::{AdaptiveNavigation, Feed, ListDetail, ListDetailPane, SupportingPane};
+pub use adaptive::{Feed, ListDetail, ListDetailPane, SupportingPane};
+pub use adaptive_navigation::{
+    AdaptiveNavigation, AdaptiveNavigationInfo, AdaptiveNavigationState, AdaptiveNavigationType,
+    AdaptiveNavigationVisibility,
+};
 pub use app_bar::{
     AppBar, AppBarAlignment, AppBarColors, AppBarColumn, AppBarItem, AppBarMenuState,
     AppBarPadding, AppBarRow, AppBarScrollBehavior, AppBarScrollState, AppBarVariant,

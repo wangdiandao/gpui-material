@@ -137,6 +137,7 @@ pub struct NavigationItems {
     font_scale: f32,
     state: Option<Entity<RowState>>,
     rail_dividers: HashMap<SharedString, AnyElement>,
+    retain_roving_stop: bool,
 }
 
 impl NavigationItems {
@@ -154,6 +155,7 @@ impl NavigationItems {
             font_scale: 1.,
             state: None,
             rail_dividers: HashMap::new(),
+            retain_roving_stop: false,
         }
     }
 
@@ -196,6 +198,15 @@ impl NavigationItems {
         if self.state.is_none() {
             self.state = Some(self.row_state(window, cx));
         }
+        self
+    }
+
+    pub(super) fn id(&self) -> &ElementId {
+        &self.id
+    }
+
+    pub(super) fn retain_roving_stop(mut self) -> Self {
+        self.retain_roving_stop = true;
         self
     }
 
@@ -362,6 +373,7 @@ struct RowState {
     vertical_scroll: ScrollHandle,
     reveal: Option<(Presentation, Direction, SharedString, usize)>,
     tab_reveal: TabReveal,
+    roving_stop: Option<SharedString>,
 }
 
 impl NavigationItems {
@@ -452,9 +464,24 @@ impl NavigationItems {
         let focused = enabled.iter().find(|(_, handle)| handle.is_focused(window));
         let selected = self.selected.as_ref();
         let first = enabled.first().map(|(id, _)| id);
+        let remembered = self
+            .retain_roving_stop
+            .then(|| {
+                state.update(cx, |state, _| {
+                    if let Some((id, _)) = focused {
+                        state.roving_stop = Some(id.clone());
+                    } else if state.selection.as_ref() != selected {
+                        state.roving_stop = None;
+                    }
+                    state.roving_stop.clone()
+                })
+            })
+            .flatten();
+        let enabled_id = |id: &&SharedString| enabled.iter().any(|(item, _)| item == *id);
         let tab_stop = focused
             .map(|(id, _)| id)
-            .or_else(|| selected.filter(|id| enabled.iter().any(|(item, _)| item == *id)))
+            .or_else(|| remembered.as_ref().filter(enabled_id))
+            .or_else(|| selected.filter(enabled_id))
             .or(first)
             .cloned();
         let mut items = self.items;

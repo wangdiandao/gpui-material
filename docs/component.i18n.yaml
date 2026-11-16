@@ -87,8 +87,11 @@
   en: "88d7f9f958c88e33"
   zh: "800322be47d3d24b"
 /components/navigation-and-adaptive-layout:
-  en: "83f851529c497fe6"
-  zh: "63286087ed98001a"
+  en: "8dcb3e954c95444e"
+  zh: "2c4b3d875f39a8c7"
+/components/navigation-and-adaptive-layout/adaptive-navigation:
+  en: "5bfec344f6037300"
+  zh: "6dd7c52a5068c1a3"
 /components/navigation-and-adaptive-layout/adaptive-multi-pane-layouts:
   en: "7bb0db714cf569a7"
   zh: "0d09fbd610528926"

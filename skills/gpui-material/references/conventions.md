@@ -1,6 +1,6 @@
 # Component conventions
 
-Check the state and callback contract for the public type you choose. The [component catalog](../../../../docs/component.md) lists supported variants, and [State and theme](../../../../docs/architecture.md#state-and-theme) describes the ownership boundaries.
+Check the state and callback contract for the public type you choose. The [component catalog](../../../docs/component.md) lists supported variants, and [State and theme](../../../docs/architecture.md#state-and-theme) describes the ownership boundaries.
 
 | Family | Contract | Example |
 | --- | --- | --- |
@@ -11,6 +11,6 @@ Check the state and callback contract for the public type you choose. The [compo
 | Dialogs and modal sheets | Retain a `DialogState` per modal. Open and close it through the entity to coordinate focus with the modal lifecycle. | `Dialog::new(id, &state, title)` and `Sheet::new(id, &state, title, content)` |
 | Snackbar feedback | Mount a retained `SnackbarHost` in the layout. Queue `Snackbar` values on that entity. | `host.update(cx, |host, cx| host.push(message, window, cx))` |
 
-Use semantic IDs for repeated controls and options so state and focus can follow an item when its position changes. For long collections and custom virtualization, follow the full-model navigation and reveal contract described in [Downstream integration](../../../../docs/integration.md#api-and-migration).
+Use semantic IDs for repeated controls and options so state and focus can follow an item when its position changes. For long collections and custom virtualization, follow the full-model navigation and reveal contract described in [Downstream integration](../../../docs/integration.md#api-and-migration).
 
-Use semantic variants, shape, and size setters where the chosen type exposes them. Use Material theme roles when composing adjacent content. Look up variant-specific constraints and defaults in the [design sources](../../../../docs/design-sources.md) and [pure theme guide](../../../../docs/theme/theme.md).
+Use semantic variants, shape, and size setters where the chosen type exposes them. Use Material theme roles when composing adjacent content. Look up variant-specific constraints and defaults in the [design sources](../../../docs/design-sources.md) and [pure theme guide](../../../docs/theme/theme.md).

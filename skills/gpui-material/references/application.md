@@ -1,6 +1,6 @@
 # Application recipe
 
-This example opens a Material window with a retained text field, a controlled switch, and a button that reports the current values. Use the [downstream integration guide](../../../../docs/integration.md) for the supported Rust toolchain and other dependency configurations.
+This example opens a Material window with a retained text field, a controlled switch, and a button that reports the current values. Use the [downstream integration guide](../../../docs/integration.md) for the supported Rust toolchain and other dependency configurations.
 
 ## `Cargo.toml`
 

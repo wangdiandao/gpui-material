@@ -401,8 +401,10 @@ impl Surface {
         let geometry = state.clone();
         let paint = state.clone();
         let visual = canvas(
-            move |bounds, _, _| {
-                geometry.borrow_mut().shape = Shape::rounded(bounds, shape, shape_direction);
+            move |bounds, window, _| {
+                geometry
+                    .borrow_mut()
+                    .set_shape(Shape::rounded(bounds, shape, shape_direction), window);
             },
             move |_, _, window, cx| {
                 let state = paint.borrow();

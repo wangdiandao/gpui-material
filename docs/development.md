@@ -73,10 +73,13 @@ Use the dev profile for day-to-day checks and locked Release builds for performa
 
 ```powershell
 cargo run --locked --release -p gpui-material-gallery -- button
+cargo run --locked --release -p gpui-material-gallery --features frame-profile -- button --frame-profile
 cargo test --locked --release -p gpui-material-foundation --lib ripple_clip_benchmark -- --ignored --nocapture
 ```
 
 Run the same Ripple microbenchmark on both revisions on the same host, with at least five separate runs per revision. When the baseline predates the benchmark, apply only the benchmark test to that revision. It times clipping prebuilt meshes, excluding shape construction and presentation. Record the commits, workload, timing spread, and relevant real-window checks in the Issue or PR. Report draw CPU time and presentation intervals separately when measuring native frames.
+
+The optional single-window frame profile prints a start marker after a two-second warm-up, then reports draw count and p50/p95/p99 for CPU draw time and active frame submission intervals over ten seconds. Run separate captures for idle, pointer sweeps, and repeated presses with the same input sequence on both revisions. Submission intervals measure GPUI's platform submissions.
 
 <a id="本地检查"></a>
 

@@ -73,10 +73,13 @@ cargo gallery text-field
 
 ```powershell
 cargo run --locked --release -p gpui-material-gallery -- button
+cargo run --locked --release -p gpui-material-gallery --features frame-profile -- button --frame-profile
 cargo test --locked --release -p gpui-material-foundation --lib ripple_clip_benchmark -- --ignored --nocapture
 ```
 
 在同一台机器上对改动前后各独立运行至少五轮相同的 Ripple 微基准。如果基线提交早于基准测试，仅将基准测试移植到该提交。基准测量预构建网格的裁剪时间，不包含形状构建和屏幕呈现。在 Issue 或 PR 记录提交、负载、耗时波动和相关实窗检查。测量原生帧时，分别报告绘制 CPU 耗时和屏幕呈现间隔。
+
+可选的单窗口帧采样预热两秒后打印开始标记，采样十秒并报告绘制次数、CPU 绘制耗时和活跃帧提交间隔的 p50/p95/p99。分别采集静止、鼠标横扫和重复按压场景，改动前后使用同样的输入序列。提交间隔以 GPUI 向平台提交帧的时间为准。
 
 <a id="local-checks"></a>
 

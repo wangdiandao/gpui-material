@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
-    App, ClickEvent, ElementId, FocusHandle, MouseButton, Pixels, Point,
+    App, ClickEvent, ElementId, EntityId, FocusHandle, MouseButton, Pixels, Point,
     StatefulInteractiveElement, Window,
 };
 
@@ -16,10 +16,29 @@ pub struct FeedbackState {
     keyboard_focus: Option<FocusHandle>,
     pub shape: Option<Shape>,
     pub ripple: Option<Ripple>,
+    view: Option<EntityId>,
     tracker: Option<(InteractionTracker, FocusHandle)>,
 }
 
 impl FeedbackState {
+    #[doc(hidden)]
+    /// Updates the feedback geometry and captures its owning view during prepaint.
+    pub fn set_shape(&mut self, shape: Option<Shape>, window: &Window) {
+        self.view = Some(window.current_view());
+        self.shape = shape;
+    }
+
+    fn update_feedback(&self, changed: bool, window: &mut Window, cx: &mut App) {
+        self.record(window, cx);
+        if changed {
+            if let Some(view) = self.view {
+                cx.notify(view);
+            } else {
+                window.refresh();
+            }
+        }
+    }
+
     pub fn interaction(
         &self,
         enabled: bool,
@@ -57,10 +76,12 @@ impl FeedbackState {
         }
     }
 
-    fn cancel(&mut self) {
+    fn cancel(&mut self) -> bool {
+        let changed = self.pressed || self.ripple.is_some();
         self.pressed = false;
         self.keyboard_focus = None;
         self.ripple = None;
+        changed
     }
 
     pub fn clear(&mut self) {
@@ -125,30 +146,32 @@ pub fn activate_feedback(
     cx: &mut App,
 ) {
     let mut state = state.borrow_mut();
-    match event {
+    let changed = match event {
         // Activation stops the bubbling click. Complete the pointer feedback
         // here even if the separate mouse-up listener does not run.
         ClickEvent::Mouse(_) => release_ripple(&mut state, cx),
         event if !state.pressed => {
+            let replaced_ripple = state.ripple.is_some();
             let pointer = match event {
                 ClickEvent::Touch(event) => Some(event.position),
                 _ => None,
             };
             start_ripple(&mut state, pointer, cx);
-            release_ripple(&mut state, cx);
+            release_ripple(&mut state, cx) || replaced_ripple
         }
-        _ => {}
-    }
-    state.record(window, cx);
-    window.refresh();
+        _ => false,
+    };
+    state.update_feedback(changed, window, cx);
 }
 
-fn release_ripple(state: &mut FeedbackState, cx: &App) {
-    state.pressed = false;
+fn release_ripple(state: &mut FeedbackState, cx: &App) -> bool {
+    let pressed = std::mem::take(&mut state.pressed);
     state.keyboard_focus = None;
-    if let Some(ripple) = &mut state.ripple {
-        ripple.release(cx.background_executor().now());
-    }
+    let released = state
+        .ripple
+        .as_mut()
+        .is_some_and(|ripple| ripple.release_if_held(cx.background_executor().now()));
+    pressed || released
 }
 
 fn start_ripple(state: &mut FeedbackState, pointer: Option<Point<Pixels>>, cx: &App) {
@@ -190,41 +213,36 @@ where
                 state.hovered = true;
             }
             start_ripple(&mut state, Some(event.position), cx);
-            state.record(window, cx);
-            window.refresh();
+            state.update_feedback(true, window, cx);
         })
         .on_mouse_up(MouseButton::Left, move |_, window, cx| {
             let mut state = release.borrow_mut();
-            release_ripple(&mut state, cx);
-            state.record(window, cx);
-            window.refresh();
+            let changed = release_ripple(&mut state, cx);
+            state.update_feedback(changed, window, cx);
         })
         .on_mouse_up_out(MouseButton::Left, move |_, window, cx| {
             let mut state = outside.borrow_mut();
-            release_ripple(&mut state, cx);
-            state.record(window, cx);
-            window.refresh();
+            let changed = release_ripple(&mut state, cx);
+            state.update_feedback(changed, window, cx);
         })
         .on_hover(move |hovering, window, cx| {
             let mut state = hover.borrow_mut();
             let was_pressed = state.pressed;
+            let hover_changed = track_hover && state.hovered != *hovering;
             if track_hover {
                 state.hovered = *hovering;
             }
-            if !*hovering && (track_hover || was_pressed) {
-                release_ripple(&mut state, cx);
-            }
+            let released =
+                !*hovering && (track_hover || was_pressed) && release_ripple(&mut state, cx);
             if track_hover || !*hovering && was_pressed {
-                state.record(window, cx);
-                window.refresh();
+                state.update_feedback(hover_changed || released, window, cx);
             }
         })
         .capture_key_down(move |event, window, cx| {
             if event.keystroke.key == "escape" {
                 let mut state = keyboard.borrow_mut();
-                state.cancel();
-                state.record(window, cx);
-                window.refresh();
+                let changed = state.cancel();
+                state.update_feedback(changed, window, cx);
             } else if matches!(event.keystroke.key.as_str(), "space" | "enter")
                 && !event.is_held
                 && keyboard_owner
@@ -238,16 +256,14 @@ where
                 state.pressed = true;
                 state.keyboard_focus = window.focused(cx);
                 start_ripple(&mut state, None, cx);
-                state.record(window, cx);
-                window.refresh();
+                state.update_feedback(true, window, cx);
             }
         })
         .capture_key_up(move |event, window, cx| {
             if matches!(event.keystroke.key.as_str(), "space" | "enter") {
                 let mut state = state.borrow_mut();
-                release_ripple(&mut state, cx);
-                state.record(window, cx);
-                window.refresh();
+                let changed = release_ripple(&mut state, cx);
+                state.update_feedback(changed, window, cx);
             }
         })
 }

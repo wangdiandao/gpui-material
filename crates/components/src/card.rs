@@ -274,12 +274,13 @@ impl RenderOnce for Card {
         let paint_feedback = feedback.clone();
         let shape = self.shape;
         let visual = canvas(
-            move |bounds, _, _| {
-                geometry.borrow_mut().shape = if enabled && (actionable || dragged) {
+            move |bounds, window, _| {
+                let feedback_shape = if enabled && (actionable || dragged) {
                     Shape::rounded(bounds, shape, direction)
                 } else {
                     None
                 };
+                geometry.borrow_mut().set_shape(feedback_shape, window);
                 let [top_left, top_right, bottom_right, bottom_left] = shape
                     .radii(
                         f32::from(bounds.size.width),

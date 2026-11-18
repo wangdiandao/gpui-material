@@ -17,6 +17,7 @@ required-features = ["desktop"]
 [features]
 default = ["desktop"]
 desktop = ["dep:gpui_platform"]
+frame-profile = ["desktop", "gpui/profiler"]
 test-support = ["gpui/test-support", "gpui-base/test-support", "gpui_platform?/test-support"]
 
 [dependencies]

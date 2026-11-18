@@ -1,10 +1,82 @@
+use std::{
+    cell::RefCell,
+    hash::{DefaultHasher, Hash, Hasher},
+    rc::Rc,
+};
+
 use gpui::{
-    App, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce, Role,
-    SharedString, StatefulInteractiveElement, Styled, TextAlign, Window, canvas, div, px,
+    App, ElementId, Global, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels,
+    RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, TextAlign, Window, canvas,
+    div, px,
 };
 use gpui_base::TestSupportExt;
-use gpui_material_foundation::{color, shape_text, window_material_theme, wrapped_text};
-use gpui_material_theme::{ColorRole, Direction, TypeRole, TypeStyle, TypographyEmphasis};
+use gpui_material_foundation::{
+    ShapedText, color, font_cache_revision, shape_text, window_material_theme, wrapped_text,
+};
+use gpui_material_theme::{
+    ColorRole, Direction, TypeRole, TypeStyle, Typography, TypographyEmphasis,
+};
+
+const ELLIPSIS_CACHE_SLOTS: usize = 256;
+const ELLIPSIS_CACHE_MAX_BYTES: usize = 1024;
+
+#[derive(PartialEq)]
+struct EllipsisKey {
+    text: SharedString,
+    width: Pixels,
+    style: TypeStyle,
+    typography: Typography,
+    font_scale: f32,
+    scale_factor: f32,
+    font_revision: u64,
+    tint: Hsla,
+}
+
+impl EllipsisKey {
+    fn slot(&self) -> usize {
+        let mut hasher = DefaultHasher::new();
+        self.text.hash(&mut hasher);
+        f32::from(self.width).to_bits().hash(&mut hasher);
+        hasher.finish() as usize % ELLIPSIS_CACHE_SLOTS
+    }
+}
+
+type EllipsisEntry = (EllipsisKey, Option<Rc<ShapedText>>);
+
+struct EllipsisCache(RefCell<Vec<Option<EllipsisEntry>>>);
+
+impl Global for EllipsisCache {}
+
+impl Default for EllipsisCache {
+    fn default() -> Self {
+        Self(RefCell::new(
+            std::iter::repeat_with(|| None)
+                .take(ELLIPSIS_CACHE_SLOTS)
+                .collect(),
+        ))
+    }
+}
+
+impl EllipsisCache {
+    fn get_or_shape(
+        &self,
+        key: EllipsisKey,
+        shape: impl FnOnce(&EllipsisKey) -> Option<ShapedText>,
+    ) -> Option<Rc<ShapedText>> {
+        if key.text.len() > ELLIPSIS_CACHE_MAX_BYTES {
+            return shape(&key).map(Rc::new);
+        }
+        let slot = key.slot();
+        if let Some((stored, result)) = &self.0.borrow()[slot]
+            && *stored == key
+        {
+            return result.clone();
+        }
+        let result = shape(&key).map(Rc::new);
+        self.0.borrow_mut()[slot] = Some((key, result.clone()));
+        result
+    }
+}
 
 /// Single-line Material text. Measurement and painting share Foundation's
 /// shaped glyphs, including font fallback and letter spacing.
@@ -185,36 +257,31 @@ pub(crate) fn single_line(
                 move |bounds, window, cx| {
                     let maximum = bounds.size.width;
                     if shaped.line().width <= maximum || expansion < 1. {
-                        return Some(shaped);
+                        return Some(Ok(shaped));
                     }
-                    let shape = |value: SharedString| {
-                        shape_text(value, style, &typography, font_scale, tint, window, cx)
-                            .expect("single-line text")
+                    let key = EllipsisKey {
+                        text: clean,
+                        width: maximum,
+                        style,
+                        typography,
+                        font_scale,
+                        scale_factor: window.scale_factor(),
+                        font_revision: font_cache_revision(cx),
+                        tint,
                     };
-                    let ellipsis = shape("…".into());
-                    if ellipsis.line().width > maximum {
-                        return None;
+                    if cx.try_global::<EllipsisCache>().is_none() {
+                        cx.set_global(EllipsisCache::default());
                     }
-                    // Use shaped cluster boundaries to preserve ligatures and combining text.
-                    let mut ends = shaped
-                        .line()
-                        .runs
-                        .iter()
-                        .flat_map(|run| &run.glyphs)
-                        .map(|glyph| glyph.index)
-                        .filter(|&index| clean.is_char_boundary(index))
-                        .collect::<Vec<_>>();
-                    ends.sort_unstable();
-                    ends.dedup();
-                    ends.into_iter()
-                        .rev()
-                        .filter(|&end| end > 0)
-                        .map(|end| shape(format!("{}…", &clean[..end]).into()))
-                        .find(|line| line.line().width <= maximum)
-                        .or(Some(ellipsis))
+                    cx.global::<EllipsisCache>()
+                        .get_or_shape(key, |key| ellipsize(&shaped, key, window, cx))
+                        .map(Err)
                 },
                 move |bounds, shaped, window, cx| {
                     if let Some(shaped) = shaped {
+                        let shaped = match &shaped {
+                            Ok(line) => line,
+                            Err(line) => line.as_ref(),
+                        };
                         let _ =
                             shaped.paint(bounds.origin, align, Some(bounds.size.width), window, cx);
                     }
@@ -222,4 +289,100 @@ pub(crate) fn single_line(
             )
             .size_full(),
         )
+}
+
+fn ellipsize(
+    shaped: &ShapedText,
+    key: &EllipsisKey,
+    window: &Window,
+    cx: &App,
+) -> Option<ShapedText> {
+    let shape = |value: SharedString| {
+        shape_text(
+            value,
+            key.style,
+            &key.typography,
+            key.font_scale,
+            key.tint,
+            window,
+            cx,
+        )
+        .expect("single-line text")
+    };
+    let ellipsis = shape("…".into());
+    if ellipsis.line().width > key.width {
+        return None;
+    }
+    let mut ends = shaped
+        .line()
+        .runs
+        .iter()
+        .flat_map(|run| &run.glyphs)
+        .map(|glyph| glyph.index)
+        .filter(|&index| key.text.is_char_boundary(index))
+        .collect::<Vec<_>>();
+    ends.sort_unstable();
+    ends.dedup();
+    ends.into_iter()
+        .rev()
+        .filter(|&end| end > 0)
+        .map(|end| shape(format!("{}…", &key.text[..end]).into()))
+        .find(|line| line.line().width <= key.width)
+        .or(Some(ellipsis))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ellipsis_cache_reuses_results_and_misses_on_layout_changes() {
+        let cache = EllipsisCache::default();
+        let key = || EllipsisKey {
+            text: "office 中文 العربية e\u{301} 👨‍👩‍👧‍👦".into(),
+            width: px(120.),
+            style: TypeRole::BodyLarge.style(TypographyEmphasis::Baseline),
+            typography: Typography::default(),
+            font_scale: 1.,
+            scale_factor: 1.,
+            font_revision: 0,
+            tint: gpui::white(),
+        };
+        assert!(cache.get_or_shape(key(), |_| None).is_none());
+        assert!(
+            cache
+                .get_or_shape(key(), |_| panic!("same layout must be reused"))
+                .is_none()
+        );
+
+        for changed in [
+            EllipsisKey {
+                width: px(121.),
+                ..key()
+            },
+            EllipsisKey {
+                font_scale: 1.25,
+                ..key()
+            },
+            EllipsisKey {
+                scale_factor: 2.,
+                ..key()
+            },
+            EllipsisKey {
+                font_revision: 1,
+                ..key()
+            },
+            EllipsisKey {
+                tint: gpui::black(),
+                ..key()
+            },
+        ] {
+            let mut missed = false;
+            cache.get_or_shape(changed, |_| {
+                missed = true;
+                None
+            });
+            assert!(missed);
+        }
+    }
 }

@@ -7,6 +7,11 @@ See [versioning and releases](docs/release.md) for the release process.
 ### Feedback
 
 - Skip fill triangles outside the Ripple bounds before clipping.
+- Refresh the owning view when control feedback changes and skip redraws on redundant release or cancel events.
+
+### Text
+
+- Reuse single-line ellipsis layouts for repeated text and widths.
 
 ## 0.1.1 - 2026-11-16
 

@@ -474,7 +474,7 @@ impl ListItem {
         let geometry = feedback.clone();
         let ink = feedback.clone();
         let visual = canvas(
-            move |bounds, _, _| {
+            move |bounds, window, _| {
                 let extent = f32::from(bounds.size.width.min(bounds.size.height)) * 0.5;
                 let shape =
                     CornerShape::Radii(radii.map(|radius| radius + (extent - radius) * full));
@@ -485,9 +485,10 @@ impl ListItem {
                         direction,
                     )
                     .map(px);
-                geometry.borrow_mut().shape = enabled
+                let feedback_shape = enabled
                     .then(|| Shape::rounded(bounds, shape, direction))
                     .flatten();
+                geometry.borrow_mut().set_shape(feedback_shape, window);
                 Corners {
                     top_left,
                     top_right,

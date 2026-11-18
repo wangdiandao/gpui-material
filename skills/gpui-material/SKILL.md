@@ -13,20 +13,20 @@ Use the [component conventions](references/conventions.md) to choose a construct
 
 | Guide | Read when |
 | --- | --- |
-| [Design sources and version baseline](../../../docs/design-sources.md) | Choosing a variant, changing tokens or interaction states, or evaluating a desktop adaptation. Follow the pinned Material 3 Expressive specification and its implementation references. |
-| [Architecture and dependencies](../../../docs/architecture.md) | Deciding crate boundaries, state ownership, Base integration, or public API shape. |
-| [Development and verification](../../../docs/development.md) | Changing the library or Gallery and selecting the applicable checks. |
-| [Downstream integration](../../../docs/integration.md) | Adding the facade, starting a window, enabling features, or migrating an application. |
+| [Design sources and version baseline](../../docs/design-sources.md) | Choosing a variant, changing tokens or interaction states, or evaluating a desktop adaptation. Follow the pinned Material 3 Expressive specification and its implementation references. |
+| [Architecture and dependencies](../../docs/architecture.md) | Deciding crate boundaries, state ownership, Base integration, or public API shape. |
+| [Development and verification](../../docs/development.md) | Changing the library or Gallery and selecting the applicable checks. |
+| [Downstream integration](../../docs/integration.md) | Adding the facade, starting a window, enabling features, or migrating an application. |
 
 ### Coding guide map
 
 | Task | Reference |
 | --- | --- |
-| Choose a home for new code | [Crate dependency direction](../../../docs/architecture.md#crate-dependency-direction) |
-| Decide where values, control state, and theme live | [State and theme](../../../docs/architecture.md#state-and-theme) |
-| Change focus, input, overlays, drawing, or motion | [Desktop adapter boundaries](../../../docs/architecture.md#desktop-adapter-boundaries) |
-| Match GPUI and Base package identities | [Pinned GPUI and Base versions](../../../docs/design-sources.md#gpui-and-base) |
-| Modify public APIs or verify a change | [Coding conventions](../../../docs/development.md#coding-conventions) and [testing conventions](../../../docs/development.md#testing-conventions) |
+| Choose a home for new code | [Crate dependency direction](../../docs/architecture.md#crate-dependency-direction) |
+| Decide where values, control state, and theme live | [State and theme](../../docs/architecture.md#state-and-theme) |
+| Change focus, input, overlays, drawing, or motion | [Desktop adapter boundaries](../../docs/architecture.md#desktop-adapter-boundaries) |
+| Match GPUI and Base package identities | [Pinned GPUI and Base versions](../../docs/design-sources.md#gpui-and-base) |
+| Modify public APIs or verify a change | [Coding conventions](../../docs/development.md#coding-conventions) and [testing conventions](../../docs/development.md#testing-conventions) |
 
 ### Integration contracts
 
@@ -36,9 +36,9 @@ Use the [component conventions](references/conventions.md) to choose a construct
 
 ## Documentation
 
-- Find project specifications in the [documentation index](../../../docs/index.md) and supported variants in [Components](../../../docs/component.md). Each component family links to its Material 3 specification.
-- Look up tokens and theme defaults in [Pure theme](../../../docs/theme/theme.md). Use [source precedence](../../../docs/design-sources.md#source-precedence) when Material guidance and implementation references differ.
-- Confirm import paths in the [public facade](../../../crates/material/src/lib.rs) and find working compositions in the [Gallery stories](../../../apps/gallery/src).
+- Find project specifications in the [documentation index](../../docs/index.md) and supported variants in [Components](../../docs/component.md). Each component family links to its Material 3 specification.
+- Look up tokens and theme defaults in [Pure theme](../../docs/theme/theme.md). Use [source precedence](../../docs/design-sources.md#source-precedence) when Material guidance and implementation references differ.
+- Confirm import paths in the [public facade](../../crates/material/src/lib.rs) and find working compositions in the [Gallery stories](../../apps/gallery/src).
 
 ## Quick Reference
 
@@ -70,12 +70,12 @@ fn main() {
 
 - **Controlled value** — build `Switch::new("reminders", "Enable reminders", self.reminders_enabled)` in `render` and update the owner from `.on_change(...)`.
 - **Retained editor** — create an `Entity<TextFieldState>` with `cx.new(|cx| TextFieldState::new(window, cx))` and render `TextField::new("name", "Name", &self.name)`.
-- **Theme** — use `gpui_material::material_theme(cx)` for the application theme and `gpui_material::foundation::window_material_theme(window, cx)` for the effective window theme. See [theme overrides](../../../docs/integration.md#api-and-migration).
-- **Overlays** — retain a `DialogState` entity for `Dialog` or `Sheet`, and mount a `SnackbarHost` entity for queued messages. See the [overlay Gallery stories](../../../apps/gallery/src/overlay_examples.rs).
+- **Theme** — use `gpui_material::material_theme(cx)` for the application theme and `gpui_material::foundation::window_material_theme(window, cx)` for the effective window theme. See [theme overrides](../../docs/integration.md#api-and-migration).
+- **Overlays** — retain a `DialogState` entity for `Dialog` or `Sheet`, and mount a `SnackbarHost` entity for queued messages. See the [overlay Gallery stories](../../apps/gallery/src/overlay_examples.rs).
 
 ## Component Catalog
 
-Import these types from `gpui_material` unless a module is shown. See [Components](../../../docs/component.md) for variant details and the matching Material specifications.
+Import these types from `gpui_material` unless a module is shown. See [Components](../../docs/component.md) for variant details and the matching Material specifications.
 
 ### Actions and selection
 
@@ -126,7 +126,7 @@ Enable these features on `gpui-material`.
 
 ## Testing
 
-Use `cargo gallery text-field` to open the text field story, or pass the affected story name or ID. For automated interaction checks, follow existing `#[gpui::test]` cases that render production components and assert the interaction outcome, such as callback data, focus, or retained state. The Gallery suite runs with `cargo test --locked -p gpui-material-gallery --features test-support`. Select the relevant native checks separately when the change touches the OS bridge, IME, DPI, or assistive technology. [Local checks](../../../docs/development.md#local-checks) · [Verification by layer](../../../docs/verification.md#verification-by-layer)
+Use `cargo gallery text-field` to open the text field story, or pass the affected story name or ID. For automated interaction checks, follow existing `#[gpui::test]` cases that render production components and assert the interaction outcome, such as callback data, focus, or retained state. The Gallery suite runs with `cargo test --locked -p gpui-material-gallery --features test-support`. Select the relevant native checks separately when the change touches the OS bridge, IME, DPI, or assistive technology. [Local checks](../../docs/development.md#local-checks) · [Verification by layer](../../docs/verification.md#verification-by-layer)
 
 ## GPUI and Base References
 

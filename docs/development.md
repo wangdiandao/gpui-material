@@ -65,6 +65,19 @@ cargo gallery text-field
 
 The default workspace members are the theme crate and `xtask`. Use `-p gpui-material-gallery` to select Gallery explicitly. From a worktree, point `CARGO_TARGET_DIR` to the main checkout's `target` to reuse developer builds.
 
+<a id="性能检查"></a>
+
+## Rendering performance
+
+Use the dev profile for day-to-day checks and locked Release builds for performance comparisons. Open the Button story to check idle, hover, and press/release separately. Use `--reduce-motion` as a diagnostic comparison.
+
+```powershell
+cargo run --locked --release -p gpui-material-gallery -- button
+cargo test --locked --release -p gpui-material-foundation --lib ripple_clip_benchmark -- --ignored --nocapture
+```
+
+Run the same Ripple microbenchmark on both revisions on the same host, with at least five separate runs per revision. When the baseline predates the benchmark, apply only the benchmark test to that revision. It times clipping prebuilt meshes, excluding shape construction and presentation. Record the commits, workload, timing spread, and relevant real-window checks in the Issue or PR. Report draw CPU time and presentation intervals separately when measuring native frames.
+
 <a id="本地检查"></a>
 
 ## Local checks

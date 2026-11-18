@@ -215,11 +215,24 @@ pub(crate) fn clipped_ripple(
     let stencil = point(0., 1.);
     let mut polygon = Vec::with_capacity(RIPPLE_SEGMENTS + 3);
     let mut clipped = Vec::with_capacity(RIPPLE_SEGMENTS + 3);
+    let extent = point(radius, radius);
+    let min = origin - extent;
+    let max = origin + extent;
+    let has_area = min.x < max.x && min.y < max.y;
 
     // Intersect the disc with each disjoint fill triangle so paint and hit
     // testing use the same tessellated curve, including concave shapes.
     for triangle in fill.vertices.as_chunks::<3>().0 {
-        let [a, b, c] = triangle.each_ref().map(|vertex| vertex.xy_position);
+        let vertices = triangle.each_ref().map(|vertex| vertex.xy_position);
+        if has_area
+            && (vertices.iter().all(|vertex| vertex.x < min.x)
+                || vertices.iter().all(|vertex| vertex.x > max.x)
+                || vertices.iter().all(|vertex| vertex.y < min.y)
+                || vertices.iter().all(|vertex| vertex.y > max.y))
+        {
+            continue;
+        }
+        let [a, b, c] = vertices;
         let winding = cross(b - a, c - a);
         if winding.abs() <= f32::EPSILON {
             continue;
@@ -264,6 +277,134 @@ mod tests {
     use gpui_material_theme::CornerRole;
 
     const TOLERANCE: f32 = 0.000_01;
+
+    #[test]
+    fn ripple_keeps_crossing_edges_even_when_no_vertex_is_inside() {
+        let origin = point(px(17.), px(31.));
+        let stencil = point(0., 1.);
+        let mut fill = Path::new(origin);
+        fill.push_triangle(
+            (
+                origin + point(px(-20.), px(0.)),
+                origin + point(px(20.), px(0.)),
+                origin + point(px(0.), px(30.)),
+            ),
+            (stencil, stencil, stencil),
+        );
+
+        let radius = px(5.);
+        let expected = clipped_ripple(&fill, origin, radius);
+        assert!(contains_fill(&expected, origin + point(px(0.), px(4.))));
+        assert!(!contains_fill(&expected, origin + point(px(0.), px(-1.))));
+        assert!(!contains_fill(&expected, origin + point(px(0.), px(6.))));
+
+        for offset in [(-12., 0.), (12., 0.), (0., -12.), (0., 40.)] {
+            let start = origin + point(px(offset.0), px(offset.1));
+            fill.push_triangle(
+                (
+                    start,
+                    start + point(px(1.), px(0.)),
+                    start + point(px(0.), px(1.)),
+                ),
+                (stencil, stencil, stencil),
+            );
+        }
+
+        let actual = clipped_ripple(&fill, origin, radius);
+        assert!(
+            actual
+                .vertices
+                .iter()
+                .map(|vertex| vertex.xy_position)
+                .eq(expected.vertices.iter().map(|vertex| vertex.xy_position))
+        );
+
+        for (edge, visible) in [(4.9, true), (5., false), (5.1, false)] {
+            let mut fill = Path::new(origin);
+            fill.push_triangle(
+                (
+                    origin + point(px(edge), px(-6.)),
+                    origin + point(px(edge), px(6.)),
+                    origin + point(px(20.), px(0.)),
+                ),
+                (stencil, stencil, stencil),
+            );
+            let ripple = clipped_ripple(&fill, origin, radius);
+            assert_eq!(
+                contains_fill(&ripple, origin + point(px(4.95), px(0.))),
+                visible
+            );
+        }
+    }
+
+    #[test]
+    fn ripple_preserves_concave_fill() {
+        let mut builder = PathBuilder::fill();
+        builder.move_to(point(px(0.), px(0.)));
+        for (x, y) in [(30., 0.), (30., 10.), (10., 10.), (10., 30.), (0., 30.)] {
+            builder.line_to(point(px(x), px(y)));
+        }
+        builder.close();
+        let fill = builder.build().unwrap();
+        let origin = point(px(8.), px(8.));
+        for (radius, far_arm_is_visible) in [(8., false), (40., true)] {
+            let ripple = clipped_ripple(&fill, origin, px(radius));
+            assert!(contains_fill(&ripple, point(px(12.), px(8.))));
+            assert!(contains_fill(&ripple, point(px(8.), px(12.))));
+            assert!(!contains_fill(&ripple, point(px(12.), px(12.))));
+            assert_eq!(
+                contains_fill(&ripple, point(px(25.), px(8.))),
+                far_arm_is_visible
+            );
+        }
+    }
+
+    #[test]
+    #[ignore = "Release performance benchmark"]
+    fn ripple_clip_benchmark() {
+        use std::{hint::black_box, time::Instant};
+
+        let bounds = Bounds::new(point(px(10.), px(20.)), size(px(160.), px(40.)));
+        let capsule = Shape::rounded(bounds, CornerShape::Full, Direction::Ltr).unwrap();
+        let morph = PolygonMorph::new(PolygonRole::Circle, PolygonRole::Triangle)
+            .sample(bounds, 0.5)
+            .unwrap();
+        let center = bounds.center();
+
+        for (name, shape, origins, radii) in [
+            (
+                "capsule expanding",
+                &capsule,
+                [center, center - point(px(66.), px(7.))],
+                [4., 12., 28., 64.],
+            ),
+            ("capsule covered", &capsule, [center; 2], [180.; 4]),
+            ("morph expanding", &morph, [center; 2], [2., 5., 10., 20.]),
+            ("morph covered", &morph, [center; 2], [40.; 4]),
+        ] {
+            let run = |repetitions| {
+                for _ in 0..repetitions {
+                    for origin in origins {
+                        for radius in radii {
+                            black_box(clipped_ripple(
+                                black_box(&shape.fill),
+                                black_box(origin),
+                                black_box(px(radius)),
+                            ));
+                        }
+                    }
+                }
+            };
+            run(100);
+            let start = Instant::now();
+            run(1_000);
+            println!(
+                "{name}: {:.1} ns/clip ({} fill triangles)",
+                start.elapsed().as_secs_f64() * 1e9 / 8_000.,
+                shape.fill.vertices.len() / 3
+            );
+        }
+    }
 
     #[test]
     fn adjacent_rounded_corners_share_the_available_edge() {

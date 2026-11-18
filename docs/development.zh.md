@@ -65,6 +65,19 @@ cargo gallery text-field
 
 工作区默认成员为主题 crate 和 `xtask`。用 `-p gpui-material-gallery` 显式选择 Gallery。在 worktree 中将 `CARGO_TARGET_DIR` 指向主检出的 `target` 以复用开发构建。
 
+<a id="rendering-performance"></a>
+
+## 性能检查
+
+日常检查使用开发配置，性能对比使用锁定依赖的 Release 构建。打开 Button 示例，分别检查静止、悬停、按下和释放。用 `--reduce-motion` 做诊断对照。
+
+```powershell
+cargo run --locked --release -p gpui-material-gallery -- button
+cargo test --locked --release -p gpui-material-foundation --lib ripple_clip_benchmark -- --ignored --nocapture
+```
+
+在同一台机器上对改动前后各独立运行至少五轮相同的 Ripple 微基准。如果基线提交早于基准测试，仅将基准测试移植到该提交。基准测量预构建网格的裁剪时间，不包含形状构建和屏幕呈现。在 Issue 或 PR 记录提交、负载、耗时波动和相关实窗检查。测量原生帧时，分别报告绘制 CPU 耗时和屏幕呈现间隔。
+
 <a id="local-checks"></a>
 
 ## 本地检查

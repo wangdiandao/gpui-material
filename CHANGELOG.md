@@ -4,6 +4,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Feedback
+
+- Skip fill triangles outside the Ripple bounds before clipping.
+
 ## 0.1.1 - 2026-11-16
 
 Changes since [v0.1.0](https://github.com/wangdiandao/gpui-material/releases/tag/v0.1.0).

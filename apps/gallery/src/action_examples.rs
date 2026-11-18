@@ -1063,6 +1063,95 @@ mod tests {
     }
 
     #[gpui::test]
+    fn button_feedback_preserves_unrelated_cached_view(cx: &mut TestAppContext) {
+        struct ButtonPane(gpui::FocusHandle, usize);
+        impl Render for ButtonPane {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                self.1 += 1;
+                Button::new("local-feedback", "Press")
+                    .track_focus(&self.0)
+                    .on_activate(|_, _| {})
+            }
+        }
+
+        struct Sibling(usize);
+        impl Render for Sibling {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                self.0 += 1;
+                div().child("Cached sibling")
+            }
+        }
+
+        struct Panes(gpui::Entity<ButtonPane>, gpui::Entity<Sibling>);
+        impl Render for Panes {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                div()
+                    .child(
+                        self.0
+                            .clone()
+                            .cached(gpui::StyleRefinement::default().h(px(64.))),
+                    )
+                    .child(
+                        self.1
+                            .clone()
+                            .cached(gpui::StyleRefinement::default().h(px(64.))),
+                    )
+            }
+        }
+
+        let (handle, button, sibling, focus) = cx.update(|cx| {
+            crate::init_gallery(cx);
+            cx.set_reduce_motion(true);
+            let focus = cx.focus_handle();
+            let button = cx.new(|_| ButtonPane(focus.clone(), 0));
+            let sibling = cx.new(|_| Sibling(0));
+            let handle = MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+                cx.new(|_| Panes(button.clone(), sibling.clone()))
+            })
+            .unwrap();
+            (handle, button, sibling, focus)
+        });
+        cx.update_window(handle.into(), |_, window, _| window.activate_window())
+            .unwrap();
+        cx.run_until_parked();
+        let before = cx
+            .update_window(handle.into(), |_, window, cx| {
+                window.draw(cx).clear(cx);
+                let position = find(window, &[], &"local-feedback".into())
+                    .unwrap()
+                    .bounds()
+                    .center();
+                focus.focus(window, cx);
+                window.dispatch_event(
+                    gpui::MouseMoveEvent {
+                        position: gpui::point(px(500.), px(500.)),
+                        ..Default::default()
+                    }
+                    .to_platform_input(),
+                    cx,
+                );
+                window.draw(cx).clear(cx);
+                let counts = (button.read(cx).1, sibling.read(cx).0);
+                window.dispatch_event(
+                    gpui::MouseMoveEvent {
+                        position,
+                        ..Default::default()
+                    }
+                    .to_platform_input(),
+                    cx,
+                );
+                counts
+            })
+            .unwrap();
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+            assert!(button.read(cx).1 > before.0);
+            assert_eq!(sibling.read(cx).0, before.1);
+        })
+        .unwrap();
+    }
+
+    #[gpui::test]
     fn button_keyboard_press_does_not_resume_after_focus_returns(cx: &mut TestAppContext) {
         struct Buttons;
         impl Render for Buttons {

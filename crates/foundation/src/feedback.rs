@@ -80,7 +80,15 @@ impl Ripple {
 
     /// Begins the exit from the current ripple opacity after a release or cancellation.
     pub fn release(&mut self, now: Instant) {
-        self.released.get_or_insert(now);
+        self.release_if_held(now);
+    }
+
+    pub(crate) fn release_if_held(&mut self, now: Instant) -> bool {
+        if self.released.is_some() {
+            return false;
+        }
+        self.released = Some(now);
+        true
     }
 
     /// Draws above the state layer and requests another frame while its radius or opacity changes.

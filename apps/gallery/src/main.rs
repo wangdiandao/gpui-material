@@ -9,6 +9,9 @@ use gpui_material::theme::{Appearance, MaterialTheme};
 
 use gpui_material_story::{Gallery, Story, init_gallery};
 
+#[cfg(feature = "frame-profile")]
+mod frame_profile;
+
 const TITLE: &str = "GPUI Material Gallery";
 
 fn main() {
@@ -17,6 +20,11 @@ fn main() {
     let rtl = arguments.iter().any(|arg| arg == "--rtl");
     let reduced_motion = arguments.iter().any(|arg| arg == "--reduce-motion");
     let dark = arguments.iter().any(|arg| arg == "--dark");
+    let frame_profile = arguments.iter().any(|arg| arg == "--frame-profile");
+    if frame_profile && (two_windows || !cfg!(feature = "frame-profile")) {
+        eprintln!("--frame-profile requires the frame-profile feature and a single window");
+        std::process::exit(2);
+    }
     let initial_story = arguments
         .iter()
         .find(|arg| !arg.starts_with('-'))
@@ -49,6 +57,10 @@ fn main() {
             if let Err(error) = result {
                 eprintln!("Could not open {TITLE}: {error:#}");
                 std::process::exit(1);
+            }
+            #[cfg(feature = "frame-profile")]
+            if frame_profile {
+                frame_profile::capture(cx);
             }
         });
 }

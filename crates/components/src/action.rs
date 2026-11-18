@@ -335,11 +335,11 @@ impl ActionControl {
         let mesh = feedback.clone();
         let paint_feedback = feedback.clone();
         let visual = canvas(
-            move |bounds, _, _| {
+            move |bounds, window, _| {
                 let corners =
                     interpolated_corners(bounds, style, selection, progress, scale, layout);
                 let shape = Shape::rounded(bounds, corners, direction);
-                mesh.borrow_mut().shape = shape;
+                mesh.borrow_mut().set_shape(shape, window);
                 corners
                     .radii(
                         f32::from(bounds.size.width),
@@ -593,8 +593,10 @@ pub(crate) fn ripple_ink(
 ) -> impl IntoElement {
     let geometry = state.clone();
     canvas(
-        move |bounds, _, _| {
-            geometry.borrow_mut().shape = Shape::rounded(bounds, corners, direction);
+        move |bounds, window, _| {
+            geometry
+                .borrow_mut()
+                .set_shape(Shape::rounded(bounds, corners, direction), window);
         },
         move |_, _, window, cx| {
             let state = state.borrow();

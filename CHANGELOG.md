@@ -13,6 +13,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 - Reuse single-line ellipsis layouts for repeated text and widths.
 
+### Gallery
+
+- Show Material type roles and compare emphasis, font scaling, wrapping, and truncation in the Text story.
+
 ## 0.1.1 - 2026-11-16
 
 Changes since [v0.1.0](https://github.com/wangdiandao/gpui-material/releases/tag/v0.1.0).

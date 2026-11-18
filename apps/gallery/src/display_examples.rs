@@ -25,6 +25,7 @@ mod progress_tests;
 mod pull_to_refresh_demo;
 #[cfg(all(test, feature = "test-support"))]
 mod pull_to_refresh_tests;
+mod text_examples;
 
 pub(crate) struct DisplayExamples {
     story: Option<Story>,
@@ -153,21 +154,7 @@ impl Render for DisplayExamples {
             }
         };
         stack()
-            .children(self.shows(Story::Text).then(|| {
-                section("Typography and font scale")
-                    .description("Compare the same mixed-script text at the default scale and at 125%.")
-                    .child(
-                        Text::new("Material typography 中文混排").id("baseline-text").wrap(),
-                    )
-                    .child(
-                        Text::new("Material typography 中文混排")
-                            .id("mixed-script-text")
-                            .role(TypeRole::TitleMedium)
-                            .emphasized(true)
-                            .font_scale(1.25)
-                            .wrap(),
-                    )
-            }))
+            .children(self.shows(Story::Text).then(text_examples::examples))
             .children(self.shows(Story::Icon).then(|| {
                 section("Outlined and filled symbols").child(
                     div().flex().flex_wrap().gap_4().items_center().children(
@@ -1014,7 +1001,7 @@ mod tests {
             crate::init_gallery(cx);
             let mut view = None;
             let handle = MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
-                let display = cx.new(|_| DisplayExamples::default());
+                let display = cx.new(|_| DisplayExamples::for_story(Story::Card));
                 view = Some(display.clone());
                 display
             })

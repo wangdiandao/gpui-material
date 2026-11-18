@@ -272,7 +272,9 @@ impl Story {
             Self::Surface => "Compose passive surfaces and named controls with custom content.",
             Self::Switch => "Turn a setting on or off.",
             Self::Tabs => "Switch between related panels with fixed or scrolling tabs.",
-            Self::Text => "Preview Material typography, font scaling, and mixed scripts.",
+            Self::Text => {
+                "Explore Material type roles and see how emphasis, scaling, and overflow affect text."
+            }
             Self::TextField => {
                 "Edit single-line, multiline, and secure text with supporting feedback."
             }

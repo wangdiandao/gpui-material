@@ -16,4 +16,4 @@ polymorpher = { version = "=0.1.4", default-features = false }
 web-time.workspace = true
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "=0.62.2", features = ["Win32_UI_Input_KeyboardAndMouse"] }
+windows = { version = "0.62.2", features = ["Win32_UI_Input_KeyboardAndMouse"] }

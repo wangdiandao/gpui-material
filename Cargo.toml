@@ -20,7 +20,7 @@ gpui-material-components = { version = "=0.1.1", path = "crates/components" }
 gpui-material-extras = { version = "=0.1.1", path = "crates/extras" }
 gpui-material-foundation = { version = "=0.1.1", path = "crates/foundation" }
 gpui-material-theme = { version = "=0.1.1", path = "crates/theme" }
-web-time = "=1.1.0"
+web-time = "1.1.0"
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features = [
     "font-kit",
     "x11",

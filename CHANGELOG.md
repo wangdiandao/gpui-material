@@ -4,6 +4,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Dependencies
+
+- Allow downstream applications to resolve compatible versions of `serde`, `web-time`, and `windows` at or above the existing minimums.
+
 ### Feedback
 
 - Skip fill triangles outside the Ripple bounds before clipping.

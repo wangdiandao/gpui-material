@@ -12,7 +12,7 @@ Add the facade from crates.io. Match GPUI package identities exactly so the faca
 [dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.12" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui-material = "0.1.1"
+gpui-material = "0.1.2"
 ```
 
 An application that uses Base directly should also pin `gpui-base = "=0.10.0"`. For a source integration, use `{ path = "../gpui-material/crates/material" }` and pin the checkout commit. After an upgrade, run `cargo tree -d` to check for multiple versions and verify the platform and input behavior that the application relies on.

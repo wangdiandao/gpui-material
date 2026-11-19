@@ -4,6 +4,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+## 0.1.2 - 2026-11-20
+
+Changes since [v0.1.1](https://github.com/wangdiandao/gpui-material/releases/tag/v0.1.1).
+
 ### Dependencies
 
 - Allow downstream applications to resolve compatible versions of `serde`, `web-time`, and `windows` at or above the existing minimums.
@@ -20,6 +24,13 @@ See [versioning and releases](docs/release.md) for the release process.
 ### Gallery
 
 - Show Material type roles and compare emphasis, font scaling, wrapping, and truncation in the Text story.
+- Capture active frame timing in a single Gallery window with the optional frame profiler.
+
+### Contributors
+
+- [@wangdiandao](https://github.com/wangdiandao)
+
+**Full Changelog** [`v0.1.1...v0.1.2`](https://github.com/wangdiandao/gpui-material/compare/v0.1.1...v0.1.2)
 
 ## 0.1.1 - 2026-11-16
 

@@ -1,9 +1,8 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-mod appearance;
-pub use appearance::{MenuColor, MenuItemStyle, MenuSurfaceStyle};
-use appearance::{Paint, Palette, axis_padding};
+pub use crate::menu_appearance::{MenuColor, MenuItemStyle, MenuSurfaceStyle};
+use crate::menu_appearance::{Paint, Palette, axis_padding};
 
 use crate::motion::{OverlayMotion, ScaledOverlay, menu_pivot};
 use crate::{Icon, IconName};

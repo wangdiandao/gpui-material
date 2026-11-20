@@ -17,10 +17,11 @@ use crate::action::{
     Action, ActionControl, ActionLayout, ActionStyle, Activate, Change, DisabledStyle, icon_slot,
     interpolated_corners,
 };
-use crate::button_style::{ButtonStyle, finite_length};
-use crate::{
-    ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShapes, Icon, IconName,
+use crate::button_style::{
+    ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShapes, ButtonStyle,
+    finite_length,
 };
+use crate::{Icon, IconName};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ChipVariant {

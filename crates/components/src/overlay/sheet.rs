@@ -402,6 +402,7 @@ impl Sheet {
         }
     }
 
+    #[cfg_attr(not(feature = "navigation"), allow(dead_code))]
     pub(crate) fn in_scaffold(mut self, size: Size<Pixels>) -> Self {
         self.edge = SheetEdge::Bottom;
         self.mode = SheetMode::Standard;
@@ -623,6 +624,7 @@ impl Sheet {
     }
 
     /// Reuses the enclosing component's sampled presence.
+    #[cfg_attr(not(feature = "navigation"), allow(dead_code))]
     pub(crate) fn sampled_presence(mut self, presence: gpui_base::motion::PresenceSample) -> Self {
         self.presence = Some(presence);
         self

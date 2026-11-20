@@ -16,8 +16,10 @@ use gpui_material_theme::{
 
 use crate::button_style::{ButtonShapes, ButtonStyle, finite_length};
 
+#[cfg(any(feature = "selection", feature = "surfaces"))]
+pub(crate) use gpui_material_foundation::control_feedback::ripple_state;
 pub(crate) use gpui_material_foundation::control_feedback::{
-    FeedbackState, activate_feedback, feedback_target, ripple_state,
+    FeedbackState, activate_feedback, feedback_target,
 };
 
 pub(crate) type Activate = Rc<dyn Fn(&mut Window, &mut App)>;

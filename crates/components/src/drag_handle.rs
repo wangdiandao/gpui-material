@@ -144,6 +144,7 @@ impl VerticalDragHandle {
     }
 
     /// Final pointer value after a completed drag. Cancellation skips this callback.
+    #[cfg_attr(not(feature = "navigation"), allow(dead_code))]
     pub(crate) fn on_resize_end(
         mut self,
         callback: impl Fn(Pixels, &mut Window, &mut App) + 'static,
@@ -153,6 +154,7 @@ impl VerticalDragHandle {
     }
 
     /// A consumer can invalidate the pointer origin when its viewport changes.
+    #[cfg_attr(not(feature = "navigation"), allow(dead_code))]
     pub(crate) fn resize_context(mut self, viewport: Size<Pixels>) -> Self {
         self.resize_context = Some(viewport);
         self

@@ -16,19 +16,8 @@ use crate::action::{
 };
 use crate::button_style::{
     ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShapes, ButtonStyle,
-    finite_length,
+    ControlSize, finite_length,
 };
-
-/// Material Expressive sizes, from extra small to extra large.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub enum ControlSize {
-    ExtraSmall,
-    #[default]
-    Small,
-    Medium,
-    Large,
-    ExtraLarge,
-}
 
 #[derive(Clone, Copy)]
 struct Metrics {
@@ -423,6 +412,7 @@ impl Button {
         self
     }
 
+    #[cfg(feature = "feedback")]
     pub(crate) fn scale(mut self, scale: f32) -> Self {
         self.scale = scale;
         self

@@ -2,6 +2,17 @@ use gpui::{Hsla, Pixels, px};
 use gpui_material_foundation::InteractionState;
 use gpui_material_theme::{CornerShape, Elevation};
 
+/// Material Expressive sizes, from extra small to extra large.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum ControlSize {
+    ExtraSmall,
+    #[default]
+    Small,
+    Medium,
+    Large,
+    ExtraLarge,
+}
+
 /// Button corner overrides in logical top-start, top-end, bottom-end,
 /// bottom-start order. Unspecified states keep their size and shape presets.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

@@ -406,7 +406,19 @@ Set `.fab_position(ScaffoldFabPosition)` to `Start`, `Center`, or `End` within t
 
 ## Optional components
 
-Enable features on the `gpui-material` dependency. Import date pickers, time pickers and scroll fields from `gpui_material::date_time`.
+Core components are enabled by default through `full`. Disable default features on `gpui-material` (or `gpui-material-components`) to compile only the lightweight core (`Text`, `Icon`, `IconName`, `Badge`, `Divider`, `DisplayScrollbar`, `ControlSize`, `ScaffoldInsets`, `MenuSurfaceStyle`, and `init_components`) plus the groups you enable:
+
+| Core feature | Components | Implied groups |
+| --- | --- | --- |
+| `actions` | `Button`, `ToggleButton`, `IconButton`, `IconToggleButton`, `Fab`, `ExtendedFab`, button styles | — |
+| `selection` | `Checkbox`, `Radio`, `RadioGroup`, `Switch`, `Chip`, `Slider` | — |
+| `inputs` | `TextField`, `TextFieldState`, `TextAreaState`, `ExposedDropdown`, `ExposedDropdownState` | — |
+| `surfaces` | `Card`, `List`, `ListItem`, `SwipeToDismiss`, `VerticalDragHandle` | `actions` |
+| `feedback` | `CircularProgress`, `LinearProgress`, `LoadingIndicator`, `PullToRefresh`, `Dialog`, `Sheet`, `BottomSheet*`, `Menu`, `Snackbar`, `SnackbarHost`, `Tooltip`, `Label` | `actions` |
+| `navigation` | `AppBar`, `AppBarRow`, `AppBarColumn`, `Tabs`, `NavigationBar`, `NavigationRail`, `AdaptiveNavigation`, `Scaffold`, `ListDetail`, `SupportingPane`, `Feed`, `AdaptivePane` | `actions`, `feedback` |
+| `full` | All core component groups above (default) | All core groups |
+
+Enable optional component families on the `gpui-material` dependency. Each family activates only the core component groups it uses. Import date pickers, time pickers and scroll fields from `gpui_material::date_time`.
 
 | Feature | Component | Supported variants and behavior | Material 3 |
 | --- | --- | --- | --- |

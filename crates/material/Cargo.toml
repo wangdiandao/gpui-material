@@ -10,7 +10,14 @@ description = "Material 3 Expressive components and themes for GPUI desktop appl
 publish = ["crates-io"]
 
 [features]
-default = []
+default = ["full"]
+actions = ["gpui-material-components/actions"]
+selection = ["gpui-material-components/selection"]
+inputs = ["gpui-material-components/inputs"]
+surfaces = ["gpui-material-components/surfaces"]
+feedback = ["gpui-material-components/feedback"]
+navigation = ["gpui-material-components/navigation"]
+full = ["gpui-material-components/full"]
 carousel = ["gpui-material-extras/carousel"]
 dynamic-color = ["gpui-material-theme/dynamic-color"]
 serde = ["gpui-material-theme/serde"]
@@ -21,7 +28,7 @@ date-time = ["gpui-material-extras/date-time"]
 windows-chrome = ["gpui-material-extras/windows-chrome"]
 
 [dependencies]
-gpui-material-components.workspace = true
+gpui-material-components = { workspace = true, default-features = false }
 gpui-material-extras = { workspace = true, optional = true }
 gpui-material-foundation.workspace = true
 gpui-material-theme.workspace = true

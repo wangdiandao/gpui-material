@@ -406,7 +406,19 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ## 可选组件
 
-在 `gpui-material` 依赖上启用 feature。日期选择器、时间选择器和滚动选择字段从 `gpui_material::date_time` 导入。
+核心组件默认通过 `full` 全部启用。在 `gpui-material`（或 `gpui-material-components`）上关闭默认特性后，仅编译轻量核心（`Text`、`Icon`、`IconName`、`Badge`、`Divider`、`DisplayScrollbar`、`ControlSize`、`ScaffoldInsets`、`MenuSurfaceStyle` 及 `init_components`）和所选分组：
+
+| 核心特性 | 组件 | 隐含分组 |
+| --- | --- | --- |
+| `actions` | `Button`、`ToggleButton`、`IconButton`、`IconToggleButton`、`Fab`、`ExtendedFab` 及按钮样式 | — |
+| `selection` | `Checkbox`、`Radio`、`RadioGroup`、`Switch`、`Chip`、`Slider` | — |
+| `inputs` | `TextField`、`TextFieldState`、`TextAreaState`、`ExposedDropdown`、`ExposedDropdownState` | — |
+| `surfaces` | `Card`、`List`、`ListItem`、`SwipeToDismiss`、`VerticalDragHandle` | `actions` |
+| `feedback` | `CircularProgress`、`LinearProgress`、`LoadingIndicator`、`PullToRefresh`、`Dialog`、`Sheet`、`BottomSheet*`、`Menu`、`Snackbar`、`SnackbarHost`、`Tooltip`、`Label` | `actions` |
+| `navigation` | `AppBar`、`AppBarRow`、`AppBarColumn`、`Tabs`、`NavigationBar`、`NavigationRail`、`AdaptiveNavigation`、`Scaffold`、`ListDetail`、`SupportingPane`、`Feed`、`AdaptivePane` | `actions`、`feedback` |
+| `full` | 启用上述全部核心组件分组（默认） | 全部核心分组 |
+
+在 `gpui-material` 依赖上启用可选组件族 feature，各组件族仅激活其依赖的核心组件分组。日期选择器、时间选择器和滚动选择字段从 `gpui_material::date_time` 导入。
 
 | Feature | 组件 | 支持的变体与行为 | Material 3 |
 | --- | --- | --- | --- |

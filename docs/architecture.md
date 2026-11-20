@@ -14,10 +14,10 @@ Arrows point from caller to dependency. The table describes each layer's depende
 | --- | --- |
 | `gpui-material-theme` | Pure Rust. Owns tokens, semantic colors, typography, shape descriptions, motion parameters, and layout policy. Exposes pure value types. |
 | `gpui-material-foundation` | → theme, gpui-base, and GPUI from the same source. Provides MaterialRoot, theme projection, drawing, state layers, ripple, geometry, and motion adapters. |
-| `gpui-material-components` | → foundation and theme as needed. Owns controls, display, inputs, overlays, and navigation. |
-| `gpui-material-extras` | → components, foundation, and relevant theme APIs. Enable by family and declare additional dependencies separately. |
+| `gpui-material-components` | → foundation and theme as needed. Owns core display primitives and feature-grouped component sets (`actions`, `selection`, `inputs`, `surfaces`, `feedback`, `navigation`; `default = ["full"]`). |
+| `gpui-material-extras` | → components (enabling only the groups each family uses), foundation, and relevant theme APIs. Enable by family and declare additional dependencies separately. |
 | `gpui-material-symbols` | Companion crate for the full Material Symbols catalog. Builds SVG data from variable glyph outlines. Applications pass the result to `Icon::svg_data`. [Integration](integration.md#material-symbols) |
-| `gpui-material` | → shipped public implementation crates. Forwards features as needed. Extras are optional. |
+| `gpui-material` | → shipped public implementation crates. Forwards component feature groups (`default = ["full"]`) and optional extras/theme features as needed. |
 | `gpui-material-gallery` | → the shipped facade. The package provides the `gpui_material_story` library and a desktop executable outside the default workspace build. |
 | `xtask` | Documentation and dependency checks, build timings, and offline token generation. Independent of GPUI. |
 

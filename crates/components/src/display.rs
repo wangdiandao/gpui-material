@@ -187,10 +187,12 @@ impl Badge {
         self
     }
 
+    #[cfg(feature = "navigation")]
     pub(crate) fn take_accessible_label(&mut self) -> Option<SharedString> {
         self.accessible_label.take().map(|(_, label)| label)
     }
 
+    #[cfg(feature = "navigation")]
     pub(crate) fn attach_to(mut self, host: impl IntoElement) -> Self {
         self.host = Some(host.into_any_element());
         self

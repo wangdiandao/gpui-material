@@ -32,3 +32,6 @@ pub use toolbar::{
     ToolbarElevations, ToolbarExitDirection, ToolbarFabPosition, ToolbarFling, ToolbarOrientation,
     ToolbarPadding, ToolbarPlacement, ToolbarScrollBehavior, ToolbarScrollState,
 };
+
+#[cfg(all(windows, feature = "windows-chrome"))]
+pub mod windows_chrome;

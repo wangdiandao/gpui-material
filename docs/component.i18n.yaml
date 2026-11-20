@@ -117,8 +117,11 @@
   en: "f749e65450d351e3"
   zh: "fdbeaa7d7dfdc868"
 /components/optional-components:
-  en: "ea5ce807bc41b0f3"
-  zh: "1aee1a8343d4c78f"
+  en: "5a66335c59c11f64"
+  zh: "b21922936b5206a1"
+/components/optional-components/windows-window-chrome:
+  en: "5156838b90103c25"
+  zh: "5831aeb3e30d5cfd"
 /components/optional-components/search:
   en: "b67194606d49b75f"
   zh: "3888b8816683cb39"

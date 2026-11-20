@@ -8,6 +8,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 - Add the optional `gpui-material-symbols` companion crate with the full Outlined, Rounded, and Sharp catalog, fill and weight controls, desktop embedding, and asynchronous browser loading.
 
+### Windows
+
+- Add optional custom title bars with native Windows caption behavior and a Gallery demonstration.
+
 ## 0.1.2 - 2026-11-20
 
 Changes since [v0.1.1](https://github.com/wangdiandao/gpui-material/releases/tag/v0.1.1).

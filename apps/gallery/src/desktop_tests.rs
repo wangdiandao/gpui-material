@@ -64,7 +64,7 @@ fn standalone_story_opens_a_dialog_in_its_host_window(cx: &mut TestAppContext) {
 fn repository_button_opens_github_and_sits_before_motion_toggle(cx: &mut TestAppContext) {
     let handle = cx.update(|cx| {
         init_gallery(cx);
-        open_gallery(cx, false, Story::Introduction).unwrap()
+        open_gallery(cx, false, Story::Introduction, false).unwrap()
     });
     let repository = ElementId::from("open-repository");
     cx.update_window(handle.into(), |_, window, cx| {
@@ -88,7 +88,7 @@ fn repository_button_opens_github_and_sits_before_motion_toggle(cx: &mut TestApp
 fn catalog_filters_and_opens_a_story_on_a_compact_window(cx: &mut TestAppContext) {
     let handle = cx.update(|cx| {
         init_gallery(cx);
-        open_gallery(cx, false, Story::default()).unwrap()
+        open_gallery(cx, false, Story::default(), false).unwrap()
     });
     cx.simulate_window_resize(handle.into(), size(px(340.), px(560.)));
     let select_all = if cfg!(target_os = "macos") {
@@ -220,7 +220,7 @@ fn catalog_filters_and_opens_a_story_on_a_compact_window(cx: &mut TestAppContext
 fn theme_control_stays_clear_of_adaptive_navigation(cx: &mut TestAppContext) {
     let handle = cx.update(|cx| {
         init_gallery(cx);
-        open_gallery(cx, false, Story::AdaptiveLayout).unwrap()
+        open_gallery(cx, false, Story::AdaptiveLayout, false).unwrap()
     });
     cx.simulate_window_resize(handle.into(), size(px(340.), px(560.)));
     let feed = ElementId::from("adaptive-feed");
@@ -247,8 +247,8 @@ fn projects_theme_and_paints_status_in_two_windows(cx: &mut TestAppContext) {
     let (first, second) = cx.update(|cx| {
         init_gallery(cx);
         (
-            open_gallery(cx, false, Story::default()).unwrap(),
-            open_gallery(cx, true, Story::default()).unwrap(),
+            open_gallery(cx, false, Story::default(), false).unwrap(),
+            open_gallery(cx, true, Story::default(), false).unwrap(),
         )
     });
     let label = |cx: &mut TestAppContext, handle: WindowHandle<Root>, id: &str| {
@@ -325,7 +325,7 @@ fn projects_theme_and_paints_status_in_two_windows(cx: &mut TestAppContext) {
 fn mixed_script_uses_one_layout_for_metrics_and_paint(cx: &mut TestAppContext) {
     let handle = cx.update(|cx| {
         MaterialRoot::init(MaterialTheme::default(), cx);
-        open_gallery(cx, false, Story::default()).unwrap()
+        open_gallery(cx, false, Story::default(), false).unwrap()
     });
     cx.update_window(handle.into(), |_, window, cx| {
         window.refresh();

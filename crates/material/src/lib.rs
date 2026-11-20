@@ -7,6 +7,8 @@
 pub use gpui_material_components::*;
 #[cfg(feature = "date-time")]
 pub use gpui_material_extras::date_time;
+#[cfg(all(windows, feature = "windows-chrome"))]
+pub use gpui_material_extras::windows_chrome;
 #[cfg(feature = "expressive-groups")]
 pub use gpui_material_extras::{
     ButtonGroup, ButtonGroupAlignment, ButtonGroupConnectedShapes, ButtonGroupItem,

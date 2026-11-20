@@ -416,6 +416,18 @@ Enable features on the `gpui-material` dependency. Import date pickers, time pic
 | `date-time` | `DatePicker`, `TimePicker`, `TimePickerDialog`, `VibrantTimePickerDialog`, `TimePickerPanel`, `TimeScroll`, `ScrollField` | Single dates and date ranges in Docked, Modal, Modal Input, or responsive FullScreen pickers, with standalone panel and dialog composition. Dial, text input, and wrapping scroll time pickers with 12- and 24-hour formats. Standalone scrolling selection. | [Date pickers](https://m3.material.io/components/date-pickers/overview) · [Time pickers](https://m3.material.io/components/time-pickers/overview) |
 | `carousel` | `Carousel`, `CarouselParallax` | Multi-browse, Uncontained, Uncontained Multi-aspect Ratio, Hero, Centered Hero, and Full-screen. Standalone scroll parallax for arbitrary GPUI content. | [Carousel](https://m3.material.io/components/carousel/overview) |
 
+<a id="windows-窗口标题栏"></a>
+
+### Windows window chrome
+
+Enable the optional `windows-chrome` feature and import `TitleBar`, `CaptionButtons`, and `title_bar_window_options` from `gpui_material::windows_chrome` on Windows.
+
+Pass `title_bar_window_options(options)` to `MaterialRoot::open_window` to let GPUI render into the title-bar area. The helper preserves the supplied window title, bounds, minimum size, and capability flags. Render `TitleBar::new(id)` at the top of the window view. It reads the current window title and includes a drag region and caption buttons. Use `.content(element)` for an interactive control or a group of controls that receive normal pointer and keyboard input.
+
+Use `CaptionButtons::new(id)` to place the buttons in a custom layout for a window opened with the same helper. Minimize and maximize follow the window options. The maximize button switches to Restore when the window is maximized. Fullscreen hides the caption buttons. The buttons use the Windows caption glyphs and expose names and actions to keyboard and accessibility users. Pointer actions delegate to GPUI's native window controls, including Windows Snap Layouts. Closing uses the window's GPUI close handler, so the application can reject a close request with `Window::on_window_should_close`. [Windows title bar guidance](https://learn.microsoft.com/en-us/windows/apps/design/basics/titlebar-design)
+
+<a id="搜索"></a>
+
 ### Search
 
 Enable the `search` feature and retain one `Entity<SearchState>` per search entry. Place `SearchBar::new(id, label, &state)` directly in a layout or in `AppBar::search(...)`. Its default presentation is Docked. Use `SearchViewVariant::FullScreen` for an edge-to-edge editor or `FullScreenContained` for a full-window view with a contained editor. `.widths(collapsed, focused)` sets the trigger and focused editor widths in logical pixels. Without an override the trigger is sized to its content. `.trigger_content(element)` replaces the visible trigger label. `.leading(element)` and `.trailing(element)` add independent controls or an avatar beside the trigger.

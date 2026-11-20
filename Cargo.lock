@@ -2219,7 +2219,9 @@ dependencies = [
  "gpui-material-foundation",
  "gpui-material-theme",
  "gpui-pre",
+ "raw-window-handle",
  "web-time",
+ "windows 0.62.2",
 ]
 
 [[package]]

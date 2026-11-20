@@ -88,6 +88,8 @@ Applications updating the 0.0.4 facade to 0.1.0 can keep their imports, feature 
 
 ## Platform support
 
+On Windows, enable `windows-chrome` to use a [custom title bar](component.md#windows-window-chrome) in selected windows. Enable it at window creation and mount its view under the existing application root. Other targets can enable the Cargo feature in shared manifests and use their existing window setup.
+
 | Target | Scope |
 | --- | --- |
 | Windows 11 x64, MSVC, DirectX | Initial support. Native keyboard and pointer input, mouse wheel, Microsoft Pinyin, UI Automation and Narrator use the Windows acceptance scenarios. The package is a standalone ZIP. |

@@ -416,6 +416,18 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `date-time` | `DatePicker`、`TimePicker`、`TimePickerDialog`、`VibrantTimePickerDialog`、`TimePickerPanel`、`TimeScroll`、`ScrollField` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input 和自适应 FullScreen。可组合独立面板或对话框。时间选择支持表盘、文本输入、循环滚动和 12、24 小时制。支持独立的滚动选择字段。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
 | `carousel` | `Carousel`、`CarouselParallax` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。 任意 GPUI 内容可使用独立滚动视差效果。 | [轮播](https://m3.material.io/components/carousel/overview) |
 
+<a id="windows-window-chrome"></a>
+
+### Windows 窗口标题栏
+
+启用可选特性 `windows-chrome` 后，在 Windows 上从 `gpui_material::windows_chrome` 导入 `TitleBar`、`CaptionButtons` 和 `title_bar_window_options`。
+
+把 `title_bar_window_options(options)` 的结果传给 `MaterialRoot::open_window`，让 GPUI 在标题栏区域内绘制。该函数保留传入的窗口标题、边界、最小尺寸和能力选项。在窗口视图顶部渲染 `TitleBar::new(id)`，即可显示当前窗口标题、拖动区和窗口控制按钮。用 `.content(element)` 放入一个交互控件或一组控件，它们会正常接收指针和键盘输入。
+
+通过同一个函数配置窗口后，可以用 `CaptionButtons::new(id)` 把窗口控制按钮放入自定义布局。最小化和最大化遵循窗口选项，最大化后按钮切换为还原，全屏时隐藏该组按钮。按钮使用 Windows 标题栏字形，并提供名称、键盘操作和无障碍操作。指针操作由 GPUI 的原生窗口控制路径处理，包括 Windows 贴靠布局。关闭请求经过 GPUI 窗口关闭处理，应用可通过 `Window::on_window_should_close` 拒绝关闭。 [Windows 标题栏指南](https://learn.microsoft.com/en-us/windows/apps/design/basics/titlebar-design)
+
+<a id="search"></a>
+
 ### 搜索
 
 启用 `search` feature，并为每个搜索入口保留一个 `Entity<SearchState>`。可将 `SearchBar::new(id, label, &state)` 直接放在布局中，或放入 `AppBar::search(...)`。默认使用 Docked。全窗口编辑器使用 `SearchViewVariant::FullScreen`，带内嵌编辑器的全窗口视图使用 `FullScreenContained`。`.widths(collapsed, focused)` 以逻辑像素设置触发器和聚焦编辑器宽度。未覆盖时触发器根据内容确定宽度。`.trigger_content(element)` 替换触发器的可见标签。`.leading(element)`、`.trailing(element)` 可在触发器两侧添加独立控件或头像。

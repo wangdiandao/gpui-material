@@ -1,5 +1,6 @@
 use gpui::{
-    App, AppContext, QuitMode, TitlebarOptions, WindowBounds, WindowHandle, WindowOptions, px, size,
+    App, AppContext, QuitMode, TitlebarOptions, Window, WindowBounds, WindowHandle, WindowOptions,
+    px, size,
 };
 use gpui_base::Root;
 use gpui_material::foundation::{
@@ -11,6 +12,8 @@ use gpui_material_story::{Gallery, Story, init_gallery};
 
 #[cfg(feature = "frame-profile")]
 mod frame_profile;
+#[cfg(windows)]
+mod windows_chrome;
 
 const TITLE: &str = "GPUI Material Gallery";
 
@@ -21,6 +24,11 @@ fn main() {
     let reduced_motion = arguments.iter().any(|arg| arg == "--reduce-motion");
     let dark = arguments.iter().any(|arg| arg == "--dark");
     let frame_profile = arguments.iter().any(|arg| arg == "--frame-profile");
+    let windows_chrome = arguments.iter().any(|arg| arg == "--windows-chrome");
+    if windows_chrome && !cfg!(windows) {
+        eprintln!("--windows-chrome requires Windows");
+        std::process::exit(2);
+    }
     if frame_profile && (two_windows || !cfg!(feature = "frame-profile")) {
         eprintln!("--frame-profile requires the frame-profile feature and a single window");
         std::process::exit(2);
@@ -48,9 +56,9 @@ fn main() {
             if reduced_motion {
                 cx.set_reduce_motion(true);
             }
-            let result = open_gallery(cx, false, initial_story).and_then(|_| {
+            let result = open_gallery(cx, false, initial_story, windows_chrome).and_then(|_| {
                 if two_windows {
-                    open_gallery(cx, true, initial_story)?;
+                    open_gallery(cx, true, initial_story, windows_chrome)?;
                 }
                 Ok(())
             });
@@ -69,6 +77,7 @@ fn open_gallery(
     cx: &mut App,
     local_dark: bool,
     initial_story: Story,
+    windows_chrome: bool,
 ) -> gpui::Result<WindowHandle<Root>> {
     let options = WindowOptions {
         titlebar: Some(TitlebarOptions {
@@ -83,14 +92,27 @@ fn open_gallery(
         window_min_size: Some(size(px(320.), px(240.))),
         ..Default::default()
     };
-    MaterialRoot::open_window(options, cx, |window, cx| {
+    let build_gallery = move |window: &mut Window, cx: &mut App| {
         if local_dark {
             let mut theme = material_theme(cx).clone();
             theme.colors = gpui_material::theme::ColorScheme::baseline(Appearance::Dark);
             set_window_material_theme(Some(theme), window, cx);
         }
         cx.new(|cx| Gallery::new(initial_story, window, cx).with_window_theme_toggle(local_dark))
-    })
+    };
+    if windows_chrome {
+        #[cfg(windows)]
+        {
+            let options = gpui_material::windows_chrome::title_bar_window_options(options);
+            return MaterialRoot::open_window(options, cx, |window, cx| {
+                let gallery = build_gallery(window, cx);
+                cx.new(|cx| windows_chrome::ChromePreview::new(gallery, window, cx))
+            });
+        }
+        #[cfg(not(windows))]
+        unreachable!("custom title bars are only available on Windows");
+    }
+    MaterialRoot::open_window(options, cx, build_gallery)
 }
 
 #[cfg(all(test, feature = "test-support"))]

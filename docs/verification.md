@@ -29,6 +29,8 @@ Shared scenarios cover Chinese and long labels, LTR and RTL, light and dark them
 
 Summarize the applicable scenarios, reproduction steps, and results in the issue or PR. A support claim specifies the OS, architecture, backend, IME and assistive technology, and exceptions. Each required item must pass the applicable component, native, and integration checks.
 
+Component-level maturity maps directly to these layers in the [component conformance matrix](conformance-matrix.md#maturity-definitions-and-promotion-gates): automated pure-logic, component-interaction, and integration checks promote a component from `Implemented` to `Verified`, while recorded Windows 11 x64 real-window visual, native system (UI Automation, Narrator, and Microsoft Pinyin IME where applicable), and performance checks are required for `Production Ready`.
+
 <a id="windows-gallery-验收"></a>
 
 ## Windows Gallery acceptance

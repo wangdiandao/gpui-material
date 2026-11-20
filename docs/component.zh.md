@@ -4,7 +4,7 @@
 
 下列组件和布局可从 `gpui_material` 使用。[可选组件](#可选组件)需要启用对应特性。安装方式和平台支持见[集成指南](integration.zh.md)，也可以运行 `cargo gallery` 体验交互示例。
 
-项目以[锁定的 Material 3 规范](design-sources.zh.md#material-specification)为设计依据。下表链接指向官方指南，项目采用的版本见[站点快照索引](material-snapshot.zh.md)。
+项目以[锁定的 Material 3 规范](design-sources.zh.md#material-specification)为设计依据。下表链接指向官方指南，项目采用的版本见[站点快照索引](material-snapshot.zh.md)。本页说明受支持的 API 与行为；各组件的 `Implemented`、`Verified` 与 `Production Ready` 成熟度及可追溯测试覆盖见[组件一致性矩阵](conformance-matrix.zh.md)。
 
 <a id="actions-and-selection"></a>
 

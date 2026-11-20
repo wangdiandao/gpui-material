@@ -4,7 +4,7 @@ English | [中文](component.zh.md)
 
 These components and layouts are available from `gpui_material`. Enable the named [features](#optional-components) to use the optional component families. See the [integration guide](integration.md) for setup and platform support, or run `cargo gallery` to try interactive examples.
 
-The [pinned Material 3 specification](design-sources.md#material-specification) governs component design. The links below point to the corresponding official guidance. [Site snapshots](material-snapshot.md) record the version used by the project.
+The [pinned Material 3 specification](design-sources.md#material-specification) governs component design. The links below point to the corresponding official guidance. [Site snapshots](material-snapshot.md) record the version used by the project. This page describes supported APIs and behavior; see the [component conformance matrix](conformance-matrix.md) for each component's `Implemented`, `Verified`, and `Production Ready` status and traceable test coverage.
 
 <a id="操作与选择"></a>
 

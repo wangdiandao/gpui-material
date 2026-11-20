@@ -29,6 +29,8 @@ Windows 视觉检查使用真实窗口，macOS 和 Linux 可用无头渲染器�
 
 在 Issue 或 PR 中简述适用场景、复现步骤和验证结果。平台声明要明确 OS、架构、后端、输入法、辅助技术与例外范围。必需项须通过适用的组件验收、原生验证和集成回归。
 
+上述验证层次与[组件一致性矩阵](conformance-matrix.zh.md#成熟度定义与晋级门槛)中的组件成熟度一一对应：纯逻辑、组件交互与集成的自动化测试可将组件从 `Implemented` 晋级至 `Verified`；晋级 `Production Ready` 则必须补充留痕的 Windows 11 x64 实窗视觉、原生系统（UI Automation、讲述人及适用的微软拼音 IME）与性能基线验收。
+
 <a id="windows-gallery-acceptance"></a>
 
 ## Windows Gallery 验收

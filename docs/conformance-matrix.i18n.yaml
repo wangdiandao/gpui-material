@@ -1,0 +1,34 @@
+# Section fingerprints for the English and Chinese pages.
+/component-conformance-matrix:
+  en: "24ebbb3693c9f172"
+  zh: "4fe838cfa518d104"
+/component-conformance-matrix/maturity-definitions-and-promotion-gates:
+  en: "36874cbef863f240"
+  zh: "6e04044f9986aa05"
+/component-conformance-matrix/coverage-legend-and-audit-policy:
+  en: "6293fe22862fa4b4"
+  zh: "14544b443d62f817"
+/component-conformance-matrix/summary:
+  en: "ee93cf24d9a4bcc0"
+  zh: "84375b817c258d01"
+/component-conformance-matrix/component-matrices:
+  en: "48a6160adb60f3a2"
+  zh: "037c2420fe20d7dd"
+/component-conformance-matrix/component-matrices/actions-and-selection:
+  en: "7b96b2be9b824f38"
+  zh: "3a14a86edf040f26"
+/component-conformance-matrix/component-matrices/content-and-feedback:
+  en: "62b77105f1e4aac0"
+  zh: "09b1749402ce6368"
+/component-conformance-matrix/component-matrices/input-and-overlays:
+  en: "05a0a249ab0feb83"
+  zh: "c54bf35e82f17893"
+/component-conformance-matrix/component-matrices/navigation-and-adaptive-layout:
+  en: "f2f2f032e3100422"
+  zh: "866da53be0544b6f"
+/component-conformance-matrix/component-matrices/optional-components:
+  en: "6468cd6b3532dcbe"
+  zh: "baf3e110493af67b"
+/component-conformance-matrix/maintenance-and-promotion-workflow:
+  en: "fecde6aab2b441fa"
+  zh: "8ec9578927301983"

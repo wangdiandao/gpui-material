@@ -7,10 +7,9 @@ use gpui::{
     StyleRefinement, Styled, TouchPhase, WeakEntity, Window, WindowId, div, point,
     prelude::FluentBuilder, px,
 };
-use gpui_base::{StyledExt, TestSupportExt};
-use gpui_material_foundation::current_material_theme;
+use gpui_base::{StyledExt, TestSupportExt, motion::Easing};
+use gpui_material_foundation::{RetargetTransition, current_material_theme};
 use gpui_material_theme::Direction;
-use web_time::Instant;
 
 use crate::{Button, ButtonVariant, LoadingIndicator};
 
@@ -44,19 +43,13 @@ struct PullGesture {
     before_scroll: Pixels,
 }
 
-struct Settle {
-    from: f32,
-    target: f32,
-    started: Instant,
-}
-
 /// Retained gesture and indicator state. The application owns refreshing.
 pub struct PullToRefreshState {
     scroll: ScrollHandle,
     viewport: Option<ViewportKey>,
     gesture: Option<PullGesture>,
     fraction: f32,
-    motion: Option<Settle>,
+    motion: RetargetTransition,
     refreshing: bool,
     pending: bool,
     enabled: bool,
@@ -69,7 +62,7 @@ impl Default for PullToRefreshState {
             viewport: None,
             gesture: None,
             fraction: 0.,
-            motion: None,
+            motion: RetargetTransition::settled(0.),
             refreshing: false,
             pending: false,
             enabled: true,
@@ -93,7 +86,7 @@ impl PullToRefreshState {
     }
 
     pub fn is_animating(&self) -> bool {
-        self.motion.is_some()
+        self.motion.is_animating()
     }
 
     pub fn is_refresh_pending(&self) -> bool {
@@ -103,12 +96,12 @@ impl PullToRefreshState {
     /// Sets the displayed distance immediately and cancels an active gesture.
     pub fn snap_to(&mut self, fraction: f32, cx: &mut Context<Self>) {
         self.gesture = None;
-        self.motion = None;
         self.fraction = if fraction.is_finite() {
             fraction.max(0.)
         } else {
             0.
         };
+        self.motion.snap_to(self.fraction);
         cx.notify();
     }
 
@@ -152,9 +145,9 @@ impl PullToRefreshState {
     ) {
         let retargeted = self.viewport.as_ref() != Some(viewport);
         if retargeted && self.viewport.replace(viewport.clone()).is_some() {
-            self.motion = None;
             self.gesture = None;
             self.fraction = f32::from(refreshing || self.pending);
+            self.motion.snap_to(self.fraction);
         }
         if refreshing != self.refreshing {
             self.refreshing = refreshing;
@@ -169,31 +162,18 @@ impl PullToRefreshState {
     }
 
     fn settle_to(&mut self, target: f32, cx: &App) {
-        self.motion = if cx.reduce_motion() || self.fraction == target {
-            self.fraction = target;
-            None
-        } else {
-            Some(Settle {
-                from: self.fraction,
-                target,
-                started: cx.background_executor().now(),
-            })
-        };
+        let now = cx.background_executor().now();
+        self.motion
+            .animate_to(target, SETTLE, Easing::EaseOut, now, cx.reduce_motion());
+        self.fraction = self.motion.value();
     }
 
     fn sample_motion(&mut self, window: &mut Window, cx: &App) {
-        if let Some(motion) = &self.motion {
-            let elapsed = cx
-                .background_executor()
-                .now()
-                .saturating_duration_since(motion.started);
-            if cx.reduce_motion() || elapsed >= SETTLE {
-                self.fraction = motion.target;
-                self.motion = None;
-            } else {
-                let t = elapsed.as_secs_f32() / SETTLE.as_secs_f32();
-                let progress = 1. - (1. - t).powi(3);
-                self.fraction = motion.from + (motion.target - motion.from) * progress;
+        if self.motion.is_animating() {
+            let now = cx.background_executor().now();
+            let (value, running) = self.motion.sample(now, cx.reduce_motion());
+            self.fraction = value;
+            if running && window.is_visible() {
                 window.request_animation_frame();
             }
         }
@@ -204,8 +184,8 @@ impl PullToRefreshState {
             gesture.distance = (gesture.distance + amount).max(px(0.));
             let progress = (gesture.distance / threshold) * DRAG_MULTIPLIER;
             let overshoot = (progress - 1.).clamp(0., 2.);
-            self.motion = None;
             self.fraction = progress.min(1.) + overshoot - overshoot.powi(2) * 0.25;
+            self.motion.snap_to(self.fraction);
             cx.notify();
         }
     }

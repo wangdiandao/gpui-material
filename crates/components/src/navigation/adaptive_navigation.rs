@@ -6,10 +6,9 @@ use gpui::{
     Pixels, Point, RenderOnce, Size, Style, Styled, Window, div, point, prelude::FluentBuilder,
     relative, size,
 };
-use gpui_base::TestSupportExt;
-use gpui_material_foundation::current_material_theme;
+use gpui_base::{TestSupportExt, motion::Easing};
+use gpui_material_foundation::{RetargetTransition, current_material_theme};
 use gpui_material_theme::{Direction, WidthClass};
-use web_time::Instant;
 
 use super::{
     NavigationBar, NavigationBarLayout, NavigationItems, NavigationRail, RailMode, Scaffold,
@@ -62,18 +61,13 @@ impl AdaptiveNavigationVisibility {
     }
 }
 
-struct Transition {
-    from: f32,
-    started: Instant,
-}
-
 /// Retained navigation visibility, independent of the current presentation.
 pub struct AdaptiveNavigationState {
     current: AdaptiveNavigationVisibility,
     target: AdaptiveNavigationVisibility,
     fraction: f32,
     duration: Duration,
-    transition: Option<Transition>,
+    transition: RetargetTransition,
 }
 
 impl Default for AdaptiveNavigationState {
@@ -89,7 +83,7 @@ impl AdaptiveNavigationState {
             target: initial,
             fraction: initial.fraction(),
             duration: Duration::from_millis(240),
-            transition: None,
+            transition: RetargetTransition::settled(initial.fraction()),
         }
     }
 
@@ -108,7 +102,7 @@ impl AdaptiveNavigationState {
     }
 
     pub fn is_animating(&self) -> bool {
-        self.transition.is_some()
+        self.transition.is_animating()
     }
 
     /// The currently visible fraction of the slot, in 0..=1.
@@ -147,13 +141,17 @@ impl AdaptiveNavigationState {
         self.sample(cx);
         if self.target != target {
             self.target = target;
-            if self.fraction == target.fraction() {
+            let now = cx.background_executor().now();
+            self.transition.animate_to(
+                target.fraction(),
+                self.duration,
+                Easing::EaseInOut,
+                now,
+                false,
+            );
+            self.fraction = self.transition.value();
+            if !self.transition.is_animating() {
                 self.settle();
-            } else {
-                self.transition = Some(Transition {
-                    from: self.fraction,
-                    started: cx.background_executor().now(),
-                });
             }
             cx.notify();
         }
@@ -162,25 +160,21 @@ impl AdaptiveNavigationState {
     fn settle(&mut self) {
         self.current = self.target;
         self.fraction = self.target.fraction();
-        self.transition = None;
+        self.transition.snap_to(self.fraction);
     }
 
     fn sample(&mut self, cx: &mut Context<Self>) {
-        let Some(transition) = &self.transition else {
+        if !self.transition.is_animating() {
             return;
-        };
-        let elapsed = cx.background_executor().now() - transition.started;
-        if elapsed >= self.duration || cx.reduce_motion() {
+        }
+        let now = cx.background_executor().now();
+        let (next, running) = self.transition.sample(now, cx.reduce_motion());
+        if !running {
             self.settle();
             cx.notify();
-        } else {
-            let fraction = (elapsed.as_secs_f64() / self.duration.as_secs_f64()) as f32;
-            let eased = fraction * fraction * (3. - 2. * fraction);
-            let next = transition.from + (self.target.fraction() - transition.from) * eased;
-            if next != self.fraction {
-                self.fraction = next;
-                cx.notify();
-            }
+        } else if next != self.fraction {
+            self.fraction = next;
+            cx.notify();
         }
     }
 }
@@ -294,7 +288,7 @@ impl RenderOnce for AdaptiveNavigation {
                 (state.progress(), state.is_animating())
             })
         });
-        if moving {
+        if moving && window.is_visible() {
             window.request_animation_frame();
         }
         let scope = window

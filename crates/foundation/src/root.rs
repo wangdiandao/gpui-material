@@ -1,14 +1,23 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, rc::Rc, time::Duration};
 
-use gpui::{AnyView, App, AppContext, Global, Render, Window, WindowHandle, WindowId, px};
-use gpui_base::{Root, Theme, ThemeAppearance};
+use gpui::{
+    AnyView, App, AppContext, Global, Render, SpringConfig, SpringState, Window, WindowHandle,
+    WindowId, px,
+};
+use gpui_base::{
+    ResizableTheme, Root, ScrollbarStyles, ScrollbarTheme, Theme, ThemeAppearance, motion::Easing,
+};
 use gpui_material_theme::{
     Appearance, ColorRole, ColorScheme, CornerRole, MaterialTheme, MotionKind, MotionSpec,
     MotionSpeed, TypeRole, TypographyEmphasis,
 };
 use web_time::Instant;
 
-use crate::{color, font_for_style, typography::refresh_installed_fonts};
+use crate::{
+    color, font_for_style,
+    motion::{RetargetTransition, spring_config},
+    typography::refresh_installed_fonts,
+};
 
 struct ActiveMaterialTheme(Rc<MaterialTheme>);
 
@@ -19,20 +28,79 @@ struct WindowMaterialThemes(HashMap<WindowId, Rc<MaterialTheme>>);
 
 impl Global for WindowMaterialThemes {}
 
+enum PaletteCurve {
+    Spring {
+        config: SpringConfig,
+        state: SpringState,
+        updated_at: Instant,
+    },
+    Tween(RetargetTransition),
+}
+
 struct PaletteTransition {
     from: ColorScheme,
     to: ColorScheme,
-    started: Instant,
-    frequency: f32,
+    curve: PaletteCurve,
+    spec: MotionSpec,
 }
 
 impl PaletteTransition {
-    fn progress(&self, now: Instant) -> f32 {
-        // Slow Effects is critically damped. A retarget starts at the last
-        // painted palette and gives the new target a fresh spring.
-        let elapsed = now.saturating_duration_since(self.started).as_secs_f32();
-        let x = self.frequency * elapsed;
-        1. - (1. + x) * (-x).exp()
+    fn new(from: ColorScheme, to: ColorScheme, spec: MotionSpec, now: Instant) -> Option<Self> {
+        let curve = match spec {
+            MotionSpec::Instant => return None,
+            MotionSpec::Spring(spring) => PaletteCurve::Spring {
+                config: spring_config(spring)?,
+                state: SpringState {
+                    position: 0.0,
+                    velocity: 0.0,
+                },
+                updated_at: now,
+            },
+            MotionSpec::Tween {
+                duration_ms,
+                easing,
+            } => {
+                let duration = Duration::from_millis(u64::from(duration_ms));
+                let curve =
+                    Easing::cubic_bezier(easing.x1, easing.y1, easing.x2, easing.y2).ok()?;
+                if duration.is_zero() {
+                    return None;
+                }
+                let mut transition = RetargetTransition::settled(0.0);
+                transition.animate_to(1.0, duration, curve, now, false);
+                PaletteCurve::Tween(transition)
+            }
+        };
+        Some(Self {
+            from,
+            to,
+            curve,
+            spec,
+        })
+    }
+
+    fn advance(&mut self, now: Instant) -> (f32, bool) {
+        match &mut self.curve {
+            PaletteCurve::Spring {
+                config,
+                state,
+                updated_at,
+            } => {
+                let elapsed = now.saturating_duration_since(*updated_at).as_secs_f32();
+                let stepped = config.step(*state, 1.0, elapsed);
+                *state = stepped;
+                *updated_at = now;
+                if config.is_settled(stepped, 1.0, 0.001) {
+                    (1.0, false)
+                } else {
+                    (stepped.position.clamp(0.0, 1.0), true)
+                }
+            }
+            PaletteCurve::Tween(transition) => {
+                let (value, running) = transition.sample(now, false);
+                (value.clamp(0.0, 1.0), running)
+            }
+        }
     }
 }
 
@@ -82,19 +150,24 @@ pub fn window_material_theme<'a>(window: &Window, cx: &'a App) -> &'a MaterialTh
     window_theme_handle(window, cx)
 }
 
-pub(crate) fn window_theme_handle<'a>(window: &Window, cx: &'a App) -> &'a Rc<MaterialTheme> {
+pub(crate) fn window_override_handle<'a>(
+    window: &Window,
+    cx: &'a App,
+) -> Option<&'a Rc<MaterialTheme>> {
     cx.try_global::<WindowMaterialThemes>()
         .and_then(|themes| themes.0.get(&window.window_handle().window_id()))
-        .unwrap_or_else(|| &cx.global::<ActiveMaterialTheme>().0)
+}
+
+pub(crate) fn window_theme_handle<'a>(window: &Window, cx: &'a App) -> &'a Rc<MaterialTheme> {
+    window_override_handle(window, cx).unwrap_or_else(|| &cx.global::<ActiveMaterialTheme>().0)
 }
 
 /// Sets or clears the override for Material elements in this window.
 ///
-/// Material controls pass local presentation to their Base-backed parts. This
-/// does not replace Base's application-global theme: standalone Base controls,
-/// scrollbars, resize handles, and caret-blink policy retain application defaults.
-/// Use their explicit styling APIs for local presentation instead of swapping
-/// the Base global while rendering a window.
+/// Material controls pass local presentation to their Base-backed parts without
+/// mutating Base's application-global theme. Standalone Base controls inside an
+/// overridden window or subtree can call [`crate::current_base_theme`] or
+/// [`project_base_theme`] to apply matching local tokens and scrollbar styles.
 pub fn set_window_material_theme(theme: Option<MaterialTheme>, window: &mut Window, cx: &mut App) {
     refresh_installed_fonts(cx);
     if !cx.has_global::<WindowMaterialThemes>() {
@@ -114,8 +187,20 @@ pub fn set_window_material_theme(theme: Option<MaterialTheme>, window: &mut Wind
     window.refresh();
 }
 
+/// Projects a [`MaterialTheme`] into a matching `gpui_base::Theme` without
+/// mutating the application-global Base theme.
+///
+/// Use this (or [`crate::current_base_theme`]) when styling standalone Base
+/// controls inside a window override or [`crate::ThemeScope`].
+pub fn project_base_theme(theme: &MaterialTheme, cx: &App) -> Theme {
+    let mut projected = Theme::global(cx);
+    project_base_colors(&mut projected, theme);
+    project_base_metrics(&mut projected, theme, cx);
+    projected
+}
+
 /// Updates the application theme and projects its current values into Base.
-/// Colors follow the new theme's Slow Effects spring from the displayed
+/// Colors follow the new theme's Slow Effects motion spec from the displayed
 /// palette. Typography and layout apply immediately.
 pub fn set_material_theme(mut theme: MaterialTheme, cx: &mut App) {
     refresh_installed_fonts(cx);
@@ -123,9 +208,10 @@ pub fn set_material_theme(mut theme: MaterialTheme, cx: &mut App) {
         .motion
         .spec(MotionKind::Effects, MotionSpeed::Slow, cx.reduce_motion());
     let previous = cx.try_global::<ActiveMaterialTheme>();
-    if let (MotionSpec::Spring(spring), Some(previous)) = (spec, previous)
+    if let Some(previous) = previous
         && previous.0.colors != theme.colors
         && !cx.windows().is_empty()
+        && !matches!(spec, MotionSpec::Instant)
     {
         let shown = previous.0.colors.clone();
         let started = cx.background_executor().now();
@@ -141,21 +227,21 @@ pub fn set_material_theme(mut theme: MaterialTheme, cx: &mut App) {
             .detach();
         }
         let animator = cx.global_mut::<ThemeAnimator>();
-        if !animator.transition.as_ref().is_some_and(|pending| {
-            pending.to == theme.colors && pending.frequency == spring.stiffness.sqrt()
-        }) {
-            animator.transition = Some(PaletteTransition {
-                from: shown.clone(),
-                to: theme.colors,
-                started,
-                frequency: spring.stiffness.sqrt(),
-            });
+        if !animator
+            .transition
+            .as_ref()
+            .is_some_and(|pending| pending.to == theme.colors && pending.spec == spec)
+        {
+            animator.transition =
+                PaletteTransition::new(shown.clone(), theme.colors.clone(), spec, started);
         }
-        theme.colors = shown;
-        if animator.driver.is_none() {
-            // The caller may already be updating a window. Register the
-            // callback after that window is accessible again.
-            cx.defer(schedule_theme_frame);
+        if animator.transition.is_some() {
+            theme.colors = shown;
+            if animator.driver.is_none() {
+                // The caller may already be updating a window. Register the
+                // callback after that window is accessible again.
+                cx.defer(schedule_theme_frame);
+            }
         }
     } else if cx.has_global::<ThemeAnimator>() {
         cx.global_mut::<ThemeAnimator>().transition = None;
@@ -205,12 +291,18 @@ fn advance_theme_frame(window: &mut Window, cx: &mut App) {
     if animator.driver != Some(id) {
         return;
     }
-    let Some(transition) = animator.transition.as_ref() else {
+    let Some(transition) = animator.transition.as_mut() else {
         animator.driver = None;
         return;
     };
-    let progress = transition.progress(now);
-    if reduce_motion || progress >= 0.999 {
+    if reduce_motion {
+        let target = animator.transition.take().unwrap().to;
+        animator.driver = None;
+        apply_palette(target, cx);
+        return;
+    }
+    let (progress, running) = transition.advance(now);
+    if !running || progress >= 0.999 {
         let target = animator.transition.take().unwrap().to;
         animator.driver = None;
         apply_palette(target, cx);
@@ -235,9 +327,35 @@ fn apply_palette(colors: ColorScheme, cx: &mut App) {
 }
 
 fn apply_material_theme(theme: MaterialTheme, project_typography: bool, cx: &mut App) {
+    let mut projected = Theme::global(cx);
+    project_base_colors(&mut projected, &theme);
+    if project_typography {
+        project_base_metrics(&mut projected, &theme, cx);
+    }
+    cx.set_global(ActiveMaterialTheme(Rc::new(theme)));
+    cx.set_global(projected);
+    refresh_inherited_windows(cx);
+}
+
+fn refresh_inherited_windows(cx: &mut App) {
+    let overridden: Vec<WindowId> = cx
+        .try_global::<WindowMaterialThemes>()
+        .map(|themes| themes.0.keys().copied().collect())
+        .unwrap_or_default();
+    if overridden.is_empty() {
+        cx.refresh_windows();
+        return;
+    }
+    for handle in cx.windows() {
+        if !overridden.contains(&handle.window_id()) {
+            let _ = handle.update(cx, |_, window, _| window.refresh());
+        }
+    }
+}
+
+fn project_base_colors(projected: &mut Theme, theme: &MaterialTheme) {
     use ColorRole::*;
 
-    let mut projected = Theme::global(cx);
     projected.appearance = match theme.colors.appearance() {
         Appearance::Light => ThemeAppearance::Light,
         Appearance::Dark => ThemeAppearance::Dark,
@@ -263,12 +381,25 @@ fn apply_material_theme(theme: MaterialTheme, project_typography: bool, cx: &mut
     colors.ring = role(Secondary);
     colors.selection = role(Primary).opacity(0.3);
     projected.tokens.shadow = gpui_base::ShadowTokens::elevations(role(Shadow).opacity(0.22));
-    if project_typography {
-        project_base_metrics(&mut projected, &theme, cx);
-    }
-    cx.set_global(ActiveMaterialTheme(Rc::new(theme)));
-    cx.set_global(projected);
-    cx.refresh_windows();
+    let thumb = role(OnSurfaceVariant);
+    let styles = ScrollbarStyles::default()
+        .track(|track| track.bg(gpui::transparent_black()).width(px(8.)))
+        .thumb(|t| {
+            t.bg(thumb.opacity(0.38))
+                .width(px(4.))
+                .radius(px(2.))
+                .min_length(px(24.))
+        })
+        .thumb_hover(|t| t.bg(thumb.opacity(0.56)))
+        .thumb_active(|t| t.bg(thumb.opacity(0.72)));
+    projected.scrollbar = ScrollbarTheme::new()
+        .with_mode(projected.scrollbar.mode())
+        .with_motion(projected.scrollbar.motion())
+        .with_styles(styles);
+    let mut resizable = ResizableTheme::default();
+    resizable.handle = Some(role(OutlineVariant));
+    resizable.active_handle = Some(role(Primary));
+    projected.resizable = resizable;
 }
 
 fn project_base_metrics(projected: &mut Theme, theme: &MaterialTheme, cx: &App) {

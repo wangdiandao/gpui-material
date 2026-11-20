@@ -6,8 +6,8 @@ use gpui::{
     SharedString, Size, StatefulInteractiveElement, Styled, Subscription, WeakEntity, Window, div,
     prelude::FluentBuilder, px,
 };
-use gpui_base::TestSupportExt as _;
-use gpui_material_foundation::DragCapture;
+use gpui_base::{TestSupportExt as _, motion::Easing};
+use gpui_material_foundation::{DragCapture, RetargetTransition};
 use web_time::Instant;
 
 use super::{DialogState, SheetClose, SheetMode};
@@ -79,12 +79,6 @@ impl BottomSheetLayout {
     }
 }
 
-struct HeightMotion {
-    from: Pixels,
-    to: Pixels,
-    started: Instant,
-}
-
 const SETTLE: Duration = Duration::from_millis(240);
 const VELOCITY_AGE: Duration = Duration::from_millis(120);
 
@@ -108,7 +102,7 @@ pub struct BottomSheetState {
     confirm: Option<Rc<dyn Fn(BottomSheetValue) -> bool>>,
     layout: Option<BottomSheetLayout>,
     height: Pixels,
-    motion: Option<HeightMotion>,
+    motion: RetargetTransition,
     pressed: Option<Pixels>,
     drag: Option<SheetDrag>,
 }
@@ -123,7 +117,7 @@ impl BottomSheetState {
             confirm: None,
             layout: None,
             height: px(0.),
-            motion: None,
+            motion: RetargetTransition::settled(0.),
             pressed: None,
             drag: None,
         }
@@ -168,7 +162,7 @@ impl BottomSheetState {
     }
 
     pub fn is_animating(&self) -> bool {
-        self.motion.is_some()
+        self.motion.is_animating()
     }
 
     pub fn visible_height(&self) -> Pixels {
@@ -265,16 +259,18 @@ impl BottomSheetState {
         let target = self
             .layout
             .map_or(px(0.), |layout| layout.height(self.target));
-        if !animate || cx.reduce_motion() || self.height == target {
+        let now = cx.background_executor().now();
+        if !animate || cx.reduce_motion() {
             self.height = target;
             self.current = self.target;
-            self.motion = None;
+            self.motion.snap_to(f32::from(target));
         } else {
-            self.motion = Some(HeightMotion {
-                from: self.height,
-                to: target,
-                started: cx.background_executor().now(),
-            });
+            self.motion
+                .animate_to(f32::from(target), SETTLE, Easing::EaseOut, now, false);
+            self.height = px(self.motion.value());
+            if !self.motion.is_animating() {
+                self.current = self.target;
+            }
         }
     }
 
@@ -298,12 +294,13 @@ impl BottomSheetState {
                 self.release_drag(window, cx);
                 self.target = self.current;
             }
-            self.height = if self.motion.is_some() {
+            let moving = self.motion.is_animating();
+            self.height = if moving {
                 self.height.clamp(px(0.), layout.expanded)
             } else {
                 layout.height(self.current)
             };
-            let moving = self.motion.is_some();
+            self.motion.snap_to(f32::from(self.height));
             self.move_to_target(moving, cx);
             if old.is_none_or(|old| old.mode != layout.mode) {
                 self.dialog.update(cx, |dialog, cx| {
@@ -315,19 +312,16 @@ impl BottomSheetState {
                 });
             }
         }
-        if let Some(motion) = &self.motion {
-            let elapsed = cx
-                .background_executor()
-                .now()
-                .saturating_duration_since(motion.started);
-            if cx.reduce_motion() || elapsed >= SETTLE {
-                self.height = motion.to;
-                self.current = self.target;
-                self.motion = None;
+        if self.motion.is_animating() {
+            let now = cx.background_executor().now();
+            let (height, running) = self.motion.sample(now, cx.reduce_motion());
+            self.height = px(height);
+            if running {
+                if window.is_visible() {
+                    window.request_animation_frame();
+                }
             } else {
-                let t = elapsed.as_secs_f32() / SETTLE.as_secs_f32();
-                self.height = motion.from + (motion.to - motion.from) * (1. - (1. - t).powi(3));
-                window.request_animation_frame();
+                self.current = self.target;
             }
         }
         let after = (
@@ -376,7 +370,9 @@ impl BottomSheetState {
         if self.drag.is_some() || self.enabled.len() < 2 {
             return;
         }
-        if self.motion.take().is_some()
+        let was_animating = self.motion.is_animating();
+        self.motion.snap_to(f32::from(self.height));
+        if was_animating
             && self.current == BottomSheetValue::Hidden
             && self.target != BottomSheetValue::Hidden
         {
@@ -436,6 +432,7 @@ impl BottomSheetState {
         let low = layout.height(self.enabled[0]);
         let high = layout.height(*self.enabled.last().expect("an available stop"));
         self.height = (drag.start_height + drag.origin - y).clamp(low, high);
+        self.motion.snap_to(f32::from(self.height));
         cx.notify();
         true
     }

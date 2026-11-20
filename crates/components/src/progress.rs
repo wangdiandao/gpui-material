@@ -6,7 +6,7 @@ use gpui::{
     size,
 };
 use gpui_base::motion::Easing;
-use gpui_material_foundation::{animate, color, current_material_theme};
+use gpui_material_foundation::{animate, color, current_material_theme, is_bounds_visible};
 use gpui_material_theme::{
     ColorRole, Direction, MotionKind, MotionSpec, MotionSpeed, TokenValue, token,
 };
@@ -173,16 +173,17 @@ impl Progress {
         let hz = self
             .wave_speed
             .map_or(1., |speed| f64::from(speed) / f64::from(wavelength));
-        let motion_enabled = window_active && !reduced && active.width > 0.;
+        let motion_enabled = window_active && window.is_visible() && !reduced && active.width > 0.;
         let animate_loop = motion_enabled && !measured;
         let animate_wave =
             motion_enabled && hz > 0. && amplitude > 0. && (mode > 0. || measured_value > 0.);
         let now = cx.background_executor().now();
         let (loop_time, phase) = motion.update(cx, |state, _| {
+            let visible = state.visible;
             state.sample(
                 now,
-                animate_loop,
-                if animate_wave { hz } else { 0. },
+                animate_loop && visible,
+                if animate_wave && visible { hz } else { 0. },
                 reduced,
                 mode == 1.,
             )
@@ -232,7 +233,14 @@ impl Progress {
             move |bounds, _, window, cx| {
                 let width = f32::from(bounds.size.width);
                 let height = f32::from(bounds.size.height);
-                if !width.is_finite() || !height.is_finite() || width <= 0. || height <= 0. {
+                let visible = width.is_finite()
+                    && height.is_finite()
+                    && width > 0.
+                    && height > 0.
+                    && is_bounds_visible(bounds, window);
+                let now = cx.background_executor().now();
+                motion.update(cx, |state, _| state.set_visible(visible, now));
+                if !visible {
                     return;
                 }
                 window.with_content_mask(Some(ContentMask { bounds }), |window| {
@@ -280,7 +288,6 @@ impl Progress {
     }
 }
 
-#[derive(Default)]
 struct ProgressMotion {
     last_measured: f32,
     arc_origin: f32,
@@ -289,9 +296,39 @@ struct ProgressMotion {
     loop_ms: f64,
     wave_hz: f64,
     wave_phase: f64,
+    visible: bool,
+}
+
+impl Default for ProgressMotion {
+    fn default() -> Self {
+        Self {
+            last_measured: 0.,
+            arc_origin: 0.,
+            last_time: None,
+            loop_running: false,
+            loop_ms: 0.,
+            wave_hz: 0.,
+            wave_phase: 0.,
+            visible: true,
+        }
+    }
 }
 
 impl ProgressMotion {
+    fn set_visible(&mut self, visible: bool, now: Instant) {
+        if self.visible != visible {
+            self.visible = visible;
+            if !visible {
+                self.loop_running = false;
+                self.wave_hz = 0.;
+                self.last_time = Some(now);
+            } else {
+                // Re-anchor timestamp on resume so off-screen idle duration is skipped.
+                self.last_time = Some(now);
+            }
+        }
+    }
+
     fn sample(
         &mut self,
         now: Instant,

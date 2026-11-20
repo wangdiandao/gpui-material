@@ -280,7 +280,7 @@ impl NavigationRail {
                 let weights = state.sample(cx);
                 (weights, state.target_value(), state.is_animating())
             });
-            if moving {
+            if moving && window.is_visible() {
                 window.request_animation_frame();
             }
             let width = collapse_width * weights.collapsed + expand_width * weights.expanded;

@@ -108,6 +108,9 @@ impl Ripple {
             return;
         }
         let bounds = shape.bounds();
+        if !crate::is_bounds_visible(bounds, window) {
+            return;
+        }
         let center = bounds.center() - bounds.origin;
         let origin = bounds.origin + self.origin + (center - self.origin) * progress;
         let width = f32::from(bounds.size.width);

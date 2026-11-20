@@ -4,9 +4,10 @@ use gpui::{
     AnyElement, App, Bounds, Element, ElementId, GlobalElementId, InspectorElementId, IntoElement,
     LayoutId, Pixels, Window, WindowId,
 };
+use gpui_base::Theme;
 use gpui_material_theme::{Direction, MaterialTheme};
 
-use crate::root::window_theme_handle;
+use crate::root::{project_base_theme, window_override_handle, window_theme_handle};
 
 type ScopeKey = (*const App, WindowId);
 
@@ -35,6 +36,12 @@ pub fn current_material_theme(
     cx: &App,
 ) -> impl Deref<Target = MaterialTheme> + use<> {
     scoped_theme(window, cx).unwrap_or_else(|| window_theme_handle(window, cx).clone())
+}
+
+/// Projects the active local Material scope (or window/application theme) into
+/// a `gpui_base::Theme` without mutating `gpui_base::Theme::global`.
+pub fn current_base_theme(window: &Window, cx: &App) -> Theme {
+    project_base_theme(&current_material_theme(window, cx), cx)
 }
 
 fn with_scope<R>(
@@ -98,14 +105,16 @@ impl ThemeScope {
         }
     }
 
-    /// Runs an action in its originating Material scope. Use this when an
-    /// action creates a separate native window from a scoped trigger.
+    /// Runs an action in its originating Material scope (subtree or window
+    /// override). Use this when an action creates a separate native window from
+    /// a scoped trigger.
     pub fn bind_action<F: Fn(&mut Window, &mut App) + 'static>(
         action: F,
         window: &Window,
         cx: &App,
     ) -> impl Fn(&mut Window, &mut App) + use<F> {
-        let theme = scoped_theme(window, cx);
+        let theme =
+            scoped_theme(window, cx).or_else(|| window_override_handle(window, cx).cloned());
         move |window, cx| with_scope(theme.as_ref(), window, cx, &action)
     }
 }

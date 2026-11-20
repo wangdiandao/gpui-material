@@ -29,7 +29,7 @@ pub use rail::{
     NavigationRail, NavigationRailArrangement, NavigationRailColors, NavigationRailPadding,
     NavigationRailShapes, NavigationRailState, RailModalOptions, RailMode,
 };
-pub use scaffold::{Scaffold, ScaffoldContentLayout, ScaffoldFabPosition, ScaffoldInsets};
+pub use scaffold::{Scaffold, ScaffoldContentLayout, ScaffoldFabPosition};
 pub use tabs::{
     TabIndicatorLayout, TabIndicatorStyle, TabIndicatorWidth, TabVariant, Tabs, TabsColors,
 };

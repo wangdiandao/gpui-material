@@ -66,6 +66,110 @@ pub(crate) fn check() -> Result {
             verify(target, backend, backend_features, test)?;
         }
     }
+    verify_component_features()?;
+    Ok(())
+}
+
+fn verify_component_features() -> Result {
+    const COMPONENTS: &str = "gpui-material-components";
+    const MATERIAL: &str = "gpui-material";
+    const EXTRAS: &str = "gpui-material-extras";
+
+    let inspect_components_features =
+        |package: &str, features: Option<&str>| -> Result<Option<Vec<String>>> {
+            let mut args = vec![
+                "tree",
+                "--locked",
+                "-p",
+                package,
+                "--no-default-features",
+                "--edges",
+                "normal",
+                "--prefix",
+                "none",
+                "--format",
+                "{p} {f}",
+            ];
+            if let Some(features) = features {
+                args.extend(["--features", features]);
+            }
+            let tree = output("cargo", &args)?;
+            for line in tree.lines() {
+                let line = line.trim_end_matches(" (*)").trim_end();
+                let mut fields = line.split_whitespace();
+                if fields.next() == Some(COMPONENTS) {
+                    let mut active = fields
+                        .nth(2)
+                        .map(|list| {
+                            list.split(',')
+                                .filter(|item| !item.is_empty())
+                                .map(str::to_owned)
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default();
+                    active.sort();
+                    return Ok(Some(active));
+                }
+            }
+            Ok(None)
+        };
+
+    type FeatureCase = (
+        &'static str,
+        Option<&'static str>,
+        Option<&'static [&'static str]>,
+    );
+    let cases: [FeatureCase; 13] = [
+        (COMPONENTS, None, Some(&[])),
+        (COMPONENTS, Some("actions"), Some(&["actions"])),
+        (COMPONENTS, Some("selection"), Some(&["selection"])),
+        (COMPONENTS, Some("inputs"), Some(&["inputs"])),
+        (COMPONENTS, Some("surfaces"), Some(&["actions", "surfaces"])),
+        (COMPONENTS, Some("feedback"), Some(&["actions", "feedback"])),
+        (
+            COMPONENTS,
+            Some("navigation"),
+            Some(&["actions", "feedback", "navigation"]),
+        ),
+        (
+            MATERIAL,
+            Some("actions,inputs"),
+            Some(&["actions", "inputs"]),
+        ),
+        (EXTRAS, Some("carousel"), None),
+        (
+            EXTRAS,
+            Some("expressive-groups"),
+            Some(&["actions", "feedback"]),
+        ),
+        (EXTRAS, Some("toolbars"), Some(&["actions", "feedback"])),
+        (
+            EXTRAS,
+            Some("date-time"),
+            Some(&["actions", "feedback", "inputs"]),
+        ),
+        (
+            EXTRAS,
+            Some("search"),
+            Some(&["actions", "feedback", "inputs", "surfaces"]),
+        ),
+    ];
+
+    for (package, features, expected) in cases {
+        let actual = inspect_components_features(package, features)?;
+        let expected = expected.map(|list| {
+            let mut sorted: Vec<String> = list.iter().map(|s| (*s).to_owned()).collect();
+            sorted.sort();
+            sorted
+        });
+        if actual != expected {
+            return Err(format!(
+                "{package} ({features:?}): expected {COMPONENTS} features {expected:?}, found {actual:?}"
+            )
+            .into());
+        }
+    }
+    println!("component feature-group graphs verified");
     Ok(())
 }
 

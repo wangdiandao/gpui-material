@@ -1,12 +1,18 @@
-use gpui::{Div, Edges, Hsla, Pixels, Styled, div, px};
+#[cfg(any(feature = "inputs", feature = "feedback"))]
+use gpui::{Div, Hsla, Styled, div, px};
+use gpui::{Edges, Pixels};
+#[cfg(any(feature = "inputs", feature = "feedback"))]
 use gpui_material_foundation::{color, elevation_shadows};
-use gpui_material_theme::{
-    ColorRole, CornerRole, CornerShape, Direction, Elevation, MaterialTheme,
-};
+use gpui_material_theme::{ColorRole, CornerShape, Elevation};
+#[cfg(any(feature = "inputs", feature = "feedback"))]
+use gpui_material_theme::{CornerRole, Direction, MaterialTheme};
 
+#[cfg(any(feature = "inputs", feature = "feedback"))]
 use crate::motion::OverlayMotion;
 
 /// Semantic color presets for Material vertical menus.
+#[cfg(any(feature = "inputs", feature = "feedback"))]
+#[cfg_attr(not(feature = "feedback"), allow(dead_code))]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum MenuColor {
     #[default]
@@ -28,6 +34,7 @@ pub struct MenuSurfaceStyle {
     pub spacing: Option<Pixels>,
 }
 
+#[cfg(feature = "inputs")]
 impl MenuSurfaceStyle {
     pub(crate) fn dropdown_surface(self, theme: &MaterialTheme, motion: OverlayMotion) -> Div {
         let palette = MenuColor::Standard.palette(false, self.container);
@@ -55,6 +62,7 @@ impl MenuSurfaceStyle {
 }
 
 /// Per-row overrides. Unset shapes and colors follow the menu palette and layout.
+#[cfg(feature = "feedback")]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct MenuItemStyle {
     pub shape: Option<CornerShape>,
@@ -68,17 +76,20 @@ pub struct MenuItemStyle {
     pub selected_content: Option<ColorRole>,
 }
 
+#[cfg(any(feature = "inputs", feature = "feedback"))]
 #[derive(Clone, Copy)]
-pub(super) struct Palette {
-    pub(super) container: ColorRole,
-    pub(super) ink: ColorRole,
-    pub(super) muted: ColorRole,
-    pub(super) selected: ColorRole,
-    pub(super) selected_ink: ColorRole,
+#[cfg_attr(not(feature = "feedback"), allow(dead_code))]
+pub(crate) struct Palette {
+    pub(crate) container: ColorRole,
+    pub(crate) ink: ColorRole,
+    pub(crate) muted: ColorRole,
+    pub(crate) selected: ColorRole,
+    pub(crate) selected_ink: ColorRole,
 }
 
+#[cfg(any(feature = "inputs", feature = "feedback"))]
 impl MenuColor {
-    pub(super) fn palette(self, grouped: bool, container: Option<ColorRole>) -> Palette {
+    pub(crate) fn palette(self, grouped: bool, container: Option<ColorRole>) -> Palette {
         use ColorRole::*;
         let (default_container, ink, muted, selected, selected_ink) = match (self, grouped) {
             (Self::Standard, false) => (
@@ -113,19 +124,21 @@ impl MenuColor {
     }
 }
 
+#[cfg(any(feature = "inputs", feature = "feedback"))]
 #[derive(Clone, Copy)]
-pub(super) struct Paint<'a> {
-    pub(super) theme: &'a MaterialTheme,
-    pub(super) motion: OverlayMotion,
-    pub(super) direction: Direction,
+pub(crate) struct Paint<'a> {
+    pub(crate) theme: &'a MaterialTheme,
+    pub(crate) motion: OverlayMotion,
+    pub(crate) direction: Direction,
 }
 
+#[cfg(any(feature = "inputs", feature = "feedback"))]
 impl Paint<'_> {
-    pub(super) fn color(self, role: ColorRole) -> Hsla {
+    pub(crate) fn color(self, role: ColorRole) -> Hsla {
         color(self.theme.colors.color(role))
     }
 
-    pub(super) fn padding<E: Styled>(self, element: E, padding: Edges<Pixels>) -> E {
+    pub(crate) fn padding<E: Styled>(self, element: E, padding: Edges<Pixels>) -> E {
         element
             .pt(self.length(padding.top))
             .pr(self.length(padding.right))
@@ -133,13 +146,13 @@ impl Paint<'_> {
             .pl(self.length(padding.left))
     }
 
-    pub(super) fn length(self, value: Pixels) -> Pixels {
+    pub(crate) fn length(self, value: Pixels) -> Pixels {
         let value = f32::from(value);
         self.motion
             .px(if value.is_finite() { value.max(0.) } else { 0. })
     }
 
-    pub(super) fn shape<E: Styled>(self, element: E, shape: CornerShape) -> E {
+    pub(crate) fn shape<E: Styled>(self, element: E, shape: CornerShape) -> E {
         if shape == CornerShape::Full {
             return element.rounded_full();
         }
@@ -151,7 +164,7 @@ impl Paint<'_> {
             .rounded_bl(self.motion.px(bl))
     }
 
-    pub(super) fn surface(self, style: MenuSurfaceStyle, palette: Palette, group: bool) -> Div {
+    pub(crate) fn surface(self, style: MenuSurfaceStyle, palette: Palette, group: bool) -> Div {
         let background = if palette.container == ColorRole::Surface {
             color(
                 self.theme
@@ -208,7 +221,8 @@ impl Paint<'_> {
     }
 }
 
-pub(super) fn axis_padding(x: Pixels, y: Pixels) -> Edges<Pixels> {
+#[cfg(any(feature = "inputs", feature = "feedback"))]
+pub(crate) fn axis_padding(x: Pixels, y: Pixels) -> Edges<Pixels> {
     Edges {
         top: y,
         right: x,

@@ -84,7 +84,7 @@ Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID �
 
 `foundation::set_window_material_theme` 设置单个窗口的 Material 主题。通过 `ThemeScope::new(child).theme(theme).direction(Direction::Rtl)` 覆盖子树，两项设置均可省略。仅设置方向时，主题继承自外层。Material 后代及其浮层优先读取最近的作用域，其次是窗口和应用默认值。独立 Base 控件、滚动条、分隔手柄及光标闪烁策略使用应用级 Base 主题，可通过 Base API 显式设置局部样式。
 
-应用通过[公开门面](../crates/material/src/lib.rs)集成，包括已记录的 `foundation` 和 `theme` 路径。按 [README 中的特性名](../README.zh.md)启用可选组件系列。`date-time` 的 API 位于 `gpui_material::date_time` 下。`dynamic-color` 和 `serde` 转发到纯主题 crate。公开签名中的 GPUI 和 Base 类型遵循固定的上游版本。Gallery 模块和工作区 crate 的内部组织可能调整。
+应用通过[公开门面](../crates/material/src/lib.rs)集成，包括已记录的 `foundation` 和 `theme` 路径。`gpui-material` 默认启用 `full`，编译全部核心组件分组（`actions`、`selection`、`inputs`、`surfaces`、`feedback`、`navigation`）。如需只编译部分核心组件，可设置 `default-features = false` 并按需列出分组（例如 `features = ["actions", "inputs"]`）。按 [README 中的特性名](../README.zh.md)启用可选组件系列，每个可选组件系列仅激活其依赖的核心分组。`date-time` 的 API 位于 `gpui_material::date_time` 下。`dynamic-color` 和 `serde` 转发到纯主题 crate。公开签名中的 GPUI 和 Base 类型遵循固定的上游版本。Gallery 模块和工作区 crate 的内部组织可能调整。
 
 升级至 0.1.1 时，将直接使用的 Base 同步到 0.10.0，并将配套 GPUI 固定在 0.3.12。对 `AppBarVariant::TwoRows`、`DatePickerVariant::FullScreen`、`SearchViewVariant::FullScreenContained` 和 `TimePickerVariant::Scroll` 补充穷尽匹配分支。键盘和无障碍操作改变滑块数值时，先发出 `Change`，再发出 `Release`。原先只把 `Release` 当作指针事件的订阅方应调整逻辑。
 

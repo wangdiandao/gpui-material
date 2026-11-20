@@ -12,17 +12,53 @@ publish = ["crates-io"]
 default = []
 test-support = ["gpui?/test-support"]
 carousel = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
-expressive-groups = ["dep:gpui", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
-search = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme", "dep:web-time"]
-toolbars = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
-date-time = ["dep:chrono", "dep:gpui", "dep:gpui-base", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
+expressive-groups = [
+    "dep:gpui",
+    "dep:gpui-material-components",
+    "gpui-material-components/actions",
+    "gpui-material-components/feedback",
+    "dep:gpui-material-foundation",
+    "dep:gpui-material-theme",
+]
+search = [
+    "dep:gpui",
+    "dep:gpui-base",
+    "dep:gpui-material-components",
+    "gpui-material-components/actions",
+    "gpui-material-components/inputs",
+    "gpui-material-components/surfaces",
+    "gpui-material-components/feedback",
+    "dep:gpui-material-foundation",
+    "dep:gpui-material-theme",
+    "dep:web-time",
+]
+toolbars = [
+    "dep:gpui",
+    "dep:gpui-base",
+    "dep:gpui-material-components",
+    "gpui-material-components/actions",
+    "gpui-material-components/feedback",
+    "dep:gpui-material-foundation",
+    "dep:gpui-material-theme",
+]
+date-time = [
+    "dep:chrono",
+    "dep:gpui",
+    "dep:gpui-base",
+    "dep:gpui-material-components",
+    "gpui-material-components/actions",
+    "gpui-material-components/inputs",
+    "gpui-material-components/feedback",
+    "dep:gpui-material-foundation",
+    "dep:gpui-material-theme",
+]
 windows-chrome = ["dep:gpui", "dep:gpui-material-foundation", "dep:gpui-material-theme", "dep:raw-window-handle", "dep:windows"]
 
 [dependencies]
 chrono = { version = "0.4.45", default-features = false, optional = true }
 gpui = { workspace = true, optional = true }
 gpui-base = { workspace = true, optional = true }
-gpui-material-components = { workspace = true, optional = true }
+gpui-material-components = { workspace = true, optional = true, default-features = false }
 gpui-material-foundation = { workspace = true, optional = true }
 gpui-material-theme = { workspace = true, optional = true }
 web-time = { workspace = true, optional = true }

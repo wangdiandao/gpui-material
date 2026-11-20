@@ -138,6 +138,7 @@ impl Icon {
         self
     }
 
+    #[cfg_attr(not(feature = "full"), allow(dead_code))]
     pub(crate) fn inherit_color(mut self) -> Self {
         self.color = None;
         self

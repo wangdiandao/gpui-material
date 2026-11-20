@@ -193,6 +193,7 @@ fn clean_line(value: SharedString) -> SharedString {
     }
 }
 
+#[cfg(feature = "actions")]
 pub(crate) fn single_line_width(
     value: &SharedString,
     style: TypeStyle,

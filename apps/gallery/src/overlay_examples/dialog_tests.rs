@@ -371,3 +371,175 @@ fn native_dialog_uses_an_independent_window_and_reports_window_close(cx: &mut Te
             .unwrap()
     );
 }
+
+#[gpui::test]
+fn escape_closes_nested_dialogs_and_restores_each_trigger(cx: &mut TestAppContext) {
+    use super::ModalExamples;
+    use crate::story::Story;
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let entity = cx.new(|cx| ModalExamples::new(Story::Dialog, window, cx));
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    let (first, second) = cx.update(|cx| {
+        let view = view.read(cx);
+        (view.primary.clone(), view.secondary.clone())
+    });
+    let trigger = cx
+        .update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            window.focus_next(cx);
+            let trigger = window.focused(cx).unwrap();
+            first.update(cx, |state, cx| state.open(window, cx));
+            window.refresh();
+            window.draw(cx).clear(cx);
+            second.update(cx, |state, cx| state.open(window, cx));
+            window.refresh();
+            window.draw(cx).clear(cx);
+            trigger
+        })
+        .unwrap();
+    cx.simulate_keystrokes(window.into(), "escape");
+    cx.update(|cx| {
+        assert!(first.read(cx).is_open());
+        assert!(!second.read(cx).is_open());
+    });
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+    })
+    .unwrap();
+    cx.simulate_keystrokes(window.into(), "escape");
+    cx.update_window(window.into(), |_, window, cx| {
+        assert!(!first.read(cx).is_open());
+        assert!(trigger.is_focused(window));
+    })
+    .unwrap();
+}
+
+#[gpui::test]
+fn dialog_body_stays_with_the_panel_during_dismissal(cx: &mut TestAppContext) {
+    use super::ModalExamples;
+    use crate::story::Story;
+    use std::time::Duration;
+
+    let (window, dialog) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut dialog = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            cx.new(|cx| {
+                let view = ModalExamples::new(Story::Dialog, window, cx);
+                dialog = Some(view.primary.clone());
+                view
+            })
+        })
+        .unwrap();
+        (window, dialog.unwrap())
+    });
+    cx.update_window(window.into(), |_, window, cx| {
+        dialog.update(cx, |dialog, cx| dialog.open(window, cx));
+        window.refresh();
+        window.draw(cx).clear(cx);
+    })
+    .unwrap();
+    cx.executor().advance_clock(Duration::from_millis(220));
+    let body = |cx: &mut TestAppContext| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            find(window, &[], &"dialog-content".into()).map(|body| body.bounds())
+        })
+        .unwrap()
+    };
+    let opened = body(cx).unwrap();
+    cx.simulate_keystrokes(window.into(), "escape");
+    let first_exit = body(cx).unwrap();
+    assert_eq!(first_exit.size, opened.size);
+    assert!((first_exit.top() - opened.top()).abs() <= px(1.));
+    cx.executor().advance_clock(Duration::from_millis(60));
+    let exiting = body(cx).unwrap();
+    assert_eq!(opened.size, exiting.size);
+    assert!(exiting.top() > opened.top() && exiting.top() < opened.top() + px(8.));
+    cx.executor().advance_clock(Duration::from_millis(250));
+    assert!(body(cx).is_none());
+}
+
+#[gpui::test]
+fn task_dialog_adapts_at_compact_breakpoint_without_losing_state(cx: &mut TestAppContext) {
+    use super::ModalExamples;
+    use crate::story::Story;
+    use std::time::Duration;
+
+    let (window, state) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut state = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            cx.new(|cx| {
+                let view = ModalExamples::new(Story::Dialog, window, cx);
+                state = Some(view.secondary.clone());
+                view
+            })
+        })
+        .unwrap();
+        (window, state.unwrap())
+    });
+    cx.simulate_window_resize(window.into(), size(px(400.), px(600.)));
+    cx.update_window(window.into(), |_, window, cx| {
+        state.update(cx, |state, cx| state.open(window, cx));
+        window.refresh();
+        window.draw(cx).clear(cx);
+    })
+    .unwrap();
+    cx.executor().advance_clock(Duration::from_millis(250));
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let panel = find(window, &[], &"guidelines-dialog".into())
+            .unwrap()
+            .bounds();
+        let bar = find(window, &[], &"dialog-app-bar".into())
+            .unwrap()
+            .bounds();
+        let body = find(window, &[], &"dialog-content".into())
+            .unwrap()
+            .bounds();
+        assert_eq!(panel.size, window.viewport_size());
+        assert_eq!(bar.size.height, px(56.));
+        assert!(body.top() >= bar.bottom());
+        assert!(body.bottom() <= panel.bottom());
+    })
+    .unwrap();
+    let focus = cx
+        .update_window(window.into(), |_, window, cx| {
+            window.focus_next(cx);
+            window.focused(cx).unwrap()
+        })
+        .unwrap();
+    cx.simulate_window_resize(window.into(), size(px(800.), px(600.)));
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert!(state.read(cx).is_open());
+        assert!(
+            focus.is_focused(window),
+            "resizing preserves the keyboard focus handle"
+        );
+        assert!(find(window, &[], &"dialog-app-bar".into()).is_none());
+        let panel = find(window, &[], &"guidelines-dialog".into())
+            .unwrap()
+            .bounds();
+        assert_eq!(panel.size.width, px(560.));
+        assert!(panel.size.height < window.viewport_size().height);
+    })
+    .unwrap();
+    cx.simulate_keystrokes(window.into(), "escape");
+    cx.update(|cx| assert!(!state.read(cx).is_open()));
+}

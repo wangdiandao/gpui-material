@@ -436,12 +436,7 @@ impl Render for AnimatedBenchView {
     }
 }
 
-#[gpui::test]
-#[ignore = "Release performance benchmark"]
-fn release_performance_baseline(cx: &mut TestAppContext) {
-    let mut results = Vec::new();
-
-    // --- Layer 1: Engine Baseline ---
+fn run_engine_benchmarks(cx: &mut TestAppContext, results: &mut Vec<BenchStats>) {
     results.push(measure_frames(
         "engine/empty_window",
         "Engine",
@@ -473,8 +468,9 @@ fn release_performance_baseline(cx: &mut TestAppContext) {
             });
         },
     ));
+}
 
-    // --- Layer 2: Isolated Material Components ---
+fn run_button_grid_benchmarks(cx: &mut TestAppContext, results: &mut Vec<BenchStats>) {
     results.push(measure_frames(
         "component/button_grid_64_idle",
         "Component",
@@ -531,7 +527,9 @@ fn release_performance_baseline(cx: &mut TestAppContext) {
             }
         },
     ));
+}
 
+fn run_text_field_benchmarks(cx: &mut TestAppContext, results: &mut Vec<BenchStats>) {
     let long_notes = (0..30)
         .map(|i| format!("Line {i:02} — Release benchmark multiline notes"))
         .collect::<Vec<_>>()
@@ -600,7 +598,9 @@ fn release_performance_baseline(cx: &mut TestAppContext) {
             );
         },
     ));
+}
 
+fn run_list_and_navigation_benchmarks(cx: &mut TestAppContext, results: &mut Vec<BenchStats>) {
     results.push(measure_frames(
         "component/complex_list_200_idle",
         "Component",
@@ -681,7 +681,9 @@ fn release_performance_baseline(cx: &mut TestAppContext) {
             }
         },
     ));
+}
 
+fn run_animated_benchmarks(cx: &mut TestAppContext, results: &mut Vec<BenchStats>) {
     results.push(measure_frames(
         "component/animated_visible",
         "Component",
@@ -706,8 +708,16 @@ fn release_performance_baseline(cx: &mut TestAppContext) {
         |_, cx| cx.new(|_| AnimatedBenchView { offscreen: false }),
         |_, _, _, _| {},
     ));
+}
 
-    // --- Layer 3: Standalone Story vs Full Gallery Shell ---
+fn run_component_benchmarks(cx: &mut TestAppContext, results: &mut Vec<BenchStats>) {
+    run_button_grid_benchmarks(cx, results);
+    run_text_field_benchmarks(cx, results);
+    run_list_and_navigation_benchmarks(cx, results);
+    run_animated_benchmarks(cx, results);
+}
+
+fn run_story_and_gallery_benchmarks(cx: &mut TestAppContext, results: &mut Vec<BenchStats>) {
     for (story, story_name, gallery_name) in [
         (Story::Button, "story/button", "gallery/button"),
         (Story::TextField, "story/text_field", "gallery/text_field"),
@@ -743,7 +753,13 @@ fn release_performance_baseline(cx: &mut TestAppContext) {
             |_, _, _, _| {},
         ));
     }
+}
 
+fn find_stat<'a>(results: &'a [BenchStats], name: &str) -> &'a BenchStats {
+    results.iter().find(|r| r.name == name).unwrap()
+}
+
+fn print_benchmark_summary(results: &[BenchStats]) {
     println!(
         "\n=== GPUI Material Release Performance Baseline ({VIEWPORT_WIDTH}x{VIEWPORT_HEIGHT}, {WARMUP_FRAMES} warmup + {SAMPLE_FRAMES} frames) ==="
     );
@@ -755,19 +771,18 @@ fn release_performance_baseline(cx: &mut TestAppContext) {
         "| {:-<36} | {:-<9} | {:-<8} | {:-<8} | {:-<8} | {:-<8} | {:-<5} | {:-<6} |",
         "", "", "", "", "", "", "", ""
     );
-    for r in &results {
+    for r in results {
         println!(
             "| {:<36} | {:<9} | {:>8.1} | {:>8.1} | {:>8.1} | {:>8.1} | {:>5} | {:>6} |",
             r.name, r.layer, r.p50_us, r.p95_us, r.p99_us, r.mean_us, r.quads, r.scheduled_frames
         );
     }
 
-    let find_stat = |name: &str| results.iter().find(|r| r.name == name).unwrap();
     println!("\n=== Layer Attribution (p50 us) ===");
-    let raw_64 = find_stat("engine/raw_quads_64").p50_us;
-    let btn_64 = find_stat("component/button_grid_64_idle").p50_us;
-    let raw_list = find_stat("engine/raw_virtual_list_200").p50_us;
-    let mat_list = find_stat("component/complex_list_200_scroll").p50_us;
+    let raw_64 = find_stat(results, "engine/raw_quads_64").p50_us;
+    let btn_64 = find_stat(results, "component/button_grid_64_idle").p50_us;
+    let raw_list = find_stat(results, "engine/raw_virtual_list_200").p50_us;
+    let mat_list = find_stat(results, "component/complex_list_200_scroll").p50_us;
     println!(
         "Button 64 grid Material component overhead over raw 64 GPUI quads: {:+.1} us (component {:.1} us vs engine {:.1} us)",
         btn_64 - raw_64,
@@ -787,8 +802,8 @@ fn release_performance_baseline(cx: &mut TestAppContext) {
         ("story/navigation_rail", "gallery/navigation_rail"),
         ("story/loading_indicator", "gallery/loading_indicator"),
     ] {
-        let s = find_stat(story_name).p50_us;
-        let g = find_stat(gallery_name).p50_us;
+        let s = find_stat(results, story_name).p50_us;
+        let g = find_stat(results, gallery_name).p50_us;
         println!(
             "Gallery shell overhead on {:<24}: {:+.1} us (gallery {:.1} us vs standalone story {:.1} us)",
             gallery_name,
@@ -797,17 +812,30 @@ fn release_performance_baseline(cx: &mut TestAppContext) {
             s
         );
     }
+}
 
+fn assert_animation_invariants(results: &[BenchStats]) {
     // Sanity invariant: off-screen clipped animated indicators must schedule zero frames.
     assert_eq!(
-        find_stat("component/animated_clipped_offscreen").scheduled_frames,
+        find_stat(results, "component/animated_clipped_offscreen").scheduled_frames,
         0
     );
     assert_eq!(
-        find_stat("component/animated_reduced_motion").scheduled_frames,
+        find_stat(results, "component/animated_reduced_motion").scheduled_frames,
         0
     );
-    assert!(find_stat("component/animated_visible").scheduled_frames > 0);
+    assert!(find_stat(results, "component/animated_visible").scheduled_frames > 0);
+}
+
+#[gpui::test]
+#[ignore = "Release performance benchmark"]
+fn release_performance_baseline(cx: &mut TestAppContext) {
+    let mut results = Vec::new();
+    run_engine_benchmarks(cx, &mut results);
+    run_component_benchmarks(cx, &mut results);
+    run_story_and_gallery_benchmarks(cx, &mut results);
+    print_benchmark_summary(&results);
+    assert_animation_invariants(&results);
 }
 
 struct StoryHostView {

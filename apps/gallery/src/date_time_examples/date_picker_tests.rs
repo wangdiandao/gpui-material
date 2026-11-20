@@ -436,3 +436,62 @@ fn editable_docked_anchor_commits_localized_single_text(cx: &mut TestAppContext)
     );
     assert!(picker.events.closed.borrow().is_empty());
 }
+
+#[gpui::test]
+fn docked_calendar_rejects_disabled_day_and_restores_focus_after_key_selection(
+    cx: &mut TestAppContext,
+) {
+    use super::time_picker_tests::{click, element, fixture, frame, part as picker_part};
+    use crate::story::Story;
+
+    let (window, view) = fixture(Story::DatePicker, cx);
+    let opener = picker_part("calendar-picker", "open");
+    click(window, opener.clone(), cx);
+    let grid = picker_part("calendar-picker", "calendar-grid");
+    assert_eq!(element(window, grid.clone(), cx).focused(), Some(true));
+    cx.simulate_keystrokes(window, "right enter");
+    frame(window, cx);
+    cx.update(|cx| {
+        assert_eq!(
+            view.read(cx).first_date,
+            DateSelection::Single(Some(super::date(2026, 11, 14)))
+        )
+    });
+    assert_eq!(element(window, grid, cx).focused(), Some(true));
+
+    cx.simulate_keystrokes(window, "right enter");
+    frame(window, cx);
+    cx.update(|cx| {
+        assert_eq!(
+            view.read(cx).first_date,
+            DateSelection::Single(Some(super::date(2026, 11, 16)))
+        )
+    });
+    assert_eq!(element(window, opener, cx).focused(), Some(true));
+}
+
+#[gpui::test]
+fn modal_range_commits_across_months_only_on_confirm(cx: &mut TestAppContext) {
+    use super::time_picker_tests::{click, element, fixture, frame, part as picker_part};
+    use crate::story::Story;
+
+    let (window, view) = fixture(Story::DateRangePicker, cx);
+    let opener = picker_part("calendar-picker", "open");
+    click(window, opener.clone(), cx);
+    cx.simulate_keystrokes(window, "enter pagedown enter");
+    frame(window, cx);
+    cx.update(|cx| {
+        assert_eq!(
+            view.read(cx).first_date,
+            DateSelection::Range(Some((super::date(2026, 11, 14), super::date(2026, 11, 17))))
+        )
+    });
+    click(window, "confirm", cx);
+    assert_eq!(element(window, opener, cx).focused(), Some(true));
+    cx.update(|cx| {
+        assert_eq!(
+            view.read(cx).first_date,
+            DateSelection::Range(Some((super::date(2026, 11, 14), super::date(2026, 12, 14))))
+        )
+    });
+}

@@ -319,3 +319,124 @@ fn actionable_card_keeps_base_activation_and_cancels_drag_click(cx: &mut TestApp
         );
     });
 }
+
+#[gpui::test]
+fn nested_card_action_does_not_activate_its_parent(cx: &mut TestAppContext) {
+    use super::DisplayExamples;
+    use crate::story::Story;
+    use gpui::{InputEvent, MouseDownEvent, MouseUpEvent, size};
+
+    let (handle, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut view = None;
+        let handle = MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+            let display = cx.new(|_| DisplayExamples::for_story(Story::Card));
+            view = Some(display.clone());
+            display
+        })
+        .unwrap();
+        (handle, view.unwrap())
+    });
+    cx.simulate_window_resize(handle.into(), size(px(650.), px(870.)));
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.activate_window();
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let position = find(window, &[], &"card-child".into())
+            .unwrap()
+            .bounds()
+            .center();
+        window.dispatch_event(
+            MouseDownEvent {
+                button: MouseButton::Left,
+                position,
+                click_count: 1,
+                first_mouse: false,
+                modifiers: Default::default(),
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.refresh();
+        window.draw(cx).clear(cx);
+        window.dispatch_event(
+            MouseUpEvent {
+                button: MouseButton::Left,
+                position,
+                click_count: 1,
+                modifiers: Default::default(),
+            }
+            .to_platform_input(),
+            cx,
+        );
+        assert_eq!(view.read(cx).child_count, 1);
+        assert!(!view.read(cx).opened);
+    })
+    .unwrap();
+}
+
+#[gpui::test]
+fn disabled_card_supplies_content_color_without_fading_custom_children(cx: &mut TestAppContext) {
+    use gpui::WindowOptions;
+    use gpui_material::{
+        Text,
+        foundation::{color, window_material_theme},
+        theme::ColorRole,
+    };
+
+    #[derive(gpui::IntoElement)]
+    struct Probe(Rc<Cell<Hsla>>);
+    impl RenderOnce for Probe {
+        fn render(self, window: &mut Window, _: &mut App) -> impl IntoElement {
+            self.0.set(window.text_style().color);
+            Text::new("Inherited card content")
+        }
+    }
+    struct Example {
+        inherited: Rc<Cell<Hsla>>,
+        explicit: Rc<Cell<Hsla>>,
+    }
+    impl Render for Example {
+        fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let primary = color(
+                window_material_theme(window, cx)
+                    .colors
+                    .color(ColorRole::Primary),
+            );
+            Card::new("disabled-card")
+                .disabled(true)
+                .child(Probe(self.inherited.clone()))
+                .child(
+                    div()
+                        .text_color(primary)
+                        .child(Probe(self.explicit.clone())),
+                )
+        }
+    }
+    let inherited = Rc::new(Cell::new(gpui::transparent_black()));
+    let explicit = Rc::new(Cell::new(gpui::transparent_black()));
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            cx.new(|_| Example {
+                inherited: inherited.clone(),
+                explicit: explicit.clone(),
+            })
+        })
+        .unwrap()
+    });
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let theme = window_material_theme(window, cx);
+        assert_eq!(
+            inherited.get(),
+            color(theme.colors.color(ColorRole::OnSurface)).opacity(0.38)
+        );
+        assert_eq!(
+            explicit.get(),
+            color(theme.colors.color(ColorRole::Primary))
+        );
+    })
+    .unwrap();
+}

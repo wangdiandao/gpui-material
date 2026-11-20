@@ -539,3 +539,74 @@ fn list_hold_keeps_separate_commands_and_yields_to_swipe_or_scroll(cx: &mut Test
     assert_eq!(snapshot(cx, &preview), None);
     cx.update(|_, cx| assert_eq!(preview.read(cx).requests.long_press, 4));
 }
+
+#[gpui::test]
+fn list_roves_skips_disabled_and_wraps_supporting_text(cx: &mut TestAppContext) {
+    use gpui::WindowOptions;
+
+    struct Example;
+    impl Render for Example {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().w(px(220.)).child(List::new("audit-list").items([
+                ListItem::new("first", "First").on_activate(|_, _| {}),
+                ListItem::new("selected", "Selected")
+                    .selected(true)
+                    .on_activate(|_, _| {}),
+                ListItem::new("disabled", "Disabled")
+                    .disabled(true)
+                    .on_activate(|_, _| {}),
+                ListItem::new("last", "Last")
+                    .supporting_text(
+                        "中文 supporting text that wraps across several lines and remains readable",
+                    )
+                    .on_activate(|_, _| {}),
+            ]))
+        }
+    }
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| cx.new(|_| Example))
+            .unwrap()
+    });
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.activate_window();
+        for _ in 0..3 {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        }
+        window.focus_next(cx);
+    })
+    .unwrap();
+    let focused = |cx: &mut TestAppContext, id: &str| {
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            find(
+                window,
+                &[],
+                &(ElementId::from(id.to_owned()), "activate").into(),
+            )
+            .unwrap()
+            .focused()
+        })
+        .unwrap()
+    };
+    assert_eq!(focused(cx, "selected"), Some(true));
+    cx.simulate_keystrokes(handle.into(), "down");
+    assert_eq!(focused(cx, "last"), Some(true));
+    cx.simulate_keystrokes(handle.into(), "down");
+    assert_eq!(focused(cx, "first"), Some(true));
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let row = find(window, &[], &"last".into()).unwrap();
+        let supporting = find(window, row.path(), &"supporting".into()).unwrap();
+        assert!(
+            supporting.bounds().size.height >= px(40.),
+            "supporting text must wrap rather than truncate"
+        );
+        assert!(row.bounds().size.height >= px(88.));
+        assert!(supporting.bounds().right() <= row.bounds().right());
+    })
+    .unwrap();
+}

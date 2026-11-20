@@ -502,3 +502,105 @@ fn nested_side_sheets_close_the_active_layer_and_restore_each_opener(cx: &mut Te
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn modal_side_sheet_mirrors_and_fits_a_compact_scaled_window(cx: &mut TestAppContext) {
+    use super::ModalExamples;
+    use crate::story::Story;
+    use gpui_material::{material_theme, set_material_theme, theme::Direction};
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let entity = cx.new(|cx| ModalExamples::new(Story::Sheets, window, cx));
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    cx.simulate_window_resize(window.into(), size(px(408.), px(420.)));
+    cx.simulate_window_scale_factor_change(window.into(), 1.5);
+    let sheet_content = |window: &Window| {
+        find(window, &[], &"details-sheet".into())
+            .and_then(|panel| find(window, panel.path(), &"sheet-content".into()))
+    };
+    let assert_side = |cx: &mut TestAppContext, side, reduced| {
+        cx.update_window(window.into(), |_, window, cx| {
+            cx.set_reduce_motion(reduced);
+            let mut theme = material_theme(cx).clone();
+            theme.layout.direction = side;
+            set_material_theme(theme, cx);
+            let state = view.read(cx).secondary.clone();
+            state.update(cx, |state, cx| state.open(window, cx));
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let bounds = find(window, &[], &"details-sheet".into()).unwrap().bounds();
+            match (side, reduced) {
+                (Direction::Ltr, false) => assert!(bounds.right() > window.viewport_size().width),
+                (Direction::Rtl, false) => assert!(bounds.left() < px(0.)),
+                (Direction::Ltr, true) => assert_eq!(bounds.right(), window.viewport_size().width),
+                (Direction::Rtl, true) => assert_eq!(bounds.left(), px(0.)),
+            }
+        })
+        .unwrap();
+        cx.executor()
+            .advance_clock(std::time::Duration::from_millis(60));
+        if !reduced {
+            cx.update_window(window.into(), |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+                let bounds = find(window, &[], &"details-sheet".into()).unwrap().bounds();
+                match side {
+                    Direction::Ltr => assert!(
+                        bounds.left() < window.viewport_size().width
+                            && bounds.right() > window.viewport_size().width
+                    ),
+                    Direction::Rtl => assert!(bounds.right() > px(0.) && bounds.left() < px(0.)),
+                }
+            })
+            .unwrap();
+        }
+        cx.executor()
+            .advance_clock(std::time::Duration::from_millis(250));
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let sheet = find(window, &[], &"details-sheet".into()).unwrap();
+            assert_eq!(sheet.role(), Some(Role::Dialog));
+            let bounds = sheet.bounds();
+            let viewport = window.viewport_size();
+            assert!(bounds.size.width > px(0.) && bounds.size.width < viewport.width);
+            assert!((bounds.bottom() - viewport.height).abs() <= px(1.));
+            match side {
+                Direction::Ltr => assert_eq!(bounds.right(), viewport.width),
+                Direction::Rtl => assert_eq!(bounds.left(), px(0.)),
+            }
+            let state = view.read(cx).secondary.clone();
+            state.update(cx, |state, cx| state.close(window, cx));
+            window.refresh();
+            window.draw(cx).clear(cx);
+            assert_eq!(sheet_content(window).is_none(), reduced);
+        })
+        .unwrap();
+        if !reduced {
+            cx.executor()
+                .advance_clock(std::time::Duration::from_millis(60));
+            cx.update_window(window.into(), |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+                let body = sheet_content(window).unwrap().bounds();
+                match side {
+                    Direction::Ltr => assert!(body.right() > window.viewport_size().width),
+                    Direction::Rtl => assert!(body.left() < px(0.)),
+                }
+            })
+            .unwrap();
+        }
+    };
+    assert_side(cx, Direction::Ltr, false);
+    cx.executor()
+        .advance_clock(std::time::Duration::from_millis(250));
+    assert_side(cx, Direction::Rtl, true);
+}

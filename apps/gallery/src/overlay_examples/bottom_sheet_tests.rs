@@ -475,3 +475,158 @@ fn retained_modal_bottom_sheet_animates_and_restores_focus_after_accepted_close(
         Some((Value::Hidden, false, px(0.), px(200.)))
     );
 }
+
+#[gpui::test]
+fn bottom_sheet_cancels_drag_and_accepts_next_gesture(cx: &mut TestAppContext) {
+    use super::ModalExamples;
+    use crate::story::Story;
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let entity = cx.new(|cx| ModalExamples::new(Story::Sheets, window, cx));
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    let drag = |cx: &mut TestAppContext| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let start_height = find(window, &[], &"standard".into())
+                .unwrap()
+                .bounds()
+                .size
+                .height;
+            let origin = find(window, &[], &"drag-handle".into())
+                .unwrap()
+                .bounds()
+                .center();
+            let handle = find(window, &[], &"drag-handle".into()).unwrap().bounds();
+            let expand = find(window, &[], &"expand".into()).unwrap().bounds();
+            let panel = find(window, &[], &"standard".into()).unwrap().bounds();
+            assert_eq!(handle.size.height, px(48.));
+            assert!(expand.top() >= handle.bottom());
+            assert!(
+                expand.bottom() <= panel.bottom(),
+                "collapsed sheet keeps its action visible"
+            );
+            let destination = origin - point(px(0.), px(36.));
+            window.dispatch_event(
+                MouseDownEvent {
+                    button: MouseButton::Left,
+                    position: origin,
+                    click_count: 1,
+                    ..Default::default()
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.dispatch_event(
+                MouseMoveEvent {
+                    position: destination,
+                    pressed_button: Some(MouseButton::Left),
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+            assert!(cx.has_active_drag());
+            window.dispatch_event(
+                MouseMoveEvent {
+                    position: destination,
+                    pressed_button: Some(MouseButton::Left),
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let height = find(window, &[], &"standard".into())
+                .unwrap()
+                .bounds()
+                .size
+                .height;
+            assert!(height > start_height && height < px(160.));
+            (destination, height)
+        })
+        .unwrap()
+    };
+    let release = |cx: &mut TestAppContext, position| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.dispatch_event(
+                MouseUpEvent {
+                    button: MouseButton::Left,
+                    position,
+                    click_count: 1,
+                    ..Default::default()
+                }
+                .to_platform_input(),
+                cx,
+            );
+        })
+        .unwrap();
+    };
+    let (destination, dragged_height) = drag(cx);
+    cx.simulate_keystrokes(window.into(), "escape");
+    release(cx, destination);
+    cx.update(|cx| {
+        assert!(!cx.has_active_drag());
+        assert!(!view.read(cx).expanded);
+    });
+    let height = |cx: &mut TestAppContext| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            find(window, &[], &"standard".into())
+                .unwrap()
+                .bounds()
+                .size
+                .height
+        })
+        .unwrap()
+    };
+    assert_eq!(height(cx), dragged_height);
+    cx.executor().advance_clock(Duration::from_secs(1));
+    assert_eq!(height(cx), px(120.));
+
+    let (destination, _) = drag(cx);
+    release(cx, destination);
+    cx.update(|cx| assert!(view.read(cx).expanded));
+}
+
+#[gpui::test]
+fn bottom_sheets_center_with_the_compose_width_limit(cx: &mut TestAppContext) {
+    use super::ModalExamples;
+    use crate::story::Story;
+
+    let (handle, examples) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut examples = None;
+        let handle = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let view = cx.new(|cx| ModalExamples::new(Story::Sheets, window, cx));
+            examples = Some(view.clone());
+            view
+        })
+        .unwrap();
+        (handle, examples.unwrap())
+    });
+    cx.simulate_window_resize(handle.into(), size(px(1024.), px(720.)));
+    cx.update_window(handle.into(), |_, window, cx| {
+        let state = examples.read(cx).primary.clone();
+        state.update(cx, |state, cx| state.open(window, cx));
+        window.refresh();
+        window.draw(cx).clear(cx);
+        for id in ["standard", "activity-sheet"] {
+            let bounds = find(window, &[], &id.into()).unwrap().bounds();
+            assert_eq!(bounds.size.width, px(640.));
+            assert_eq!(bounds.center().x, window.viewport_size().width / 2.);
+        }
+    })
+    .unwrap();
+}

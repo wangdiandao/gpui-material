@@ -443,3 +443,147 @@ fn chips_keep_independent_actions_controlled_values_and_drag_cancellation(cx: &m
         container(window, 0xdfd4e3);
     });
 }
+
+#[gpui::test]
+fn filter_removal_has_its_own_keyboard_action_and_restores_focus(cx: &mut TestAppContext) {
+    use super::SelectionExamples;
+    use crate::story::Story;
+    use gpui::InputEvent;
+
+    let (handle, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut view = None;
+        let handle = MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+            let selection = cx.new(|cx| SelectionExamples::for_story(Story::Chip, cx));
+            view = Some(selection.clone());
+            selection
+        })
+        .unwrap();
+        (handle, view.unwrap())
+    });
+    cx.update_window(handle.into(), |_, window, cx| {
+        let draw = |window: &mut Window, cx: &mut gpui::App| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        };
+        draw(window, cx);
+        let remove = ElementId::from((ElementId::from("removable-filter"), "remove"));
+        let target = find(window, &[], &remove).expect("Filter chip exposes removal separately");
+        assert_eq!(target.label(), Some("Remove downloads filter"));
+        assert!(target.bounds().size.width >= px(48.));
+        for _ in 0..12 {
+            if find(window, &[], &remove).unwrap().focused() == Some(true) {
+                break;
+            }
+            window.focus_next(cx);
+            draw(window, cx);
+        }
+        assert_eq!(find(window, &[], &remove).unwrap().focused(), Some(true));
+        let key = Keystroke::parse_with_os("space", cx.platform_info().os).unwrap();
+        window.dispatch_event(
+            KeyDownEvent {
+                keystroke: key.clone(),
+                is_held: false,
+                prefer_character_input: false,
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(KeyUpEvent { keystroke: key }.to_platform_input(), cx);
+        draw(window, cx);
+        assert!(view.read(cx).filter_removed);
+        assert!(
+            !view.read(cx).filter,
+            "remove must not invoke the selection callback"
+        );
+        assert!(view.read(cx).restore.is_focused(window));
+        assert!(find(window, &[], &remove).is_none());
+    })
+    .unwrap();
+}
+
+#[gpui::test]
+fn controlled_selection_and_chip_removal(cx: &mut TestAppContext) {
+    use super::SelectionExamples;
+    use gpui::{InputEvent, MouseDownEvent, MouseUpEvent};
+    use gpui_material::CheckboxState;
+
+    let (handle, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut view = None;
+        let handle = MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+            let selection = cx.new(SelectionExamples::new);
+            view = Some(selection.clone());
+            selection
+        })
+        .unwrap();
+        (handle, view.unwrap())
+    });
+    cx.simulate_window_resize(handle.into(), size(px(850.), px(960.)));
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.activate_window();
+        let draw = |window: &mut Window, cx: &mut gpui::App| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        };
+        let assert_switch_centered = |window: &Window| {
+            let id = ElementId::from("notifications");
+            let track = find(window, &[], &(id.clone(), "switch-track").into()).unwrap();
+            let thumb = find(window, &[], &(id, "switch-thumb").into()).unwrap();
+            assert_eq!(track.bounds().center().y, thumb.bounds().center().y);
+            assert!(thumb.bounds().left() >= track.bounds().left() + px(2.));
+            assert!(thumb.bounds().right() <= track.bounds().right() - px(2.));
+        };
+        draw(window, cx);
+        assert_switch_centered(window);
+        for (scope, id) in [
+            (vec![], "palette-all".into()),
+            (vec![], "notifications".into()),
+            (vec![], ElementId::from((ElementId::from("tag"), "remove"))),
+        ] {
+            let target = find(window, &scope, &id).unwrap_or_else(|| {
+                panic!(
+                    "missing {id:?} in {scope:?}, observed {:?}",
+                    gpui_base::test_support::snapshots(window)
+                        .iter()
+                        .map(|snapshot| snapshot.label())
+                        .collect::<Vec<_>>()
+                )
+            });
+            assert!(target.visible(), "{id}: {:?}", target.bounds());
+            let position = target.bounds().center();
+            window.dispatch_event(
+                MouseDownEvent {
+                    button: MouseButton::Left,
+                    position,
+                    click_count: 1,
+                    first_mouse: false,
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+            draw(window, cx);
+            assert_switch_centered(window);
+            window.dispatch_event(
+                MouseUpEvent {
+                    button: MouseButton::Left,
+                    position,
+                    click_count: 1,
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+            draw(window, cx);
+            assert_switch_centered(window);
+        }
+        let state = view.read(cx);
+        assert_eq!(state.colors, [CheckboxState::Checked; 2]);
+        assert!(state.notifications);
+        assert!(!state.chip_visible);
+        assert!(!state.chip_selected);
+        assert!(state.restore.is_focused(window));
+    })
+    .unwrap();
+}

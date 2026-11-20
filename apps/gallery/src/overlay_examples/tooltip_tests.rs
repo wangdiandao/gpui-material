@@ -528,3 +528,79 @@ fn tooltip_placement_flips_mirrors_and_clamps_a_custom_positioner(cx: &mut TestA
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn rich_tooltip_keeps_its_action_available_while_focused(cx: &mut TestAppContext) {
+    use super::MenuTooltipExamples;
+    use crate::story::Story;
+    use std::time::Duration;
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            let entity = cx.new(|cx| MenuTooltipExamples::new(Story::Tooltip, cx));
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    let frame = |cx: &mut TestAppContext| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            find(window, &[], &"tooltip".into()).is_some()
+        })
+        .unwrap()
+    };
+    assert!(!frame(cx));
+    cx.update_window(window.into(), |_, window, cx| {
+        view.read(cx).rich_trigger.clone().focus(window, cx);
+    })
+    .unwrap();
+    frame(cx);
+    cx.run_until_parked();
+    cx.executor().advance_clock(Duration::from_millis(10));
+    cx.run_until_parked();
+    assert!(frame(cx));
+    let bounds = |cx: &mut TestAppContext| {
+        cx.update_window(window.into(), |_, window, _| {
+            find(window, &[], &"tooltip".into()).unwrap().bounds()
+        })
+        .unwrap()
+    };
+    let collapsed = bounds(cx);
+    cx.simulate_keystrokes(window.into(), "tab");
+    frame(cx);
+    cx.update_window(window.into(), |_, window, cx| {
+        assert!(
+            view.read(cx).rich_action.is_focused(window),
+            "tooltip action focused"
+        );
+    })
+    .unwrap();
+    cx.executor().advance_clock(Duration::from_millis(250));
+    cx.run_until_parked();
+    assert!(frame(cx));
+    let expanded = bounds(cx);
+    assert!(collapsed.size.width < expanded.size.width);
+    assert!(collapsed.size.height < expanded.size.height);
+    assert!((collapsed.center().x - expanded.center().x).abs() <= px(1.));
+    cx.simulate_keystrokes(window.into(), "enter");
+    cx.update(|cx| assert_eq!(view.read(cx).output.as_ref(), "30 days"));
+    cx.simulate_keystrokes(window.into(), "escape");
+    assert!(!frame(cx));
+    cx.update_window(window.into(), |_, window, cx| {
+        assert!(view.read(cx).rich_trigger.is_focused(window));
+        assert!(find(window, &[], &"tooltip-exit".into()).is_some());
+        assert!(find(window, &[], &"tooltip-action".into()).is_none());
+    })
+    .unwrap();
+    cx.executor().advance_clock(Duration::from_millis(200));
+    assert!(!frame(cx));
+    cx.update_window(window.into(), |_, window, _| {
+        assert!(find(window, &[], &"tooltip-exit".into()).is_none());
+    })
+    .unwrap();
+}

@@ -485,3 +485,78 @@ fn snackbar_renderer_reentrant_dismissal_and_teardown_complete_once(cx: &mut Tes
     draw(cx);
     assert_eq!(log.borrow().len(), 5);
 }
+
+#[gpui::test]
+fn snackbar_advances_after_timeout_and_accepts_undo(cx: &mut TestAppContext) {
+    use super::SnackbarExamples;
+    use gpui::{InputEvent as _, MouseDownEvent, MouseUpEvent, WindowOptions};
+
+    let window = cx.update(|cx| {
+        crate::init_gallery(cx);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            cx.new(SnackbarExamples::new)
+        })
+        .unwrap()
+    });
+    let click = |cx: &mut TestAppContext, id: ElementId| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let position = find(window, &[], &id).unwrap().bounds().center();
+            window.dispatch_event(
+                MouseDownEvent {
+                    button: MouseButton::Left,
+                    click_count: 1,
+                    position,
+                    ..Default::default()
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.dispatch_event(
+                MouseUpEvent {
+                    button: MouseButton::Left,
+                    click_count: 1,
+                    position,
+                    ..Default::default()
+                }
+                .to_platform_input(),
+                cx,
+            );
+        })
+        .unwrap();
+        cx.run_until_parked();
+    };
+    let message = |cx: &mut TestAppContext, id| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            find(window, &[], &("snackbar-message", id).into())
+                .and_then(|message| message.label().map(str::to_owned))
+        })
+        .unwrap()
+    };
+    click(cx, "save-region".into());
+    let snackbar_bounds = |cx: &mut TestAppContext, state, id| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            find(window, &[], &(state, id).into()).map(|surface| surface.bounds())
+        })
+        .unwrap()
+    };
+    let collapsed = snackbar_bounds(cx, "snackbar", 1usize).unwrap();
+    cx.executor().advance_clock(Duration::from_millis(250));
+    let expanded = snackbar_bounds(cx, "snackbar", 1usize).unwrap();
+    assert!(collapsed.size.width < expanded.size.width);
+    assert!(collapsed.size.height < expanded.size.height);
+    assert!((collapsed.center().x - expanded.center().x).abs() <= px(1.));
+    click(cx, "archive-region".into());
+    assert_eq!(message(cx, 1usize).as_deref(), Some("Changes saved"));
+    assert_eq!(message(cx, 2usize), None);
+    cx.executor().advance_clock(Duration::from_secs(5));
+    cx.run_until_parked();
+    assert_eq!(message(cx, 2usize).as_deref(), Some("Draft archived"));
+    click(cx, "snackbar-action-region".into());
+    assert_eq!(message(cx, 3usize).as_deref(), Some("Draft restored"));
+}

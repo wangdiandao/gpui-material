@@ -13,7 +13,7 @@ use gpui_base::TestSupportExt;
 use gpui_material_components::Text;
 use gpui_material_foundation::{
     InteractionFeedback, InteractionSource, InteractionState, InteractionTracker, Shape, animate,
-    color, window_material_theme,
+    color, current_material_theme,
 };
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, MaterialTheme, MotionKind, MotionSpec, MotionSpeed,
@@ -410,7 +410,7 @@ impl ScrollField {
 
 impl RenderOnce for ScrollField {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let corner = self
             .time_field_shape
             .unwrap_or_else(|| CornerRole::Large.shape());
@@ -442,7 +442,7 @@ impl RenderOnce for ScrollField {
         let enabled = !self.disabled && count > 0;
         let (container, content, selected_content) = self
             .colors
-            .resolve(enabled, window_material_theme(window, cx));
+            .resolve(enabled, &current_material_theme(window, cx));
         let feedback = window
             .use_keyed_state((self.id.clone(), "scroll-field-feedback"), cx, |_, _| {
                 Rc::new(Cell::new(InteractionState::default()))

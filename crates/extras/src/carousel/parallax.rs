@@ -3,7 +3,7 @@ use gpui::{
     GlobalElementId, Hsla, InspectorElementId, IntoElement, LayoutId, PathBuilder, Pixels, Point,
     Window, point, px, quad, size,
 };
-use gpui_material_foundation::{color, window_material_theme};
+use gpui_material_foundation::{color, current_material_theme};
 use gpui_material_theme::{ColorRole, CornerRole, CornerShape};
 
 /// A stroke drawn inside the parallax mask in logical pixels.
@@ -216,7 +216,7 @@ impl Element for CarouselParallax {
         cx: &mut App,
     ) {
         let Some(paint) = paint else { return };
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let backdrop = self
             .backdrop
             .unwrap_or_else(|| color(theme.colors.color(ColorRole::Surface)));

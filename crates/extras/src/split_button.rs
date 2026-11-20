@@ -10,7 +10,7 @@ use gpui_material_components::{
     ControlSize, Icon, IconName, Menu, MenuItem,
     button_composition::{ButtonPart, Segment, label_width, split_trailing_size},
 };
-use gpui_material_foundation::{InteractionSource, window_material_theme};
+use gpui_material_foundation::{InteractionSource, current_material_theme};
 use gpui_material_theme::Direction;
 
 type Command = Rc<dyn Fn(&mut Window, &mut App)>;
@@ -228,7 +228,7 @@ impl SplitButton {
 
 impl RenderOnce for SplitButton {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let direction = window_material_theme(window, cx).layout.direction;
+        let direction = current_material_theme(window, cx).layout.direction;
         let (primary_focus, trailing_focus) = self.focus.unwrap_or_else(|| {
             window
                 .use_keyed_state((self.id.clone(), "split-focus"), cx, |_, cx| {

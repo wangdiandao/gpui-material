@@ -7,13 +7,17 @@
 | 领域 | 默认值和使用约定 |
 | --- | --- |
 | 色彩 | `ColorScheme::baseline` 使用 Compose 的浅色或深色角色。通过 `color` 取单个角色，`pair` 取前景和背景，`set_color` 覆盖单个角色。覆盖背景后由调用者检查前景对比度。容器角色提供基准层级，另可通过 `surface_at_elevation` 应用 Compose 的色调叠加公式。 |
-| 源色 | `dynamic-color` 启用 `MaterialTheme::from_seed`。品牌色或上层取得的系统源色共用 Tonal Spot Spec2021，输入的 alpha 被忽略。对比度夹取到 −1 至 1，NaN 使用默认值 0。 |
-| 排版 | `TypeRole::style` 为 15 个角色分别解析 baseline 和 emphasized。字号、行高及字距使用 sp。Brand 和 Plain 都优先请求 Roboto，桌面默认回退依次为 Segoe UI、Microsoft YaHei UI 和 Noto Sans CJK SC。应用可按角色家族替换列表，字体解析和字形回退由宿主负责。 |
+| 源色 | `dynamic-color` 启用 `MaterialTheme::from_seed` 和 `from_seed_with`。默认使用 Tonal Spot Spec2021，忽略输入 alpha。对比度夹取到 −1 至 1，NaN 使用 0。 |
+| 排版 | `TypeRole::style` 提供 15 个角色的 baseline 和 emphasized Token，`Typography::style` 按主题比例缩放字号、行高和字距。用 `Typography::with_text_scale` 设置比例，默认 1.0，范围为 1.0–2.0，NaN 使用 1.0。控件已有的字体缩放与主题比例相乘。Brand 和 Plain 都优先请求 Roboto，依次回退到 Segoe UI、Microsoft YaHei UI 和 Noto Sans CJK SC。 |
 | 形状 | `CornerShape` 使用逻辑角顺序，按方向映射并限制相邻角总和。满圆角取短边的一半。Circle、Square 和 Triangle 提供固定源参数作为 morph 端点，渲染层负责规范化、轮廓插值、绘制及命中。 |
 | 动效 | 默认 Standard，可选 Expressive。空间与效果各有 Fast、Default 和 Slow 弹簧。效果弹簧采用临界阻尼。减少动态效果偏好将规格解析为立即完成。固定时长和 Bézier 曲线可通过 Token 查询。 |
-| 布局 | 可用宽度的分界为 600、840、1200、1600 逻辑单位。阈值归入较大的尺寸级。逻辑起止边按 LTR 或 RTL 映射。字号、行高和字距由宿主提供的文字缩放比例换算。 |
+| 布局 | 可用宽度的分界为 600、840、1200、1600 逻辑单位。阈值归入较大的尺寸级。逻辑起止边按 LTR 或 RTL 映射。`LayoutPolicy::scale_text` 用传入的倍率换算文字尺寸。 |
 | 密度 | 桌面策略对组件可视尺寸使用 Compact −4、Standard 0、Comfortable +4 逻辑单位。交互尺寸保留 48 逻辑单位下限。修改组件密度时核验布局与命中。 |
 | 序列化 | `serde` 独立启用主题值的序列化。颜色覆盖以语义角色为键，缺省角色从当前外观的基准表解析。 |
+
+启用 `dynamic-color` 后，`ColorScheme::from_seed_with` 接受 `DynamicVariant` 和 `SpecVersion`。Tonal Spot、Vibrant、Expressive 和 Neutral 支持 Spec2025。Fidelity、Content 和 Monochrome 按上游规则使用 Spec2021。`ThemePreset` 提供基准、命名动态变体、高对比度和参考 [md3.io](https://md3.io/docs/theming/#the-shipped-themes) 的源色预设。
+
+Info、Success 和 Warning 各有一组前景配色和一组容器配色。源色方案将状态色相向源色协调，并使用 MCU 的错误角色对比度策略解析配色。`ColorScheme::blend` 在 sRGB 中插值所有角色及其 alpha，外观在中点切换，两个端点返回原始色谱。
 
 <a id="token-data"></a>
 
@@ -36,7 +40,7 @@ cargo xtask docs --write docs/theme/token-index.md
 ## 来源与桌面裁决
 
 - 静态色、色板、排版数值、角形、状态层、层级与动效取固定的 Compose Material 3 1.5.0-rc01。网站将 Roboto 定义为默认家族。Compose 使用平台无衬线抽象，桌面通过可配置家族列表表达这个选择。
-- 动态色选用 Tonal Spot Spec2021，并对照锁定的 MCU 参考向量验证。49 个语义角色包括 legacy background/surface-variant、inverse、fixed、outline、surface containers、scrim 及 MCU 的 shadow。
+- 原有 49 个动态色角色沿用固定的 Tonal Spot Spec2021 参考向量。静态状态色采用项目的桌面色板。
 - 圆角多边形支持圆、方形和三角形三种拓扑。Circle 参数采用 AndroidX 的最终圆半径，Square 参数为矩形宽高，Triangle 参数采用外接圆半径。参数与固定 Compose `MaterialShapes.kt` 及 AndroidX graphics-shapes 1.1.0 对照。圆角矩形的相邻角统一缩放属于桌面几何策略。
 - 可用宽度来自固定 Material Breakpoints 表。48 逻辑单位取 Compose `LocalMinimumInteractiveComponentSize`。密度偏移、字体回退顺序和立即完成的低动效策略是本项目的桌面约定。
 

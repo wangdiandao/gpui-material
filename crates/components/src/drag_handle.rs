@@ -12,7 +12,7 @@ use gpui::{
 use gpui_base::TestSupportExt as _;
 use gpui_material_foundation::{
     DragCapture, InteractionFeedback, InteractionSource, InteractionState, InteractionTracker,
-    Shape, color, window_material_theme,
+    Shape, color, current_material_theme,
 };
 use gpui_material_theme::{ColorRole, CornerRole, CornerShape, Direction};
 
@@ -337,7 +337,7 @@ fn logical_delta(delta: Pixels, direction: Direction) -> Pixels {
 
 impl RenderOnce for VerticalDragHandle {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
         let minimum = px(theme.layout.density.interactive_size(0.));
         let outline = color(theme.colors.color(ColorRole::Outline));

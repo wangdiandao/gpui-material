@@ -1,7 +1,8 @@
 #![cfg(feature = "dynamic-color")]
 
 use gpui_material_theme::{
-    Appearance, Argb, ColorRole, ColorScheme, MaterialTheme, TokenValue, token,
+    Appearance, Argb, ColorRole, ColorScheme, DynamicVariant, MaterialTheme, SpecVersion,
+    ThemePreset, TokenValue, token,
 };
 use material_color_utils::{
     hct::hct_color::Hct, palettes::tonal_palette::TonalPalette, utils::color_utils,
@@ -34,6 +35,23 @@ fn tonal_spot_matches_every_pinned_role() {
     assert_eq!(
         roles.iter().map(|(role, _)| *role).collect::<Vec<_>>(),
         ColorRole::ALL
+            .into_iter()
+            .filter(|role| !matches!(
+                role,
+                ColorRole::Info
+                    | ColorRole::OnInfo
+                    | ColorRole::InfoContainer
+                    | ColorRole::OnInfoContainer
+                    | ColorRole::Success
+                    | ColorRole::OnSuccess
+                    | ColorRole::SuccessContainer
+                    | ColorRole::OnSuccessContainer
+                    | ColorRole::Warning
+                    | ColorRole::OnWarning
+                    | ColorRole::WarningContainer
+                    | ColorRole::OnWarningContainer
+            ))
+            .collect::<Vec<_>>()
     );
     let mut differences = Vec::new();
     for sample in vectors["schemes"].as_array().unwrap() {
@@ -71,6 +89,65 @@ fn tonal_spot_matches_every_pinned_role() {
     );
 }
 
+#[test]
+fn dynamic_variants_resolve_supported_specs_and_harmonized_status() {
+    use Appearance::*;
+    use DynamicVariant::*;
+    use SpecVersion::*;
+
+    let seed = Argb::from_u32(0xff42_85f4);
+    for appearance in [Light, Dark] {
+        for variant in [
+            TonalSpot, Vibrant, Expressive, Fidelity, Content, Monochrome, Neutral,
+        ] {
+            let make = |spec| ColorScheme::from_seed_with(seed, appearance, 0., variant, spec);
+            let old = make(Spec2021);
+            let new = make(Spec2025);
+            assert_eq!(
+                old == new,
+                matches!(variant, Fidelity | Content | Monochrome)
+            );
+            let distinct = [
+                ColorRole::Error,
+                ColorRole::Info,
+                ColorRole::Success,
+                ColorRole::Warning,
+            ]
+            .map(|role| new.color(role));
+            for (i, color) in distinct.iter().enumerate() {
+                assert!(!distinct[..i].contains(color), "{variant:?}/{appearance:?}");
+            }
+            for role in [
+                ColorRole::Info,
+                ColorRole::InfoContainer,
+                ColorRole::Success,
+                ColorRole::SuccessContainer,
+                ColorRole::Warning,
+                ColorRole::WarningContainer,
+            ] {
+                let pair = new.pair(role).unwrap();
+                let tone = |argb: Argb| Hct::from(color_utils::Argb(argb.to_u32())).tone();
+                let ratio = gpui_material_theme::contrast_ratio_of_tones(
+                    tone(pair.foreground),
+                    tone(pair.background),
+                )
+                .unwrap();
+                assert!(ratio >= 4.5, "{variant:?}/{appearance:?}/{role:?} {ratio}");
+            }
+        }
+    }
+    assert_eq!(
+        ThemePreset::Baseline.colors(Light),
+        ColorScheme::baseline(Light)
+    );
+    assert_ne!(
+        ThemePreset::Ocean.colors(Light),
+        ThemePreset::Forest.colors(Light)
+    );
+    for preset in ThemePreset::ALL {
+        assert_eq!(preset.theme(Dark).colors.appearance(), Dark);
+    }
+}
 #[test]
 fn validates_hct_palette_and_tone_contrast_boundaries() {
     let vectors = reference();

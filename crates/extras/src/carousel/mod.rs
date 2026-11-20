@@ -14,7 +14,7 @@ use gpui::{
     prelude::FluentBuilder, px, relative, size,
 };
 use gpui_base::{Button, TestSupportExt};
-use gpui_material_foundation::{animate, color, window_material_theme};
+use gpui_material_foundation::{animate, color, current_material_theme};
 use gpui_material_theme::{ColorRole, CornerRole, Direction, MotionKind, MotionSpec, MotionSpeed};
 
 use geometry::{Layout, LayoutOptions};
@@ -313,7 +313,7 @@ impl RenderOnce for Carousel {
             })
             .read(cx)
             .clone();
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
         let ring = color(theme.colors.color(ColorRole::Secondary));
         let hover = color(theme.colors.color(ColorRole::OnSurface));

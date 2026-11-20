@@ -10,7 +10,7 @@ use gpui::{
     StatefulInteractiveElement, Style, Styled, Window, div, point, px, relative, size,
 };
 use gpui_base::Button;
-use gpui_material_foundation::window_material_theme;
+use gpui_material_foundation::current_material_theme;
 use gpui_material_theme::Direction;
 
 use crate::{ButtonColors, IconButton, Menu, MenuItem};
@@ -347,7 +347,7 @@ impl StripLayout {
         Self {
             strip,
             axis,
-            direction: window_material_theme(window, cx).layout.direction,
+            direction: current_material_theme(window, cx).layout.direction,
             ink: window.text_style().color,
             menu: AppBarMenuState {
                 shown: overflow.shown.clone(),

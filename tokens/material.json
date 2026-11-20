@@ -1,6 +1,47 @@
 {
   "groups": [
     {
+      "source": "docs/theme/theme.md",
+      "tokens": [
+        {"name": "md.sys.color.light.info", "kind": "argb", "value": "ff0061a4", "upstream": "info"},
+        {"name": "md.sys.color.dark.info", "kind": "argb", "value": "ff9ecaff", "upstream": "info"},
+        {"name": "md.sys.color.info", "kind": "color-role", "value": ["md.sys.color.light.info", "md.sys.color.dark.info"], "upstream": "info"},
+        {"name": "md.sys.color.light.on-info", "kind": "argb", "value": "ffffffff", "upstream": "on-info"},
+        {"name": "md.sys.color.dark.on-info", "kind": "argb", "value": "ff003258", "upstream": "on-info"},
+        {"name": "md.sys.color.on-info", "kind": "color-role", "value": ["md.sys.color.light.on-info", "md.sys.color.dark.on-info"], "upstream": "on-info"},
+        {"name": "md.sys.color.light.info-container", "kind": "argb", "value": "ffd1e4ff", "upstream": "info-container"},
+        {"name": "md.sys.color.dark.info-container", "kind": "argb", "value": "ff00497d", "upstream": "info-container"},
+        {"name": "md.sys.color.info-container", "kind": "color-role", "value": ["md.sys.color.light.info-container", "md.sys.color.dark.info-container"], "upstream": "info-container"},
+        {"name": "md.sys.color.light.on-info-container", "kind": "argb", "value": "ff001d36", "upstream": "on-info-container"},
+        {"name": "md.sys.color.dark.on-info-container", "kind": "argb", "value": "ffd1e4ff", "upstream": "on-info-container"},
+        {"name": "md.sys.color.on-info-container", "kind": "color-role", "value": ["md.sys.color.light.on-info-container", "md.sys.color.dark.on-info-container"], "upstream": "on-info-container"},
+        {"name": "md.sys.color.light.success", "kind": "argb", "value": "ff006c4e", "upstream": "success"},
+        {"name": "md.sys.color.dark.success", "kind": "argb", "value": "ff6ddbac", "upstream": "success"},
+        {"name": "md.sys.color.success", "kind": "color-role", "value": ["md.sys.color.light.success", "md.sys.color.dark.success"], "upstream": "success"},
+        {"name": "md.sys.color.light.on-success", "kind": "argb", "value": "ffffffff", "upstream": "on-success"},
+        {"name": "md.sys.color.dark.on-success", "kind": "argb", "value": "ff003826", "upstream": "on-success"},
+        {"name": "md.sys.color.on-success", "kind": "color-role", "value": ["md.sys.color.light.on-success", "md.sys.color.dark.on-success"], "upstream": "on-success"},
+        {"name": "md.sys.color.light.success-container", "kind": "argb", "value": "ff89f8c7", "upstream": "success-container"},
+        {"name": "md.sys.color.dark.success-container", "kind": "argb", "value": "ff005139", "upstream": "success-container"},
+        {"name": "md.sys.color.success-container", "kind": "color-role", "value": ["md.sys.color.light.success-container", "md.sys.color.dark.success-container"], "upstream": "success-container"},
+        {"name": "md.sys.color.light.on-success-container", "kind": "argb", "value": "ff002115", "upstream": "on-success-container"},
+        {"name": "md.sys.color.dark.on-success-container", "kind": "argb", "value": "ff89f8c7", "upstream": "on-success-container"},
+        {"name": "md.sys.color.on-success-container", "kind": "color-role", "value": ["md.sys.color.light.on-success-container", "md.sys.color.dark.on-success-container"], "upstream": "on-success-container"},
+        {"name": "md.sys.color.light.warning", "kind": "argb", "value": "ff974800", "upstream": "warning"},
+        {"name": "md.sys.color.dark.warning", "kind": "argb", "value": "ffffb781", "upstream": "warning"},
+        {"name": "md.sys.color.warning", "kind": "color-role", "value": ["md.sys.color.light.warning", "md.sys.color.dark.warning"], "upstream": "warning"},
+        {"name": "md.sys.color.light.on-warning", "kind": "argb", "value": "ffffffff", "upstream": "on-warning"},
+        {"name": "md.sys.color.dark.on-warning", "kind": "argb", "value": "ff502400", "upstream": "on-warning"},
+        {"name": "md.sys.color.on-warning", "kind": "color-role", "value": ["md.sys.color.light.on-warning", "md.sys.color.dark.on-warning"], "upstream": "on-warning"},
+        {"name": "md.sys.color.light.warning-container", "kind": "argb", "value": "ffffdcc5", "upstream": "warning-container"},
+        {"name": "md.sys.color.dark.warning-container", "kind": "argb", "value": "ff733600", "upstream": "warning-container"},
+        {"name": "md.sys.color.warning-container", "kind": "color-role", "value": ["md.sys.color.light.warning-container", "md.sys.color.dark.warning-container"], "upstream": "warning-container"},
+        {"name": "md.sys.color.light.on-warning-container", "kind": "argb", "value": "ff311300", "upstream": "on-warning-container"},
+        {"name": "md.sys.color.dark.on-warning-container", "kind": "argb", "value": "ffffdcc5", "upstream": "on-warning-container"},
+        {"name": "md.sys.color.on-warning-container", "kind": "color-role", "value": ["md.sys.color.light.on-warning-container", "md.sys.color.dark.on-warning-container"], "upstream": "on-warning-container"}
+      ]
+    },
+    {
       "source": "https://github.com/androidx/androidx/blob/1f549b6f5ba84cb3553be9c79110c4c5f6413039/compose/material3/material3/src/commonMain/kotlin/androidx/compose/material3/InteractiveComponentSize.kt",
       "tokens": [
         {"name": "md.sys.layout.minimum-interactive-size", "kind": "dp", "value": 48, "upstream": "LocalMinimumInteractiveComponentSize"}

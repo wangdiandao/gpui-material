@@ -3,7 +3,7 @@ use gpui::{
     RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Window, div,
     prelude::FluentBuilder, px,
 };
-use gpui_material_foundation::{color, text_style, window_material_theme};
+use gpui_material_foundation::{color, current_material_theme, text_style};
 use gpui_material_theme::{ColorRole, Direction, TypeRole, TypographyEmphasis};
 
 /// Decorative Material divider, with logical start and end insets.
@@ -79,7 +79,7 @@ impl RenderOnce for Divider {
         } else {
             self.thickness
         };
-        let (left, right) = window_material_theme(window, cx)
+        let (left, right) = current_material_theme(window, cx)
             .layout
             .horizontal(self.start, self.end);
         if self.axis == Axis::Vertical {
@@ -218,7 +218,7 @@ impl RenderOnce for Badge {
                     .absolute()
                     .top(if large { px(-2.) } else { px(0.) })
                     .when_else(
-                        window_material_theme(window, cx).layout.direction == Direction::Rtl,
+                        current_material_theme(window, cx).layout.direction == Direction::Rtl,
                         |badge| badge.right(gpui::relative(1.)).mr(-overlap),
                         |badge| badge.left(gpui::relative(1.)).ml(-overlap),
                     )
@@ -266,5 +266,5 @@ impl RenderOnce for Badge {
 }
 
 fn tone(role: ColorRole, window: &Window, cx: &App) -> gpui::Hsla {
-    color(window_material_theme(window, cx).colors.color(role))
+    color(current_material_theme(window, cx).colors.color(role))
 }

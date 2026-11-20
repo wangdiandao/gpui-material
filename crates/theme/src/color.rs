@@ -99,6 +99,8 @@ impl ColorScheme {
             Background => OnBackground,
             Error => OnError,
             ErrorContainer => OnErrorContainer,
+            Info => OnInfo,
+            InfoContainer => OnInfoContainer,
             InverseSurface => InverseOnSurface,
             Primary => OnPrimary,
             PrimaryContainer => OnPrimaryContainer,
@@ -106,6 +108,8 @@ impl ColorScheme {
             Secondary => OnSecondary,
             SecondaryContainer => OnSecondaryContainer,
             SecondaryFixed | SecondaryFixedDim => OnSecondaryFixed,
+            Success => OnSuccess,
+            SuccessContainer => OnSuccessContainer,
             Surface
             | SurfaceBright
             | SurfaceDim
@@ -118,12 +122,41 @@ impl ColorScheme {
             Tertiary => OnTertiary,
             TertiaryContainer => OnTertiaryContainer,
             TertiaryFixed | TertiaryFixedDim => OnTertiaryFixed,
+            Warning => OnWarning,
+            WarningContainer => OnWarningContainer,
             _ => return None,
         };
         Some(ColorPair {
             foreground: self.color(foreground),
             background: self.color(background),
         })
+    }
+
+    /// Interpolates all resolved sRGB and alpha channels. The target appearance
+    /// takes effect at the midpoint. Values outside 0–1 clamp, and NaN uses 0.
+    pub fn blend(&self, target: &Self, t: f32) -> Self {
+        if t.is_nan() || t <= 0.0 || self == target {
+            return self.clone();
+        }
+        if t >= 1.0 {
+            return target.clone();
+        }
+        let appearance = if t < 0.5 {
+            self.appearance
+        } else {
+            target.appearance
+        };
+        let mut blended = Self::baseline(appearance);
+        for role in ColorRole::ALL {
+            let from = self.color(role).channels();
+            let to = target.color(role).channels();
+            let channels = std::array::from_fn(|i| {
+                let start = f32::from(from[i]);
+                (start + (f32::from(to[i]) - start) * t).round() as u8
+            });
+            blended.set_color(role, Argb::from_u32(u32::from_be_bytes(channels)));
+        }
+        blended
     }
 
     /// Applies the Compose tonal-elevation tint to the surface role.
@@ -155,24 +188,13 @@ impl ColorScheme {
     /// -1 through 1. NaN selects the default contrast (0).
     #[cfg(feature = "dynamic-color")]
     pub fn from_seed(seed: Argb, appearance: Appearance, contrast: f64) -> Self {
-        use material_color_utils::{
-            dynamic::color_spec::SpecVersion, scheme::SchemeTonalSpot, utils::color_utils,
-        };
-
-        let seed = color_utils::Argb(seed.to_u32() | 0xff00_0000);
-        let contrast = if contrast.is_nan() {
-            0.0
-        } else {
-            contrast.clamp(-1.0, 1.0)
-        };
-        let scheme = SchemeTonalSpot::builder(seed, appearance == Appearance::Dark, contrast)
-            .spec_version(SpecVersion::Spec2021)
-            .build();
-        let mut colors = Self::baseline(appearance);
-        for (role, color) in ColorRole::ALL.into_iter().zip(dynamic_colors(&scheme)) {
-            colors.set_color(role, color);
-        }
-        colors
+        Self::from_seed_with(
+            seed,
+            appearance,
+            contrast,
+            crate::DynamicVariant::TonalSpot,
+            crate::SpecVersion::Spec2021,
+        )
     }
 }
 

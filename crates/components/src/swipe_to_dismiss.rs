@@ -9,7 +9,7 @@ use gpui::{
     point, px,
 };
 use gpui_base::TestSupportExt as _;
-use gpui_material_foundation::{DragCapture, animate, window_material_theme};
+use gpui_material_foundation::{DragCapture, animate, current_material_theme};
 use gpui_material_theme::{Direction, MotionKind, MotionSpec, MotionSpeed};
 
 const DEFAULT_THRESHOLD: Pixels = px(56.);
@@ -288,7 +288,7 @@ impl SwipeToDismissState {
             );
         }
         let target = self.target.position();
-        let spec = window_material_theme(window, cx).motion.spec(
+        let spec = current_material_theme(window, cx).motion.spec(
             MotionKind::Spatial,
             MotionSpeed::Fast,
             cx.reduce_motion(),
@@ -474,7 +474,7 @@ impl SwipeToDismiss {
 
 impl RenderOnce for SwipeToDismiss {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        self.options.direction = window_material_theme(window, cx).layout.direction;
+        self.options.direction = current_material_theme(window, cx).layout.direction;
         let mount = window.with_element_namespace((self.id.clone(), "material-swipe"), |window| {
             window.use_keyed_state(("mount", self.state.entity_id()), cx, |window, cx| {
                 let callback = Rc::new(RefCell::new(None::<OnDismiss>));

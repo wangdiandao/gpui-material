@@ -8,8 +8,8 @@ use gpui::{
 };
 use gpui_base::TestSupportExt;
 use gpui_material_foundation::{
-    InteractionFeedback, InteractionSource, Shape, animate, color, elevation_shadows,
-    move_roving_focus, window_material_theme,
+    InteractionFeedback, InteractionSource, Shape, animate, color, current_material_theme,
+    elevation_shadows, move_roving_focus,
 };
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Direction, MotionKind, MotionSpec, MotionSpeed, TypeRole,
@@ -398,7 +398,7 @@ impl ListItem {
                 cx,
             )
         });
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let layout = theme.layout;
         let direction = layout.direction;
         let motion = theme.motion;
@@ -411,7 +411,7 @@ impl ListItem {
         let spatial = motion.spec(MotionKind::Spatial, MotionSpeed::Fast, reduced);
         let selection =
             animate("selection", f32::from(selected), effects, window, cx).clamp(0., 1.);
-        let scheme = &window_material_theme(window, cx).colors;
+        let scheme = &current_material_theme(window, cx).colors;
         let tone = |role| color(scheme.color(role));
         let ring = tone(ColorRole::Secondary);
         let shadow = tone(ColorRole::Shadow);
@@ -844,7 +844,7 @@ impl RenderOnce for List {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         window.with_element_namespace((self.id.clone(), "material-list"), |window| {
             let last = self.items.len().saturating_sub(1);
-            let direction = window_material_theme(window, cx).layout.direction;
+            let direction = current_material_theme(window, cx).layout.direction;
             let focus: Vec<_> = self
                 .items
                 .iter()

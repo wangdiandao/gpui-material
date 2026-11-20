@@ -4,6 +4,12 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Theme and typography
+
+- Add `ColorScheme::from_seed_with` and `MaterialTheme::from_seed_with` supporting all seven `DynamicVariant` palettes (`TonalSpot`, `Vibrant`, `Expressive`, `Fidelity`, `Content`, `Monochrome`, `Neutral`) and `SpecVersion` (`Spec2021` and `Spec2025`), lightweight seed-based `ThemePreset` recipes, `ColorScheme::blend`, and extended `Info`, `Success`, and `Warning` semantic color roles (and their `On*` and `*Container` pairs; update exhaustive `ColorRole` matches).
+- Add `Typography::with_text_scale` (default `1.0`, clamped `1.0..=2.0`) and `Typography::style` / `scale_style`, applied across all 15 Material type roles and Base typography projection.
+- Animate application palette changes in `set_material_theme` with a retargetable Slow Effects spring that respects reduced motion, and add subtree-level `ThemeScope` and `current_material_theme` with overlay inheritance that keeps the application Base theme untouched.
+
 ### Icons
 
 - Add the optional `gpui-material-symbols` companion crate with the full Outlined, Rounded, and Sharp catalog, fill and weight controls, desktop embedding, and asynchronous browser loading.

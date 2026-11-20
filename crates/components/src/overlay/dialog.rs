@@ -9,8 +9,8 @@ use gpui::{
 };
 use gpui_base::{DialogChangeReason, TestSupportExt, active_focus_trap};
 use gpui_material_foundation::{
-    MaterialRoot, Scrim, Surface, color, isolated_scroll, set_window_material_theme,
-    window_material_theme,
+    MaterialRoot, Scrim, Surface, ThemeScope, color, current_material_theme, isolated_scroll,
+    set_window_material_theme,
 };
 use gpui_material_theme::{ColorRole, CornerRole, CornerShape, Direction, Elevation, TypeRole};
 
@@ -447,7 +447,7 @@ impl Dialog {
         options.focus = true;
         options.show = true;
         let previous = parent.focused(cx);
-        let theme = window_material_theme(parent, cx).clone();
+        let theme = current_material_theme(parent, cx).clone();
         let state = state.clone();
         let window = MaterialRoot::open_window(options, cx, move |window, cx| {
             set_window_material_theme(Some(theme), window, cx);
@@ -694,7 +694,7 @@ impl RenderOnce for Dialog {
         };
         let max_height = (viewport.height - margin).max(px(0.));
         let motion_offset = px((1. - progress) * if full_screen { 32. } else { 8. });
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let rtl = theme.layout.direction == Direction::Rtl;
         let colors = &theme.colors;
         let icon_color = self
@@ -917,8 +917,12 @@ impl RenderOnce for Dialog {
                         .flex()
                         .items_center()
                         .justify_center()
-                        .child(backdrop)
-                        .child(exiting_panel(panel, &self.id, &self.state, window, cx)),
+                        .child(ThemeScope::inherit(backdrop, window, cx))
+                        .child(ThemeScope::inherit(
+                            exiting_panel(panel, &self.id, &self.state, window, cx),
+                            window,
+                            cx,
+                        )),
                 ),
             )
             .with_priority(10 + self.layer)
@@ -938,11 +942,15 @@ impl RenderOnce for Dialog {
             .layer(self.layer, true)
             .accessibility_label(self.title)
             .close_on_backdrop_press(false)
-            .backdrop(modal_backdrop(backdrop, move |window, cx| {
-                if !native && properties.dismiss_on_outside_click {
-                    outside.dismiss(DialogCloseReason::OutsideClick, window, cx);
-                }
-            }))
+            .backdrop(ThemeScope::inherit(
+                modal_backdrop(backdrop, move |window, cx| {
+                    if !native && properties.dismiss_on_outside_click {
+                        outside.dismiss(DialogCloseReason::OutsideClick, window, cx);
+                    }
+                }),
+                window,
+                cx,
+            ))
             .on_ok(move |_, window, cx| {
                 if keyboard_confirmation && keyboard_focus.is_focused(window) {
                     confirm_action.activate(window, cx);
@@ -957,7 +965,7 @@ impl RenderOnce for Dialog {
                     session.dismiss(DialogCloseReason::Escape, window, cx);
                 }
             })
-            .popup(panel)
+            .popup(ThemeScope::inherit(panel, window, cx))
             .into_any_element()
     }
 }

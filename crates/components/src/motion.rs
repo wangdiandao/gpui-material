@@ -8,7 +8,7 @@ use gpui::{
 use gpui_base::motion::{
     Easing, MotionStatus, Presence, PresencePhase, PresenceSample, Transition,
 };
-use gpui_material_foundation::{animate, window_material_theme};
+use gpui_material_foundation::{animate, current_material_theme};
 use gpui_material_theme::{MotionKind, MotionSpec, MotionSpeed};
 
 #[derive(Clone, Copy)]
@@ -30,7 +30,7 @@ impl OverlayMotion {
         if initial && !open {
             return None;
         }
-        let scheme = window_material_theme(window, cx).motion;
+        let scheme = current_material_theme(window, cx).motion;
         let reduced = cx.reduce_motion();
         let mut sample = |channel, kind, closed| {
             let id = (ElementId::from(id.clone()), channel);

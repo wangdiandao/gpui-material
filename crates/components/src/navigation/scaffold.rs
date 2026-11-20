@@ -6,7 +6,7 @@ use gpui::{
     prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
-use gpui_material_foundation::window_material_theme;
+use gpui_material_foundation::current_material_theme;
 use gpui_material_theme::Direction;
 
 use crate::Sheet;
@@ -180,7 +180,7 @@ impl Scaffold {
 
 impl RenderOnce for Scaffold {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let direction = window_material_theme(window, cx).layout.direction;
+        let direction = current_material_theme(window, cx).layout.direction;
         let position = self.fab_position;
         let insets = self.content_insets;
         let (fab, snackbar, overlay) = match (position, self.fab) {

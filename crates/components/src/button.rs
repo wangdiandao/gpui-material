@@ -4,7 +4,7 @@ use gpui::{
     AnyElement, App, ElementId, Entity, FocusHandle, IntoElement, ParentElement, Pixels,
     RenderOnce, SharedString, Styled, Window, div, px,
 };
-use gpui_material_foundation::{InteractionSource, window_material_theme};
+use gpui_material_foundation::{InteractionSource, current_material_theme};
 use gpui_material_theme::{
     ColorRole, CornerRole, Direction, Elevation, MotionKind, MotionSpeed, TypeRole,
     TypographyEmphasis,
@@ -251,7 +251,7 @@ impl Slots {
         tint: gpui::Hsla,
         cx: &App,
     ) -> AnyElement {
-        let direction = window_material_theme(window, cx).layout.direction;
+        let direction = current_material_theme(window, cx).layout.direction;
         let typography = metrics.label.style(TypographyEmphasis::Baseline);
         let max_padding = self.width.map_or_else(
             || f32::from(window.viewport_size().width) * 0.125,
@@ -282,6 +282,9 @@ impl Slots {
                 - px((metrics.icon + metrics.gap) * icons as f32))
             .max(px(0.))
         });
+        let row_typography = current_material_theme(window, cx)
+            .typography
+            .scale_style(typography);
         let mut row = div()
             .flex()
             .items_center()
@@ -293,8 +296,8 @@ impl Slots {
             .pr(finite_length(right) * scale)
             .pt(finite_length(top) * scale)
             .pb(finite_length(bottom) * scale)
-            .text_size(px(typography.size * scale))
-            .line_height(px(typography.line_height * scale));
+            .text_size(px(row_typography.size * scale))
+            .line_height(px(row_typography.line_height * scale));
         if direction == Direction::Rtl {
             row = row.flex_row_reverse();
         }
@@ -996,7 +999,7 @@ pub mod composition {
         cx: &App,
     ) -> Pixels {
         let metrics = size.metrics();
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let style = metrics.label.style(TypographyEmphasis::Baseline);
         let width = gpui_material_foundation::shape_text(
             if label.contains(['\r', '\n']) {

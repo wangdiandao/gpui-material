@@ -17,7 +17,9 @@ use gpui_material_components::{
     DialogProperties, DialogState, DialogVariant, Icon, IconButton, IconName, Text, TextField,
     TextFieldColors, TextFieldState, TextFieldVariant,
 };
-use gpui_material_foundation::{Surface, color, logical_anchor, text_style, window_material_theme};
+use gpui_material_foundation::{
+    Surface, ThemeScope, color, current_material_theme, logical_anchor, text_style,
+};
 use gpui_material_theme::{ColorRole, Direction, Elevation, TypeRole, TypographyEmphasis};
 
 use super::{Confirm, NaiveDate, Weekday, status};
@@ -997,7 +999,7 @@ impl RenderOnce for DatePicker {
             .then(|| self.trigger(docked, open, docked_actions.clone(), window, cx));
         if docked {
             let (trigger, bounds) = trigger.expect("docked pickers have an anchor");
-            let direction = window_material_theme(window, cx).layout.direction;
+            let direction = current_material_theme(window, cx).layout.direction;
             let mut popup = Popup::new(self.id.clone(), trigger)
                 .anchor(logical_anchor(Anchor::TopLeft, direction))
                 .offset(px(4.));
@@ -1045,7 +1047,7 @@ impl RenderOnce for DatePicker {
                             .p(px(12.))
                             .child(body),
                     );
-                popup = popup.content(panel);
+                popup = popup.content(ThemeScope::inherit(panel, window, cx));
             }
             return popup.into_any_element();
         }
@@ -1389,7 +1391,7 @@ fn year_choices(
     let displayed = model.displayed_month();
     let today = model.calendar.read(cx).today();
     let selected_year = displayed.year();
-    let direction = window_material_theme(window, cx).layout.direction;
+    let direction = current_material_theme(window, cx).layout.direction;
     let rtl = direction == Direction::Rtl;
     let page_change = |delta: i32| {
         let state = state.clone();
@@ -1540,7 +1542,7 @@ fn calendar(
     let today = model.calendar.read(cx).today();
     let cursor = model.cursor;
     let start = calendar_start(month, locale.first_day);
-    let theme = window_material_theme(window, cx);
+    let theme = current_material_theme(window, cx);
     let direction = theme.layout.direction;
     let rtl = direction == Direction::Rtl;
     let tone = |role| color(theme.colors.color(role));

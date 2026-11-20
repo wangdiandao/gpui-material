@@ -16,7 +16,9 @@ use gpui_base::{
     Popover, PopoverState, Positioner, TestSupportExt,
     actions::{Cancel, Confirm},
 };
-use gpui_material_foundation::{logical_anchor, move_roving_focus, window_material_theme};
+use gpui_material_foundation::{
+    ThemeScope, current_material_theme, logical_anchor, move_roving_focus,
+};
 use gpui_material_theme::{CornerRole, CornerShape, Direction, StateLayer, TypeRole};
 
 type Action = Rc<dyn Fn(&mut Window, &mut App)>;
@@ -69,9 +71,10 @@ impl ItemSlots {
         label: SharedString,
         marked: bool,
         submenu: bool,
-        motion: OverlayMotion,
+        paint: Paint<'_>,
         supporting_color: gpui::Hsla,
     ) -> Vec<AnyElement> {
+        let motion = paint.motion;
         let icon_size = motion.px(18.);
         let leading = if marked {
             Some(self.selection_icon.as_ref().map_or_else(
@@ -85,6 +88,7 @@ impl ItemSlots {
         } else {
             self.leading.as_ref().map(|icon| icon())
         };
+        let supporting_scale = paint.theme.typography.text_scale();
         let body = div()
             .flex_1()
             .min_w_0()
@@ -92,8 +96,8 @@ impl ItemSlots {
             .child(div().truncate().child(self.label(label)))
             .children(self.supporting.as_ref().map(|supporting| {
                 div()
-                    .text_size(motion.px(12.))
-                    .line_height(motion.px(16.))
+                    .text_size(motion.px(12. * supporting_scale))
+                    .line_height(motion.px(16. * supporting_scale))
                     .text_color(supporting_color)
                     .child(supporting())
             }));
@@ -475,7 +479,7 @@ impl Menu {
 
 impl RenderOnce for Menu {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let direction = window_material_theme(window, cx).layout.direction;
+        let direction = current_material_theme(window, cx).layout.direction;
         let submenu = self.close_parent.is_some();
         if !self.enabled {
             return self.trigger;
@@ -680,6 +684,7 @@ impl RenderOnce for Menu {
                 let overlay = ScaledOverlay::new(popup, motion, move |menu| {
                     menu_pivot(menu, pivot.trigger.get())
                 });
+                let overlay = ThemeScope::inherit(overlay, window, cx);
                 if let Some(position) = explicit_position {
                     Positioner::corner(anchor, position)
                         .on_position(move |resolved| item_bounds.popup.set(resolved.bounds))
@@ -687,7 +692,7 @@ impl RenderOnce for Menu {
                         .child(overlay)
                         .into_any_element()
                 } else {
-                    overlay.into_any_element()
+                    overlay
                 }
             });
         div()
@@ -716,8 +721,9 @@ fn menu_exit(
         presentation,
     } = presented.as_ref()?;
     let trigger = bounds.trigger.get();
+    let theme = current_material_theme(window, cx);
     let paint = Paint {
-        theme: window_material_theme(window, cx),
+        theme: &theme,
         motion,
         direction,
     };
@@ -745,13 +751,17 @@ fn menu_exit(
         )
         .child(div().absolute().inset_0().occlude());
     Some(
-        gpui::deferred(
-            Positioner::corner(Anchor::TopLeft, exit.origin).child(ScaledOverlay::new(
-                super::text_style(surface, TypeRole::LabelLarge, motion.scale, window, cx),
-                motion,
-                move |bounds| menu_pivot(bounds, trigger),
-            )),
-        )
+        gpui::deferred(Positioner::corner(Anchor::TopLeft, exit.origin).child(
+            ThemeScope::inherit(
+                ScaledOverlay::new(
+                    super::text_style(surface, TypeRole::LabelLarge, motion.scale, window, cx),
+                    motion,
+                    move |bounds| menu_pivot(bounds, trigger),
+                ),
+                window,
+                cx,
+            ),
+        ))
         .with_priority(100 + depth)
         .into_any_element(),
     )
@@ -796,7 +806,7 @@ fn exit_rows(
                     item.label.clone(),
                     item.selected,
                     item.submenu,
-                    paint.motion,
+                    paint,
                     supporting,
                 ))
                 .into_any_element()
@@ -850,7 +860,7 @@ fn row_layout<E: Styled + FluentBuilder>(
         .justify_start()
         .w_full()
         .min_h(paint.motion.px(48.))
-        .line_height(paint.motion.px(20.))
+        .line_height(paint.motion.px(20. * paint.theme.typography.text_scale()))
         .gap(paint.length(style.spacing.unwrap_or(px(8.))))
         .when(paint.direction == Direction::Rtl, Styled::flex_row_reverse);
     let element = paint.padding(
@@ -939,7 +949,7 @@ fn menu_content(
     let viewport = window.viewport_size();
     let limit = (viewport.height * 0.7).min(px(420.)) * motion.scale;
     let available_width = (viewport.width - px(16.)).max(px(0.)) * motion.scale;
-    let theme = window_material_theme(window, cx).clone();
+    let theme = current_material_theme(window, cx).clone();
     let paint = Paint {
         theme: &theme,
         motion,
@@ -1156,13 +1166,10 @@ impl ActiveRows<'_> {
                 })
                 .on_click(move |_, window, cx| activate(window, cx))
             })
-            .children(item.slots.children(
-                item.label,
-                marked,
-                submenu,
-                self.paint.motion,
-                supporting,
-            ));
+            .children(
+                item.slots
+                    .children(item.label, marked, submenu, self.paint, supporting),
+            );
         if let Kind::Submenu(children) = item.kind {
             Menu {
                 close_parent: Some(self.close.clone()),

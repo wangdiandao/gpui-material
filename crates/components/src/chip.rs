@@ -6,7 +6,7 @@ use gpui::{
     Window, canvas, div, point, prelude::FluentBuilder, px, quad,
 };
 use gpui_material_foundation::{
-    InteractionSource, InteractionState, animate, color, elevation_shadows, window_material_theme,
+    InteractionSource, InteractionState, animate, color, current_material_theme, elevation_shadows,
 };
 use gpui_material_theme::{
     ColorRole, CornerRole, Direction, Elevation, MotionKind, MotionSpeed, TypeRole,
@@ -285,7 +285,7 @@ impl RenderOnce for Chip {
         let tonal = selectable && self.tonal;
         let elevated = self.elevated && self.variant != ChipVariant::Input;
         let split = selectable && self.remove.is_some();
-        let theme = window_material_theme(window, cx).clone();
+        let theme = current_material_theme(window, cx).clone();
         let direction = theme.layout.direction;
         let theme_color = |role| color(theme.colors.color(role));
         let on_surface = theme_color(OnSurface);
@@ -733,7 +733,7 @@ impl SplitSurface {
         window: &mut Window,
         cx: &mut App,
     ) -> impl IntoElement {
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let shadow = color(theme.colors.color(ColorRole::Shadow));
         let effects = theme
             .motion

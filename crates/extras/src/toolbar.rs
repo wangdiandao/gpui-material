@@ -9,7 +9,8 @@ use gpui::{
 use gpui_base::{Button, FocusTrapElement, Popup, Positioner, TestSupportExt};
 use gpui_material_components::{FabColor, FabSize, FabVisibilityAnimation, Icon, IconName, Text};
 use gpui_material_foundation::{
-    animate, color, elevation_shadows, logical_anchor, move_roving_focus, window_material_theme,
+    ThemeScope, animate, color, current_material_theme, elevation_shadows, logical_anchor,
+    move_roving_focus,
 };
 use gpui_material_theme::{
     ColorRole, CornerShape, Direction, Elevation, MotionKind, MotionSpeed, StateLayer, TypeRole,
@@ -580,7 +581,7 @@ impl RenderOnce for FabMenu {
             Rc::new(MenuState::default())
         });
         let state = retained.read(cx).clone();
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
         let motion = theme.motion;
         let tone = |role| color(theme.colors.color(role));
@@ -835,7 +836,7 @@ impl RenderOnce for FabMenu {
                             .on_position(move |position, _| {
                                 record_bounds.bounds.set(position.bounds)
                             })
-                            .content(panel);
+                            .content(ThemeScope::inherit(panel, window, cx));
                     }
                     popup.into_any_element()
                 } else {
@@ -874,8 +875,13 @@ impl RenderOnce for FabMenu {
             };
             root = root.child(
                 deferred(
-                    Positioner::corner(anchor, point(x, exit_bounds.bottom()))
-                        .child(self.render_actions(&handles, &state, &request, style, window)),
+                    Positioner::corner(anchor, point(x, exit_bounds.bottom())).child(
+                        ThemeScope::inherit(
+                            self.render_actions(&handles, &state, &request, style, window),
+                            window,
+                            cx,
+                        ),
+                    ),
                 )
                 .with_priority(100),
             );

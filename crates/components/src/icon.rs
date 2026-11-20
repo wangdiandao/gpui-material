@@ -6,7 +6,7 @@ use gpui::{
     div, px, radians, size, svg,
 };
 use gpui_base::TestSupportExt;
-use gpui_material_foundation::{color, window_material_theme};
+use gpui_material_foundation::{color, current_material_theme};
 use gpui_material_theme::{ColorRole, Direction};
 
 macro_rules! symbols {
@@ -157,7 +157,7 @@ impl Icon {
 
 impl RenderOnce for Icon {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let tint = self.color.map_or_else(
             || window.text_style().color,
             |role| color(theme.colors.color(role)),

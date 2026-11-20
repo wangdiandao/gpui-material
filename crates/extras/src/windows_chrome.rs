@@ -5,7 +5,7 @@ use gpui::{
     ParentElement, RenderOnce, Role, Stateful, StatefulInteractiveElement, Styled, Window,
     WindowControlArea, WindowOptions, div, prelude::FluentBuilder, px, transparent_black,
 };
-use gpui_material_foundation::{color, window_material_theme};
+use gpui_material_foundation::{color, current_material_theme};
 use gpui_material_theme::{ColorRole, Direction};
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use windows::Win32::{
@@ -47,7 +47,7 @@ impl TitleBar {
 
 impl RenderOnce for TitleBar {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let rtl = theme.layout.direction == Direction::Rtl;
         let foreground = if window.is_window_active() {
             ColorRole::OnSurface
@@ -117,7 +117,7 @@ impl RenderOnce for CaptionButtons {
             .items_stretch()
             .flex_shrink_0()
             .when(
-                window_material_theme(window, cx).layout.direction == Direction::Rtl,
+                current_material_theme(window, cx).layout.direction == Direction::Rtl,
                 |buttons| buttons.flex_row_reverse(),
             )
             .when(window.is_minimizable(), |buttons| {
@@ -183,7 +183,7 @@ impl CaptionButton {
 }
 
 fn title_bar_control(control: CaptionButton, window: &Window, cx: &App) -> Stateful<Div> {
-    let theme = window_material_theme(window, cx);
+    let theme = current_material_theme(window, cx);
     let tone = |role| color(theme.colors.color(role));
     let foreground = if window.is_window_active() {
         ColorRole::OnSurface

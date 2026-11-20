@@ -246,6 +246,7 @@ fn theme_control_stays_clear_of_adaptive_navigation(cx: &mut TestAppContext) {
 fn projects_theme_and_paints_status_in_two_windows(cx: &mut TestAppContext) {
     let (first, second) = cx.update(|cx| {
         init_gallery(cx);
+        cx.set_reduce_motion(true);
         (
             open_gallery(cx, false, Story::default(), false).unwrap(),
             open_gallery(cx, true, Story::default(), false).unwrap(),

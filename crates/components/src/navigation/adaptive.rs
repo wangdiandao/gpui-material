@@ -3,7 +3,7 @@ use gpui::{
     RenderOnce, Size, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
-use gpui_material_foundation::window_material_theme;
+use gpui_material_foundation::current_material_theme;
 use gpui_material_theme::{Direction, WidthClass};
 
 use super::{AdaptivePane, AdaptivePaneLayout, AdaptivePaneState, PaneAdaptStrategy, PaneRole};
@@ -89,7 +89,7 @@ impl ListDetail {
 impl RenderOnce for ListDetail {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let single = Self::is_single_pane(self.width);
-        let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
+        let rtl = current_material_theme(window, cx).layout.direction == Direction::Rtl;
         let show_detail = !single || self.active == ListDetailPane::Detail || self.list.is_none();
         let list = self.list.filter(|_| !single || !show_detail);
         div()
@@ -180,7 +180,7 @@ impl SupportingPane {
 
 impl RenderOnce for SupportingPane {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
+        let rtl = current_material_theme(window, cx).layout.direction == Direction::Rtl;
         let single = ListDetail::is_single_pane(self.width);
         div()
             .id(self.id)
@@ -255,7 +255,7 @@ impl ParentElement for Feed {
 impl RenderOnce for Feed {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let columns = Self::columns(self.width);
-        let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
+        let rtl = current_material_theme(window, cx).layout.direction == Direction::Rtl;
         let state = window.use_keyed_state((self.id.clone(), "feed-columns"), cx, |_, _| columns);
         state.update(cx, |previous, _| {
             if *previous != columns && !self.cards.is_empty() {

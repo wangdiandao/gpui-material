@@ -9,7 +9,7 @@ use gpui_base::{Button, TestSupportExt};
 use gpui_material_foundation::{
     InteractionSource, animate, color,
     control_feedback::{activate_feedback, feedback_target, ripple_state},
-    text_style, window_material_theme,
+    current_material_theme, text_style,
 };
 use gpui_material_theme::{
     ColorRole, Direction, MotionKind, MotionSpeed, TypeRole, TypographyEmphasis,
@@ -393,7 +393,7 @@ impl NavigationItems {
         window: &mut Window,
         cx: &mut App,
     ) -> AnyElement {
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let rtl = theme.layout.direction == Direction::Rtl;
         let direction = theme.layout.direction;
         let density = theme.layout.density;
@@ -845,7 +845,7 @@ impl ItemVisual {
         window: &mut Window,
         cx: &mut App,
     ) -> impl IntoElement + use<> {
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let tone = |role| color(theme.colors.color(role));
         let foreground = if !self.selected {
             ColorRole::OnSurfaceVariant

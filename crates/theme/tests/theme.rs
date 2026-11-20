@@ -49,6 +49,33 @@ fn static_appearances_resolve_color_pairs_and_elevation() {
 }
 
 #[test]
+fn blends_color_roles_and_alpha_with_exact_endpoints() {
+    let mut light = ColorScheme::baseline(Appearance::Light);
+    let mut dark = ColorScheme::baseline(Appearance::Dark);
+    light.set_color(ColorRole::Info, Argb::from_u32(0x0000_00ff));
+    dark.set_color(ColorRole::Info, Argb::from_u32(0xffff_ff00));
+
+    assert_eq!(light.blend(&dark, f32::NAN), light);
+    assert_eq!(light.blend(&dark, -1.), light);
+    assert_eq!(light.blend(&dark, 2.), dark);
+    assert_eq!(light.blend(&dark, 0.49).appearance(), Appearance::Light);
+    let halfway = light.blend(&dark, 0.5);
+    assert_eq!(halfway.appearance(), Appearance::Dark);
+    let info = halfway.pair(ColorRole::Info).unwrap();
+    assert_eq!(info.background.to_u32(), 0x8080_8080);
+    assert_eq!(info.foreground, halfway.color(ColorRole::OnInfo));
+    for role in [
+        ColorRole::InfoContainer,
+        ColorRole::Success,
+        ColorRole::SuccessContainer,
+        ColorRole::Warning,
+        ColorRole::WarningContainer,
+    ] {
+        assert!(halfway.pair(role).is_some());
+    }
+}
+
+#[test]
 fn component_references_preserve_semantic_roles_and_state_shapes() {
     assert_eq!(
         token("md.comp.filled-button.container-color"),
@@ -109,8 +136,34 @@ fn type_scale_preserves_metrics_and_font_preferences() {
         assert_eq!(baseline.size, emphasized.size);
         assert_eq!(baseline.line_height, emphasized.line_height);
         assert!(emphasized.weight > baseline.weight);
+        let typography = gpui_material_theme::Typography::default().with_text_scale(2.);
+        for emphasis in [Baseline, Emphasized] {
+            let raw = role.style(emphasis);
+            let scaled = typography.style(role, emphasis);
+            assert_eq!(scaled.size, raw.size * 2.);
+            assert_eq!(scaled.line_height, raw.line_height * 2.);
+            assert_eq!(scaled.tracking, raw.tracking * 2.);
+            assert_eq!(scaled.weight, raw.weight);
+        }
     }
     let mut theme = MaterialTheme::default();
+    assert_eq!(theme.typography.text_scale(), 1.);
+    assert_eq!(
+        theme
+            .typography
+            .clone()
+            .with_text_scale(f32::NAN)
+            .text_scale(),
+        1.
+    );
+    assert_eq!(
+        theme.typography.clone().with_text_scale(0.5).text_scale(),
+        1.
+    );
+    assert_eq!(
+        theme.typography.clone().with_text_scale(3.).text_scale(),
+        2.
+    );
     assert_eq!(theme.typography.families(Typeface::Plain).primary, "Roboto");
     theme.typography.plain = FontFamilies {
         primary: "Segoe UI".into(),
@@ -266,6 +319,7 @@ fn serde_round_trips_theme_overrides_and_keeps_baseline_roles() {
         .colors
         .set_color(ColorRole::Primary, Argb::from_rgb(12, 34, 56));
     theme.motion = MotionScheme::Expressive;
+    theme.typography = theme.typography.with_text_scale(1.5);
     theme.layout = LayoutPolicy {
         density: Density::Compact,
         direction: Direction::Rtl,
@@ -279,4 +333,14 @@ fn serde_round_trips_theme_overrides_and_keeps_baseline_roles() {
     );
     let older: ColorScheme = serde_json::from_str(r#"{"appearance":"Dark"}"#).unwrap();
     assert_eq!(older, ColorScheme::baseline(Appearance::Dark));
+    let mut serialized = serde_json::to_value(&decoded).unwrap();
+    serialized["typography"]
+        .as_object_mut()
+        .unwrap()
+        .remove("text_scale");
+    let older: MaterialTheme = serde_json::from_value(serialized.clone()).unwrap();
+    assert_eq!(older.typography.text_scale(), 1.);
+    serialized["typography"]["text_scale"] = serde_json::json!(2.25);
+    let clamped: MaterialTheme = serde_json::from_value(serialized).unwrap();
+    assert_eq!(clamped.typography.text_scale(), 2.);
 }

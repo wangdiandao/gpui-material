@@ -7,7 +7,7 @@ use gpui::{
     PathBuilder, Pixels, Point, RenderOnce, SharedString, StatefulInteractiveElement, Styled,
     Window, canvas, div, point, px,
 };
-use gpui_material_foundation::{color, window_material_theme};
+use gpui_material_foundation::{color, current_material_theme};
 use gpui_material_theme::{ColorRole, CornerShape};
 use polymorpher::{
     CornerRounding, Cubic, Morph, RoundedPolygon, geometry::Point as PolygonPoint, shapes,
@@ -195,7 +195,7 @@ impl RenderOnce for LoadingIndicator {
                 .into_any_element();
         }
 
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let fill = self.indicator_color.unwrap_or_else(|| {
             color(theme.colors.color(if self.contained {
                 ColorRole::OnPrimaryContainer

@@ -8,7 +8,7 @@ use gpui::{
 use gpui_material_components::{
     Button, ButtonVariant, Dialog, DialogAction, DialogCloseReason, DialogColors, DialogProperties,
 };
-use gpui_material_foundation::{color, window_material_theme};
+use gpui_material_foundation::{color, current_material_theme};
 use gpui_material_theme::{ColorRole, CornerShape};
 
 use super::{
@@ -249,7 +249,7 @@ impl<const VIBRANT: bool> RenderOnce for TimeDialog<VIBRANT> {
                 .into_any_element()
         });
         if VIBRANT {
-            let theme = window_material_theme(window, cx);
+            let theme = current_material_theme(window, cx);
             self.colors
                 .container
                 .get_or_insert_with(|| color(theme.colors.color(ColorRole::SurfaceContainer)));

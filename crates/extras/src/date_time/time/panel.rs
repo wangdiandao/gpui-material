@@ -9,7 +9,7 @@ use gpui::{
 };
 use gpui_base::{Button as BaseButton, TestSupportExt as _};
 use gpui_material_components::{Text, TextField, TextFieldColors, TextFieldVariant};
-use gpui_material_foundation::{color, window_material_theme};
+use gpui_material_foundation::{color, current_material_theme};
 use gpui_material_theme::{ColorRole, CornerRole, CornerShape, Direction, MaterialTheme, TypeRole};
 
 use super::{
@@ -182,7 +182,7 @@ impl RenderOnce for TimePickerPanel {
                 TimePickerLayout::Horizontal => true,
                 TimePickerLayout::Auto => window.viewport_size().height < px(650.),
             };
-        let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
+        let rtl = current_material_theme(window, cx).layout.direction == Direction::Rtl;
         let toggle = self
             .toggle
             .map(|content| content(mode_action(&self.state, model, mode, false)));
@@ -258,8 +258,8 @@ fn time_input(
 ) -> AnyElement {
     let model = state.read(cx);
     let state = state.clone();
-    let theme = window_material_theme(window, cx);
-    let colors = appearance.input_colors(theme);
+    let theme = current_material_theme(window, cx);
+    let colors = appearance.input_colors(&theme);
     let field = |segment, label: &SharedString, part| {
         let editor = model.field(segment);
         let invalid = model.input_attempted
@@ -319,7 +319,7 @@ fn time_scroll(
     window: &Window,
     cx: &App,
 ) -> AnyElement {
-    let theme = window_material_theme(window, cx);
+    let theme = current_material_theme(window, cx);
     let wheel = |segment, name: &SharedString, part| {
         let offset = usize::from(
             segment == TimePickerSegment::Hour && model.format == TimeFormat::TwelveHour,
@@ -371,7 +371,7 @@ fn time_selector(
 ) -> AnyElement {
     let model = state.read(cx);
     let (format, locale) = (model.format, &model.locale);
-    let theme = window_material_theme(window, cx);
+    let theme = current_material_theme(window, cx);
     let rtl = theme.layout.direction == Direction::Rtl;
     let tone = |role| color(theme.colors.color(role));
     let palette = appearance.style.time_selector;
@@ -481,7 +481,7 @@ fn period_selector(
 ) -> AnyElement {
     let model = state.read(cx);
     let locale = &model.locale;
-    let theme = window_material_theme(window, cx);
+    let theme = current_material_theme(window, cx);
     let rtl = theme.layout.direction == Direction::Rtl;
     let tone = |role| color(theme.colors.color(role));
     let palette = appearance.style.period_selector;
@@ -633,7 +633,7 @@ fn dial(
     } else {
         &locale.minute
     };
-    let theme = window_material_theme(window, cx);
+    let theme = current_material_theme(window, cx);
     let tone = |role| color(theme.colors.color(role));
     let diameter = (window.viewport_size().width - px(110.)).clamp(px(120.), px(256.));
     let center = diameter / 2.;

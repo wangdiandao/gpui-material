@@ -8,7 +8,8 @@ use gpui::{
 };
 use gpui_base::TestSupportExt as _;
 use gpui_material_foundation::{
-    DragCapture, Scrim, Surface, animate, color, isolated_scroll, window_material_theme,
+    DragCapture, Scrim, Surface, ThemeScope, animate, color, current_material_theme,
+    isolated_scroll,
 };
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Direction, Elevation, MotionKind, MotionSpec, MotionSpeed,
@@ -177,7 +178,7 @@ fn drag_handle(
     cx: &mut App,
 ) -> AnyElement {
     let tint = color(
-        window_material_theme(window, cx)
+        current_material_theme(window, cx)
             .colors
             .color(ColorRole::OnSurfaceVariant),
     );
@@ -707,7 +708,7 @@ impl RenderOnce for Sheet {
         } else {
             presence.map_or(1., |presence| presence.progress)
         };
-        let theme = window_material_theme(window, cx).clone();
+        let theme = current_material_theme(window, cx).clone();
         let left = match self.edge {
             SheetEdge::Start => theme.layout.direction == Direction::Ltr,
             SheetEdge::End => theme.layout.direction == Direction::Rtl,
@@ -1101,12 +1102,20 @@ impl RenderOnce for Sheet {
                     gpui_base::Sheet::new(cx)
                         .focus_handle(focus)
                         .overlay_interactive(false)
-                        .overlay(modal_backdrop(scrim, move |window, cx| {
-                            if properties.dismiss_on_outside_click {
-                                outside.dismiss(DialogCloseReason::OutsideClick, window, cx);
-                            }
-                        }))
-                        .surface(div().absolute().inset_0().overflow_hidden().child(panel))
+                        .overlay(ThemeScope::inherit(
+                            modal_backdrop(scrim, move |window, cx| {
+                                if properties.dismiss_on_outside_click {
+                                    outside.dismiss(DialogCloseReason::OutsideClick, window, cx);
+                                }
+                            }),
+                            window,
+                            cx,
+                        ))
+                        .surface(ThemeScope::inherit(
+                            div().absolute().inset_0().overflow_hidden().child(panel),
+                            window,
+                            cx,
+                        ))
                         .request_close(move |window, cx| {
                             cx.stop_propagation();
                             if properties.dismiss_on_escape {
@@ -1128,8 +1137,12 @@ impl RenderOnce for Sheet {
                         .w(viewport.width)
                         .h(viewport.height)
                         .overflow_hidden()
-                        .child(scrim)
-                        .child(exiting_panel(panel, &self.id, &dialog, window, cx)),
+                        .child(ThemeScope::inherit(scrim, window, cx))
+                        .child(ThemeScope::inherit(
+                            exiting_panel(panel, &self.id, &dialog, window, cx),
+                            window,
+                            cx,
+                        )),
                 ),
             )
             .with_priority(layer)

@@ -13,7 +13,7 @@ use gpui_base::{
 };
 use gpui_material_foundation::{
     DragCapture, InteractionSource, InteractionState, InteractionTracker, animate, color,
-    range_semantics, shape_text, window_material_theme,
+    current_material_theme, range_semantics, shape_text,
 };
 use gpui_material_theme::{ColorRole, Direction, TypeRole, TypographyEmphasis};
 
@@ -475,7 +475,7 @@ impl RenderOnce for Slider {
             .clone();
         let geometry = Geometry {
             axis: self.axis,
-            direction: window_material_theme(window, cx).layout.direction,
+            direction: current_material_theme(window, cx).layout.direction,
             reverse_vertical: self.reverse_vertical,
         };
         let horizontal = self.axis.is_horizontal();
@@ -543,7 +543,7 @@ impl RenderOnce for Slider {
         } else {
             target
         };
-        let colors = window_material_theme(window, cx).colors.clone();
+        let colors = current_material_theme(window, cx).colors.clone();
         let resolve = |role| color(colors.color(role));
         let disabled = resolve(ColorRole::OnSurface);
         let (active, inactive, active_tick, inactive_tick, thumb_color) = if self.disabled {
@@ -594,7 +594,7 @@ impl RenderOnce for Slider {
             .thumb
             .filter(|_| !self.disabled && window.is_window_active());
         let reduced = cx.reduce_motion();
-        let scheme = window_material_theme(window, cx).motion;
+        let scheme = current_material_theme(window, cx).motion;
         let resize = scheme.spec(
             gpui_material_theme::MotionKind::Spatial,
             gpui_material_theme::MotionSpeed::Fast,
@@ -929,7 +929,7 @@ impl RenderOnce for Slider {
                         || format!("{numeric_value:.2}").into(),
                         |format| format(numeric_value),
                     );
-                    let theme = window_material_theme(window, cx);
+                    let theme = current_material_theme(window, cx);
                     let foreground = resolve(ColorRole::InverseOnSurface).opacity(opacity);
                     let background = resolve(ColorRole::InverseSurface).opacity(opacity);
                     let line = shape_text(

@@ -8,7 +8,7 @@ use gpui::{
 use gpui_base::TestSupportExt as _;
 use gpui_material_foundation::{
     InteractionFeedback, InteractionSource, InteractionState, Shape, animate, color,
-    elevation_shadows, window_material_theme,
+    current_material_theme, elevation_shadows,
 };
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Elevation, MotionKind, MotionSpec, MotionSpeed,
@@ -189,7 +189,7 @@ impl RenderOnce for Card {
             feedback.track(enabled, &focus, tracker, window, cx)
         };
 
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
         let reduced = cx.reduce_motion();
         let tone = |role| color(theme.colors.color(role));

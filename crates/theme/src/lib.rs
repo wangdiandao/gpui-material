@@ -4,6 +4,8 @@
 #![forbid(unsafe_code)]
 
 mod color;
+#[cfg(feature = "dynamic-color")]
+mod dynamic_color;
 mod layout;
 mod motion;
 mod shape;
@@ -20,6 +22,8 @@ mod generated {
 #[cfg(feature = "dynamic-color")]
 pub use color::contrast_ratio_of_tones;
 pub use color::{Appearance, Argb, ColorPair, ColorScheme, Elevation, StateLayer};
+#[cfg(feature = "dynamic-color")]
+pub use dynamic_color::{DynamicVariant, SpecVersion, ThemePreset};
 pub use generated::ColorRole;
 pub use layout::{Density, Direction, LayoutPolicy, WidthClass};
 pub use motion::{CubicBezier, MotionKind, MotionScheme, MotionSpec, MotionSpeed, Spring};

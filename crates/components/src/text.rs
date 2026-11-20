@@ -11,7 +11,7 @@ use gpui::{
 };
 use gpui_base::TestSupportExt;
 use gpui_material_foundation::{
-    ShapedText, color, font_cache_revision, shape_text, window_material_theme, wrapped_text,
+    ShapedText, color, current_material_theme, font_cache_revision, shape_text, wrapped_text,
 };
 use gpui_material_theme::{
     ColorRole, Direction, TypeRole, TypeStyle, Typography, TypographyEmphasis,
@@ -156,7 +156,7 @@ impl RenderOnce for Text {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let tint = self.color.map_or_else(
             || window.text_style().color,
-            |role| color(window_material_theme(window, cx).colors.color(role)),
+            |role| color(current_material_theme(window, cx).colors.color(role)),
         );
         let text = if self.wrap {
             wrapped_text(
@@ -200,7 +200,7 @@ pub(crate) fn single_line_width(
     window: &Window,
     cx: &App,
 ) -> Pixels {
-    let theme = window_material_theme(window, cx);
+    let theme = current_material_theme(window, cx);
     shape_text(
         clean_line(value.clone()),
         style,
@@ -226,7 +226,7 @@ pub(crate) fn single_line(
     cx: &App,
 ) -> gpui::Div {
     let clean = clean_line(value);
-    let theme = window_material_theme(window, cx);
+    let theme = current_material_theme(window, cx);
     let typography = theme.typography.clone();
     let align = if theme.layout.direction == Direction::Rtl {
         TextAlign::Right

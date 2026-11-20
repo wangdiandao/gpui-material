@@ -7,8 +7,8 @@ use gpui::{
 };
 use gpui_base::{Button, Toggle};
 use gpui_material_foundation::{
-    InteractionFeedback, InteractionSource, InteractionState, InteractionTracker, Shape, animate,
-    color, elevation_shadows, window_material_theme,
+    InteractionFeedback, InteractionSource, InteractionState, InteractionTracker, Shape,
+    ThemeScope, animate, color, current_material_theme, elevation_shadows,
 };
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Elevation, MotionKind, MotionSpec, MotionSpeed,
@@ -59,7 +59,7 @@ pub(crate) struct DisabledStyle {
 
 impl ActionStyle {
     pub(crate) fn foreground(self, disabled: bool, window: &Window, cx: &App) -> Hsla {
-        let colors = &window_material_theme(window, cx).colors;
+        let colors = &current_material_theme(window, cx).colors;
         if disabled {
             color(colors.color(self.disabled.foreground)).opacity(0.38)
         } else {
@@ -191,7 +191,7 @@ impl ActionControl {
     ) -> AnyElement {
         let (feedback, focus) = self.feedback(window, cx);
         let style = self.style;
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let density = theme.layout.density;
         let direction = theme.layout.direction;
         let reduced = cx.reduce_motion();
@@ -430,6 +430,11 @@ impl ActionControl {
                     .accessibility_label(label);
                 let control = match on_activate {
                     Some(on_activate) if enabled => {
+                        let on_activate = Rc::new(ThemeScope::bind_action(
+                            move |window, cx| on_activate(window, cx),
+                            window,
+                            cx,
+                        ));
                         let feedback = feedback.clone();
                         let invoke = on_activate.clone();
                         let semantic_feedback = feedback.clone();

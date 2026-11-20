@@ -33,8 +33,8 @@ pub fn text_style<E: Styled>(
     window: &Window,
     cx: &App,
 ) -> E {
-    let theme = crate::window_material_theme(window, cx);
-    let style = LayoutPolicy::scale_text(style, font_scale);
+    let theme = crate::current_material_theme(window, cx);
+    let style = LayoutPolicy::scale_text(theme.typography.scale_style(style), font_scale);
     let font = font_for_style(&theme.typography, style, cx);
     element
         .font(font)
@@ -152,7 +152,7 @@ pub fn shape_text(
     if text.contains(['\r', '\n']) {
         return None;
     }
-    let style = LayoutPolicy::scale_text(style, font_scale);
+    let style = LayoutPolicy::scale_text(typography.scale_style(style), font_scale);
     let run = TextRun {
         len: text.len(),
         font: font_for_style(typography, style, cx),

@@ -7,7 +7,7 @@ use gpui::{
     relative, size,
 };
 use gpui_base::TestSupportExt;
-use gpui_material_foundation::window_material_theme;
+use gpui_material_foundation::current_material_theme;
 use gpui_material_theme::{Direction, WidthClass};
 use web_time::Instant;
 
@@ -278,7 +278,7 @@ impl RenderOnce for AdaptiveNavigation {
             length(self.width),
             length(self.height.unwrap_or(viewport.height)),
         );
-        let direction = window_material_theme(window, cx).layout.direction;
+        let direction = current_material_theme(window, cx).layout.direction;
         let info = AdaptiveNavigationInfo {
             available_size: available,
             width_class: WidthClass::from_width(available.width.into()),

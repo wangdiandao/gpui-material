@@ -6,7 +6,7 @@ use gpui::{
     Styled, WeakFocusHandle, Window, div, prelude::FluentBuilder, px, size,
 };
 use gpui_base::{FocusTrapElement, TestSupportExt};
-use gpui_material_foundation::window_material_theme;
+use gpui_material_foundation::current_material_theme;
 
 use crate::VerticalDragHandle;
 
@@ -314,7 +314,7 @@ impl RenderOnce for AdaptivePaneLayout {
         };
         let input = GeometryInput {
             viewport,
-            direction: window_material_theme(window, cx).layout.direction,
+            direction: current_material_theme(window, cx).layout.direction,
             directive: &directive,
             order: self.order,
             measures: std::array::from_fn(|ix| {

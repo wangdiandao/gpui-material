@@ -8,7 +8,7 @@ use gpui::{
     prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt as _;
-use gpui_material_foundation::{color, elevation_shadows, window_material_theme};
+use gpui_material_foundation::{color, current_material_theme, elevation_shadows};
 use gpui_material_theme::{ColorRole, CornerShape, Direction, Elevation, TypeRole};
 
 type Action = Rc<dyn Fn(&mut Window, &mut App)>;
@@ -393,7 +393,7 @@ fn snackbar_surface(
     let id = entry.id;
     let serial = id.sequence;
     let message = &entry.message;
-    let theme = window_material_theme(window, cx);
+    let theme = current_material_theme(window, cx);
     let tone = |role| color(theme.colors.color(role));
     let inverse_primary = tone(ColorRole::InversePrimary);
     let inverse_on_surface = tone(ColorRole::InverseOnSurface);
@@ -555,7 +555,7 @@ fn default_layout(
         dismiss,
         ..
     } = parts;
-    let theme = window_material_theme(window, cx);
+    let theme = current_material_theme(window, cx);
     let direction = theme.layout.direction;
     let rtl = direction == Direction::Rtl;
     let tone = |role| color(theme.colors.color(role));

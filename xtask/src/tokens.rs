@@ -221,7 +221,7 @@ fn generate(manifest: &Manifest) -> Result<(String, String, String)> {
             expressions[token.name.as_str()]
         )?;
     }
-    write_roles(&mut rust, &roles)?;
+    write_roles(&mut rust, &roles, &tokens)?;
     write_type_styles(&mut rust, &tokens)?;
     writeln!(
         rust,
@@ -478,7 +478,7 @@ fn role_name(token: &Token) -> Result<&str> {
         .ok_or_else(|| format!("invalid color role: {}", token.name).into())
 }
 
-fn write_roles(rust: &mut String, roles: &[&Token]) -> Result {
+fn write_roles(rust: &mut String, roles: &[&Token], tokens: &Tokens<'_>) -> Result {
     use std::fmt::Write as _;
 
     writeln!(rust, "\n/// Semantic Material color roles.")?;
@@ -523,14 +523,19 @@ fn write_roles(rust: &mut String, roles: &[&Token]) -> Result {
     writeln!(rust, "\n#[cfg(feature = \"dynamic-color\")]")?;
     writeln!(
         rust,
-        "pub(crate) fn dynamic_colors(scheme: &material_color_utils::dynamic::dynamic_scheme::DynamicScheme) -> [Argb; ColorRole::ALL.len()] {{"
+        "pub(crate) fn dynamic_colors(scheme: &material_color_utils::dynamic::dynamic_scheme::DynamicScheme) -> impl IntoIterator<Item = (ColorRole, Argb)> {{"
     )?;
     writeln!(rust, "    [")?;
     for token in roles {
+        if tokens[token.name.as_str()].1 == "docs/theme/theme.md" {
+            continue;
+        }
+        let name = role_name(token)?;
         writeln!(
             rust,
-            "        Argb::from_u32(scheme.{}().0),",
-            role_name(token)?.replace('-', "_")
+            "        (ColorRole::{}, Argb::from_u32(scheme.{}().0)),",
+            variant(name),
+            name.replace('-', "_")
         )?;
     }
     writeln!(rust, "    ]\n}}")?;

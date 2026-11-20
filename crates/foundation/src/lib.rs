@@ -2,6 +2,7 @@
 
 mod root;
 mod surface;
+mod theme_scope;
 mod typography;
 
 pub use root::{
@@ -9,6 +10,7 @@ pub use root::{
     window_material_theme,
 };
 pub use surface::{Surface, SurfaceBorder, SurfaceFeedback, color, elevation_shadows, scrim_color};
+pub use theme_scope::{ThemeScope, current_material_theme};
 #[doc(hidden)]
 pub use typography::font_cache_revision;
 pub use typography::{ShapedText, font_for_style, shape_text, text_style, wrapped_text};

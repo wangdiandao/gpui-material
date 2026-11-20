@@ -8,7 +8,7 @@ use gpui::{
     prelude::FluentBuilder, px,
 };
 use gpui_base::{StyledExt, TestSupportExt};
-use gpui_material_foundation::window_material_theme;
+use gpui_material_foundation::current_material_theme;
 use gpui_material_theme::Direction;
 use web_time::Instant;
 
@@ -363,7 +363,7 @@ impl RenderOnce for PullToRefresh {
                 state.scroll_handle(),
             )
         });
-        let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
+        let rtl = current_material_theme(window, cx).layout.direction == Direction::Rtl;
         let owned = self.binding.is_none();
         let mut body = div()
             .id("refresh-scroll")

@@ -4,7 +4,7 @@ use gpui::{
     TextAlign, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
-use gpui_material_foundation::{animate, color, text_style, window_material_theme};
+use gpui_material_foundation::{animate, color, current_material_theme, text_style};
 use gpui_material_theme::{
     ColorRole, Direction, MotionKind, MotionSpec, MotionSpeed, TypeRole, TypographyEmphasis,
 };
@@ -395,7 +395,7 @@ impl AppBar {
         });
         let motion = if position.settling && !cx.reduce_motion() {
             self.scroll_motion.unwrap_or_else(|| {
-                window_material_theme(window, cx).motion.spec(
+                current_material_theme(window, cx).motion.spec(
                     MotionKind::Spatial,
                     MotionSpeed::Default,
                     false,
@@ -429,11 +429,12 @@ impl RenderOnce for AppBar {
         let collapsed = self.collapsed_height.unwrap_or(64.);
         let two_rows = self.variant.two_rows();
         let (expanded_title_role, expanded_subtitle_role) = self.variant.expanded_roles();
+        let text_scale = current_material_theme(window, cx).typography.text_scale();
         let default_expansion = if two_rows {
             (self.variant.expansion(self.subtitle.has_content())
                 + self.title.additional_height(expanded_title_role)
                 + self.subtitle.additional_height(expanded_subtitle_role))
-                * self.font_scale.max(1.)
+                * (self.font_scale * text_scale).max(1.)
         } else {
             0.
         };
@@ -442,7 +443,7 @@ impl RenderOnce for AppBar {
             .map_or(default_expansion, |height| (height - collapsed).max(0.));
         let (fraction, overlap) = self.scroll_position(limit, window, cx);
         let remaining = limit * (1. - fraction);
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
         let rtl = direction == Direction::Rtl;
         let centered = self.variant == AppBarVariant::Centered;

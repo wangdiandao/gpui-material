@@ -149,12 +149,16 @@ pub(crate) const MD_SYS_COLOR_BACKGROUND: ColorRole = ColorRole::Background;
 pub(crate) const MD_SYS_COLOR_DARK_BACKGROUND: Argb = MD_REF_PALETTE_NEUTRAL6;
 pub(crate) const MD_SYS_COLOR_DARK_ERROR: Argb = MD_REF_PALETTE_ERROR80;
 pub(crate) const MD_SYS_COLOR_DARK_ERROR_CONTAINER: Argb = MD_REF_PALETTE_ERROR30;
+pub(crate) const MD_SYS_COLOR_DARK_INFO: Argb = Argb::from_u32(0xff9ecaff);
+pub(crate) const MD_SYS_COLOR_DARK_INFO_CONTAINER: Argb = Argb::from_u32(0xff00497d);
 pub(crate) const MD_SYS_COLOR_DARK_INVERSE_ON_SURFACE: Argb = MD_REF_PALETTE_NEUTRAL20;
 pub(crate) const MD_SYS_COLOR_DARK_INVERSE_PRIMARY: Argb = MD_REF_PALETTE_PRIMARY40;
 pub(crate) const MD_SYS_COLOR_DARK_INVERSE_SURFACE: Argb = MD_REF_PALETTE_NEUTRAL90;
 pub(crate) const MD_SYS_COLOR_DARK_ON_BACKGROUND: Argb = MD_REF_PALETTE_NEUTRAL90;
 pub(crate) const MD_SYS_COLOR_DARK_ON_ERROR: Argb = MD_REF_PALETTE_ERROR20;
 pub(crate) const MD_SYS_COLOR_DARK_ON_ERROR_CONTAINER: Argb = MD_REF_PALETTE_ERROR90;
+pub(crate) const MD_SYS_COLOR_DARK_ON_INFO: Argb = Argb::from_u32(0xff003258);
+pub(crate) const MD_SYS_COLOR_DARK_ON_INFO_CONTAINER: Argb = Argb::from_u32(0xffd1e4ff);
 pub(crate) const MD_SYS_COLOR_DARK_ON_PRIMARY: Argb = MD_REF_PALETTE_PRIMARY20;
 pub(crate) const MD_SYS_COLOR_DARK_ON_PRIMARY_CONTAINER: Argb = MD_REF_PALETTE_PRIMARY90;
 pub(crate) const MD_SYS_COLOR_DARK_ON_PRIMARY_FIXED: Argb = MD_REF_PALETTE_PRIMARY10;
@@ -163,12 +167,16 @@ pub(crate) const MD_SYS_COLOR_DARK_ON_SECONDARY: Argb = MD_REF_PALETTE_SECONDARY
 pub(crate) const MD_SYS_COLOR_DARK_ON_SECONDARY_CONTAINER: Argb = MD_REF_PALETTE_SECONDARY90;
 pub(crate) const MD_SYS_COLOR_DARK_ON_SECONDARY_FIXED: Argb = MD_REF_PALETTE_SECONDARY10;
 pub(crate) const MD_SYS_COLOR_DARK_ON_SECONDARY_FIXED_VARIANT: Argb = MD_REF_PALETTE_SECONDARY30;
+pub(crate) const MD_SYS_COLOR_DARK_ON_SUCCESS: Argb = Argb::from_u32(0xff003826);
+pub(crate) const MD_SYS_COLOR_DARK_ON_SUCCESS_CONTAINER: Argb = Argb::from_u32(0xff89f8c7);
 pub(crate) const MD_SYS_COLOR_DARK_ON_SURFACE: Argb = MD_REF_PALETTE_NEUTRAL90;
 pub(crate) const MD_SYS_COLOR_DARK_ON_SURFACE_VARIANT: Argb = MD_REF_PALETTE_NEUTRAL_VARIANT80;
 pub(crate) const MD_SYS_COLOR_DARK_ON_TERTIARY: Argb = MD_REF_PALETTE_TERTIARY20;
 pub(crate) const MD_SYS_COLOR_DARK_ON_TERTIARY_CONTAINER: Argb = MD_REF_PALETTE_TERTIARY90;
 pub(crate) const MD_SYS_COLOR_DARK_ON_TERTIARY_FIXED: Argb = MD_REF_PALETTE_TERTIARY10;
 pub(crate) const MD_SYS_COLOR_DARK_ON_TERTIARY_FIXED_VARIANT: Argb = MD_REF_PALETTE_TERTIARY30;
+pub(crate) const MD_SYS_COLOR_DARK_ON_WARNING: Argb = Argb::from_u32(0xff502400);
+pub(crate) const MD_SYS_COLOR_DARK_ON_WARNING_CONTAINER: Argb = Argb::from_u32(0xffffdcc5);
 pub(crate) const MD_SYS_COLOR_DARK_OUTLINE: Argb = MD_REF_PALETTE_NEUTRAL_VARIANT60;
 pub(crate) const MD_SYS_COLOR_DARK_OUTLINE_VARIANT: Argb = MD_REF_PALETTE_NEUTRAL_VARIANT30;
 pub(crate) const MD_SYS_COLOR_DARK_PRIMARY: Argb = MD_REF_PALETTE_PRIMARY80;
@@ -181,6 +189,8 @@ pub(crate) const MD_SYS_COLOR_DARK_SECONDARY_CONTAINER: Argb = MD_REF_PALETTE_SE
 pub(crate) const MD_SYS_COLOR_DARK_SECONDARY_FIXED: Argb = MD_REF_PALETTE_SECONDARY90;
 pub(crate) const MD_SYS_COLOR_DARK_SECONDARY_FIXED_DIM: Argb = MD_REF_PALETTE_SECONDARY80;
 pub(crate) const MD_SYS_COLOR_DARK_SHADOW: Argb = MD_REF_PALETTE_NEUTRAL0;
+pub(crate) const MD_SYS_COLOR_DARK_SUCCESS: Argb = Argb::from_u32(0xff6ddbac);
+pub(crate) const MD_SYS_COLOR_DARK_SUCCESS_CONTAINER: Argb = Argb::from_u32(0xff005139);
 pub(crate) const MD_SYS_COLOR_DARK_SURFACE: Argb = MD_REF_PALETTE_NEUTRAL6;
 pub(crate) const MD_SYS_COLOR_DARK_SURFACE_BRIGHT: Argb = MD_REF_PALETTE_NEUTRAL24;
 pub(crate) const MD_SYS_COLOR_DARK_SURFACE_CONTAINER: Argb = MD_REF_PALETTE_NEUTRAL12;
@@ -195,20 +205,28 @@ pub(crate) const MD_SYS_COLOR_DARK_TERTIARY: Argb = MD_REF_PALETTE_TERTIARY80;
 pub(crate) const MD_SYS_COLOR_DARK_TERTIARY_CONTAINER: Argb = MD_REF_PALETTE_TERTIARY30;
 pub(crate) const MD_SYS_COLOR_DARK_TERTIARY_FIXED: Argb = MD_REF_PALETTE_TERTIARY90;
 pub(crate) const MD_SYS_COLOR_DARK_TERTIARY_FIXED_DIM: Argb = MD_REF_PALETTE_TERTIARY80;
+pub(crate) const MD_SYS_COLOR_DARK_WARNING: Argb = Argb::from_u32(0xffffb781);
+pub(crate) const MD_SYS_COLOR_DARK_WARNING_CONTAINER: Argb = Argb::from_u32(0xff733600);
 pub(crate) const MD_SYS_COLOR_ERROR: ColorRole = ColorRole::Error;
 pub(crate) const MD_SYS_COLOR_ERROR_CONTAINER: ColorRole = ColorRole::ErrorContainer;
+pub(crate) const MD_SYS_COLOR_INFO: ColorRole = ColorRole::Info;
+pub(crate) const MD_SYS_COLOR_INFO_CONTAINER: ColorRole = ColorRole::InfoContainer;
 pub(crate) const MD_SYS_COLOR_INVERSE_ON_SURFACE: ColorRole = ColorRole::InverseOnSurface;
 pub(crate) const MD_SYS_COLOR_INVERSE_PRIMARY: ColorRole = ColorRole::InversePrimary;
 pub(crate) const MD_SYS_COLOR_INVERSE_SURFACE: ColorRole = ColorRole::InverseSurface;
 pub(crate) const MD_SYS_COLOR_LIGHT_BACKGROUND: Argb = MD_REF_PALETTE_NEUTRAL98;
 pub(crate) const MD_SYS_COLOR_LIGHT_ERROR: Argb = MD_REF_PALETTE_ERROR40;
 pub(crate) const MD_SYS_COLOR_LIGHT_ERROR_CONTAINER: Argb = MD_REF_PALETTE_ERROR90;
+pub(crate) const MD_SYS_COLOR_LIGHT_INFO: Argb = Argb::from_u32(0xff0061a4);
+pub(crate) const MD_SYS_COLOR_LIGHT_INFO_CONTAINER: Argb = Argb::from_u32(0xffd1e4ff);
 pub(crate) const MD_SYS_COLOR_LIGHT_INVERSE_ON_SURFACE: Argb = MD_REF_PALETTE_NEUTRAL95;
 pub(crate) const MD_SYS_COLOR_LIGHT_INVERSE_PRIMARY: Argb = MD_REF_PALETTE_PRIMARY80;
 pub(crate) const MD_SYS_COLOR_LIGHT_INVERSE_SURFACE: Argb = MD_REF_PALETTE_NEUTRAL20;
 pub(crate) const MD_SYS_COLOR_LIGHT_ON_BACKGROUND: Argb = MD_REF_PALETTE_NEUTRAL10;
 pub(crate) const MD_SYS_COLOR_LIGHT_ON_ERROR: Argb = MD_REF_PALETTE_ERROR100;
 pub(crate) const MD_SYS_COLOR_LIGHT_ON_ERROR_CONTAINER: Argb = MD_REF_PALETTE_ERROR10;
+pub(crate) const MD_SYS_COLOR_LIGHT_ON_INFO: Argb = Argb::from_u32(0xffffffff);
+pub(crate) const MD_SYS_COLOR_LIGHT_ON_INFO_CONTAINER: Argb = Argb::from_u32(0xff001d36);
 pub(crate) const MD_SYS_COLOR_LIGHT_ON_PRIMARY: Argb = MD_REF_PALETTE_PRIMARY100;
 pub(crate) const MD_SYS_COLOR_LIGHT_ON_PRIMARY_CONTAINER: Argb = MD_REF_PALETTE_PRIMARY10;
 pub(crate) const MD_SYS_COLOR_LIGHT_ON_PRIMARY_FIXED: Argb = MD_REF_PALETTE_PRIMARY10;
@@ -217,12 +235,16 @@ pub(crate) const MD_SYS_COLOR_LIGHT_ON_SECONDARY: Argb = MD_REF_PALETTE_SECONDAR
 pub(crate) const MD_SYS_COLOR_LIGHT_ON_SECONDARY_CONTAINER: Argb = MD_REF_PALETTE_SECONDARY10;
 pub(crate) const MD_SYS_COLOR_LIGHT_ON_SECONDARY_FIXED: Argb = MD_REF_PALETTE_SECONDARY10;
 pub(crate) const MD_SYS_COLOR_LIGHT_ON_SECONDARY_FIXED_VARIANT: Argb = MD_REF_PALETTE_SECONDARY30;
+pub(crate) const MD_SYS_COLOR_LIGHT_ON_SUCCESS: Argb = Argb::from_u32(0xffffffff);
+pub(crate) const MD_SYS_COLOR_LIGHT_ON_SUCCESS_CONTAINER: Argb = Argb::from_u32(0xff002115);
 pub(crate) const MD_SYS_COLOR_LIGHT_ON_SURFACE: Argb = MD_REF_PALETTE_NEUTRAL10;
 pub(crate) const MD_SYS_COLOR_LIGHT_ON_SURFACE_VARIANT: Argb = MD_REF_PALETTE_NEUTRAL_VARIANT30;
 pub(crate) const MD_SYS_COLOR_LIGHT_ON_TERTIARY: Argb = MD_REF_PALETTE_TERTIARY100;
 pub(crate) const MD_SYS_COLOR_LIGHT_ON_TERTIARY_CONTAINER: Argb = MD_REF_PALETTE_TERTIARY10;
 pub(crate) const MD_SYS_COLOR_LIGHT_ON_TERTIARY_FIXED: Argb = MD_REF_PALETTE_TERTIARY10;
 pub(crate) const MD_SYS_COLOR_LIGHT_ON_TERTIARY_FIXED_VARIANT: Argb = MD_REF_PALETTE_TERTIARY30;
+pub(crate) const MD_SYS_COLOR_LIGHT_ON_WARNING: Argb = Argb::from_u32(0xffffffff);
+pub(crate) const MD_SYS_COLOR_LIGHT_ON_WARNING_CONTAINER: Argb = Argb::from_u32(0xff311300);
 pub(crate) const MD_SYS_COLOR_LIGHT_OUTLINE: Argb = MD_REF_PALETTE_NEUTRAL_VARIANT50;
 pub(crate) const MD_SYS_COLOR_LIGHT_OUTLINE_VARIANT: Argb = MD_REF_PALETTE_NEUTRAL_VARIANT80;
 pub(crate) const MD_SYS_COLOR_LIGHT_PRIMARY: Argb = MD_REF_PALETTE_PRIMARY40;
@@ -235,6 +257,8 @@ pub(crate) const MD_SYS_COLOR_LIGHT_SECONDARY_CONTAINER: Argb = MD_REF_PALETTE_S
 pub(crate) const MD_SYS_COLOR_LIGHT_SECONDARY_FIXED: Argb = MD_REF_PALETTE_SECONDARY90;
 pub(crate) const MD_SYS_COLOR_LIGHT_SECONDARY_FIXED_DIM: Argb = MD_REF_PALETTE_SECONDARY80;
 pub(crate) const MD_SYS_COLOR_LIGHT_SHADOW: Argb = MD_REF_PALETTE_NEUTRAL0;
+pub(crate) const MD_SYS_COLOR_LIGHT_SUCCESS: Argb = Argb::from_u32(0xff006c4e);
+pub(crate) const MD_SYS_COLOR_LIGHT_SUCCESS_CONTAINER: Argb = Argb::from_u32(0xff89f8c7);
 pub(crate) const MD_SYS_COLOR_LIGHT_SURFACE: Argb = MD_REF_PALETTE_NEUTRAL98;
 pub(crate) const MD_SYS_COLOR_LIGHT_SURFACE_BRIGHT: Argb = MD_REF_PALETTE_NEUTRAL98;
 pub(crate) const MD_SYS_COLOR_LIGHT_SURFACE_CONTAINER: Argb = MD_REF_PALETTE_NEUTRAL94;
@@ -249,9 +273,13 @@ pub(crate) const MD_SYS_COLOR_LIGHT_TERTIARY: Argb = MD_REF_PALETTE_TERTIARY40;
 pub(crate) const MD_SYS_COLOR_LIGHT_TERTIARY_CONTAINER: Argb = MD_REF_PALETTE_TERTIARY90;
 pub(crate) const MD_SYS_COLOR_LIGHT_TERTIARY_FIXED: Argb = MD_REF_PALETTE_TERTIARY90;
 pub(crate) const MD_SYS_COLOR_LIGHT_TERTIARY_FIXED_DIM: Argb = MD_REF_PALETTE_TERTIARY80;
+pub(crate) const MD_SYS_COLOR_LIGHT_WARNING: Argb = Argb::from_u32(0xff974800);
+pub(crate) const MD_SYS_COLOR_LIGHT_WARNING_CONTAINER: Argb = Argb::from_u32(0xffffdcc5);
 pub(crate) const MD_SYS_COLOR_ON_BACKGROUND: ColorRole = ColorRole::OnBackground;
 pub(crate) const MD_SYS_COLOR_ON_ERROR: ColorRole = ColorRole::OnError;
 pub(crate) const MD_SYS_COLOR_ON_ERROR_CONTAINER: ColorRole = ColorRole::OnErrorContainer;
+pub(crate) const MD_SYS_COLOR_ON_INFO: ColorRole = ColorRole::OnInfo;
+pub(crate) const MD_SYS_COLOR_ON_INFO_CONTAINER: ColorRole = ColorRole::OnInfoContainer;
 pub(crate) const MD_SYS_COLOR_ON_PRIMARY: ColorRole = ColorRole::OnPrimary;
 pub(crate) const MD_SYS_COLOR_ON_PRIMARY_CONTAINER: ColorRole = ColorRole::OnPrimaryContainer;
 pub(crate) const MD_SYS_COLOR_ON_PRIMARY_FIXED: ColorRole = ColorRole::OnPrimaryFixed;
@@ -260,12 +288,16 @@ pub(crate) const MD_SYS_COLOR_ON_SECONDARY: ColorRole = ColorRole::OnSecondary;
 pub(crate) const MD_SYS_COLOR_ON_SECONDARY_CONTAINER: ColorRole = ColorRole::OnSecondaryContainer;
 pub(crate) const MD_SYS_COLOR_ON_SECONDARY_FIXED: ColorRole = ColorRole::OnSecondaryFixed;
 pub(crate) const MD_SYS_COLOR_ON_SECONDARY_FIXED_VARIANT: ColorRole = ColorRole::OnSecondaryFixedVariant;
+pub(crate) const MD_SYS_COLOR_ON_SUCCESS: ColorRole = ColorRole::OnSuccess;
+pub(crate) const MD_SYS_COLOR_ON_SUCCESS_CONTAINER: ColorRole = ColorRole::OnSuccessContainer;
 pub(crate) const MD_SYS_COLOR_ON_SURFACE: ColorRole = ColorRole::OnSurface;
 pub(crate) const MD_SYS_COLOR_ON_SURFACE_VARIANT: ColorRole = ColorRole::OnSurfaceVariant;
 pub(crate) const MD_SYS_COLOR_ON_TERTIARY: ColorRole = ColorRole::OnTertiary;
 pub(crate) const MD_SYS_COLOR_ON_TERTIARY_CONTAINER: ColorRole = ColorRole::OnTertiaryContainer;
 pub(crate) const MD_SYS_COLOR_ON_TERTIARY_FIXED: ColorRole = ColorRole::OnTertiaryFixed;
 pub(crate) const MD_SYS_COLOR_ON_TERTIARY_FIXED_VARIANT: ColorRole = ColorRole::OnTertiaryFixedVariant;
+pub(crate) const MD_SYS_COLOR_ON_WARNING: ColorRole = ColorRole::OnWarning;
+pub(crate) const MD_SYS_COLOR_ON_WARNING_CONTAINER: ColorRole = ColorRole::OnWarningContainer;
 pub(crate) const MD_SYS_COLOR_OUTLINE: ColorRole = ColorRole::Outline;
 pub(crate) const MD_SYS_COLOR_OUTLINE_VARIANT: ColorRole = ColorRole::OutlineVariant;
 pub(crate) const MD_SYS_COLOR_PRIMARY: ColorRole = ColorRole::Primary;
@@ -278,6 +310,8 @@ pub(crate) const MD_SYS_COLOR_SECONDARY_CONTAINER: ColorRole = ColorRole::Second
 pub(crate) const MD_SYS_COLOR_SECONDARY_FIXED: ColorRole = ColorRole::SecondaryFixed;
 pub(crate) const MD_SYS_COLOR_SECONDARY_FIXED_DIM: ColorRole = ColorRole::SecondaryFixedDim;
 pub(crate) const MD_SYS_COLOR_SHADOW: ColorRole = ColorRole::Shadow;
+pub(crate) const MD_SYS_COLOR_SUCCESS: ColorRole = ColorRole::Success;
+pub(crate) const MD_SYS_COLOR_SUCCESS_CONTAINER: ColorRole = ColorRole::SuccessContainer;
 pub(crate) const MD_SYS_COLOR_SURFACE: ColorRole = ColorRole::Surface;
 pub(crate) const MD_SYS_COLOR_SURFACE_BRIGHT: ColorRole = ColorRole::SurfaceBright;
 pub(crate) const MD_SYS_COLOR_SURFACE_CONTAINER: ColorRole = ColorRole::SurfaceContainer;
@@ -292,6 +326,8 @@ pub(crate) const MD_SYS_COLOR_TERTIARY: ColorRole = ColorRole::Tertiary;
 pub(crate) const MD_SYS_COLOR_TERTIARY_CONTAINER: ColorRole = ColorRole::TertiaryContainer;
 pub(crate) const MD_SYS_COLOR_TERTIARY_FIXED: ColorRole = ColorRole::TertiaryFixed;
 pub(crate) const MD_SYS_COLOR_TERTIARY_FIXED_DIM: ColorRole = ColorRole::TertiaryFixedDim;
+pub(crate) const MD_SYS_COLOR_WARNING: ColorRole = ColorRole::Warning;
+pub(crate) const MD_SYS_COLOR_WARNING_CONTAINER: ColorRole = ColorRole::WarningContainer;
 pub(crate) const MD_SYS_ELEVATION_LEVEL_0: f32 = 0.0;
 pub(crate) const MD_SYS_ELEVATION_LEVEL_1: f32 = 1.0;
 pub(crate) const MD_SYS_ELEVATION_LEVEL_2: f32 = 3.0;
@@ -563,12 +599,16 @@ pub enum ColorRole {
     Background,
     Error,
     ErrorContainer,
+    Info,
+    InfoContainer,
     InverseOnSurface,
     InversePrimary,
     InverseSurface,
     OnBackground,
     OnError,
     OnErrorContainer,
+    OnInfo,
+    OnInfoContainer,
     OnPrimary,
     OnPrimaryContainer,
     OnPrimaryFixed,
@@ -577,12 +617,16 @@ pub enum ColorRole {
     OnSecondaryContainer,
     OnSecondaryFixed,
     OnSecondaryFixedVariant,
+    OnSuccess,
+    OnSuccessContainer,
     OnSurface,
     OnSurfaceVariant,
     OnTertiary,
     OnTertiaryContainer,
     OnTertiaryFixed,
     OnTertiaryFixedVariant,
+    OnWarning,
+    OnWarningContainer,
     Outline,
     OutlineVariant,
     Primary,
@@ -595,6 +639,8 @@ pub enum ColorRole {
     SecondaryFixed,
     SecondaryFixedDim,
     Shadow,
+    Success,
+    SuccessContainer,
     Surface,
     SurfaceBright,
     SurfaceContainer,
@@ -609,20 +655,26 @@ pub enum ColorRole {
     TertiaryContainer,
     TertiaryFixed,
     TertiaryFixedDim,
+    Warning,
+    WarningContainer,
 }
 
 impl ColorRole {
     /// All supported roles, in a stable order for this crate version.
-    pub const ALL: [Self; 49] = [
+    pub const ALL: [Self; 61] = [
         Self::Background,
         Self::Error,
         Self::ErrorContainer,
+        Self::Info,
+        Self::InfoContainer,
         Self::InverseOnSurface,
         Self::InversePrimary,
         Self::InverseSurface,
         Self::OnBackground,
         Self::OnError,
         Self::OnErrorContainer,
+        Self::OnInfo,
+        Self::OnInfoContainer,
         Self::OnPrimary,
         Self::OnPrimaryContainer,
         Self::OnPrimaryFixed,
@@ -631,12 +683,16 @@ impl ColorRole {
         Self::OnSecondaryContainer,
         Self::OnSecondaryFixed,
         Self::OnSecondaryFixedVariant,
+        Self::OnSuccess,
+        Self::OnSuccessContainer,
         Self::OnSurface,
         Self::OnSurfaceVariant,
         Self::OnTertiary,
         Self::OnTertiaryContainer,
         Self::OnTertiaryFixed,
         Self::OnTertiaryFixedVariant,
+        Self::OnWarning,
+        Self::OnWarningContainer,
         Self::Outline,
         Self::OutlineVariant,
         Self::Primary,
@@ -649,6 +705,8 @@ impl ColorRole {
         Self::SecondaryFixed,
         Self::SecondaryFixedDim,
         Self::Shadow,
+        Self::Success,
+        Self::SuccessContainer,
         Self::Surface,
         Self::SurfaceBright,
         Self::SurfaceContainer,
@@ -663,6 +721,8 @@ impl ColorRole {
         Self::TertiaryContainer,
         Self::TertiaryFixed,
         Self::TertiaryFixedDim,
+        Self::Warning,
+        Self::WarningContainer,
     ];
 }
 
@@ -670,12 +730,16 @@ pub(crate) const LIGHT: [Argb; ColorRole::ALL.len()] = [
     MD_SYS_COLOR_LIGHT_BACKGROUND,
     MD_SYS_COLOR_LIGHT_ERROR,
     MD_SYS_COLOR_LIGHT_ERROR_CONTAINER,
+    MD_SYS_COLOR_LIGHT_INFO,
+    MD_SYS_COLOR_LIGHT_INFO_CONTAINER,
     MD_SYS_COLOR_LIGHT_INVERSE_ON_SURFACE,
     MD_SYS_COLOR_LIGHT_INVERSE_PRIMARY,
     MD_SYS_COLOR_LIGHT_INVERSE_SURFACE,
     MD_SYS_COLOR_LIGHT_ON_BACKGROUND,
     MD_SYS_COLOR_LIGHT_ON_ERROR,
     MD_SYS_COLOR_LIGHT_ON_ERROR_CONTAINER,
+    MD_SYS_COLOR_LIGHT_ON_INFO,
+    MD_SYS_COLOR_LIGHT_ON_INFO_CONTAINER,
     MD_SYS_COLOR_LIGHT_ON_PRIMARY,
     MD_SYS_COLOR_LIGHT_ON_PRIMARY_CONTAINER,
     MD_SYS_COLOR_LIGHT_ON_PRIMARY_FIXED,
@@ -684,12 +748,16 @@ pub(crate) const LIGHT: [Argb; ColorRole::ALL.len()] = [
     MD_SYS_COLOR_LIGHT_ON_SECONDARY_CONTAINER,
     MD_SYS_COLOR_LIGHT_ON_SECONDARY_FIXED,
     MD_SYS_COLOR_LIGHT_ON_SECONDARY_FIXED_VARIANT,
+    MD_SYS_COLOR_LIGHT_ON_SUCCESS,
+    MD_SYS_COLOR_LIGHT_ON_SUCCESS_CONTAINER,
     MD_SYS_COLOR_LIGHT_ON_SURFACE,
     MD_SYS_COLOR_LIGHT_ON_SURFACE_VARIANT,
     MD_SYS_COLOR_LIGHT_ON_TERTIARY,
     MD_SYS_COLOR_LIGHT_ON_TERTIARY_CONTAINER,
     MD_SYS_COLOR_LIGHT_ON_TERTIARY_FIXED,
     MD_SYS_COLOR_LIGHT_ON_TERTIARY_FIXED_VARIANT,
+    MD_SYS_COLOR_LIGHT_ON_WARNING,
+    MD_SYS_COLOR_LIGHT_ON_WARNING_CONTAINER,
     MD_SYS_COLOR_LIGHT_OUTLINE,
     MD_SYS_COLOR_LIGHT_OUTLINE_VARIANT,
     MD_SYS_COLOR_LIGHT_PRIMARY,
@@ -702,6 +770,8 @@ pub(crate) const LIGHT: [Argb; ColorRole::ALL.len()] = [
     MD_SYS_COLOR_LIGHT_SECONDARY_FIXED,
     MD_SYS_COLOR_LIGHT_SECONDARY_FIXED_DIM,
     MD_SYS_COLOR_LIGHT_SHADOW,
+    MD_SYS_COLOR_LIGHT_SUCCESS,
+    MD_SYS_COLOR_LIGHT_SUCCESS_CONTAINER,
     MD_SYS_COLOR_LIGHT_SURFACE,
     MD_SYS_COLOR_LIGHT_SURFACE_BRIGHT,
     MD_SYS_COLOR_LIGHT_SURFACE_CONTAINER,
@@ -716,18 +786,24 @@ pub(crate) const LIGHT: [Argb; ColorRole::ALL.len()] = [
     MD_SYS_COLOR_LIGHT_TERTIARY_CONTAINER,
     MD_SYS_COLOR_LIGHT_TERTIARY_FIXED,
     MD_SYS_COLOR_LIGHT_TERTIARY_FIXED_DIM,
+    MD_SYS_COLOR_LIGHT_WARNING,
+    MD_SYS_COLOR_LIGHT_WARNING_CONTAINER,
 ];
 
 pub(crate) const DARK: [Argb; ColorRole::ALL.len()] = [
     MD_SYS_COLOR_DARK_BACKGROUND,
     MD_SYS_COLOR_DARK_ERROR,
     MD_SYS_COLOR_DARK_ERROR_CONTAINER,
+    MD_SYS_COLOR_DARK_INFO,
+    MD_SYS_COLOR_DARK_INFO_CONTAINER,
     MD_SYS_COLOR_DARK_INVERSE_ON_SURFACE,
     MD_SYS_COLOR_DARK_INVERSE_PRIMARY,
     MD_SYS_COLOR_DARK_INVERSE_SURFACE,
     MD_SYS_COLOR_DARK_ON_BACKGROUND,
     MD_SYS_COLOR_DARK_ON_ERROR,
     MD_SYS_COLOR_DARK_ON_ERROR_CONTAINER,
+    MD_SYS_COLOR_DARK_ON_INFO,
+    MD_SYS_COLOR_DARK_ON_INFO_CONTAINER,
     MD_SYS_COLOR_DARK_ON_PRIMARY,
     MD_SYS_COLOR_DARK_ON_PRIMARY_CONTAINER,
     MD_SYS_COLOR_DARK_ON_PRIMARY_FIXED,
@@ -736,12 +812,16 @@ pub(crate) const DARK: [Argb; ColorRole::ALL.len()] = [
     MD_SYS_COLOR_DARK_ON_SECONDARY_CONTAINER,
     MD_SYS_COLOR_DARK_ON_SECONDARY_FIXED,
     MD_SYS_COLOR_DARK_ON_SECONDARY_FIXED_VARIANT,
+    MD_SYS_COLOR_DARK_ON_SUCCESS,
+    MD_SYS_COLOR_DARK_ON_SUCCESS_CONTAINER,
     MD_SYS_COLOR_DARK_ON_SURFACE,
     MD_SYS_COLOR_DARK_ON_SURFACE_VARIANT,
     MD_SYS_COLOR_DARK_ON_TERTIARY,
     MD_SYS_COLOR_DARK_ON_TERTIARY_CONTAINER,
     MD_SYS_COLOR_DARK_ON_TERTIARY_FIXED,
     MD_SYS_COLOR_DARK_ON_TERTIARY_FIXED_VARIANT,
+    MD_SYS_COLOR_DARK_ON_WARNING,
+    MD_SYS_COLOR_DARK_ON_WARNING_CONTAINER,
     MD_SYS_COLOR_DARK_OUTLINE,
     MD_SYS_COLOR_DARK_OUTLINE_VARIANT,
     MD_SYS_COLOR_DARK_PRIMARY,
@@ -754,6 +834,8 @@ pub(crate) const DARK: [Argb; ColorRole::ALL.len()] = [
     MD_SYS_COLOR_DARK_SECONDARY_FIXED,
     MD_SYS_COLOR_DARK_SECONDARY_FIXED_DIM,
     MD_SYS_COLOR_DARK_SHADOW,
+    MD_SYS_COLOR_DARK_SUCCESS,
+    MD_SYS_COLOR_DARK_SUCCESS_CONTAINER,
     MD_SYS_COLOR_DARK_SURFACE,
     MD_SYS_COLOR_DARK_SURFACE_BRIGHT,
     MD_SYS_COLOR_DARK_SURFACE_CONTAINER,
@@ -768,60 +850,62 @@ pub(crate) const DARK: [Argb; ColorRole::ALL.len()] = [
     MD_SYS_COLOR_DARK_TERTIARY_CONTAINER,
     MD_SYS_COLOR_DARK_TERTIARY_FIXED,
     MD_SYS_COLOR_DARK_TERTIARY_FIXED_DIM,
+    MD_SYS_COLOR_DARK_WARNING,
+    MD_SYS_COLOR_DARK_WARNING_CONTAINER,
 ];
 
 #[cfg(feature = "dynamic-color")]
-pub(crate) fn dynamic_colors(scheme: &material_color_utils::dynamic::dynamic_scheme::DynamicScheme) -> [Argb; ColorRole::ALL.len()] {
+pub(crate) fn dynamic_colors(scheme: &material_color_utils::dynamic::dynamic_scheme::DynamicScheme) -> impl IntoIterator<Item = (ColorRole, Argb)> {
     [
-        Argb::from_u32(scheme.background().0),
-        Argb::from_u32(scheme.error().0),
-        Argb::from_u32(scheme.error_container().0),
-        Argb::from_u32(scheme.inverse_on_surface().0),
-        Argb::from_u32(scheme.inverse_primary().0),
-        Argb::from_u32(scheme.inverse_surface().0),
-        Argb::from_u32(scheme.on_background().0),
-        Argb::from_u32(scheme.on_error().0),
-        Argb::from_u32(scheme.on_error_container().0),
-        Argb::from_u32(scheme.on_primary().0),
-        Argb::from_u32(scheme.on_primary_container().0),
-        Argb::from_u32(scheme.on_primary_fixed().0),
-        Argb::from_u32(scheme.on_primary_fixed_variant().0),
-        Argb::from_u32(scheme.on_secondary().0),
-        Argb::from_u32(scheme.on_secondary_container().0),
-        Argb::from_u32(scheme.on_secondary_fixed().0),
-        Argb::from_u32(scheme.on_secondary_fixed_variant().0),
-        Argb::from_u32(scheme.on_surface().0),
-        Argb::from_u32(scheme.on_surface_variant().0),
-        Argb::from_u32(scheme.on_tertiary().0),
-        Argb::from_u32(scheme.on_tertiary_container().0),
-        Argb::from_u32(scheme.on_tertiary_fixed().0),
-        Argb::from_u32(scheme.on_tertiary_fixed_variant().0),
-        Argb::from_u32(scheme.outline().0),
-        Argb::from_u32(scheme.outline_variant().0),
-        Argb::from_u32(scheme.primary().0),
-        Argb::from_u32(scheme.primary_container().0),
-        Argb::from_u32(scheme.primary_fixed().0),
-        Argb::from_u32(scheme.primary_fixed_dim().0),
-        Argb::from_u32(scheme.scrim().0),
-        Argb::from_u32(scheme.secondary().0),
-        Argb::from_u32(scheme.secondary_container().0),
-        Argb::from_u32(scheme.secondary_fixed().0),
-        Argb::from_u32(scheme.secondary_fixed_dim().0),
-        Argb::from_u32(scheme.shadow().0),
-        Argb::from_u32(scheme.surface().0),
-        Argb::from_u32(scheme.surface_bright().0),
-        Argb::from_u32(scheme.surface_container().0),
-        Argb::from_u32(scheme.surface_container_high().0),
-        Argb::from_u32(scheme.surface_container_highest().0),
-        Argb::from_u32(scheme.surface_container_low().0),
-        Argb::from_u32(scheme.surface_container_lowest().0),
-        Argb::from_u32(scheme.surface_dim().0),
-        Argb::from_u32(scheme.surface_tint().0),
-        Argb::from_u32(scheme.surface_variant().0),
-        Argb::from_u32(scheme.tertiary().0),
-        Argb::from_u32(scheme.tertiary_container().0),
-        Argb::from_u32(scheme.tertiary_fixed().0),
-        Argb::from_u32(scheme.tertiary_fixed_dim().0),
+        (ColorRole::Background, Argb::from_u32(scheme.background().0)),
+        (ColorRole::Error, Argb::from_u32(scheme.error().0)),
+        (ColorRole::ErrorContainer, Argb::from_u32(scheme.error_container().0)),
+        (ColorRole::InverseOnSurface, Argb::from_u32(scheme.inverse_on_surface().0)),
+        (ColorRole::InversePrimary, Argb::from_u32(scheme.inverse_primary().0)),
+        (ColorRole::InverseSurface, Argb::from_u32(scheme.inverse_surface().0)),
+        (ColorRole::OnBackground, Argb::from_u32(scheme.on_background().0)),
+        (ColorRole::OnError, Argb::from_u32(scheme.on_error().0)),
+        (ColorRole::OnErrorContainer, Argb::from_u32(scheme.on_error_container().0)),
+        (ColorRole::OnPrimary, Argb::from_u32(scheme.on_primary().0)),
+        (ColorRole::OnPrimaryContainer, Argb::from_u32(scheme.on_primary_container().0)),
+        (ColorRole::OnPrimaryFixed, Argb::from_u32(scheme.on_primary_fixed().0)),
+        (ColorRole::OnPrimaryFixedVariant, Argb::from_u32(scheme.on_primary_fixed_variant().0)),
+        (ColorRole::OnSecondary, Argb::from_u32(scheme.on_secondary().0)),
+        (ColorRole::OnSecondaryContainer, Argb::from_u32(scheme.on_secondary_container().0)),
+        (ColorRole::OnSecondaryFixed, Argb::from_u32(scheme.on_secondary_fixed().0)),
+        (ColorRole::OnSecondaryFixedVariant, Argb::from_u32(scheme.on_secondary_fixed_variant().0)),
+        (ColorRole::OnSurface, Argb::from_u32(scheme.on_surface().0)),
+        (ColorRole::OnSurfaceVariant, Argb::from_u32(scheme.on_surface_variant().0)),
+        (ColorRole::OnTertiary, Argb::from_u32(scheme.on_tertiary().0)),
+        (ColorRole::OnTertiaryContainer, Argb::from_u32(scheme.on_tertiary_container().0)),
+        (ColorRole::OnTertiaryFixed, Argb::from_u32(scheme.on_tertiary_fixed().0)),
+        (ColorRole::OnTertiaryFixedVariant, Argb::from_u32(scheme.on_tertiary_fixed_variant().0)),
+        (ColorRole::Outline, Argb::from_u32(scheme.outline().0)),
+        (ColorRole::OutlineVariant, Argb::from_u32(scheme.outline_variant().0)),
+        (ColorRole::Primary, Argb::from_u32(scheme.primary().0)),
+        (ColorRole::PrimaryContainer, Argb::from_u32(scheme.primary_container().0)),
+        (ColorRole::PrimaryFixed, Argb::from_u32(scheme.primary_fixed().0)),
+        (ColorRole::PrimaryFixedDim, Argb::from_u32(scheme.primary_fixed_dim().0)),
+        (ColorRole::Scrim, Argb::from_u32(scheme.scrim().0)),
+        (ColorRole::Secondary, Argb::from_u32(scheme.secondary().0)),
+        (ColorRole::SecondaryContainer, Argb::from_u32(scheme.secondary_container().0)),
+        (ColorRole::SecondaryFixed, Argb::from_u32(scheme.secondary_fixed().0)),
+        (ColorRole::SecondaryFixedDim, Argb::from_u32(scheme.secondary_fixed_dim().0)),
+        (ColorRole::Shadow, Argb::from_u32(scheme.shadow().0)),
+        (ColorRole::Surface, Argb::from_u32(scheme.surface().0)),
+        (ColorRole::SurfaceBright, Argb::from_u32(scheme.surface_bright().0)),
+        (ColorRole::SurfaceContainer, Argb::from_u32(scheme.surface_container().0)),
+        (ColorRole::SurfaceContainerHigh, Argb::from_u32(scheme.surface_container_high().0)),
+        (ColorRole::SurfaceContainerHighest, Argb::from_u32(scheme.surface_container_highest().0)),
+        (ColorRole::SurfaceContainerLow, Argb::from_u32(scheme.surface_container_low().0)),
+        (ColorRole::SurfaceContainerLowest, Argb::from_u32(scheme.surface_container_lowest().0)),
+        (ColorRole::SurfaceDim, Argb::from_u32(scheme.surface_dim().0)),
+        (ColorRole::SurfaceTint, Argb::from_u32(scheme.surface_tint().0)),
+        (ColorRole::SurfaceVariant, Argb::from_u32(scheme.surface_variant().0)),
+        (ColorRole::Tertiary, Argb::from_u32(scheme.tertiary().0)),
+        (ColorRole::TertiaryContainer, Argb::from_u32(scheme.tertiary_container().0)),
+        (ColorRole::TertiaryFixed, Argb::from_u32(scheme.tertiary_fixed().0)),
+        (ColorRole::TertiaryFixedDim, Argb::from_u32(scheme.tertiary_fixed_dim().0)),
     ]
 }
 
@@ -1011,12 +1095,16 @@ pub(crate) static TOKENS: &[(&str, TokenValue)] = &[
     ("md.sys.color.dark.background", TokenValue::Color(MD_SYS_COLOR_DARK_BACKGROUND)),
     ("md.sys.color.dark.error", TokenValue::Color(MD_SYS_COLOR_DARK_ERROR)),
     ("md.sys.color.dark.error-container", TokenValue::Color(MD_SYS_COLOR_DARK_ERROR_CONTAINER)),
+    ("md.sys.color.dark.info", TokenValue::Color(MD_SYS_COLOR_DARK_INFO)),
+    ("md.sys.color.dark.info-container", TokenValue::Color(MD_SYS_COLOR_DARK_INFO_CONTAINER)),
     ("md.sys.color.dark.inverse-on-surface", TokenValue::Color(MD_SYS_COLOR_DARK_INVERSE_ON_SURFACE)),
     ("md.sys.color.dark.inverse-primary", TokenValue::Color(MD_SYS_COLOR_DARK_INVERSE_PRIMARY)),
     ("md.sys.color.dark.inverse-surface", TokenValue::Color(MD_SYS_COLOR_DARK_INVERSE_SURFACE)),
     ("md.sys.color.dark.on-background", TokenValue::Color(MD_SYS_COLOR_DARK_ON_BACKGROUND)),
     ("md.sys.color.dark.on-error", TokenValue::Color(MD_SYS_COLOR_DARK_ON_ERROR)),
     ("md.sys.color.dark.on-error-container", TokenValue::Color(MD_SYS_COLOR_DARK_ON_ERROR_CONTAINER)),
+    ("md.sys.color.dark.on-info", TokenValue::Color(MD_SYS_COLOR_DARK_ON_INFO)),
+    ("md.sys.color.dark.on-info-container", TokenValue::Color(MD_SYS_COLOR_DARK_ON_INFO_CONTAINER)),
     ("md.sys.color.dark.on-primary", TokenValue::Color(MD_SYS_COLOR_DARK_ON_PRIMARY)),
     ("md.sys.color.dark.on-primary-container", TokenValue::Color(MD_SYS_COLOR_DARK_ON_PRIMARY_CONTAINER)),
     ("md.sys.color.dark.on-primary-fixed", TokenValue::Color(MD_SYS_COLOR_DARK_ON_PRIMARY_FIXED)),
@@ -1025,12 +1113,16 @@ pub(crate) static TOKENS: &[(&str, TokenValue)] = &[
     ("md.sys.color.dark.on-secondary-container", TokenValue::Color(MD_SYS_COLOR_DARK_ON_SECONDARY_CONTAINER)),
     ("md.sys.color.dark.on-secondary-fixed", TokenValue::Color(MD_SYS_COLOR_DARK_ON_SECONDARY_FIXED)),
     ("md.sys.color.dark.on-secondary-fixed-variant", TokenValue::Color(MD_SYS_COLOR_DARK_ON_SECONDARY_FIXED_VARIANT)),
+    ("md.sys.color.dark.on-success", TokenValue::Color(MD_SYS_COLOR_DARK_ON_SUCCESS)),
+    ("md.sys.color.dark.on-success-container", TokenValue::Color(MD_SYS_COLOR_DARK_ON_SUCCESS_CONTAINER)),
     ("md.sys.color.dark.on-surface", TokenValue::Color(MD_SYS_COLOR_DARK_ON_SURFACE)),
     ("md.sys.color.dark.on-surface-variant", TokenValue::Color(MD_SYS_COLOR_DARK_ON_SURFACE_VARIANT)),
     ("md.sys.color.dark.on-tertiary", TokenValue::Color(MD_SYS_COLOR_DARK_ON_TERTIARY)),
     ("md.sys.color.dark.on-tertiary-container", TokenValue::Color(MD_SYS_COLOR_DARK_ON_TERTIARY_CONTAINER)),
     ("md.sys.color.dark.on-tertiary-fixed", TokenValue::Color(MD_SYS_COLOR_DARK_ON_TERTIARY_FIXED)),
     ("md.sys.color.dark.on-tertiary-fixed-variant", TokenValue::Color(MD_SYS_COLOR_DARK_ON_TERTIARY_FIXED_VARIANT)),
+    ("md.sys.color.dark.on-warning", TokenValue::Color(MD_SYS_COLOR_DARK_ON_WARNING)),
+    ("md.sys.color.dark.on-warning-container", TokenValue::Color(MD_SYS_COLOR_DARK_ON_WARNING_CONTAINER)),
     ("md.sys.color.dark.outline", TokenValue::Color(MD_SYS_COLOR_DARK_OUTLINE)),
     ("md.sys.color.dark.outline-variant", TokenValue::Color(MD_SYS_COLOR_DARK_OUTLINE_VARIANT)),
     ("md.sys.color.dark.primary", TokenValue::Color(MD_SYS_COLOR_DARK_PRIMARY)),
@@ -1043,6 +1135,8 @@ pub(crate) static TOKENS: &[(&str, TokenValue)] = &[
     ("md.sys.color.dark.secondary-fixed", TokenValue::Color(MD_SYS_COLOR_DARK_SECONDARY_FIXED)),
     ("md.sys.color.dark.secondary-fixed-dim", TokenValue::Color(MD_SYS_COLOR_DARK_SECONDARY_FIXED_DIM)),
     ("md.sys.color.dark.shadow", TokenValue::Color(MD_SYS_COLOR_DARK_SHADOW)),
+    ("md.sys.color.dark.success", TokenValue::Color(MD_SYS_COLOR_DARK_SUCCESS)),
+    ("md.sys.color.dark.success-container", TokenValue::Color(MD_SYS_COLOR_DARK_SUCCESS_CONTAINER)),
     ("md.sys.color.dark.surface", TokenValue::Color(MD_SYS_COLOR_DARK_SURFACE)),
     ("md.sys.color.dark.surface-bright", TokenValue::Color(MD_SYS_COLOR_DARK_SURFACE_BRIGHT)),
     ("md.sys.color.dark.surface-container", TokenValue::Color(MD_SYS_COLOR_DARK_SURFACE_CONTAINER)),
@@ -1057,20 +1151,28 @@ pub(crate) static TOKENS: &[(&str, TokenValue)] = &[
     ("md.sys.color.dark.tertiary-container", TokenValue::Color(MD_SYS_COLOR_DARK_TERTIARY_CONTAINER)),
     ("md.sys.color.dark.tertiary-fixed", TokenValue::Color(MD_SYS_COLOR_DARK_TERTIARY_FIXED)),
     ("md.sys.color.dark.tertiary-fixed-dim", TokenValue::Color(MD_SYS_COLOR_DARK_TERTIARY_FIXED_DIM)),
+    ("md.sys.color.dark.warning", TokenValue::Color(MD_SYS_COLOR_DARK_WARNING)),
+    ("md.sys.color.dark.warning-container", TokenValue::Color(MD_SYS_COLOR_DARK_WARNING_CONTAINER)),
     ("md.sys.color.error", TokenValue::ColorRole(MD_SYS_COLOR_ERROR)),
     ("md.sys.color.error-container", TokenValue::ColorRole(MD_SYS_COLOR_ERROR_CONTAINER)),
+    ("md.sys.color.info", TokenValue::ColorRole(MD_SYS_COLOR_INFO)),
+    ("md.sys.color.info-container", TokenValue::ColorRole(MD_SYS_COLOR_INFO_CONTAINER)),
     ("md.sys.color.inverse-on-surface", TokenValue::ColorRole(MD_SYS_COLOR_INVERSE_ON_SURFACE)),
     ("md.sys.color.inverse-primary", TokenValue::ColorRole(MD_SYS_COLOR_INVERSE_PRIMARY)),
     ("md.sys.color.inverse-surface", TokenValue::ColorRole(MD_SYS_COLOR_INVERSE_SURFACE)),
     ("md.sys.color.light.background", TokenValue::Color(MD_SYS_COLOR_LIGHT_BACKGROUND)),
     ("md.sys.color.light.error", TokenValue::Color(MD_SYS_COLOR_LIGHT_ERROR)),
     ("md.sys.color.light.error-container", TokenValue::Color(MD_SYS_COLOR_LIGHT_ERROR_CONTAINER)),
+    ("md.sys.color.light.info", TokenValue::Color(MD_SYS_COLOR_LIGHT_INFO)),
+    ("md.sys.color.light.info-container", TokenValue::Color(MD_SYS_COLOR_LIGHT_INFO_CONTAINER)),
     ("md.sys.color.light.inverse-on-surface", TokenValue::Color(MD_SYS_COLOR_LIGHT_INVERSE_ON_SURFACE)),
     ("md.sys.color.light.inverse-primary", TokenValue::Color(MD_SYS_COLOR_LIGHT_INVERSE_PRIMARY)),
     ("md.sys.color.light.inverse-surface", TokenValue::Color(MD_SYS_COLOR_LIGHT_INVERSE_SURFACE)),
     ("md.sys.color.light.on-background", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_BACKGROUND)),
     ("md.sys.color.light.on-error", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_ERROR)),
     ("md.sys.color.light.on-error-container", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_ERROR_CONTAINER)),
+    ("md.sys.color.light.on-info", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_INFO)),
+    ("md.sys.color.light.on-info-container", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_INFO_CONTAINER)),
     ("md.sys.color.light.on-primary", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_PRIMARY)),
     ("md.sys.color.light.on-primary-container", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_PRIMARY_CONTAINER)),
     ("md.sys.color.light.on-primary-fixed", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_PRIMARY_FIXED)),
@@ -1079,12 +1181,16 @@ pub(crate) static TOKENS: &[(&str, TokenValue)] = &[
     ("md.sys.color.light.on-secondary-container", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_SECONDARY_CONTAINER)),
     ("md.sys.color.light.on-secondary-fixed", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_SECONDARY_FIXED)),
     ("md.sys.color.light.on-secondary-fixed-variant", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_SECONDARY_FIXED_VARIANT)),
+    ("md.sys.color.light.on-success", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_SUCCESS)),
+    ("md.sys.color.light.on-success-container", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_SUCCESS_CONTAINER)),
     ("md.sys.color.light.on-surface", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_SURFACE)),
     ("md.sys.color.light.on-surface-variant", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_SURFACE_VARIANT)),
     ("md.sys.color.light.on-tertiary", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_TERTIARY)),
     ("md.sys.color.light.on-tertiary-container", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_TERTIARY_CONTAINER)),
     ("md.sys.color.light.on-tertiary-fixed", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_TERTIARY_FIXED)),
     ("md.sys.color.light.on-tertiary-fixed-variant", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_TERTIARY_FIXED_VARIANT)),
+    ("md.sys.color.light.on-warning", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_WARNING)),
+    ("md.sys.color.light.on-warning-container", TokenValue::Color(MD_SYS_COLOR_LIGHT_ON_WARNING_CONTAINER)),
     ("md.sys.color.light.outline", TokenValue::Color(MD_SYS_COLOR_LIGHT_OUTLINE)),
     ("md.sys.color.light.outline-variant", TokenValue::Color(MD_SYS_COLOR_LIGHT_OUTLINE_VARIANT)),
     ("md.sys.color.light.primary", TokenValue::Color(MD_SYS_COLOR_LIGHT_PRIMARY)),
@@ -1097,6 +1203,8 @@ pub(crate) static TOKENS: &[(&str, TokenValue)] = &[
     ("md.sys.color.light.secondary-fixed", TokenValue::Color(MD_SYS_COLOR_LIGHT_SECONDARY_FIXED)),
     ("md.sys.color.light.secondary-fixed-dim", TokenValue::Color(MD_SYS_COLOR_LIGHT_SECONDARY_FIXED_DIM)),
     ("md.sys.color.light.shadow", TokenValue::Color(MD_SYS_COLOR_LIGHT_SHADOW)),
+    ("md.sys.color.light.success", TokenValue::Color(MD_SYS_COLOR_LIGHT_SUCCESS)),
+    ("md.sys.color.light.success-container", TokenValue::Color(MD_SYS_COLOR_LIGHT_SUCCESS_CONTAINER)),
     ("md.sys.color.light.surface", TokenValue::Color(MD_SYS_COLOR_LIGHT_SURFACE)),
     ("md.sys.color.light.surface-bright", TokenValue::Color(MD_SYS_COLOR_LIGHT_SURFACE_BRIGHT)),
     ("md.sys.color.light.surface-container", TokenValue::Color(MD_SYS_COLOR_LIGHT_SURFACE_CONTAINER)),
@@ -1111,9 +1219,13 @@ pub(crate) static TOKENS: &[(&str, TokenValue)] = &[
     ("md.sys.color.light.tertiary-container", TokenValue::Color(MD_SYS_COLOR_LIGHT_TERTIARY_CONTAINER)),
     ("md.sys.color.light.tertiary-fixed", TokenValue::Color(MD_SYS_COLOR_LIGHT_TERTIARY_FIXED)),
     ("md.sys.color.light.tertiary-fixed-dim", TokenValue::Color(MD_SYS_COLOR_LIGHT_TERTIARY_FIXED_DIM)),
+    ("md.sys.color.light.warning", TokenValue::Color(MD_SYS_COLOR_LIGHT_WARNING)),
+    ("md.sys.color.light.warning-container", TokenValue::Color(MD_SYS_COLOR_LIGHT_WARNING_CONTAINER)),
     ("md.sys.color.on-background", TokenValue::ColorRole(MD_SYS_COLOR_ON_BACKGROUND)),
     ("md.sys.color.on-error", TokenValue::ColorRole(MD_SYS_COLOR_ON_ERROR)),
     ("md.sys.color.on-error-container", TokenValue::ColorRole(MD_SYS_COLOR_ON_ERROR_CONTAINER)),
+    ("md.sys.color.on-info", TokenValue::ColorRole(MD_SYS_COLOR_ON_INFO)),
+    ("md.sys.color.on-info-container", TokenValue::ColorRole(MD_SYS_COLOR_ON_INFO_CONTAINER)),
     ("md.sys.color.on-primary", TokenValue::ColorRole(MD_SYS_COLOR_ON_PRIMARY)),
     ("md.sys.color.on-primary-container", TokenValue::ColorRole(MD_SYS_COLOR_ON_PRIMARY_CONTAINER)),
     ("md.sys.color.on-primary-fixed", TokenValue::ColorRole(MD_SYS_COLOR_ON_PRIMARY_FIXED)),
@@ -1122,12 +1234,16 @@ pub(crate) static TOKENS: &[(&str, TokenValue)] = &[
     ("md.sys.color.on-secondary-container", TokenValue::ColorRole(MD_SYS_COLOR_ON_SECONDARY_CONTAINER)),
     ("md.sys.color.on-secondary-fixed", TokenValue::ColorRole(MD_SYS_COLOR_ON_SECONDARY_FIXED)),
     ("md.sys.color.on-secondary-fixed-variant", TokenValue::ColorRole(MD_SYS_COLOR_ON_SECONDARY_FIXED_VARIANT)),
+    ("md.sys.color.on-success", TokenValue::ColorRole(MD_SYS_COLOR_ON_SUCCESS)),
+    ("md.sys.color.on-success-container", TokenValue::ColorRole(MD_SYS_COLOR_ON_SUCCESS_CONTAINER)),
     ("md.sys.color.on-surface", TokenValue::ColorRole(MD_SYS_COLOR_ON_SURFACE)),
     ("md.sys.color.on-surface-variant", TokenValue::ColorRole(MD_SYS_COLOR_ON_SURFACE_VARIANT)),
     ("md.sys.color.on-tertiary", TokenValue::ColorRole(MD_SYS_COLOR_ON_TERTIARY)),
     ("md.sys.color.on-tertiary-container", TokenValue::ColorRole(MD_SYS_COLOR_ON_TERTIARY_CONTAINER)),
     ("md.sys.color.on-tertiary-fixed", TokenValue::ColorRole(MD_SYS_COLOR_ON_TERTIARY_FIXED)),
     ("md.sys.color.on-tertiary-fixed-variant", TokenValue::ColorRole(MD_SYS_COLOR_ON_TERTIARY_FIXED_VARIANT)),
+    ("md.sys.color.on-warning", TokenValue::ColorRole(MD_SYS_COLOR_ON_WARNING)),
+    ("md.sys.color.on-warning-container", TokenValue::ColorRole(MD_SYS_COLOR_ON_WARNING_CONTAINER)),
     ("md.sys.color.outline", TokenValue::ColorRole(MD_SYS_COLOR_OUTLINE)),
     ("md.sys.color.outline-variant", TokenValue::ColorRole(MD_SYS_COLOR_OUTLINE_VARIANT)),
     ("md.sys.color.primary", TokenValue::ColorRole(MD_SYS_COLOR_PRIMARY)),
@@ -1140,6 +1256,8 @@ pub(crate) static TOKENS: &[(&str, TokenValue)] = &[
     ("md.sys.color.secondary-fixed", TokenValue::ColorRole(MD_SYS_COLOR_SECONDARY_FIXED)),
     ("md.sys.color.secondary-fixed-dim", TokenValue::ColorRole(MD_SYS_COLOR_SECONDARY_FIXED_DIM)),
     ("md.sys.color.shadow", TokenValue::ColorRole(MD_SYS_COLOR_SHADOW)),
+    ("md.sys.color.success", TokenValue::ColorRole(MD_SYS_COLOR_SUCCESS)),
+    ("md.sys.color.success-container", TokenValue::ColorRole(MD_SYS_COLOR_SUCCESS_CONTAINER)),
     ("md.sys.color.surface", TokenValue::ColorRole(MD_SYS_COLOR_SURFACE)),
     ("md.sys.color.surface-bright", TokenValue::ColorRole(MD_SYS_COLOR_SURFACE_BRIGHT)),
     ("md.sys.color.surface-container", TokenValue::ColorRole(MD_SYS_COLOR_SURFACE_CONTAINER)),
@@ -1154,6 +1272,8 @@ pub(crate) static TOKENS: &[(&str, TokenValue)] = &[
     ("md.sys.color.tertiary-container", TokenValue::ColorRole(MD_SYS_COLOR_TERTIARY_CONTAINER)),
     ("md.sys.color.tertiary-fixed", TokenValue::ColorRole(MD_SYS_COLOR_TERTIARY_FIXED)),
     ("md.sys.color.tertiary-fixed-dim", TokenValue::ColorRole(MD_SYS_COLOR_TERTIARY_FIXED_DIM)),
+    ("md.sys.color.warning", TokenValue::ColorRole(MD_SYS_COLOR_WARNING)),
+    ("md.sys.color.warning-container", TokenValue::ColorRole(MD_SYS_COLOR_WARNING_CONTAINER)),
     ("md.sys.elevation.level-0", TokenValue::Dp(MD_SYS_ELEVATION_LEVEL_0)),
     ("md.sys.elevation.level-1", TokenValue::Dp(MD_SYS_ELEVATION_LEVEL_1)),
     ("md.sys.elevation.level-2", TokenValue::Dp(MD_SYS_ELEVATION_LEVEL_2)),

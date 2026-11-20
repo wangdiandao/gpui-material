@@ -11,7 +11,9 @@ use gpui_material_components::{
     ButtonColors, ButtonShapes, ButtonVariant, ControlSize, Icon, IconButton, IconName, ListItem,
     LoadingIndicator, Text, TextField, TextFieldColors, button_composition::ButtonPart,
 };
-use gpui_material_foundation::{Scrim, Surface, logical_anchor, window_material_theme};
+use gpui_material_foundation::{
+    Scrim, Surface, ThemeScope, current_material_theme, logical_anchor,
+};
 use gpui_material_theme::{ColorRole, CornerShape, Direction, Elevation, TypeRole};
 
 use super::{Results, SearchOutcome, SearchResult, SearchScrollState, SearchState, SearchValue};
@@ -226,7 +228,7 @@ impl RenderOnce for SearchBar {
         } else {
             model.query.clone()
         };
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
         let viewport = window.viewport_size();
         let size_limit = (viewport.width - px(16.)).max(px(1.));
@@ -333,7 +335,7 @@ impl RenderOnce for SearchBar {
                 let popup = Popup::new(self.id.clone(), trigger)
                     .anchor(logical_anchor(options.logical_anchor, direction))
                     .offset(length(options.offset))
-                    .content(content);
+                    .content(ThemeScope::inherit(content, window, cx));
                 div()
                     .relative()
                     .children(options.scrim.map(|style| {
@@ -355,7 +357,7 @@ impl RenderOnce for SearchBar {
                                         .relative()
                                         .w(viewport.width)
                                         .h(viewport.height)
-                                        .child(backdrop),
+                                        .child(ThemeScope::inherit(backdrop, window, cx)),
                                 ),
                         )
                         .with_priority(99)
@@ -385,7 +387,7 @@ impl RenderOnce for SearchBar {
                             .accessibility_label(label)
                             .focus_handle(scope)
                             .close_on_backdrop_press(false)
-                            .backdrop(backdrop)
+                            .backdrop(ThemeScope::inherit(backdrop, window, cx))
                             .on_ok(|_, _, _| false)
                             .on_cancel(move |_, window, cx| {
                                 if options.dismiss_on_escape {
@@ -393,7 +395,7 @@ impl RenderOnce for SearchBar {
                                 }
                                 false
                             })
-                            .popup(view),
+                            .popup(ThemeScope::inherit(view, window, cx)),
                     )
                     .into_any_element()
             }
@@ -621,7 +623,7 @@ impl SearchView {
 impl RenderOnce for SearchView {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let measurement = (
-            window_material_theme(window, cx).typography.clone(),
+            current_material_theme(window, cx).typography.clone(),
             window.rem_size(),
             gpui_material_foundation::font_cache_revision(cx),
         );
@@ -643,7 +645,7 @@ impl RenderOnce for SearchView {
             1.
         };
         let editor = model.input.clone();
-        let layout = window_material_theme(window, cx).layout;
+        let layout = current_material_theme(window, cx).layout;
         let direction = layout.direction;
         let size = window.viewport_size();
         let docked = self.variant == SearchViewVariant::Docked;

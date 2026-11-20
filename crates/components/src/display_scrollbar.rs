@@ -7,7 +7,7 @@ use gpui::{
 };
 pub use gpui_base::ScrollbarHandle;
 use gpui_base::motion::Easing;
-use gpui_material_foundation::{color, window_material_theme};
+use gpui_material_foundation::{color, current_material_theme};
 use gpui_material_theme::{ColorRole, Direction};
 use web_time::Instant;
 
@@ -118,7 +118,7 @@ impl RenderOnce for DisplayScrollbar {
             })
             .read(cx)
             .clone();
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
         let style = self.style;
         let thumb_color = style

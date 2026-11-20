@@ -80,7 +80,9 @@ let favorite = font.svg_data(Symbol::Favorite, SymbolAxes::default())?;
 
 Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID 必须唯一，并在重排时保持稳定。`ListItem::track_focus(&FocusHandle, bool)` 允许调用方的虚拟集合提供保留的行焦点及 roving tab stop；该集合还须负责完整模型的导航，并滚动显示屏外目标。现有 `List` API 保持不变。
 
-`foundation::set_window_material_theme` 覆盖 Material 呈现，包括显式传入 Base 编辑器的颜色和 Material 浮层表面。独立 Base 控件、滚动条、resize handle 及光标闪烁策略仍使用应用级 Base 全局主题；这些集成需要显式局部样式。窗口渲染不会切换 Base 全局主题。
+`set_material_theme` 使用目标动效方案的 Slow Effects 弹簧过渡应用色彩。切换途中收到新主题时，从当前显示的色谱开始过渡。初始化和减少动态效果模式立即应用色彩。目标排版和布局在请求时生效。应用主题投影把应用色谱和缩放后的文字指标同步给 Base。
+
+`foundation::set_window_material_theme` 设置单个窗口的 Material 主题。通过 `ThemeScope::new(child).theme(theme).direction(Direction::Rtl)` 覆盖子树，两项设置均可省略。仅设置方向时，主题继承自外层。Material 后代及其浮层优先读取最近的作用域，其次是窗口和应用默认值。独立 Base 控件、滚动条、分隔手柄及光标闪烁策略使用应用级 Base 主题，可通过 Base API 显式设置局部样式。
 
 应用通过[公开门面](../crates/material/src/lib.rs)集成，包括已记录的 `foundation` 和 `theme` 路径。按 [README 中的特性名](../README.zh.md)启用可选组件系列。`date-time` 的 API 位于 `gpui_material::date_time` 下。`dynamic-color` 和 `serde` 转发到纯主题 crate。公开签名中的 GPUI 和 Base 类型遵循固定的上游版本。Gallery 模块和工作区 crate 的内部组织可能调整。
 

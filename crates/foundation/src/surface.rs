@@ -11,7 +11,7 @@ use gpui_material_theme::{Argb, ColorRole, CornerShape, Direction, Elevation, Ma
 use crate::{
     InteractionFeedback, InteractionSource, Shape,
     control_feedback::{activate_feedback, feedback_target, ripple_state},
-    window_material_theme,
+    current_material_theme,
 };
 
 /// Converts Material's packed sRGB color and preserves its alpha channel.
@@ -278,10 +278,8 @@ impl Styled for Surface {
 
 impl RenderOnce for Surface {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = self
-            .theme
-            .as_ref()
-            .unwrap_or_else(|| window_material_theme(window, cx));
+        let current = current_material_theme(window, cx);
+        let theme = self.theme.as_ref().unwrap_or(&current);
         let scheme = &theme.colors;
         let default_focus = color(scheme.color(ColorRole::Secondary));
         let background = if self.role == ColorRole::Surface {

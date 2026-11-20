@@ -15,7 +15,9 @@ use gpui::{
     canvas, div, list, prelude::FluentBuilder, px,
 };
 use gpui_base::{Popup, TestSupportExt};
-use gpui_material_foundation::{animate, color, logical_anchor, window_material_theme};
+use gpui_material_foundation::{
+    ThemeScope, animate, color, current_material_theme, logical_anchor,
+};
 use gpui_material_theme::{ColorRole, MotionKind, MotionSpeed, TypeRole, TypographyEmphasis};
 
 use super::{TextField, TextFieldEvent, TextFieldState, TextFieldVariant};
@@ -691,7 +693,7 @@ impl RenderOnce for ExposedDropdown {
             visible.1.clone_from(&active);
             visible.2.clone_from(&selected_option);
         }
-        let theme = window_material_theme(window, cx).clone();
+        let theme = current_material_theme(window, cx).clone();
         let ink = color(theme.colors.color(ColorRole::OnSurface));
         let selected = color(theme.colors.color(ColorRole::SecondaryContainer));
         let selected_ink = color(theme.colors.color(ColorRole::OnSecondaryContainer));
@@ -880,194 +882,205 @@ impl RenderOnce for ExposedDropdown {
             .anchor(anchor)
             .offset(gap)
             .on_position(move |resolved, trigger| trigger_bounds.set((resolved.bounds, trigger)));
-        let content = motion.map(|motion| {
-            let dp = move |value| motion.px(value);
-            let spacing = dp(16.);
-            let (options, active, selected_option) = if open {
-                (options, active, selected_option)
-            } else {
-                last_visible_options.borrow().clone()
-            };
-            let width = if open { width } else { last_bounds.size.width };
-            let scroll_height =
-                (height - self.appearance.popup_vertical_insets()).max(px(0.)) * motion.scale;
-            let font_revision = gpui_material_foundation::font_cache_revision(cx);
-            self.state.update(cx, |state, _| {
-                let metrics = (
-                    width,
-                    motion.scale,
-                    window.rem_size(),
-                    typography,
-                    font_revision,
-                );
-                if !Rc::ptr_eq(&state.presented, &options) {
-                    let old_top = state.scroll.logical_scroll_top();
-                    let old_id = state
-                        .presented
-                        .get(old_top.item_ix)
-                        .map(|option| &option.id);
-                    let anchor = active
-                        .as_ref()
-                        .or(old_id)
-                        .and_then(|id| options.iter().position(|option| &option.id == id));
-                    state.scroll.reset(options.len());
-                    if let Some(index) = anchor {
-                        state.scroll.scroll_to(ListOffset {
-                            item_ix: index,
-                            offset_in_item: if active.is_some() {
-                                px(0.)
-                            } else {
-                                old_top.offset_in_item
-                            },
-                        });
+        let content = motion
+            .map(|motion| {
+                let dp = move |value| motion.px(value);
+                let spacing = dp(16.);
+                let (options, active, selected_option) = if open {
+                    (options, active, selected_option)
+                } else {
+                    last_visible_options.borrow().clone()
+                };
+                let width = if open { width } else { last_bounds.size.width };
+                let scroll_height =
+                    (height - self.appearance.popup_vertical_insets()).max(px(0.)) * motion.scale;
+                let font_revision = gpui_material_foundation::font_cache_revision(cx);
+                self.state.update(cx, |state, _| {
+                    let metrics = (
+                        width,
+                        motion.scale,
+                        window.rem_size(),
+                        typography,
+                        font_revision,
+                    );
+                    if !Rc::ptr_eq(&state.presented, &options) {
+                        let old_top = state.scroll.logical_scroll_top();
+                        let old_id = state
+                            .presented
+                            .get(old_top.item_ix)
+                            .map(|option| &option.id);
+                        let anchor = active
+                            .as_ref()
+                            .or(old_id)
+                            .and_then(|id| options.iter().position(|option| &option.id == id));
+                        state.scroll.reset(options.len());
+                        if let Some(index) = anchor {
+                            state.scroll.scroll_to(ListOffset {
+                                item_ix: index,
+                                offset_in_item: if active.is_some() {
+                                    px(0.)
+                                } else {
+                                    old_top.offset_in_item
+                                },
+                            });
+                        }
+                        state.presented = options.clone();
+                    } else if state.metrics.as_ref() != Some(&metrics) {
+                        let anchor = state.scroll.logical_scroll_top();
+                        state.scroll.remeasure();
+                        state.scroll.scroll_to(anchor);
                     }
-                    state.presented = options.clone();
-                } else if state.metrics.as_ref() != Some(&metrics) {
-                    let anchor = state.scroll.logical_scroll_top();
-                    state.scroll.remeasure();
-                    state.scroll.scroll_to(anchor);
-                }
-                state.metrics = Some(metrics);
-            });
-            let content = div()
-                .id(if open { "options" } else { "options-exit" })
-                .test_support()
-                .opacity(motion.alpha)
-                .w(width * motion.scale)
-                .text_color(ink)
-                .max_h(height * motion.scale)
-                .when(open, |list| {
-                    list.role(Role::ListBox)
-                        .aria_label(options_label)
-                        .when(transfer_focus, |list| {
-                            list.track_focus(&popup_focus).tab_stop(false)
-                        })
-                        .capture_key_down(move |event, window, cx| {
-                            popup_keys.keys(event, window, cx)
-                        })
-                        .on_mouse_down_out(move |event, window, cx| {
-                            if !bounds.get().contains(&event.position) {
-                                outside.dismiss(window, cx);
-                            }
-                        })
-                })
-                .child(
-                    self.appearance
-                        .dropdown_surface(&theme, motion)
-                        .when_some(self.container_color, |surface, color| surface.bg(color))
-                        .w_full()
-                        .child(if options.is_empty() {
-                            div()
-                                .id("options-scroll-region")
-                                .test_support()
-                                .max_h(scroll_height)
-                                .overflow_hidden()
-                                .child(
-                                    div()
-                                        .px(spacing * 0.75)
-                                        .py(spacing * 0.5)
-                                        .child("No matching options"),
-                                )
-                                .into_any_element()
-                        } else {
-                            let row_state = self.state.clone();
-                            let row_callback = self.on_select.clone();
-                            let option_content = self.option_content.clone();
-                            div()
-                                .id("options-scroll-region")
-                                .test_support()
-                                .max_h(scroll_height)
-                                .overflow_hidden()
-                                .child(
-                                    list(scroll.clone(), move |index, window, cx| {
-                                        let choice = options[index].clone();
-                                        let current = active.as_ref().or(selected_option.as_ref())
-                                            == Some(&choice.id);
-                                        let content = option_content.as_ref().map_or_else(
-                                            || choice.label.clone().into_any_element(),
-                                            |content| content(&choice, current, window, cx),
-                                        );
-                                        let state = row_state.clone();
-                                        let callback = row_callback.clone();
-                                        let accessible = choice.clone();
-                                        let accessible_state = state.clone();
-                                        let accessible_callback = callback.clone();
+                    state.metrics = Some(metrics);
+                });
+                let content = div()
+                    .id(if open { "options" } else { "options-exit" })
+                    .test_support()
+                    .opacity(motion.alpha)
+                    .w(width * motion.scale)
+                    .text_color(ink)
+                    .max_h(height * motion.scale)
+                    .when(open, |list| {
+                        list.role(Role::ListBox)
+                            .aria_label(options_label)
+                            .when(transfer_focus, |list| {
+                                list.track_focus(&popup_focus).tab_stop(false)
+                            })
+                            .capture_key_down(move |event, window, cx| {
+                                popup_keys.keys(event, window, cx)
+                            })
+                            .on_mouse_down_out(move |event, window, cx| {
+                                if !bounds.get().contains(&event.position) {
+                                    outside.dismiss(window, cx);
+                                }
+                            })
+                    })
+                    .child(
+                        self.appearance
+                            .dropdown_surface(&theme, motion)
+                            .when_some(self.container_color, |surface, color| surface.bg(color))
+                            .w_full()
+                            .child(if options.is_empty() {
+                                div()
+                                    .id("options-scroll-region")
+                                    .test_support()
+                                    .max_h(scroll_height)
+                                    .overflow_hidden()
+                                    .child(
                                         div()
-                                            .id(choice.id.clone())
-                                            .test_support()
-                                            .when(open, |row| {
-                                                row.role(Role::ListBoxOption)
-                                                    .aria_label(choice.label.clone())
-                                                    .aria_selected(current)
-                                                    .aria_position_in_set(index + 1)
-                                                    .aria_size_of_set(options.len())
-                                            })
-                                            .when(current, |row| {
-                                                row.bg(selected).text_color(selected_ink)
-                                            })
-                                            .when(open && current, |row| {
-                                                row.aria_active_descendant()
-                                            })
-                                            .when(open, |row| {
-                                                row.hover(move |style| {
-                                                    style.bg(if current {
-                                                        selected.blend(selected_ink.opacity(0.08))
-                                                    } else {
-                                                        ink.opacity(0.08)
+                                            .px(spacing * 0.75)
+                                            .py(spacing * 0.5)
+                                            .child("No matching options"),
+                                    )
+                                    .into_any_element()
+                            } else {
+                                let row_state = self.state.clone();
+                                let row_callback = self.on_select.clone();
+                                let option_content = self.option_content.clone();
+                                div()
+                                    .id("options-scroll-region")
+                                    .test_support()
+                                    .max_h(scroll_height)
+                                    .overflow_hidden()
+                                    .child(
+                                        list(scroll.clone(), move |index, window, cx| {
+                                            let choice = options[index].clone();
+                                            let current =
+                                                active.as_ref().or(selected_option.as_ref())
+                                                    == Some(&choice.id);
+                                            let content = option_content.as_ref().map_or_else(
+                                                || choice.label.clone().into_any_element(),
+                                                |content| content(&choice, current, window, cx),
+                                            );
+                                            let state = row_state.clone();
+                                            let callback = row_callback.clone();
+                                            let accessible = choice.clone();
+                                            let accessible_state = state.clone();
+                                            let accessible_callback = callback.clone();
+                                            div()
+                                                .id(choice.id.clone())
+                                                .test_support()
+                                                .when(open, |row| {
+                                                    row.role(Role::ListBoxOption)
+                                                        .aria_label(choice.label.clone())
+                                                        .aria_selected(current)
+                                                        .aria_position_in_set(index + 1)
+                                                        .aria_size_of_set(options.len())
+                                                })
+                                                .when(current, |row| {
+                                                    row.bg(selected).text_color(selected_ink)
+                                                })
+                                                .when(open && current, |row| {
+                                                    row.aria_active_descendant()
+                                                })
+                                                .when(open, |row| {
+                                                    row.hover(move |style| {
+                                                        style.bg(if current {
+                                                            selected
+                                                                .blend(selected_ink.opacity(0.08))
+                                                        } else {
+                                                            ink.opacity(0.08)
+                                                        })
                                                     })
                                                 })
-                                            })
-                                            .min_h(dp(48.))
-                                            .w_full()
-                                            .px(spacing * 0.75)
-                                            .flex()
-                                            .items_center()
-                                            .child(content)
-                                            .when(open, |row| {
-                                                row.on_a11y_action(
-                                                    gpui::AccessibleAction::Click,
-                                                    move |_, window, cx| {
+                                                .min_h(dp(48.))
+                                                .w_full()
+                                                .px(spacing * 0.75)
+                                                .flex()
+                                                .items_center()
+                                                .child(content)
+                                                .when(open, |row| {
+                                                    row.on_a11y_action(
+                                                        gpui::AccessibleAction::Click,
+                                                        move |_, window, cx| {
+                                                            choose(
+                                                                &accessible_state,
+                                                                &accessible,
+                                                                &accessible_callback,
+                                                                window,
+                                                                cx,
+                                                            );
+                                                            cx.notify(parent);
+                                                        },
+                                                    )
+                                                    .on_click(move |_, window, cx| {
                                                         choose(
-                                                            &accessible_state,
-                                                            &accessible,
-                                                            &accessible_callback,
-                                                            window,
-                                                            cx,
+                                                            &state, &choice, &callback, window, cx,
                                                         );
                                                         cx.notify(parent);
-                                                    },
-                                                )
-                                                .on_click(move |_, window, cx| {
-                                                    choose(&state, &choice, &callback, window, cx);
-                                                    cx.notify(parent);
+                                                    })
                                                 })
-                                            })
-                                            .into_any_element()
-                                    })
-                                    .with_sizing_behavior(ListSizingBehavior::Infer)
-                                    .w_full()
-                                    .max_h(scroll_height),
-                                )
-                                .into_any_element()
-                        }),
-                )
-                .when(!open, |list| {
-                    list.child(div().absolute().inset_0().occlude())
-                });
-            let content =
-                gpui_material_foundation::text_style(content, text_style, motion.scale, window, cx);
-            ScaledOverlay::new(content, motion, move |menu| {
-                menu_pivot(
-                    menu,
-                    if open {
-                        placement.get().1
-                    } else {
-                        last_trigger
-                    },
-                )
+                                                .into_any_element()
+                                        })
+                                        .with_sizing_behavior(ListSizingBehavior::Infer)
+                                        .w_full()
+                                        .max_h(scroll_height),
+                                    )
+                                    .into_any_element()
+                            }),
+                    )
+                    .when(!open, |list| {
+                        list.child(div().absolute().inset_0().occlude())
+                    });
+                let content = gpui_material_foundation::text_style(
+                    content,
+                    text_style,
+                    motion.scale,
+                    window,
+                    cx,
+                );
+                ScaledOverlay::new(content, motion, move |menu| {
+                    menu_pivot(
+                        menu,
+                        if open {
+                            placement.get().1
+                        } else {
+                            last_trigger
+                        },
+                    )
+                })
+                .width(width)
             })
-            .width(width)
-        });
+            .map(|content| ThemeScope::inherit(content, window, cx));
         if open {
             return div().child(popup.content(content.expect("open dropdown")));
         }

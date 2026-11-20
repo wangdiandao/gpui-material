@@ -13,7 +13,7 @@ use gpui_material_components::{
     },
 };
 use gpui_material_foundation::{
-    InteractionSource, animate, move_roving_focus, window_material_theme,
+    InteractionSource, animate, current_material_theme, move_roving_focus,
 };
 use gpui_material_theme::{Direction, MotionKind, MotionSpeed};
 
@@ -546,7 +546,7 @@ impl ButtonGroupItem {
 
 impl RenderOnce for ButtonGroup {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
         let minimum = px(theme.layout.density.interactive_size(1.));
         let spec = theme

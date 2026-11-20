@@ -6,7 +6,9 @@ use gpui::{
     ParentElement, Pixels, Point, RenderOnce, SharedString, Styled, Window, anchored, canvas,
     deferred, div, point, px, size,
 };
-use gpui_material_foundation::{InteractionSource, animate, logical_anchor, window_material_theme};
+use gpui_material_foundation::{
+    InteractionSource, ThemeScope, animate, current_material_theme, logical_anchor,
+};
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Direction, Elevation, MotionKind, MotionSpec, MotionSpeed,
     TypeRole, TypographyEmphasis,
@@ -138,7 +140,7 @@ impl FabVisibilityAnimation {
         cx: &mut App,
     ) -> (f32, f32, Point<f32>) {
         let sample = self.sample(id, visible, extent, window, cx);
-        let direction = window_material_theme(window, cx).layout.direction;
+        let direction = current_material_theme(window, cx).layout.direction;
         (sample.scale, sample.alpha, self.alignment.pivot(direction))
     }
 
@@ -150,7 +152,7 @@ impl FabVisibilityAnimation {
         window: &mut Window,
         cx: &mut App,
     ) -> OverlayMotion {
-        let scheme = window_material_theme(window, cx).motion;
+        let scheme = current_material_theme(window, cx).motion;
         let reduced = cx.reduce_motion();
         let mut progress = |channel, kind, spec: Option<MotionSpec>| {
             let spec = if reduced {
@@ -426,7 +428,7 @@ impl RenderOnce for Fab {
         } else {
             icon_size
         };
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
         let extent = theme.layout.density.interactive_size(style.height);
         let motion = self.appearance.motion(&self.content.id, extent, window, cx);
@@ -516,7 +518,7 @@ impl ExtendedFab {
 impl RenderOnce for ExtendedFab {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let (height, icon, _, padding, gap, role) = self.content.size.metrics();
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
         let extent = theme.layout.density.interactive_size(height);
         let visual_height = theme.layout.density.visual_size(height);
@@ -731,7 +733,7 @@ impl FloatingAction {
 impl RenderOnce for FloatingAction {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let viewport = window.viewport_size();
-        let direction = window_material_theme(window, cx).layout.direction;
+        let direction = current_material_theme(window, cx).layout.direction;
         let margin = self.margin.min(viewport.width.min(viewport.height) / 4.);
         let x = if direction == Direction::Rtl {
             margin
@@ -743,11 +745,13 @@ impl RenderOnce for FloatingAction {
                 .anchor(logical_anchor(gpui::Anchor::BottomRight, direction))
                 .position(gpui::point(x, viewport.height - margin))
                 .snap_to_window_with_margin(margin)
-                .child(
+                .child(ThemeScope::inherit(
                     div()
                         .max_w((viewport.width - margin * 2.).max(px(0.)))
                         .child(self.action),
-                ),
+                    window,
+                    cx,
+                )),
         )
     }
 }

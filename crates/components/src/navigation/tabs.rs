@@ -5,7 +5,7 @@ use gpui::{
     InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce, Role, ScrollHandle,
     SharedString, StatefulInteractiveElement, Styled, Window, canvas, div, point, px, quad, size,
 };
-use gpui_material_foundation::{animate, window_material_theme};
+use gpui_material_foundation::{animate, current_material_theme};
 use gpui_material_theme::{CornerShape, Direction, MotionKind, MotionSpec, MotionSpeed};
 
 use super::items::{NavigationItems, Presentation};
@@ -304,7 +304,7 @@ impl TabDecoration {
                     MotionSpec::Instant
                 } else {
                     self.style.motion.unwrap_or_else(|| {
-                        window_material_theme(window, cx).motion.spec(
+                        current_material_theme(window, cx).motion.spec(
                             MotionKind::Spatial,
                             MotionSpeed::Fast,
                             false,

@@ -5,7 +5,7 @@ use gpui::{
     Pixels, RenderOnce, SharedString, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
-use gpui_material_foundation::{Surface, animate, window_material_theme};
+use gpui_material_foundation::{Surface, animate, current_material_theme};
 use gpui_material_theme::{ColorRole, CornerRole, CornerShape, MotionKind, MotionSpeed, TypeRole};
 
 use crate::{
@@ -304,7 +304,7 @@ impl NavigationRail {
                 },
             }
         } else {
-            let theme = window_material_theme(window, cx);
+            let theme = current_material_theme(window, cx);
             let motion = theme.motion.spec(
                 MotionKind::Spatial,
                 MotionSpeed::Default,
@@ -391,7 +391,7 @@ impl RenderOnce for NavigationRail {
         };
         let expanded = mode == RailMode::Expanded;
         let title = self.title.unwrap_or_else(|| "Navigation".into());
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let viewport = window.viewport_size();
         let layout = theme.layout;
         let colors = self.colors;

@@ -11,7 +11,7 @@ use gpui_base::{
     Switch as BaseSwitch, TestSupportExt,
 };
 use gpui_material_foundation::{
-    InteractionSource, animate, color, move_roving_focus, window_material_theme,
+    InteractionSource, animate, color, current_material_theme, move_roving_focus,
 };
 use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpec, MotionSpeed, StateLayer};
 
@@ -25,7 +25,7 @@ type CheckboxChange = Rc<dyn Fn(CheckboxState, &mut Window, &mut App)>;
 type RadioChange = Rc<dyn Fn(&ElementId, &mut Window, &mut App)>;
 
 fn tone(role: ColorRole, window: &Window, cx: &App) -> Hsla {
-    color(window_material_theme(window, cx).colors.color(role))
+    color(current_material_theme(window, cx).colors.color(role))
 }
 
 fn selection_tone(selected: bool, disabled: bool, window: &Window, cx: &App) -> Hsla {
@@ -251,7 +251,7 @@ impl RenderOnce for Checkbox {
             window,
             cx,
         );
-        let motion = window_material_theme(window, cx).motion;
+        let motion = current_material_theme(window, cx).motion;
         let reduced = self.disabled || cx.reduce_motion();
         let effects = motion.spec(MotionKind::Effects, MotionSpeed::Fast, reduced);
         let spatial = motion.spec(MotionKind::Spatial, MotionSpeed::Fast, reduced);
@@ -340,7 +340,7 @@ impl RenderOnce for Checkbox {
         )
         .size(px(CHECKBOX_SIZE))
         .flex_none();
-        let direction = window_material_theme(window, cx).layout.direction;
+        let direction = current_material_theme(window, cx).layout.direction;
         let ripple = ripple_state(&self.id, !self.disabled, window, cx);
         let focus = window
             .use_keyed_state(self.id.clone(), cx, |_, cx| cx.focus_handle())
@@ -598,7 +598,7 @@ impl Radio {
         window: &mut Window,
         cx: &mut App,
     ) -> BaseRadio {
-        let motion = window_material_theme(window, cx).motion;
+        let motion = current_material_theme(window, cx).motion;
         let reduced = self.disabled || cx.reduce_motion();
         let dot = animate(
             (self.id.clone(), "radio-dot"),
@@ -630,7 +630,7 @@ impl Radio {
             .items_center()
             .justify_center()
             .child(div().size(px(10. * dot)).rounded_full().bg(accent));
-        let direction = window_material_theme(window, cx).layout.direction;
+        let direction = current_material_theme(window, cx).layout.direction;
         let ripple = ripple_state(&self.id, !self.disabled, window, cx);
         let focus = focus.cloned().unwrap_or_else(|| {
             // Match Base's standalone focus ID so changing the source retains focus.
@@ -753,7 +753,7 @@ impl RadioGroup {
 
 impl RenderOnce for RadioGroup {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let direction = window_material_theme(window, cx).layout.direction;
+        let direction = current_material_theme(window, cx).layout.direction;
         let current = self
             .options
             .iter()
@@ -1004,7 +1004,7 @@ impl Switch {
 impl RenderOnce for Switch {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         use ColorRole::*;
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
         let motion = theme.motion.spec(
             MotionKind::Spatial,
@@ -1014,7 +1014,7 @@ impl RenderOnce for Switch {
         let tint = animate(
             (self.id.clone(), "switch-color"),
             f32::from(self.checked),
-            window_material_theme(window, cx).motion.spec(
+            current_material_theme(window, cx).motion.spec(
                 MotionKind::Effects,
                 MotionSpeed::Fast,
                 self.disabled || cx.reduce_motion(),

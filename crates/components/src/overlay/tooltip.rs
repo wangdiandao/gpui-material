@@ -11,8 +11,8 @@ use gpui::{
     point, prelude::FluentBuilder, px,
 };
 use gpui_base::{Link, Placement, TestSupportExt};
-use gpui_material_foundation::window_material_theme;
-use gpui_material_theme::{CornerShape, Direction, Elevation, TypeRole, TypographyEmphasis};
+use gpui_material_foundation::{ThemeScope, current_material_theme};
+use gpui_material_theme::{CornerShape, Direction, Elevation, TypeRole};
 
 use appearance::{Appearance, SurfaceStyle};
 use interaction::{Dismiss, Interaction};
@@ -443,9 +443,9 @@ impl RenderOnce for Tooltip {
         }
 
         let viewport = window.viewport_size();
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
-        let style = self.appearance.resolve(self.rich, viewport, motion, theme);
+        let style = self.appearance.resolve(self.rich, viewport, motion, &theme);
         let view = tooltip_surface(&mut self, open || label, style, motion, window, cx);
         let margin = self.appearance.margin(viewport);
         let view = if label {
@@ -551,7 +551,7 @@ impl RenderOnce for Tooltip {
                 .margin(margin)
                 .child(scaled.width(last.size.width))
         };
-        root = root.child(deferred(positioner).with_priority(100));
+        root = root.child(deferred(ThemeScope::inherit(positioner, window, cx)).with_priority(100));
         root
     }
 }
@@ -661,22 +661,22 @@ fn render_action(
             )
             .into_any_element();
     }
-    let density = window_material_theme(window, cx).layout.density;
-    let label_type = TypeRole::LabelLarge.style(TypographyEmphasis::Baseline);
+    let density = current_material_theme(window, cx).layout.density;
     div()
         .min_h(motion.px(density.interactive_size(40.)))
         .flex()
         .items_center()
         .justify_center()
         .child(
-            div()
-                .px(motion.px(16.))
-                .min_w_0()
-                .truncate()
-                .text_size(motion.px(label_type.size))
-                .line_height(motion.px(label_type.line_height))
-                .text_color(style.action)
-                .child(action.label),
+            super::text_style(
+                div().px(motion.px(16.)).min_w_0().truncate(),
+                TypeRole::LabelLarge,
+                motion.scale,
+                window,
+                cx,
+            )
+            .text_color(style.action)
+            .child(action.label),
         )
         .into_any_element()
 }

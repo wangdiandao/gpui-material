@@ -6,7 +6,7 @@ use gpui::{
     size,
 };
 use gpui_base::motion::Easing;
-use gpui_material_foundation::{animate, color, window_material_theme};
+use gpui_material_foundation::{animate, color, current_material_theme};
 use gpui_material_theme::{
     ColorRole, Direction, MotionKind, MotionSpec, MotionSpeed, TokenValue, token,
 };
@@ -91,7 +91,7 @@ impl Progress {
     }
 
     fn render(self, circular: bool, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let active = Stroke::resolve(self.active, color(theme.colors.color(ColorRole::Primary)));
         let track = Stroke::resolve(
             self.track,

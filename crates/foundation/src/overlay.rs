@@ -7,7 +7,7 @@ use gpui::{
 };
 use gpui_material_theme::Direction;
 
-use crate::{scrim_color, window_material_theme};
+use crate::{current_material_theme, scrim_color};
 
 type ScrimClick = Rc<dyn Fn(&mut Window, &mut App)>;
 
@@ -69,7 +69,7 @@ impl Scrim {
 impl RenderOnce for Scrim {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let fill = self.color.map_or_else(
-            || scrim_color(window_material_theme(window, cx), self.opacity),
+            || scrim_color(&current_material_theme(window, cx), self.opacity),
             |color| color.opacity(self.opacity),
         );
         let backdrop = div().id(self.id).absolute().inset_0().bg(fill);

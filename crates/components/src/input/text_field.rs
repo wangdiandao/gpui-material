@@ -11,7 +11,7 @@ use gpui_base::{
     input::{InputAccessibility, InputBaseState, InputEditorStyle, InputModeKind},
 };
 use gpui_material_foundation::{
-    InteractionSource, InteractionState, animate, color, font_for_style, window_material_theme,
+    InteractionSource, InteractionState, animate, color, current_material_theme, font_for_style,
 };
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Direction, LayoutPolicy, MotionKind, MotionSpeed, TypeRole,
@@ -431,7 +431,7 @@ impl RenderOnce for TextField {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         use ColorRole::*;
 
-        let theme = window_material_theme(window, cx).clone();
+        let theme = current_material_theme(window, cx).clone();
         let tone = |role| color(theme.colors.color(role));
         let direction = theme.layout.direction;
         let presentation = match &self.editor {
@@ -485,12 +485,16 @@ impl RenderOnce for TextField {
             .shape(),
         );
         let type_style = LayoutPolicy::scale_text(
-            self.text_style
-                .unwrap_or(TypeRole::BodyLarge.style(TypographyEmphasis::Baseline)),
+            theme.typography.scale_style(
+                self.text_style
+                    .unwrap_or(TypeRole::BodyLarge.style(TypographyEmphasis::Baseline)),
+            ),
             self.font_scale,
         );
         let caption_style = LayoutPolicy::scale_text(
-            TypeRole::BodySmall.style(TypographyEmphasis::Baseline),
+            theme
+                .typography
+                .style(TypeRole::BodySmall, TypographyEmphasis::Baseline),
             self.font_scale,
         );
         let font = font_for_style(&theme.typography, type_style, cx);

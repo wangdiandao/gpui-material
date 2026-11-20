@@ -10,7 +10,7 @@ use gpui_base::{Button, TestSupportExt};
 use gpui_material_components::{
     ButtonColors, Fab, FabColor, FabSize, Icon, IconName, Menu, MenuItem,
 };
-use gpui_material_foundation::{animate, color, move_roving_focus, window_material_theme};
+use gpui_material_foundation::{animate, color, current_material_theme, move_roving_focus};
 use gpui_material_theme::{
     ColorRole, CornerShape, Direction, Elevation, MotionKind, MotionSpec, MotionSpeed,
 };
@@ -361,7 +361,7 @@ impl RenderOnce for Toolbar {
         if let Some(navigation) = self.navigation {
             return navigation;
         }
-        let theme = window_material_theme(window, cx);
+        let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
         let horizontal = self.orientation == ToolbarOrientation::Horizontal;
         let rtl = direction == Direction::Rtl;

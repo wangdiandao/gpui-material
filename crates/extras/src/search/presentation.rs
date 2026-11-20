@@ -214,7 +214,7 @@ impl RenderOnce for SearchBar {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let view = self.view;
         let state = view.state.clone();
-        if state.update(cx, |model, cx| model.sample_animation(window, cx)) {
+        if state.update(cx, |model, cx| model.sample_animation(window, cx)) && window.is_visible() {
             window.request_animation_frame();
         }
         let model = state.read(cx);
@@ -635,7 +635,7 @@ impl RenderOnce for SearchView {
             }
             animate
         });
-        if animate {
+        if animate && window.is_visible() {
             window.request_animation_frame();
         }
         let model = self.state.read(cx);

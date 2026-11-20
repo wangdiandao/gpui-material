@@ -1,7 +1,8 @@
 use std::time::Duration;
 
 use gpui::Context;
-use web_time::Instant;
+use gpui_base::motion::Easing;
+use gpui_material_foundation::RetargetTransition;
 
 use super::RailMode;
 
@@ -18,30 +19,16 @@ impl WidthWeights {
             expanded: f32::from(mode == RailMode::Expanded),
         }
     }
-
-    fn interpolate(self, target: Self, fraction: f32) -> Self {
-        let mix = |from, to| from + (to - from) * fraction;
-        Self {
-            collapsed: mix(self.collapsed, target.collapsed),
-            expanded: mix(self.expanded, target.expanded),
-        }
-    }
-}
-
-struct Transition {
-    from: WidthWeights,
-    started: Instant,
-    duration: Duration,
 }
 
 /// Retained presentation of a docked rail. Modal visibility uses DialogState.
 pub struct NavigationRailState {
     current: RailMode,
     target: RailMode,
-    width: WidthWeights,
+    collapsed: RetargetTransition,
+    expanded: RetargetTransition,
     progress: f32,
     duration: Duration,
-    transition: Option<Transition>,
 }
 
 impl Default for NavigationRailState {
@@ -52,13 +39,14 @@ impl Default for NavigationRailState {
 
 impl NavigationRailState {
     pub fn new(initial: RailMode) -> Self {
+        let weights = WidthWeights::for_mode(initial);
         Self {
             current: initial,
             target: initial,
-            width: WidthWeights::for_mode(initial),
+            collapsed: RetargetTransition::settled(weights.collapsed),
+            expanded: RetargetTransition::settled(weights.expanded),
             progress: 1.,
             duration: Duration::from_millis(240),
-            transition: None,
         }
     }
 
@@ -78,7 +66,7 @@ impl NavigationRailState {
     }
 
     pub fn is_animating(&self) -> bool {
-        self.transition.is_some()
+        self.collapsed.is_animating() || self.expanded.is_animating()
     }
 
     /// Fraction of the active transition, or one at the target.
@@ -106,7 +94,7 @@ impl NavigationRailState {
     }
 
     pub fn snap_to(&mut self, mode: RailMode, cx: &mut Context<Self>) {
-        if self.current != mode || self.target != mode || self.transition.is_some() {
+        if self.current != mode || self.target != mode || self.is_animating() {
             self.target = mode;
             self.settle();
             cx.notify();
@@ -121,41 +109,62 @@ impl NavigationRailState {
         self.sample(cx);
         if self.target != mode {
             self.target = mode;
-            self.progress = 0.;
-            self.transition = Some(Transition {
-                from: self.width,
-                started: cx.background_executor().now(),
-                duration: self.duration,
-            });
+            let weights = WidthWeights::for_mode(mode);
+            let now = cx.background_executor().now();
+            self.collapsed.animate_to(
+                weights.collapsed,
+                self.duration,
+                Easing::EaseInOut,
+                now,
+                false,
+            );
+            self.expanded.animate_to(
+                weights.expanded,
+                self.duration,
+                Easing::EaseInOut,
+                now,
+                false,
+            );
+            self.progress = if self.is_animating() { 0. } else { 1. };
+            if !self.is_animating() {
+                self.current = mode;
+            }
             cx.notify();
         }
     }
 
     fn settle(&mut self) {
         self.current = self.target;
-        self.width = WidthWeights::for_mode(self.target);
+        let weights = WidthWeights::for_mode(self.target);
+        self.collapsed.snap_to(weights.collapsed);
+        self.expanded.snap_to(weights.expanded);
         self.progress = 1.;
-        self.transition = None;
     }
 
     pub(super) fn sample(&mut self, cx: &mut Context<Self>) -> WidthWeights {
-        if let Some(transition) = &self.transition {
-            let elapsed = cx.background_executor().now() - transition.started;
-            if elapsed >= transition.duration || cx.reduce_motion() {
+        if self.is_animating() {
+            let now = cx.background_executor().now();
+            let reduced = cx.reduce_motion();
+            let prev = (self.collapsed.value(), self.expanded.value());
+            let (c, c_run) = self.collapsed.sample(now, reduced);
+            let (e, e_run) = self.expanded.sample(now, reduced);
+            if !c_run && !e_run {
                 self.settle();
                 cx.notify();
             } else {
-                let fraction = (elapsed.as_secs_f64() / transition.duration.as_secs_f64()) as f32;
-                if fraction != self.progress {
-                    let eased = fraction * fraction * (3. - 2. * fraction);
-                    self.width = transition
-                        .from
-                        .interpolate(WidthWeights::for_mode(self.target), eased);
-                    self.progress = fraction;
+                let target = WidthWeights::for_mode(self.target);
+                let dist = (c - target.collapsed)
+                    .abs()
+                    .max((e - target.expanded).abs());
+                self.progress = (1. - dist).clamp(0., 1.);
+                if (c, e) != prev {
                     cx.notify();
                 }
             }
         }
-        self.width
+        WidthWeights {
+            collapsed: self.collapsed.value(),
+            expanded: self.expanded.value(),
+        }
     }
 }

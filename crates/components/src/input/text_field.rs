@@ -7,11 +7,14 @@ use gpui::{
     prelude::FluentBuilder, px, quad,
 };
 use gpui_base::{
-    TestSupportExt,
-    input::{InputAccessibility, InputBaseState, InputEditorStyle, InputModeKind},
+    ScrollbarAxis, TestSupportExt,
+    input::{
+        DiagnosticColors, InputAccessibility, InputBaseState, InputEditorStyle, InputModeKind,
+    },
 };
 use gpui_material_foundation::{
-    InteractionSource, InteractionState, animate, color, current_material_theme, font_for_style,
+    InteractionSource, InteractionState, ThemeScope, animate, color, current_material_theme,
+    font_for_style,
 };
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Direction, LayoutPolicy, MotionKind, MotionSpeed, TypeRole,
@@ -562,11 +565,12 @@ impl RenderOnce for TextField {
         };
         let style = InputEditorStyle {
             foreground: editor_ink(foreground),
-            // Base resolves unset palette fields against its application theme.
-            // Supply every palette field so editor decorations also stay local
-            // when another window uses a different Material appearance.
-            background: tone(SurfaceContainer),
-            border: tone(OutlineVariant),
+            // Base resolves unset (zero-alpha) palette fields against its
+            // application theme. Supply every palette and diagnostic field with
+            // local Material roles so editor decorations stay isolated inside
+            // window and subtree theme scopes.
+            background: editor_ink(tone(SurfaceContainer)),
+            border: editor_ink(tone(OutlineVariant)),
             muted_foreground: match (has_text, self.placeholder.is_some()) {
                 (true, _) => editor_ink(placeholder_color),
                 (false, true) => editor_ink(gpui::transparent_black()),
@@ -584,6 +588,12 @@ impl RenderOnce for TextField {
                 )
             },
             selection: editor_ink(state_colors.selection.unwrap_or(tone(Primary).opacity(0.3))),
+            diagnostics: DiagnosticColors {
+                error: editor_ink(tone(Error)),
+                warning: editor_ink(tone(Warning)),
+                info: editor_ink(tone(Info)),
+                hint: editor_ink(tone(OnSurfaceVariant)),
+            },
             ..Default::default()
         };
         let label = self.label;
@@ -630,9 +640,44 @@ impl RenderOnce for TextField {
                 (state.into_any_element(), role, value, set_value)
             }
             Editor::Multiple(state) => {
+                let scrollbar_id = (self.id.clone(), "editor-scrollbar");
+                let scrollbar_theme = theme.clone();
                 state.update(cx, |state, cx| {
                     state.set_text_align(align, cx);
                     configure_editor(state, style);
+                    state.set_scrollbar_renderer(Some(Rc::new(move |scroll, _, _| {
+                        let content = match scroll.axis() {
+                            ScrollbarAxis::Vertical => crate::DisplayScrollbar::new(
+                                scrollbar_id.clone(),
+                                gpui::Axis::Vertical,
+                                &scroll,
+                            )
+                            .into_any_element(),
+                            ScrollbarAxis::Horizontal => crate::DisplayScrollbar::new(
+                                scrollbar_id.clone(),
+                                gpui::Axis::Horizontal,
+                                &scroll,
+                            )
+                            .into_any_element(),
+                            ScrollbarAxis::Both => div()
+                                .absolute()
+                                .inset_0()
+                                .child(crate::DisplayScrollbar::new(
+                                    scrollbar_id.clone(),
+                                    gpui::Axis::Vertical,
+                                    &scroll,
+                                ))
+                                .child(crate::DisplayScrollbar::new(
+                                    scrollbar_id.clone(),
+                                    gpui::Axis::Horizontal,
+                                    &scroll,
+                                ))
+                                .into_any_element(),
+                        };
+                        ThemeScope::new(content)
+                            .theme(scrollbar_theme.clone())
+                            .into_any_element()
+                    })));
                 });
                 let value = state.read(cx).value();
                 let set_value = (!readonly && !disabled).then(|| edit_handler(state.clone()));

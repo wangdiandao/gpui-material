@@ -4,8 +4,9 @@ use gpui::{
     App, AppContext, Context, ElementId, Entity, EntityInputHandler, EventEmitter, FocusHandle,
     Focusable, ListAlignment, ListState, SharedString, Subscription, Window, px,
 };
+use gpui_base::motion::Easing;
 use gpui_material_components::{IconName, TextFieldEvent, TextFieldState};
-use web_time::Instant;
+use gpui_material_foundation::RetargetTransition;
 
 mod presentation;
 mod scroll;
@@ -161,12 +162,6 @@ impl SearchValue {
     }
 }
 
-struct SearchAnimation {
-    from: f32,
-    started: Instant,
-    duration: Duration,
-}
-
 /// Retains editing, IME, result and focus state while the search view expands.
 /// The application performs asynchronous work and owns resulting navigation.
 pub struct SearchState {
@@ -181,7 +176,7 @@ pub struct SearchState {
     response: SearchResponse,
     target: SearchValue,
     progress: f32,
-    animation: Option<SearchAnimation>,
+    animation: RetargetTransition,
     _input: Subscription,
 }
 
@@ -235,7 +230,7 @@ impl SearchState {
             response: SearchResponse::default(),
             target: SearchValue::Collapsed,
             progress: 0.,
-            animation: None,
+            animation: RetargetTransition::settled(0.),
             _input: subscription,
         }
     }
@@ -265,7 +260,7 @@ impl SearchState {
     }
 
     pub fn is_animating(&self) -> bool {
-        self.animation.is_some()
+        self.animation.is_animating()
     }
 
     pub fn editor(&self) -> &Entity<TextFieldState> {
@@ -293,7 +288,7 @@ impl SearchState {
             return;
         }
         let fraction = fraction.clamp(0., 1.);
-        if fraction == self.progress && self.animation.is_none() {
+        if fraction == self.progress && !self.animation.is_animating() {
             return;
         }
         if fraction > 0. {
@@ -302,7 +297,7 @@ impl SearchState {
             self.target = SearchValue::Collapsed;
             self.restore_focus(window, cx);
         }
-        self.animation = None;
+        self.animation.snap_to(fraction);
         self.progress = fraction;
         cx.notify();
     }
@@ -320,7 +315,8 @@ impl SearchState {
             return;
         }
         self.sample_animation(window, cx);
-        if target == self.target && (self.animation.is_some() || self.progress == target.progress())
+        if target == self.target
+            && (self.animation.is_animating() || self.progress == target.progress())
         {
             return;
         }
@@ -328,17 +324,12 @@ impl SearchState {
             self.prepare_open(window, cx);
         }
         self.target = target;
-        if self.progress == target.progress() {
-            self.animation = None;
-            if target == SearchValue::Collapsed {
-                self.restore_focus(window, cx);
-            }
-        } else {
-            self.animation = Some(SearchAnimation {
-                from: self.progress,
-                started: cx.background_executor().now(),
-                duration,
-            });
+        let now = cx.background_executor().now();
+        self.animation
+            .animate_to(target.progress(), duration, Easing::EaseInOut, now, false);
+        self.progress = self.animation.value();
+        if !self.animation.is_animating() && target == SearchValue::Collapsed {
+            self.restore_focus(window, cx);
         }
         cx.notify();
     }
@@ -383,7 +374,7 @@ impl SearchState {
     }
 
     fn presented(&self) -> bool {
-        self.is_open() || self.animation.is_some()
+        self.is_open() || self.animation.is_animating()
     }
 
     fn prepare_open(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -410,24 +401,20 @@ impl SearchState {
     }
 
     fn sample_animation(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
-        let Some(animation) = &self.animation else {
+        if !self.animation.is_animating() {
             return false;
-        };
-        let elapsed = cx.background_executor().now() - animation.started;
+        }
+        let now = cx.background_executor().now();
         let old = self.progress;
-        let endpoint = self.target.progress();
-        if elapsed >= animation.duration || cx.reduce_motion() {
-            self.progress = endpoint;
-            self.animation = None;
+        let (value, running) = self.animation.sample(now, cx.reduce_motion());
+        self.progress = value;
+        if !running {
             if self.target == SearchValue::Collapsed {
                 self.restore_focus(window, cx);
             }
             cx.notify();
             false
         } else {
-            let time = (elapsed.as_secs_f64() / animation.duration.as_secs_f64()) as f32;
-            let eased = time * time * (3. - 2. * time);
-            self.progress = animation.from + (endpoint - animation.from) * eased;
             if old != self.progress {
                 cx.notify();
             }

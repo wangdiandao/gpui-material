@@ -7,7 +7,7 @@ use gpui::{
 };
 pub use gpui_base::ScrollbarHandle;
 use gpui_base::motion::Easing;
-use gpui_material_foundation::{color, current_material_theme};
+use gpui_material_foundation::{color, current_material_theme, is_bounds_visible};
 use gpui_material_theme::{ColorRole, Direction};
 use web_time::Instant;
 
@@ -142,8 +142,9 @@ impl RenderOnce for DisplayScrollbar {
                     offset,
                 );
                 let mut state = state.borrow_mut();
-                let Some(geometry) = geometry.filter(|geometry| clip.intersects(&geometry.track))
-                else {
+                let Some(geometry) = geometry.filter(|geometry| {
+                    clip.intersects(&geometry.track) && is_bounds_visible(clip, window)
+                }) else {
                     *state = FadeState::default();
                     return None;
                 };

@@ -1,12 +1,14 @@
 //! Loading indicators and rounded polygon constructors for custom sequences.
 
-use std::{f32::consts::TAU, rc::Rc, sync::LazyLock, time::Duration};
+use std::{f32::consts::TAU, rc::Rc, sync::LazyLock};
 
 use gpui::{
     App, Bounds, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement, Path, Pixels,
     Point, RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window, canvas, div, px,
 };
-use gpui_material_foundation::{ShapeMorphSequence, ShapePolygon, color, current_material_theme};
+use gpui_material_foundation::{
+    LoopClock, ShapeMorphSequence, ShapePolygon, color, current_material_theme, is_bounds_visible,
+};
 use gpui_material_theme::{ColorRole, CornerShape, MaterialShape};
 use web_time::Instant;
 
@@ -196,20 +198,34 @@ impl RenderOnce for LoadingIndicator {
             ACTIVE_SIZE
         };
         let reduced = cx.reduce_motion();
-        let running = self.value.is_none() && !reduced && window.is_window_active();
-        let phase = if self.value.is_none() {
+        let running =
+            self.value.is_none() && !reduced && window.is_window_active() && window.is_visible();
+        let motion = self.value.is_none().then(|| {
+            window.use_keyed_state((self.id.clone(), "loading-motion"), cx, |_, _| {
+                IndeterminateMotion::default()
+            })
+        });
+        let phase = if let Some(motion) = &motion {
             let now = cx.background_executor().now();
-            window
-                .use_keyed_state((self.id.clone(), "loading-motion"), cx, |_, _| {
-                    IndeterminateMotion::default()
-                })
-                .update(cx, |state, _| state.phase(now, running, reduced))
+            motion.update(cx, |state, _| {
+                state.phase(now, running && state.visible, reduced)
+            })
         } else {
             0.
         };
         let icon = canvas(
             |_, _, _| (),
-            move |bounds, _, window, _| {
+            move |bounds, _, window, cx| {
+                let visible = is_bounds_visible(bounds, window);
+                if let Some(motion) = &motion {
+                    let now = cx.background_executor().now();
+                    motion.update(cx, |state, _| {
+                        state.set_visible(visible, now);
+                    });
+                }
+                if !visible {
+                    return;
+                }
                 let shapes = self.shapes.as_ref().map_or_else(
                     || {
                         if self.value.is_some() {
@@ -261,27 +277,32 @@ fn progress_node(id: ElementId, label: SharedString, value: Option<f32>) -> gpui
     }
 }
 
-#[derive(Default)]
 struct IndeterminateMotion {
-    epoch: Option<Instant>,
-    elapsed: Duration,
+    clock: LoopClock,
+    visible: bool,
+}
+
+impl Default for IndeterminateMotion {
+    fn default() -> Self {
+        Self {
+            clock: LoopClock::default(),
+            visible: true,
+        }
+    }
 }
 
 impl IndeterminateMotion {
-    fn phase(&mut self, now: Instant, running: bool, reduced: bool) -> f32 {
-        if reduced {
-            *self = Self::default();
-            return 0.;
-        }
-        let elapsed = if running {
-            self.elapsed + now.saturating_duration_since(*self.epoch.get_or_insert(now))
-        } else {
-            if let Some(epoch) = self.epoch.take() {
-                self.elapsed += now.saturating_duration_since(epoch);
+    fn set_visible(&mut self, visible: bool, now: Instant) {
+        if self.visible != visible {
+            self.visible = visible;
+            if !visible {
+                self.clock.pause(now);
             }
-            self.elapsed
-        };
-        elapsed.as_secs_f32() / MORPH_INTERVAL
+        }
+    }
+
+    fn phase(&mut self, now: Instant, running: bool, reduced: bool) -> f32 {
+        self.clock.advance(now, running, reduced).as_secs_f32() / MORPH_INTERVAL
     }
 }
 
@@ -333,6 +354,8 @@ impl MorphSample {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use super::*;
     use gpui::{point, size};
 

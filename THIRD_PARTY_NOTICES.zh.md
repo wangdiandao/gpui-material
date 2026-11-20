@@ -24,6 +24,8 @@ extras crate 的 `date-time` 特性使用 [chrono 0.4.45](https://crates.io/crat
 
 网页 Gallery 随附未经改动的 [GPUI Kit v0.9.1 IBM Plex Sans Regular 子集](https://github.com/longbridge/gpui-kit/blob/v0.9.1/crates/story-web/fonts/IBMPlexSans-Regular.ttf)，供 GPUI 作为系统界面字体，按 [SIL Open Font License 1.1](website/public/licenses/gallery-fonts.txt) 分发。
 
+symbols 配套库分发 Google 同一版本的图标目录和由 Material Symbols Outlined、Rounded、Sharp 派生的 TrueType 字体。派生字体保留图标目录对应的字形、FILL 和字重，固定 grade 和光学尺寸。[来源、修改及校验和](crates/symbols/assets/manifest.toml) · [Apache-2.0 许可副本](crates/symbols/assets/LICENSE)
+
 引入第三方源码、图标、字体或文档节选时，在本声明或对应的资源清单登记精确来源、版本、修改与再分发条款。源版本和 Cargo 候选见[设计依据](docs/design-sources.zh.md)及[架构与依赖](docs/architecture.zh.md)。
 
 [v0.1.0 Windows Gallery ZIP](https://github.com/wangdiandao/gpui-material/releases/tag/v0.1.0) 包含锁定的 Windows 运行时依赖、Rust 标准库和随包图标的许可材料。版本与许可位置见 ZIP 内的 `DEPENDENCIES.txt`，上游许可证文本及署名见 [v0.1.0 的补充许可来源](https://github.com/wangdiandao/gpui-material/blob/v0.1.0/scripts/gallery-license-sources.txt)。

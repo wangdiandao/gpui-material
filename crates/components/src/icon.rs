@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use gpui::{
     AnyElement, App, ElementId, InteractiveElement, IntoElement, ParentElement, Pixels, Radians,
     RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Transformation, Window,
@@ -56,7 +58,7 @@ symbols! {
 }
 
 /// A decorative icon by default; `.label` exposes an independently meaningful image.
-/// Named symbols inherit text size and foreground, including disabled colors, from
+/// Named symbols and raw SVG data inherit text size and foreground, including disabled colors, from
 /// their control's icon slot. Outside a slot, use `.size(px(24.))` for a 24dp icon.
 /// Custom SVG paths use the application's AssetSource. Mirroring is opt-in.
 #[derive(IntoElement)]
@@ -73,6 +75,7 @@ pub struct Icon {
 enum IconContent {
     Symbol(IconName),
     Svg(SharedString),
+    SvgData(Arc<[u8]>),
     Element(AnyElement),
 }
 
@@ -95,6 +98,14 @@ impl Icon {
             content: IconContent::Svg(path.into()),
             side: Some(px(24.)),
             color: Some(ColorRole::OnSurfaceVariant),
+            ..Self::new(IconName::Info)
+        }
+    }
+
+    /// An in-memory SVG that inherits size and color from its icon slot.
+    pub fn svg_data(data: impl Into<Arc<[u8]>>) -> Self {
+        Self {
+            content: IconContent::SvgData(data.into()),
             ..Self::new(IconName::Info)
         }
     }
@@ -157,19 +168,18 @@ impl RenderOnce for Icon {
         let rtl = self.mirror && theme.layout.direction == Direction::Rtl;
         let transform = Transformation::rotate(self.rotation)
             .with_scaling(size(if rtl { -1. } else { 1. }, 1.));
+        let icon_svg = || {
+            svg()
+                .size_full()
+                .text_color(tint)
+                .with_transformation(transform)
+        };
         let icon = match self.content {
-            IconContent::Symbol(symbol) => svg()
+            IconContent::Symbol(symbol) => icon_svg()
                 .data(symbol.svg_data(self.filled))
-                .size_full()
-                .text_color(tint)
-                .with_transformation(transform)
                 .into_any_element(),
-            IconContent::Svg(path) => svg()
-                .path(path)
-                .size_full()
-                .text_color(tint)
-                .with_transformation(transform)
-                .into_any_element(),
+            IconContent::Svg(path) => icon_svg().path(path).into_any_element(),
+            IconContent::SvgData(data) => icon_svg().data(&data).into_any_element(),
             IconContent::Element(element) => element,
         };
         let icon = div()
@@ -195,7 +205,6 @@ impl RenderOnce for Icon {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
 
     #[test]
     fn every_bundled_symbol_rasterizes_without_fonts_or_application_assets() {

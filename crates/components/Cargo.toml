@@ -13,5 +13,4 @@ gpui.workspace = true
 gpui-base.workspace = true
 gpui-material-foundation.workspace = true
 gpui-material-theme.workspace = true
-polymorpher = { version = "=0.1.4", default-features = false }
 web-time.workspace = true

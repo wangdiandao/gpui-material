@@ -27,7 +27,7 @@
 | Token | Reference、System、Component 三层，原名和 Rust 字段可追溯。验证引用闭合与生成可复现。 | [Design tokens](https://m3.material.io/foundations/design-tokens/overview) |
 | 色彩 | 静态浅深色、角色配对、品牌/动态源色、对比度与固定角色。对照 MCU 检验语义色和边界。 | [Color roles](https://m3.material.io/styles/color/roles)、[Dynamic color](https://m3.material.io/styles/color/dynamic) |
 | 排版 | baseline 与 emphasized 角色、字重、行高、字距与可覆盖字体回退。对照角色定义，验证实际字形及度量。 | [Typography](https://m3.material.io/styles/typography/overview) |
-| 形状 | 角形阶梯、状态形状、有限圆角多边形及 morph。对照几何参数，验证绘制、裁剪和命中。 | [Shape](https://m3.material.io/styles/shape/overview-principles)、[Shape morph](https://m3.material.io/styles/shape/shape-morph) |
+| 形状 | 角形阶梯、状态形状、全部 35 种 Expressive 圆角多边形、自定义圆角多边形、通用 morph、几何裁剪和形状感知命中检测。对照几何参数，验证绘制、裁剪和命中。 | [Shape](https://m3.material.io/styles/shape/overview-principles)、[Shape morph](https://m3.material.io/styles/shape/shape-morph) |
 | 动效 | Standard/Expressive motion scheme，区分空间与颜色/透明度等效果。验证重定向、减少动态效果和终止重绘。 | [Motion](https://m3.material.io/styles/motion/overview/specs) |
 | 层级 | Surface 角色、tonal elevation、阴影和 scrim。浅深色分别验证。 | [Elevation](https://m3.material.io/styles/elevation/overview) |
 | 交互 | hover、focus-visible、pressed、dragged、disabled 和组件值状态。验证输入取消和状态来源。 | [States](https://m3.material.io/foundations/interaction/states/overview)、[Inputs](https://m3.material.io/foundations/interaction/inputs) |
@@ -52,7 +52,7 @@
 
 [Compose 发布说明][compose-release]列出稳定版 1.4.0 和候选版 1.5.0-rc01。后者的源码包提供 Expressive 实现基线，其发布变更范围终点是 [`1f549b6f5ba84cb3553be9c79110c4c5f6413039`][compose-tree]。源码以版本化包及校验值定位，Android 实现仅用于澄清交互。自适应与形状版本分别由[自适应发布说明][adaptive-release]和 [graphics-shapes 发布说明][shapes-release]核对。
 
-[foundation 形状测试](../crates/foundation/src/shape.rs)参考锁定版本的 AndroidX `MorphTest.cubicsTest` 和 `RoundedPolygonTest.roundingSpaceUsageTest`，验证 Material 实际使用的形状。测试覆盖相邻圆角的边长分配、同形变形对贝塞尔端点和控制点的保留，以及圆角三角形、正方形和圆之间的过渡在进度 0、0.5、1 时的闭合与边界。另验证不同形状在变形起点和终点的命中区域。运行 `cargo test --locked -p gpui-material-foundation shape::tests` 可单独检查这些几何行为。
+[foundation 形状测试](../crates/foundation/src/shape.rs)参考锁定版本的 AndroidX `MorphTest.cubicsTest` 和 `RoundedPolygonTest.roundingSpaceUsageTest`，验证 Material 实际使用的形状。测试覆盖相邻圆角的边长分配、同形变形对贝塞尔端点和控制点的保留、全部 35 种 `MaterialShape` 及代表性变形组合在各进度下的闭合与边界，以及凸、凹多边形上路径/矩形/圆盘裁剪、EvenOdd 外部遮罩与命中检测的一致性。运行 `cargo test --locked -p gpui-material-foundation shape::tests` 可单独检查这些几何行为。
 
 MCU 的固定向量包括蓝色 `0xff0000ff` 的色板 tone 40 得 `0xff343dff`，红色 `0xffff0000` 在 Tonal Spot、深色、对比度 0 下的 `primaryFixed` 为 `0xffffdad4`，tone −10 与 110 的夹取后对比度为 21（容差 0.001）。主题 crate 还验证源色往返、浅深模式、低/默认/高对比度和固定角色。更新向量时记录版本、算法规格、预期值与容差。
 

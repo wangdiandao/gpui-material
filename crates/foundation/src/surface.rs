@@ -1,7 +1,7 @@
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
-    AccessibleAction, AnyElement, App, ElementId, Entity, FocusHandle, Hsla, IntoElement,
+    AccessibleAction, AnyElement, App, Bounds, ElementId, Entity, FocusHandle, Hsla, IntoElement,
     ParentElement, Pixels, RenderOnce, Rgba, Role, SharedString, StatefulInteractiveElement,
     StyleRefinement, Styled, Toggled, Window, canvas, div, prelude::FluentBuilder, px,
 };
@@ -9,7 +9,7 @@ use gpui_base::{Button, StyledExt};
 use gpui_material_theme::{Argb, ColorRole, CornerShape, Direction, Elevation, MaterialTheme};
 
 use crate::{
-    InteractionFeedback, InteractionSource, Shape,
+    InteractionFeedback, InteractionSource, Shape, ShapeFit, ShapePolygon,
     control_feedback::{activate_feedback, feedback_target, ripple_state},
     current_material_theme,
 };
@@ -94,6 +94,10 @@ pub struct Surface {
     content_color: Option<Hsla>,
     inherit_content_color: bool,
     shape: Option<CornerShape>,
+    polygon: Option<ShapePolygon>,
+    shape_fit: ShapeFit,
+    clip_backdrop: Option<Hsla>,
+    shape_hit_test: Option<bool>,
     border: Option<SurfaceBorder>,
     tonal_elevation: Elevation,
     shadow_elevation: Elevation,
@@ -116,6 +120,10 @@ impl Surface {
             content_color: None,
             inherit_content_color: false,
             shape: None,
+            polygon: None,
+            shape_fit: ShapeFit::Contain,
+            clip_backdrop: None,
+            shape_hit_test: None,
             border: None,
             tonal_elevation: Elevation::Level0,
             shadow_elevation: Elevation::Level0,
@@ -233,6 +241,42 @@ impl Surface {
 
     pub fn shape(mut self, shape: CornerShape) -> Self {
         self.shape = Some(shape);
+        self.polygon = None;
+        self
+    }
+
+    /// Uses any [`ShapePolygon`] (including [`MaterialShape`](gpui_material_theme::MaterialShape),
+    /// [`PolygonRole`](gpui_material_theme::PolygonRole), or sampled [`ShapeMorph`](crate::ShapeMorph)
+    /// outlines) for background painting, border stroke, shadow, clipping, and feedback.
+    ///
+    /// Interactive polygon surfaces default to shape-aware pointer hit testing unless
+    /// overridden with [`Self::shape_hit_test`].
+    pub fn polygon_shape(mut self, polygon: impl Into<ShapePolygon>) -> Self {
+        self.polygon = Some(polygon.into());
+        self.shape = None;
+        self
+    }
+
+    /// Chooses how a [`Self::polygon_shape`] maps into the laid-out surface bounds.
+    pub fn shape_fit(mut self, fit: ShapeFit) -> Self {
+        self.shape_fit = fit;
+        self
+    }
+
+    /// Visually clips overflowing children to the resolved shape contour by applying a
+    /// rectangular content mask and painting an EvenOdd exterior mask in `backdrop`.
+    /// Match `backdrop` to the uniform background behind this surface.
+    pub fn shape_clip_backdrop(mut self, backdrop: Hsla) -> Self {
+        self.clip_backdrop = Some(backdrop);
+        self
+    }
+
+    /// Controls whether pointer hover, press, and click activation require the cursor to
+    /// lie inside the resolved shape contour. Defaults to `true` for [`Self::polygon_shape`]
+    /// and `false` for rectangular or [`CornerShape`] surfaces. Keyboard and accessibility
+    /// activation remain available regardless of this setting.
+    pub fn shape_hit_test(mut self, enabled: bool) -> Self {
+        self.shape_hit_test = Some(enabled);
         self
     }
 
@@ -276,12 +320,36 @@ impl Styled for Surface {
     }
 }
 
+#[derive(Clone)]
+enum ResolvedShape {
+    Corners(CornerShape, Direction),
+    Polygon(ShapePolygon, ShapeFit),
+}
+
+impl ResolvedShape {
+    fn build(&self, bounds: Bounds<Pixels>) -> Option<Shape> {
+        match self {
+            Self::Corners(shape, direction) => Shape::rounded(bounds, *shape, *direction),
+            Self::Polygon(polygon, fit) => Shape::polygon(bounds, polygon, *fit),
+        }
+    }
+}
+
+struct PolygonPaint {
+    background: Hsla,
+    shadow_elevation: f32,
+    shadow_scale: f32,
+    shadow_color: Hsla,
+    border: Option<(Pixels, Hsla)>,
+}
+
 impl RenderOnce for Surface {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let current = current_material_theme(window, cx);
         let theme = self.theme.as_ref().unwrap_or(&current);
         let scheme = &theme.colors;
         let default_focus = color(scheme.color(ColorRole::Secondary));
+        let shadow_color = color(scheme.color(ColorRole::Shadow));
         let background = if self.role == ColorRole::Surface {
             scheme.surface_at_elevation(self.tonal_elevation)
         } else {
@@ -295,62 +363,173 @@ impl RenderOnce for Surface {
             }
             scheme.pair(self.role).map(|pair| color(pair.foreground))
         });
-        self.style.background = Some(background.into());
         if let Some(foreground) = foreground {
             self.style.text.color = Some(foreground);
         }
-        let shadows = elevation_shadows(
-            self.shadow_elevation.dp(),
-            self.shadow_scale,
-            color(scheme.color(ColorRole::Shadow)),
-        );
-        if !shadows.is_empty() {
-            self.style.box_shadow = Some(shadows);
-        }
-        if let Some(shape) = self.shape {
-            if shape == CornerShape::Full {
-                self = self.rounded_full();
-            } else {
-                let [tl, tr, br, bl] = shape.radii(f32::MAX, f32::MAX, direction);
-                self = self
-                    .rounded_tl(px(tl))
-                    .rounded_tr(px(tr))
-                    .rounded_br(px(br))
-                    .rounded_bl(px(bl));
-            }
-        }
-        if let Some(border) = self.border {
+        let border = self.border.map(|border| {
             let border_width = if f32::from(border.width).is_finite() {
                 border.width.max(px(0.))
             } else {
                 px(0.)
             };
-            let width = Some(border_width.into());
-            self.style.border_widths.top = width;
-            self.style.border_widths.right = width;
-            self.style.border_widths.bottom = width;
-            self.style.border_widths.left = width;
-            self.style.border_color = Some(if border_width > px(0.) {
-                border.color
-            } else {
-                gpui::transparent_black()
-            });
-        }
-        let Some(control) = self.control.take() else {
-            return div()
-                .refine_style(&self.style)
-                .children(self.children)
-                .into_any_element();
+            (border_width, border.color)
+        });
+        let polygon_paint = if self.polygon.is_some() {
+            Some(PolygonPaint {
+                background,
+                shadow_elevation: self.shadow_elevation.dp(),
+                shadow_scale: self.shadow_scale,
+                shadow_color,
+                border: border.filter(|(width, _)| *width > px(0.)),
+            })
+        } else {
+            self.style.background = Some(background.into());
+            let shadows =
+                elevation_shadows(self.shadow_elevation.dp(), self.shadow_scale, shadow_color);
+            if !shadows.is_empty() {
+                self.style.box_shadow = Some(shadows);
+            }
+            if let Some(shape) = self.shape {
+                if shape == CornerShape::Full {
+                    self = self.rounded_full();
+                } else {
+                    let [tl, tr, br, bl] = shape.radii(f32::MAX, f32::MAX, direction);
+                    self = self
+                        .rounded_tl(px(tl))
+                        .rounded_tr(px(tr))
+                        .rounded_br(px(br))
+                        .rounded_bl(px(bl));
+                }
+            }
+            if let Some((border_width, border_color)) = border {
+                let width = Some(border_width.into());
+                self.style.border_widths.top = width;
+                self.style.border_widths.right = width;
+                self.style.border_widths.bottom = width;
+                self.style.border_widths.left = width;
+                self.style.border_color = Some(if border_width > px(0.) {
+                    border_color
+                } else {
+                    gpui::transparent_black()
+                });
+            }
+            None
         };
-        self.render_control(control, direction, default_focus, window, cx)
+        let resolved_shape = self.resolve_shape(direction, window);
+        let Some(control) = self.control.take() else {
+            return self.render_passive(resolved_shape, polygon_paint);
+        };
+        self.render_control(
+            control,
+            resolved_shape,
+            polygon_paint,
+            default_focus,
+            window,
+            cx,
+        )
     }
 }
 
 impl Surface {
+    fn resolve_shape(&self, direction: Direction, window: &Window) -> ResolvedShape {
+        if let Some(polygon) = &self.polygon {
+            ResolvedShape::Polygon(polygon.clone(), self.shape_fit)
+        } else if let Some(shape) = self.shape {
+            ResolvedShape::Corners(shape, direction)
+        } else {
+            let radii = &self.style.corner_radii;
+            let radius = |value: Option<gpui::AbsoluteLength>| {
+                value.map_or(0., |value| value.to_pixels(window.rem_size()).into())
+            };
+            ResolvedShape::Corners(
+                CornerShape::Radii([
+                    radius(radii.top_left),
+                    radius(radii.top_right),
+                    radius(radii.bottom_right),
+                    radius(radii.bottom_left),
+                ]),
+                Direction::Ltr,
+            )
+        }
+    }
+
+    fn render_passive(
+        self,
+        resolved_shape: ResolvedShape,
+        polygon_paint: Option<PolygonPaint>,
+    ) -> AnyElement {
+        let clip_backdrop = self.clip_backdrop;
+        if polygon_paint.is_none() && clip_backdrop.is_none() {
+            return div()
+                .refine_style(&self.style)
+                .children(self.children)
+                .into_any_element();
+        }
+        let prepared: Rc<RefCell<Option<Shape>>> = Rc::new(RefCell::new(None));
+        let border = polygon_paint.as_ref().and_then(|paint| paint.border);
+        let prepaint_shape = prepared.clone();
+        let bg_shape = prepared.clone();
+        let background_layer = polygon_paint.map(|paint| {
+            let spec = resolved_shape.clone();
+            canvas(
+                move |bounds, _, _| {
+                    *prepaint_shape.borrow_mut() = spec.build(bounds);
+                },
+                move |_, _, window, _| {
+                    if let Some(shape) = bg_shape.borrow().as_ref() {
+                        shape.paint_shadow(
+                            paint.shadow_elevation,
+                            paint.shadow_scale,
+                            paint.shadow_color,
+                            window,
+                        );
+                        shape.paint(paint.background, window);
+                    }
+                },
+            )
+            .absolute()
+            .inset_0()
+        });
+        let needs_fg = clip_backdrop.is_some() || border.is_some();
+        let fg_prepaint = prepared.clone();
+        let fg_paint = prepared;
+        let has_bg = background_layer.is_some();
+        let foreground_layer = needs_fg.then(|| {
+            canvas(
+                move |bounds, _, _| {
+                    if !has_bg {
+                        *fg_prepaint.borrow_mut() = resolved_shape.build(bounds);
+                    }
+                },
+                move |bounds, _, window, _| {
+                    if let Some(shape) = fg_paint.borrow().as_ref() {
+                        if let Some(backdrop) = clip_backdrop {
+                            shape.paint_backdrop_mask(bounds, backdrop, window);
+                        }
+                        if let Some((width, color)) = border {
+                            shape.paint_stroke(width, color, window);
+                        }
+                    }
+                },
+            )
+            .absolute()
+            .inset_0()
+        });
+        div()
+            .relative()
+            .when(clip_backdrop.is_some(), Styled::overflow_hidden)
+            .refine_style(&self.style)
+            .children(background_layer)
+            .children(self.children)
+            .children(foreground_layer)
+            .into_any_element()
+    }
+
     fn render_control(
         self,
         control: Control,
-        direction: Direction,
+        resolved_shape: ResolvedShape,
+        polygon_paint: Option<PolygonPaint>,
         default_focus: Hsla,
         window: &mut Window,
         cx: &mut App,
@@ -362,6 +541,8 @@ impl Surface {
                 .clone()
         });
         let state = ripple_state(&control.id, !self.disabled, window, cx);
+        let shape_hit_test = self.shape_hit_test.unwrap_or(polygon_paint.is_some());
+        state.borrow_mut().set_shape_hit_test(shape_hit_test);
         let tracker = self
             .interaction_source
             .as_ref()
@@ -369,23 +550,6 @@ impl Surface {
         let interaction = state
             .borrow_mut()
             .track(!self.disabled, &focus, tracker, window, cx);
-        let (shape, shape_direction) = if let Some(shape) = self.shape {
-            (shape, direction)
-        } else {
-            let radii = &self.style.corner_radii;
-            let radius = |value: Option<gpui::AbsoluteLength>| {
-                value.map_or(0., |value| value.to_pixels(window.rem_size()).into())
-            };
-            (
-                CornerShape::Radii([
-                    radius(radii.top_left),
-                    radius(radii.top_right),
-                    radius(radii.bottom_right),
-                    radius(radii.bottom_left),
-                ]),
-                Direction::Ltr,
-            )
-        };
         let appearance = self.feedback;
         let ink = appearance
             .ink
@@ -396,17 +560,53 @@ impl Surface {
         } else {
             gpui::transparent_black()
         };
+        let clip_backdrop = self.clip_backdrop;
+        let border = polygon_paint.as_ref().and_then(|paint| paint.border);
+        let bg_geometry = state.clone();
+        let bg_paint = state.clone();
+        let background_layer = polygon_paint.map(|paint| {
+            let spec = resolved_shape.clone();
+            canvas(
+                move |bounds, window, _| {
+                    bg_geometry
+                        .borrow_mut()
+                        .set_shape(spec.build(bounds), window);
+                },
+                move |_, _, window, _| {
+                    if let Some(shape) = &bg_paint.borrow().shape {
+                        shape.paint_shadow(
+                            paint.shadow_elevation,
+                            paint.shadow_scale,
+                            paint.shadow_color,
+                            window,
+                        );
+                        shape.paint(paint.background, window);
+                    }
+                },
+            )
+            .absolute()
+            .inset_0()
+        });
+        let has_bg = background_layer.is_some();
         let geometry = state.clone();
         let paint = state.clone();
         let visual = canvas(
             move |bounds, window, _| {
-                geometry
-                    .borrow_mut()
-                    .set_shape(Shape::rounded(bounds, shape, shape_direction), window);
+                if !has_bg {
+                    geometry
+                        .borrow_mut()
+                        .set_shape(resolved_shape.build(bounds), window);
+                }
             },
-            move |_, _, window, cx| {
+            move |bounds, _, window, cx| {
                 let state = paint.borrow();
                 if let Some(shape) = &state.shape {
+                    if let Some(backdrop) = clip_backdrop {
+                        shape.paint_backdrop_mask(bounds, backdrop, window);
+                    }
+                    if let Some((width, color)) = border {
+                        shape.paint_stroke(width, color, window);
+                    }
                     let reduced = cx.reduce_motion();
                     let ripple = state.ripple.as_ref().filter(|_| appearance.ripple);
                     let layer = interaction
@@ -430,6 +630,7 @@ impl Surface {
             .block()
             .items_stretch()
             .justify_start()
+            .when(clip_backdrop.is_some(), Styled::overflow_hidden)
             .line_height(window.text_style().line_height)
             .refine_style(&self.style)
             .accessibility_label(control.label)
@@ -465,6 +666,7 @@ impl Surface {
             .when(!self.disabled, |button| {
                 feedback_target(button, state, true, Some(focus))
             })
+            .children(background_layer)
             .children(self.children)
             .child(visual)
             .into_any_element()

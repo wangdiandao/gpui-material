@@ -37,7 +37,7 @@ Dropdown 在 Base Input 和 Popup 之上保留处理 IME 的窄键盘适配层�
 - 组件按语义公开 variant、size、disabled、selected、on_change 等必要契约，开放与组成部分对应的 slot。共享接口以具体类型为主，第三方颜色/形状类型留在适配层。
 - `MaterialTheme` 是项目的主题源。固定版本的 Base `Theme` 通过 App `Global` 读取，包含 appearance、语义 Token、滚动条、分割调整、plot 与光标闪烁默认值。应用主题向 Base 投影色彩和排版。Material 在元素布局时解析窗口和子树主题，并将当前作用域传给浮层内容。
 - foundation 将 Base 交互状态映射为 Material 呈现。禁用会压制 hover 和 active 样式。改动时验证禁用、取消、键盘和焦点可见行为。
-- Token 用受控数据文件作唯一数值源。xtask 生成 Rust 表和索引并提交生成物，日常构建使用仓库内数据。形状适用范围由探针覆盖的圆角多边形限定。
+- Token 用受控数据文件作唯一数值源。xtask 生成 Rust 表和索引并提交生成物，日常构建使用仓库内数据。Foundation 统一封装 `polymorpher` 以提供全部 35 种 Expressive Material 形状、通用变形、几何裁剪、外部遮罩与形状感知命中检测，使各组件共享同一套形状管线而无需直接依赖 `polymorpher`。
 
 Foundation 为各组件族共享排版、涟漪反馈和桌面阴影投影。按压涟漪与悬停、焦点、拖动状态层分离；减少动效时使用静态按压提示。单行文字用同一份含字距的字形布局测量和绘制。换行文字将断行交给 GPUI，应用 Material 字体族、字重、字号和行高；固定版本的原生换行接口不开放自定义字距。GPUI 的双层阴影投影属于桌面适配，并非逐像素复刻 Android 的平台阴影渲染器。
 
@@ -70,7 +70,7 @@ CI 和日常开发用包级命令隔离主题、组件及 Gallery。依据构建
 | --- | --- |
 | 激活与拖动 | Base 管理按钮激活与焦点，组合层保留 roving 焦点策略。Windows 捕获丢失、禁用和 Esc 汇入取消路径。固定版本的 Windows GPUI 缺少捕获丢失事件，Foundation 因此在拖动期间于 UI 线程检查 Win32 捕获所有权。 |
 | 文本和语义 | Base 持有编辑状态、剪贴板、掩码和输入处理器，GPUI 持有原生桥接、字形回退和布局。同一 shaped line 用于度量及绘制。Base 0.10.0 的 Slider 处理 Windows UI Automation RangeValue 的 SetValue 动作。Material 为每个自定义滑块提供独立的原生范围节点，将动作交给 Base SliderState 中对应的滑块。 |
-| 绘制与动效 | foundation 可复用 GPUI 的填充网格完成命中和状态层裁剪。Windows 探针的同形阴影由三层半透明填充近似。几何重定向、颜色和透明度沿用 Base spring/transition 的公共调度，系统低动效和静止停止调度均有验证。 |
+| 绘制与动效 | foundation 复用 GPUI 的填充网格，为凸、凹多边形统一提供精确的路径/矩形/圆盘裁剪、EvenOdd 外部背景遮罩与形状感知命中检测。非矩形多边形表面以三层半透明填充近似同形阴影。几何重定向、颜色和透明度沿用 Base spring/transition 的公共调度，系统低动效和静止停止调度均有验证。 |
 | 浮层与滚动 | Base Popover 和 Dialog 持有放置、遮罩和焦点范围。组合层映射逻辑对齐，管理开关、回焦与拖动取消。独占内层滚动可通过 GPUI 命中遮蔽实现。值标签订阅 Base SliderState。 |
 | 主题和日期 | 应用色彩过渡通过帧回调投影到 Base 全局主题。窗口和子树主题为 Material 及其 Base 控件提供局部样式。日期边界和禁用行为复用 Base Calendar。 |
 | Windows 标题栏 | extras 中的可选适配负责布局、按钮绘制和无障碍控件。GPUI 和 Windows 负责命中测试、窗口移动、缩放和贴靠布局。窗口选项与关闭策略由应用管理。 |

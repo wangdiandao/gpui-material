@@ -13,6 +13,7 @@ pub struct FeedbackState {
     pressed: bool,
     dragged: bool,
     pointer_cancelled: bool,
+    shape_hit_test: bool,
     keyboard_focus: Option<FocusHandle>,
     pub shape: Option<Shape>,
     pub ripple: Option<Ripple>,
@@ -26,6 +27,22 @@ impl FeedbackState {
     pub fn set_shape(&mut self, shape: Option<Shape>, window: &Window) {
         self.view = Some(window.current_view());
         self.shape = shape;
+    }
+
+    #[doc(hidden)]
+    /// Enables or disables shape-aware pointer hit-test gating against `self.shape`.
+    pub fn set_shape_hit_test(&mut self, enabled: bool) {
+        self.shape_hit_test = enabled;
+    }
+
+    /// Returns whether `position` falls within the interactive hit area.
+    pub fn contains_pointer(&self, position: Point<Pixels>) -> bool {
+        if !self.shape_hit_test {
+            return true;
+        }
+        self.shape
+            .as_ref()
+            .is_none_or(|shape| shape.contains(position))
     }
 
     fn update_feedback(&self, changed: bool, window: &mut Window, cx: &mut App) {
@@ -133,9 +150,24 @@ impl FeedbackState {
     }
 
     pub fn blocks_activation(&self, event: &ClickEvent) -> bool {
-        self.dragged
+        if self.dragged
             || self.pointer_cancelled
                 && matches!(event, ClickEvent::Mouse(_) | ClickEvent::Touch(_))
+        {
+            return true;
+        }
+        if self.shape_hit_test {
+            match event {
+                ClickEvent::Mouse(mouse) => {
+                    !self.contains_pointer(mouse.down.position)
+                        || !self.contains_pointer(mouse.up.position)
+                }
+                ClickEvent::Touch(touch) => !self.contains_pointer(touch.position),
+                _ => false,
+            }
+        } else {
+            false
+        }
     }
 }
 
@@ -199,11 +231,16 @@ where
     let release = state.clone();
     let outside = state.clone();
     let hover = state.clone();
+    let move_hover = state.clone();
     let keyboard = state.clone();
     control
         .on_mouse_down(MouseButton::Left, move |event, window, cx| {
             let mut state = press.borrow_mut();
             if state.dragged {
+                return;
+            }
+            if !state.contains_pointer(event.position) {
+                state.pointer_cancelled = true;
                 return;
             }
             state.pointer_cancelled = false;
@@ -227,15 +264,33 @@ where
         })
         .on_hover(move |hovering, window, cx| {
             let mut state = hover.borrow_mut();
+            let effective_hover = *hovering && state.contains_pointer(window.mouse_position());
             let was_pressed = state.pressed;
-            let hover_changed = track_hover && state.hovered != *hovering;
+            let hover_changed = track_hover && state.hovered != effective_hover;
             if track_hover {
-                state.hovered = *hovering;
+                state.hovered = effective_hover;
             }
             let released =
-                !*hovering && (track_hover || was_pressed) && release_ripple(&mut state, cx);
-            if track_hover || !*hovering && was_pressed {
+                !effective_hover && (track_hover || was_pressed) && release_ripple(&mut state, cx);
+            if track_hover || !effective_hover && was_pressed {
                 state.update_feedback(hover_changed || released, window, cx);
+            }
+        })
+        .on_mouse_move(move |event, window, cx| {
+            if !track_hover {
+                return;
+            }
+            let mut state = move_hover.borrow_mut();
+            if !state.shape_hit_test {
+                return;
+            }
+            let inside = state.contains_pointer(event.position);
+            if state.hovered != inside {
+                state.hovered = inside;
+                if !inside && state.pressed {
+                    release_ripple(&mut state, cx);
+                }
+                state.update_feedback(true, window, cx);
             }
         })
         .capture_key_down(move |event, window, cx| {

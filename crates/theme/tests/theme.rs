@@ -1,8 +1,8 @@
 use gpui_material_theme::{
     Appearance, Argb, ColorRole, ColorScheme, CornerRole, CornerShape, Density, Direction,
-    Elevation, FontFamilies, LayoutPolicy, MaterialTheme, MotionKind, MotionScheme, MotionSpec,
-    MotionSpeed, PolygonRole, PolygonSpec, Spring, StateLayer, TokenValue, TypeRole, Typeface,
-    TypographyEmphasis, WidthClass, token,
+    Elevation, FontFamilies, LayoutPolicy, MaterialShape, MaterialTheme, MotionKind, MotionScheme,
+    MotionSpec, MotionSpeed, PolygonRole, PolygonSpec, Spring, StateLayer, TokenValue, TypeRole,
+    Typeface, TypographyEmphasis, WidthClass, token,
 };
 
 #[test]
@@ -250,6 +250,31 @@ fn corners_and_polygon_endpoints_preserve_source_parameters() {
             rotation_degrees: -90.0,
         }
     );
+
+    assert_eq!(MaterialShape::ALL.len(), 35);
+    assert_eq!(
+        MaterialShape::from(PolygonRole::Circle),
+        MaterialShape::Circle
+    );
+    assert_eq!(
+        MaterialShape::from(PolygonRole::Square),
+        MaterialShape::Square
+    );
+    assert_eq!(
+        MaterialShape::from(PolygonRole::Triangle),
+        MaterialShape::Triangle
+    );
+    let mut names = std::collections::BTreeSet::new();
+    let mut variants = std::collections::BTreeSet::new();
+    for shape in MaterialShape::ALL {
+        assert!(variants.insert(shape), "duplicate MaterialShape {shape:?}");
+        assert!(
+            names.insert(shape.name()),
+            "duplicate name {}",
+            shape.name()
+        );
+        assert!(!shape.name().is_empty());
+    }
 }
 
 #[test]

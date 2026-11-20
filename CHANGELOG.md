@@ -4,6 +4,12 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Shapes
+
+- Add the 35-shape Material 3 Expressive `MaterialShape` catalog in `gpui-material-theme` and reusable `ShapePolygon`, `ShapeFit`, `ShapeMorph`, and `ShapeMorphSequence` adapters in `gpui-material-foundation` (re-exported from `gpui-material`), consolidating `LoadingIndicator` onto Foundation and removing the direct `polymorpher` dependency from `gpui-material-components`.
+- Add geometric shape clipping (`Shape::clip_path`, `clip_rect`, `clip_disc`, `clip_convex_polygon`, `exterior_mask`, and paint helpers), stroke/shadow painting (`fill_path`, `stroke_path`, `paint_stroke`, `paint_shadow`), and extended hit testing (`hit_test`, `intersects_bounds`).
+- Extend `Surface` with `.polygon_shape(...)`, `.shape_fit(...)`, `.shape_clip_backdrop(...)`, and `.shape_hit_test(...)` for non-rectangular Material shapes, EvenOdd backdrop clipping, and shape-aware pointer hit testing.
+
 ### Theme and typography
 
 - Add `ColorScheme::from_seed_with` and `MaterialTheme::from_seed_with` supporting all seven `DynamicVariant` palettes (`TonalSpot`, `Vibrant`, `Expressive`, `Fidelity`, `Content`, `Monochrome`, `Neutral`) and `SpecVersion` (`Spec2021` and `Spec2025`), lightweight seed-based `ThemePreset` recipes, `ColorScheme::blend`, and extended `Info`, `Success`, and `Warning` semantic color roles (and their `On*` and `*Container` pairs; update exhaustive `ColorRole` matches).

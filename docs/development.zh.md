@@ -198,6 +198,6 @@ cargo xtask timings target/timings/gallery-baseline
 
 Rust 构建缓存按平台隔离，由 `main` 的成功 push 更新，PR 可复用。
 
-发布验收按 [Windows 实窗检查](verification.zh.md#windows-gallery-acceptance)执行。
+发布验收按 [Windows 实窗检查](verification.zh.md#windows-gallery-acceptance)执行。打包验证、crates.io 发布、打 tag 与 GitHub Release 发布通过手动触发的 [Release 工作流](../.github/workflows/release.yml)执行，流程与配置见[版本与发布](release.zh.md#prepare-and-publish)。
 
 GitHub 规则集要求通过 PR 更新 `main`。PR 必须基于最新主线、解决评审对话，并通过 GitHub Actions 的 `CI required` 检查。

@@ -28,5 +28,15 @@ GitHub Release 提供版本说明及 GitHub 生成的源码归档。检出源码
 
 1. 仓库所有者敲定版本、范围和发布时间。准备发布 PR，更新共享版本、内部依赖的精确版本、`Cargo.lock` 和变更日志。同步更新文档中的最新版本和依赖示例。有破坏性变更时补充迁移说明。
 2. 使用最低支持的 Rust 工具链从下游 crate 验证门面，覆盖受影响的 feature 组合及公开的上游类型。发版提交合入 `main` 后须通过 `CI required`。按[实机验收标准](verification.zh.md)验证，在发布 Issue 或 PR 记录环境、场景及未覆盖范围。
-3. 对于获准发布至 crates.io 的版本，打包六个库，并在下游 crate 中验证门面的默认配置和全 feature 配置。分别验证打包后的 `gpui-material-symbols` 启用与禁用原生嵌入的配置。实机验收后，按顺序发布门面的依赖（`gpui-material-theme`、`gpui-material-foundation`、`gpui-material-components`、`gpui-material-extras`），再发布 `gpui-material`。独立的 `gpui-material-symbols` 从同一已验证的检出发布。每个库的版本出现在 registry 后，再发布依赖它的库。
-4. 仓库所有者明确批准发布后，为已验证的提交打 `vX.Y.Z` tag，使用该版本的日志发布对应的 GitHub Release。核对生成的源码归档及比较链接。
+3. 在 `main` 上手动运行 [Release 工作流](../.github/workflows/release.yml)（填入 `version` 为 `X.Y.Z`，保持 `publish: false` 预演模式），在正式发布前核验工作区清单、变更日志提取与打包结果。验证作业会打包全部六个库（`gpui-material-theme`、`gpui-material-foundation`、`gpui-material-components`、`gpui-material-extras`、`gpui-material` 和 `gpui-material-symbols`），并在工作区 MSRV 下从独立下游 crate 检查解包后的归档：包括 `gpui-material` 的默认配置和 `--all-features`，以及 `gpui-material-symbols` 启用与禁用 `embed-assets` 的配置。
+4. 完成实机验收并获仓库所有者明确批准后，在 `main` 上运行 [Release 工作流](../.github/workflows/release.yml)（填入 `version` 为 `X.Y.Z` 并勾选 `publish: true`）。通过 `release` 环境审批后，工作流会通过 crates.io Trusted Publishing（OIDC）鉴权，按依赖顺序依次发布门面依赖（`gpui-material-theme`、`gpui-material-foundation`、`gpui-material-components`、`gpui-material-extras`）、`gpui-material` 与独立的 `gpui-material-symbols`，在发布下游前等待各版本出现在 crates.io sparse index 并校验 registry 校验和。随后在同一运行中基于对应变更日志节创建带附注的 `vX.Y.Z` tag 与 GitHub Release，并核对生成的源码归档和比较链接。
+
+<a id="release-workflow-setup"></a>
+
+### 发布工作流配置
+
+[Release 工作流](../.github/workflows/release.yml)通过 GitHub Actions OIDC（`rust-lang/crates-io-auth-action`）配合 `release` GitHub Environment 完成发布，无需保存长期 `CARGO_REGISTRY_TOKEN` 密钥。
+
+- 在 GitHub 仓库设置中配置 `release` 环境，开启必需审批人并限制仅允许 `main` 分支部署。
+- 在 crates.io 上为全部六个库添加 Trusted Publishing 绑定，仓库填 `wangdiandao/gpui-material`，工作流文件名填 `release.yml`，环境名填 `release`。
+- crates.io 要求 crate 已存在后才能配置 Trusted Publishing。首次发布全新 crate（例如首个 `gpui-material-symbols` 版本）时，先从同一已验证提交手动发布该 crate 的首个版本并随后配置 Trusted Publishing；工作流会自动识别已上架且未撤回（non-yanked）的版本、核验其校验和并跳过重复发布，保证重试与断点续跑的幂等性。

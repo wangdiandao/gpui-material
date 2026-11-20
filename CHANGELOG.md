@@ -4,6 +4,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Icons
+
+- Add the optional `gpui-material-symbols` companion crate with the full Outlined, Rounded, and Sharp catalog, fill and weight controls, desktop embedding, and asynchronous browser loading.
+
 ## 0.1.2 - 2026-11-20
 
 Changes since [v0.1.1](https://github.com/wangdiandao/gpui-material/releases/tag/v0.1.1).

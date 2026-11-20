@@ -7,6 +7,7 @@
 - [架构与依赖](architecture.zh.md)说明 crate 边界、状态所有权和上游依赖。
 - [纯主题](theme/theme.zh.md)记录主题数值、默认值和 Token 数据。
 - [下游集成](integration.zh.md)说明公开门面、支持的平台和迁移方式。
+- [Material Symbols](integration.zh.md#material-symbols)介绍完整图标目录以及桌面和浏览器加载方式。
 - [平台与质量要求](verification.zh.md)定义验证环境、覆盖范围和实机验收标准。
 - [贡献指南](../CONTRIBUTING.zh.md)说明 Issue、设计提议和 PR 评审。
 - [开发与验证](development.zh.md)说明编码、测试、构建和 CI。

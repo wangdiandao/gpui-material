@@ -16,6 +16,7 @@ GPUI Material 提供 Material 的 Token、主题、视觉状态、布局和组�
 | `gpui-material-foundation` | → theme、gpui-base、同源 GPUI。提供 MaterialRoot、主题投影、绘制、状态层、ripple、几何与动效适配。 |
 | `gpui-material-components` | → foundation，必要时 → theme。负责控件、内容展示、输入、浮层和导航。 |
 | `gpui-material-extras` | → components、foundation 和所需的 theme API。按组件族启用，独立声明额外依赖。 |
+| `gpui-material-symbols` | 提供完整 Material Symbols 目录的配套库，从可变字形轮廓生成 SVG。应用将结果传给 `Icon::svg_data`。[集成方法](integration.zh.md#material-symbols) |
 | `gpui-material` | → 已交付的公开实现 crate，按需转发 feature。extras 为可选依赖。 |
 | `gpui-material-gallery` | → 已交付的门面。同一个包提供 `gpui_material_story` 库和桌面可执行程序，排除在 Workspace 默认构建之外。 |
 | `xtask` | 文档与依赖检查、构建计时和 Token 离线生成。保持 GPUI 无关。 |

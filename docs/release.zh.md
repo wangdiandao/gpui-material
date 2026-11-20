@@ -28,5 +28,5 @@ GitHub Release 提供版本说明及 GitHub 生成的源码归档。检出源码
 
 1. 仓库所有者敲定版本、范围和发布时间。准备发布 PR，更新共享版本、内部依赖的精确版本、`Cargo.lock` 和变更日志。同步更新文档中的最新版本和依赖示例。有破坏性变更时补充迁移说明。
 2. 使用最低支持的 Rust 工具链从下游 crate 验证门面，覆盖受影响的 feature 组合及公开的上游类型。发版提交合入 `main` 后须通过 `CI required`。按[实机验收标准](verification.zh.md)验证，在发布 Issue 或 PR 记录环境、场景及未覆盖范围。
-3. 对于获准发布至 crates.io 的版本，一起打包五个库，并在下游 crate 中验证打包后的门面默认配置与全 feature 配置。实机验收后，从已验证的检出按依赖顺序发布，依次为 `gpui-material-theme`、`gpui-material-foundation`、`gpui-material-components`、`gpui-material-extras` 和 `gpui-material`。每个库的版本出现在 registry 后，再发布依赖它的库。
+3. 对于获准发布至 crates.io 的版本，打包六个库，并在下游 crate 中验证门面的默认配置和全 feature 配置。分别验证打包后的 `gpui-material-symbols` 启用与禁用原生嵌入的配置。实机验收后，按顺序发布门面的依赖（`gpui-material-theme`、`gpui-material-foundation`、`gpui-material-components`、`gpui-material-extras`），再发布 `gpui-material`。独立的 `gpui-material-symbols` 从同一已验证的检出发布。每个库的版本出现在 registry 后，再发布依赖它的库。
 4. 仓库所有者明确批准发布后，为已验证的提交打 `vX.Y.Z` tag，使用该版本的日志发布对应的 GitHub Release。核对生成的源码归档及比较链接。

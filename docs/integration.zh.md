@@ -2,7 +2,7 @@
 
 [English](integration.md) | 中文
 
-使用支持 2024 edition 的 Rust 1.99.1 或更新版本，并将应用的 Cargo 锁文件纳入版本控制。
+使用支持 2024 edition 的 Rust 1.95.0 或更新版本，并将应用的 Cargo 锁文件纳入版本控制。
 
 ## 添加门面
 

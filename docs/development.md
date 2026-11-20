@@ -48,7 +48,7 @@ English | [中文](development.zh.md)
 
 ## Development environment
 
-Install [Rustup](https://rustup.rs/) and run Cargo from the repository root. [rust-toolchain.toml](../rust-toolchain.toml) pins the compiler, rustfmt, and Clippy.
+Install [Rustup](https://rustup.rs/) and run Cargo from the repository root. [rust-toolchain.toml](../rust-toolchain.toml) pins the repository compiler, rustfmt, and Clippy; the published crates declare a minimum supported Rust version (MSRV) of 1.95.0 in [Cargo.toml](../Cargo.toml).
 
 | Platform | Build prerequisites |
 | --- | --- |

@@ -75,9 +75,42 @@ Use the dev profile for day-to-day checks and locked Release builds for performa
 cargo run --locked --release -p gpui-material-gallery -- button
 cargo run --locked --release -p gpui-material-gallery --features frame-profile -- button --frame-profile
 cargo test --locked --release -p gpui-material-foundation --lib ripple_clip_benchmark -- --ignored --nocapture
+cargo test --locked --release -p gpui-material-gallery --features test-support --lib perf_bench -- --ignored --nocapture --test-threads=1
 ```
 
 Run the same Ripple microbenchmark on both revisions on the same host, with at least five separate runs per revision. When the baseline predates the benchmark, apply only the benchmark test to that revision. It times clipping prebuilt meshes, excluding shape construction and presentation. Record the commits, workload, timing spread, and relevant real-window checks in the Issue or PR. Report draw CPU time and presentation intervals separately when measuring native frames.
+
+The `perf_bench` Release suite measures 20 warm-up frames followed by 100 timed frames at a fixed `1040 × 744` viewport (`16 ms` clock step) across three distinct attribution layers so regressions are not misattributed:
+
+- **Engine layer (`engine/*`)**: bare GPUI window, 64 raw `div`/text quads, and a 200-row raw GPUI `list`, plus Foundation's `ripple_clip_benchmark`.
+- **Component layer (`component/*`)**: isolated Material components mounted directly under `MaterialRoot` without Gallery chrome (`Button` 64-grid idle/active, `TextField` + multiline `TextArea` idle/typing, 200-row rich `ListItem` virtual list idle/scroll, `Scaffold` + `AppBar` + `NavigationRail` + `Tabs` + `NavigationBar` idle/transition, and `LoadingIndicator` + wavy `LinearProgress`/`CircularProgress` visible active vs. off-screen clipped vs. reduced motion).
+- **Story vs. Gallery shell layer (`story/*` vs. `gallery/*`)**: standalone `Story::new_view` versus full `Gallery::new` (catalog sidebar, search field, toolbar, and `ListDetail` shell) on matching stories.
+
+Reference Release baseline (`b3a538e`, Windows 11 x64, AMD Ryzen 9 8945HX, `rustc 1.99.1`, `--locked --release`, 3-run median p50/p95 for `perf_bench` and 5-run median for `ripple_clip_benchmark`):
+
+| Benchmark | Layer | p50 (µs) | p95 (µs) | Quads | Scheduled frames |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `engine/empty_window` | Engine | 7.9 | 8.6 | 0 | 0 |
+| `engine/raw_quads_64` | Engine | 295.9 | 375.8 | 64 | 0 |
+| `engine/raw_virtual_list_200` | Engine | 244.4 | 327.5 | 59 | 0 |
+| `component/button_grid_64_idle` | Component | 2497.9 | 3353.5 | 112 | 0 |
+| `component/button_grid_64_active` | Component | 2943.2 | 4711.8 | 112 | 1448 |
+| `component/text_field_idle` | Component | 272.6 | 355.1 | 19 | 0 |
+| `component/text_field_typing` | Component | 277.5 | 408.9 | 20 | 0 |
+| `component/complex_list_200_idle` | Component | 1903.0 | 3591.2 | 40 | 0 |
+| `component/complex_list_200_scroll` | Component | 1956.3 | 2570.2 | 41 | 244 |
+| `component/navigation_scaffold_idle` | Component | 552.1 | 692.8 | 11 | 0 |
+| `component/navigation_rail_transition` | Component | 574.9 | 713.7 | 11 | 263 |
+| `component/animated_visible` | Component | 85.6 | 137.2 | 9 | 297 |
+| `component/animated_clipped_offscreen` | Component | 27.6 | 51.3 | 1 | 0 |
+| `component/animated_reduced_motion` | Component | 96.1 | 142.4 | 10 | 0 |
+| `story/button` / `gallery/button` | Story / Gallery | 964.6 / 4903.2 | 1137.9 / 6249.2 | 35 / 47 | 0 / 0 |
+| `story/text_field` / `gallery/text_field` | Story / Gallery | 752.7 / 4899.2 | 894.0 / 6317.1 | 54 / 64 | 0 / 0 |
+| `story/list` / `gallery/list` | Story / Gallery | 4909.5 / 12027.4 | 6593.5 / 15308.4 | 28 / 45 | 0 / 0 |
+| `story/navigation_rail` / `gallery/navigation_rail` | Story / Gallery | 657.0 / 5470.8 | 806.2 / 7908.8 | 22 / 47 | 0 / 0 |
+| `story/loading_indicator` / `gallery/loading_indicator` | Story / Gallery | 676.5 / 4723.2 | 1011.4 / 7850.4 | 37 / 49 | 198 / 198 |
+
+`ripple_clip_benchmark` (5-run median): `capsule expanding` 8,445.6 ns/clip (37 tris), `capsule covered` 20,071.0 ns/clip, `morph expanding` 11,330.8 ns/clip (40 tris), `morph covered` 21,587.1 ns/clip. On this baseline, the Gallery shell (42-item catalog sidebar, search field, toolbar, and `ListDetail` frame) accounts for ~3.9–7.1 ms of p50 frame time independently of the isolated component under test.
 
 The optional single-window frame profile prints a start marker after a two-second warm-up, then reports draw count and p50/p95/p99 for CPU draw time and active frame submission intervals over ten seconds. Run separate captures for idle, pointer sweeps, and repeated presses with the same input sequence on both revisions. Submission intervals measure GPUI's platform submissions.
 

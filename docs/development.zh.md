@@ -75,9 +75,42 @@ cargo gallery text-field
 cargo run --locked --release -p gpui-material-gallery -- button
 cargo run --locked --release -p gpui-material-gallery --features frame-profile -- button --frame-profile
 cargo test --locked --release -p gpui-material-foundation --lib ripple_clip_benchmark -- --ignored --nocapture
+cargo test --locked --release -p gpui-material-gallery --features test-support --lib perf_bench -- --ignored --nocapture --test-threads=1
 ```
 
 在同一台机器上对改动前后各独立运行至少五轮相同的 Ripple 微基准。如果基线提交早于基准测试，仅将基准测试移植到该提交。基准测量预构建网格的裁剪时间，不包含形状构建和屏幕呈现。在 Issue 或 PR 记录提交、负载、耗时波动和相关实窗检查。测量原生帧时，分别报告绘制 CPU 耗时和屏幕呈现间隔。
+
+`perf_bench` Release 基准在固定 `1040 × 744` 视口下执行 20 帧预热 + 100 帧采样（`16 ms` 时钟步进），按三个独立归因层次拆解开销，避免误判回归来源：
+
+- **引擎层（`engine/*`）**：空 GPUI 窗口、64 个裸 `div`/文本图元、200 行裸 GPUI `list`，配合 Foundation 的 `ripple_clip_benchmark`。
+- **组件层（`component/*`）**：直接挂载在 `MaterialRoot` 下、不含 Gallery 外壳的独立 Material 组件（64 按钮网格静止/交互、填充/描边/多行 `TextField` 静止/输入、200 行复杂 `ListItem` 虚拟列表静止/滚动、`Scaffold`+`AppBar`+`NavigationRail`+`Tabs`+`NavigationBar` 静止/切换，以及 `LoadingIndicator`+波浪 `LinearProgress`/`CircularProgress` 可见动画、屏外裁剪暂停与减少动态效果）。
+- **示例页与 Gallery 外壳层（`story/*` 与 `gallery/*`）**：对比独立 `Story::new_view` 与完整 `Gallery::new`（侧边目录、搜索框、工具栏与 `ListDetail` 外壳），量化 Gallery 自身开销。
+
+参考 Release 基线（`b3a538e`，Windows 11 x64，AMD Ryzen 9 8945HX，`rustc 1.99.1`，`--locked --release`，`perf_bench` 取 3 轮中位 p50/p95，`ripple_clip_benchmark` 取 5 轮中位数）：
+
+| 基准项 | 层次 | p50 (µs) | p95 (µs) | Quads | 调度帧数 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `engine/empty_window` | Engine | 7.9 | 8.6 | 0 | 0 |
+| `engine/raw_quads_64` | Engine | 295.9 | 375.8 | 64 | 0 |
+| `engine/raw_virtual_list_200` | Engine | 244.4 | 327.5 | 59 | 0 |
+| `component/button_grid_64_idle` | Component | 2497.9 | 3353.5 | 112 | 0 |
+| `component/button_grid_64_active` | Component | 2943.2 | 4711.8 | 112 | 1448 |
+| `component/text_field_idle` | Component | 272.6 | 355.1 | 19 | 0 |
+| `component/text_field_typing` | Component | 277.5 | 408.9 | 20 | 0 |
+| `component/complex_list_200_idle` | Component | 1903.0 | 3591.2 | 40 | 0 |
+| `component/complex_list_200_scroll` | Component | 1956.3 | 2570.2 | 41 | 244 |
+| `component/navigation_scaffold_idle` | Component | 552.1 | 692.8 | 11 | 0 |
+| `component/navigation_rail_transition` | Component | 574.9 | 713.7 | 11 | 263 |
+| `component/animated_visible` | Component | 85.6 | 137.2 | 9 | 297 |
+| `component/animated_clipped_offscreen` | Component | 27.6 | 51.3 | 1 | 0 |
+| `component/animated_reduced_motion` | Component | 96.1 | 142.4 | 10 | 0 |
+| `story/button` / `gallery/button` | Story / Gallery | 964.6 / 4903.2 | 1137.9 / 6249.2 | 35 / 47 | 0 / 0 |
+| `story/text_field` / `gallery/text_field` | Story / Gallery | 752.7 / 4899.2 | 894.0 / 6317.1 | 54 / 64 | 0 / 0 |
+| `story/list` / `gallery/list` | Story / Gallery | 4909.5 / 12027.4 | 6593.5 / 15308.4 | 28 / 45 | 0 / 0 |
+| `story/navigation_rail` / `gallery/navigation_rail` | Story / Gallery | 657.0 / 5470.8 | 806.2 / 7908.8 | 22 / 47 | 0 / 0 |
+| `story/loading_indicator` / `gallery/loading_indicator` | Story / Gallery | 676.5 / 4723.2 | 1011.4 / 7850.4 | 37 / 49 | 198 / 198 |
+
+`ripple_clip_benchmark`（5 轮中位数）：`capsule expanding` 8,445.6 ns/clip（37 三角形）、`capsule covered` 20,071.0 ns/clip、`morph expanding` 11,330.8 ns/clip（40 三角形）、`morph covered` 21,587.1 ns/clip。该基线表明，Gallery 外壳（42 项侧边目录、搜索栏、工具栏与 `ListDetail` 框架）独立占用了约 3.9–7.1 ms 的 p50 帧耗时，与被测组件本身开销分离清晰。
 
 可选的单窗口帧采样预热两秒后打印开始标记，采样十秒并报告绘制次数、CPU 绘制耗时和活跃帧提交间隔的 p50/p95/p99。分别采集静止、鼠标横扫和重复按压场景，改动前后使用同样的输入序列。提交间隔以 GPUI 向平台提交帧的时间为准。
 

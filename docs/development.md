@@ -198,6 +198,6 @@ A docs-only PR runs the documentation checks. A website-only PR runs the website
 
 Rust build caches are isolated by platform. Successful pushes to `main` save the caches and PRs can restore them.
 
-For release acceptance, follow the [Windows real-window checks](verification.md#windows-gallery-acceptance).
+For release acceptance, follow the [Windows real-window checks](verification.md#windows-gallery-acceptance). Package verification, crates.io publishing, tagging, and GitHub Release publication run through the manual [Release workflow](../.github/workflows/release.yml) documented in [versioning and releases](release.md#prepare-and-publish).
 
 The GitHub ruleset requires a PR for changes to `main`. Bring the PR up to date with its base and follow the [review and merge rules](../CONTRIBUTING.md#pr-review-and-merge).

@@ -1,0 +1,175 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: SemVer release version without leading 'v' (e.g. 0.2.0)
+        required: true
+        type: string
+      publish:
+        description: Publish crates to crates.io, create the git tag, and publish the GitHub Release (leave unchecked for dry-run verification)
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  verify:
+    name: Verify release packages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      checks: read
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      msrv: ${{ steps.meta.outputs.msrv }}
+      compare_url: ${{ steps.meta.outputs.compare_url }}
+    steps:
+      - name: Require release runs on main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "error: Release workflow must run from refs/heads/main (got $GITHUB_REF)" >&2
+          exit 1
+
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Validate manifests and changelog
+        id: meta
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          python3 .github/scripts/release.py metadata \
+            --version "$RELEASE_VERSION" \
+            --notes-out "$RUNNER_TEMP/release-notes.md" \
+            --github-output "$GITHUB_OUTPUT" \
+            --summary-out "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify CI required on main commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISH_MODE: ${{ inputs.publish }}
+        run: |
+          args=(
+            --repo "$GITHUB_REPOSITORY"
+            --sha "$GITHUB_SHA"
+            --summary-out "$GITHUB_STEP_SUMMARY"
+          )
+          if [[ "$PUBLISH_MODE" == "true" ]]; then
+            args+=(--require-green)
+          fi
+          python3 .github/scripts/release.py check-ci "${args[@]}"
+
+      - name: Install Linux platform dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang pkg-config libfontconfig-dev libwayland-dev \
+            libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev libvulkan1
+
+      - name: Install workspace MSRV toolchain
+        env:
+          MSRV: ${{ steps.meta.outputs.msrv }}
+        run: |
+          rustup toolchain install "$MSRV" --profile minimal
+          rustc "+$MSRV" -vV
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: release-verify-${{ steps.meta.outputs.msrv }}
+          save-if: true
+
+      - name: Package crates and verify downstream consumers on MSRV
+        env:
+          RELEASE_VERSION: ${{ steps.meta.outputs.version }}
+          MSRV: ${{ steps.meta.outputs.msrv }}
+        run: |
+          python3 .github/scripts/release.py verify-packages \
+            --version "$RELEASE_VERSION" \
+            --toolchain "$MSRV" \
+            --summary-out "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    name: Publish crates.io & GitHub Release
+    needs: verify
+    if: ${{ inputs.publish && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: release
+      url: ${{ steps.github_release.outputs.release_url }}
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Extract verified release notes
+        id: meta
+        env:
+          RELEASE_VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          python3 .github/scripts/release.py metadata \
+            --version "$RELEASE_VERSION" \
+            --notes-out "$RUNNER_TEMP/release-notes.md" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Install Linux platform dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang pkg-config libfontconfig-dev libwayland-dev \
+            libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev libvulkan1
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: release-publish
+          save-if: true
+
+      - name: Authenticate with crates.io via Trusted Publishing
+        id: crates_auth
+        uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+
+      - name: Publish crates in dependency order and verify checksums
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates_auth.outputs.token }}
+          RELEASE_VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          python3 .github/scripts/release.py publish-crates \
+            --version "$RELEASE_VERSION" \
+            --summary-out "$GITHUB_STEP_SUMMARY"
+
+      - name: Tag commit, publish GitHub Release, and verify archives
+        id: github_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.verify.outputs.version }}
+          COMPARE_URL: ${{ needs.verify.outputs.compare_url }}
+        run: |
+          python3 .github/scripts/release.py publish-github-release \
+            --repo "$GITHUB_REPOSITORY" \
+            --version "$RELEASE_VERSION" \
+            --sha "$GITHUB_SHA" \
+            --notes "$RUNNER_TEMP/release-notes.md" \
+            --compare-url "$COMPARE_URL" \
+            --github-output "$GITHUB_OUTPUT" \
+            --summary-out "$GITHUB_STEP_SUMMARY"

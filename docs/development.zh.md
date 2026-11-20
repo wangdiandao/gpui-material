@@ -48,7 +48,7 @@
 
 ## 开发环境
 
-安装 [Rustup](https://rustup.rs/)，从仓库根目录运行 Cargo。[rust-toolchain.toml](../rust-toolchain.toml) 固定 Rust 编译器、rustfmt 与 Clippy。
+安装 [Rustup](https://rustup.rs/)，从仓库根目录运行 Cargo。[rust-toolchain.toml](../rust-toolchain.toml) 固定仓库开发与 CI 使用的 Rust 编译器、rustfmt 与 Clippy；发布 crate 在 [Cargo.toml](../Cargo.toml) 中声明的最低支持 Rust 版本（MSRV）为 1.95.0。
 
 | 平台 | 构建依赖 |
 | --- | --- |

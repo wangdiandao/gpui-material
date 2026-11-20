@@ -4,6 +4,11 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Dependencies
+
+- Allow downstream applications to resolve compatible versions of internal dependencies (`polymorpher`, `material-color-utils`, and `serde_json` dev-dependency) at or above the existing minimums while keeping public GPUI/Base and workspace lockstep pins exact.
+- Lower the workspace minimum supported Rust version (`rust-version`) from `1.99.1` to `1.95.0` and set `default-features = false` on the workspace `gpui-material-components` dependency so Cargo versions below `1.99` can evaluate workspace inheritance.
+
 ### Modular compilation
 
 - Partition `gpui-material-components` into coarse feature groups (`actions`, `selection`, `inputs`, `surfaces`, `feedback`, and `navigation`, with `default = ["full"]` for backwards compatibility), forward them through `gpui-material`, and wire each `gpui-material-extras` family to enable only the core groups it uses.

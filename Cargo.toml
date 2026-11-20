@@ -6,7 +6,7 @@ resolver = "3"
 [workspace.package]
 version = "0.1.2"
 edition = "2024"
-rust-version = "1.99.1"
+rust-version = "1.95.0"
 license = "Apache-2.0"
 license-file = "LICENSE"
 repository = "https://github.com/wangdiandao/gpui-material"
@@ -16,7 +16,7 @@ publish = false
 [workspace.dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.12" }
 gpui-base = "=0.10.0"
-gpui-material-components = { version = "=0.1.2", path = "crates/components" }
+gpui-material-components = { version = "=0.1.2", path = "crates/components", default-features = false }
 gpui-material-extras = { version = "=0.1.2", path = "crates/extras" }
 gpui-material-foundation = { version = "=0.1.2", path = "crates/foundation" }
 gpui-material-theme = { version = "=0.1.2", path = "crates/theme" }

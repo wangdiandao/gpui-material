@@ -2,7 +2,7 @@
 
 English | [中文](integration.zh.md)
 
-Use Rust 1.99.1 or later with the 2024 edition. Keep the application's Cargo lockfile under version control.
+Use Rust 1.95.0 or later with the 2024 edition. Keep the application's Cargo lockfile under version control.
 
 ## Add the facade
 

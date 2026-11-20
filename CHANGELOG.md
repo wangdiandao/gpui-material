@@ -8,6 +8,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 - Partition `gpui-material-components` into coarse feature groups (`actions`, `selection`, `inputs`, `surfaces`, `feedback`, and `navigation`, with `default = ["full"]` for backwards compatibility), forward them through `gpui-material`, and wire each `gpui-material-extras` family to enable only the core groups it uses.
 
+### Performance
+
+- Add a repeatable locked Release benchmark suite (`perf_bench` in `gpui-material-gallery`) covering `Button`, `TextField`, complex virtualized lists, navigation chrome, and animated indicators while separating GPUI engine baseline, isolated component overhead, standalone story cost, and Gallery shell overhead.
+
 ### Shapes
 
 - Add the 35-shape Material 3 Expressive `MaterialShape` catalog in `gpui-material-theme` and reusable `ShapePolygon`, `ShapeFit`, `ShapeMorph`, and `ShapeMorphSequence` adapters in `gpui-material-foundation` (re-exported from `gpui-material`), consolidating `LoadingIndicator` onto Foundation and removing the direct `polymorpher` dependency from `gpui-material-components`.

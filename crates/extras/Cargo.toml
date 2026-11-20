@@ -16,6 +16,7 @@ expressive-groups = ["dep:gpui", "dep:gpui-material-components", "dep:gpui-mater
 search = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme", "dep:web-time"]
 toolbars = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
 date-time = ["dep:chrono", "dep:gpui", "dep:gpui-base", "dep:gpui-material-components", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
+windows-chrome = ["dep:gpui", "dep:gpui-material-foundation", "dep:gpui-material-theme", "dep:raw-window-handle", "dep:windows"]
 
 [dependencies]
 chrono = { version = "0.4.45", default-features = false, optional = true }
@@ -25,3 +26,7 @@ gpui-material-components = { workspace = true, optional = true }
 gpui-material-foundation = { workspace = true, optional = true }
 gpui-material-theme = { workspace = true, optional = true }
 web-time = { workspace = true, optional = true }
+
+[target.'cfg(windows)'.dependencies]
+raw-window-handle = { version = "0.6.2", optional = true }
+windows = { version = "0.62.2", features = ["Win32_UI_WindowsAndMessaging"], optional = true }

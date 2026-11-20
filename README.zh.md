@@ -49,6 +49,7 @@ let save = Button::new("save", "Save")
 | `search` | 搜索栏和搜索视图 |
 | `date-time` | 日期、日期范围和时间选择器 |
 | `carousel` | 六种轮播布局 |
+| `windows-chrome` | 自绘 Windows 标题栏和窗口控制按钮 |
 | `dynamic-color` | 从种子色生成配色方案 |
 | `serde` | 主题数据序列化 |
 

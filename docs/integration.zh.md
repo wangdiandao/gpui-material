@@ -90,6 +90,8 @@ Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID �
 
 ## 平台支持
 
+在 Windows 上启用 `windows-chrome`，即可为指定窗口使用[自绘标题栏](component.zh.md#windows-window-chrome)。在创建窗口时启用，并在现有应用根视图下挂载标题栏。其他目标可以在共享的 Cargo 清单中启用此特性，并沿用各自的窗口配置。
+
 | 目标 | 范围 |
 | --- | --- |
 | Windows 11 x64、MSVC、DirectX | 首发支持。原生键盘、指针、鼠标滚轮、微软拼音、UI Automation 和讲述人采用 Windows 验收场景。分发包为独立 ZIP。 |

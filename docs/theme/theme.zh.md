@@ -9,7 +9,7 @@
 | 色彩 | `ColorScheme::baseline` 使用 Compose 的浅色或深色角色。通过 `color` 取单个角色，`pair` 取前景和背景，`set_color` 覆盖单个角色。覆盖背景后由调用者检查前景对比度。容器角色提供基准层级，另可通过 `surface_at_elevation` 应用 Compose 的色调叠加公式。 |
 | 源色 | `dynamic-color` 启用 `MaterialTheme::from_seed` 和 `from_seed_with`。默认使用 Tonal Spot Spec2021，忽略输入 alpha。对比度夹取到 −1 至 1，NaN 使用 0。 |
 | 排版 | `TypeRole::style` 提供 15 个角色的 baseline 和 emphasized Token，`Typography::style` 按主题比例缩放字号、行高和字距。用 `Typography::with_text_scale` 设置比例，默认 1.0，范围为 1.0–2.0，NaN 使用 1.0。控件已有的字体缩放与主题比例相乘。Brand 和 Plain 都优先请求 Roboto，依次回退到 Segoe UI、Microsoft YaHei UI 和 Noto Sans CJK SC。 |
-| 形状 | `CornerShape` 使用逻辑角顺序，按方向映射并限制相邻角总和。满圆角取短边的一半。Circle、Square 和 Triangle 提供固定源参数作为 morph 端点，渲染层负责规范化、轮廓插值、绘制及命中。 |
+| 形状 | `CornerShape` 使用逻辑角顺序，按方向映射并限制相邻角总和。满圆角取短边的一半。`MaterialShape` 命名与 Compose `MaterialShapes` 对应的 35 种 Expressive 圆角多边形，`PolygonRole` 保留由 Token 提供的 Circle、Square 和 Triangle 源参数。渲染层负责规范化、轮廓插值、绘制、裁剪及命中检测。 |
 | 动效 | 默认 Standard，可选 Expressive。空间与效果各有 Fast、Default 和 Slow 弹簧。效果弹簧采用临界阻尼。减少动态效果偏好将规格解析为立即完成。固定时长和 Bézier 曲线可通过 Token 查询。 |
 | 布局 | 可用宽度的分界为 600、840、1200、1600 逻辑单位。阈值归入较大的尺寸级。逻辑起止边按 LTR 或 RTL 映射。`LayoutPolicy::scale_text` 用传入的倍率换算文字尺寸。 |
 | 密度 | 桌面策略对组件可视尺寸使用 Compact −4、Standard 0、Comfortable +4 逻辑单位。交互尺寸保留 48 逻辑单位下限。修改组件密度时核验布局与命中。 |
@@ -41,7 +41,7 @@ cargo xtask docs --write docs/theme/token-index.md
 
 - 静态色、色板、排版数值、角形、状态层、层级与动效取固定的 Compose Material 3 1.5.0-rc01。网站将 Roboto 定义为默认家族。Compose 使用平台无衬线抽象，桌面通过可配置家族列表表达这个选择。
 - 原有 49 个动态色角色沿用固定的 Tonal Spot Spec2021 参考向量。静态状态色采用项目的桌面色板。
-- 圆角多边形支持圆、方形和三角形三种拓扑。Circle 参数采用 AndroidX 的最终圆半径，Square 参数为矩形宽高，Triangle 参数采用外接圆半径。参数与固定 Compose `MaterialShapes.kt` 及 AndroidX graphics-shapes 1.1.0 对照。圆角矩形的相邻角统一缩放属于桌面几何策略。
+- `MaterialShape` 命名固定版本 Compose `MaterialShapes.kt` 中的全部 35 种 Expressive 圆角多边形，`PolygonRole` 保留由 Token 提供的 Circle、Square 和 Triangle 三种参数。Circle 参数采用 AndroidX 的最终圆半径，Square 参数为矩形宽高，Triangle 参数采用外接圆半径。参数与固定 Compose `MaterialShapes.kt` 及 AndroidX graphics-shapes 1.1.0 对照。圆角矩形的相邻角统一缩放属于桌面几何策略。
 - 可用宽度来自固定 Material Breakpoints 表。48 逻辑单位取 Compose `LocalMinimumInteractiveComponentSize`。密度偏移、字体回退顺序和立即完成的低动效策略是本项目的桌面约定。
 
 固定版本和校验值见[设计依据](../design-sources.zh.md)。

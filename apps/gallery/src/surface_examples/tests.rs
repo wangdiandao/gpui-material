@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use gpui::{
     App, FocusHandle, Hsla, InputEvent as _, KeyDownEvent, KeyUpEvent, Keystroke, Modifiers,
-    Pixels, Point, RenderOnce, TestAppContext, VisualTestContext, WindowOptions, rgb,
+    Pixels, Point, RenderOnce, TestAppContext, VisualTestContext, WindowOptions, point, rgb,
 };
 use gpui_base::test_support::{ElementSnapshot, find};
 use gpui_material::{
@@ -341,4 +341,163 @@ fn surface_interactive_semantics_controlled_values_and_feedback(cx: &mut TestApp
     key(cx, handle, "enter", true);
     key(cx, handle, "enter", false);
     assert_eq!(&*requested.borrow(), &[true, false]);
+}
+
+struct PolygonSurfaces {
+    progress: f32,
+    activations: Rc<RefCell<Vec<&'static str>>>,
+    heart_focus: FocusHandle,
+    source: Entity<InteractionSource>,
+}
+
+impl Render for PolygonSurfaces {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let heart_events = self.activations.clone();
+        let morph_events = self.activations.clone();
+        let morphed = ShapeMorph::new(MaterialShape::Square, MaterialShape::Circle)
+            .sample_polygon(self.progress);
+        div()
+            .flex()
+            .gap_4()
+            .p_4()
+            .child(
+                Surface::clickable("shape-heart", "Heart action", ColorRole::PrimaryContainer)
+                    .polygon_shape(MaterialShape::Heart)
+                    .shape_clip_backdrop(rgb(0xf5f2fa).into())
+                    .border(SurfaceBorder {
+                        width: px(2.),
+                        color: rgb(0x4f378b).into(),
+                    })
+                    .shadow_elevation(Elevation::Level1)
+                    .track_focus(&self.heart_focus)
+                    .interaction_source(&self.source)
+                    .size(px(100.))
+                    .on_activate(move |_, _| heart_events.borrow_mut().push("heart"))
+                    .child(div().w(px(120.)).h(px(24.)).bg(rgb(0x6750a4))),
+            )
+            .child(
+                Surface::clickable(
+                    "shape-morph",
+                    "Morphed action",
+                    ColorRole::SecondaryContainer,
+                )
+                .polygon_shape(morphed)
+                .size(px(100.))
+                .on_activate(move |_, _| morph_events.borrow_mut().push("morph")),
+            )
+    }
+}
+
+#[gpui::test]
+fn polygon_surface_supports_expressive_morph_clipping_and_shape_hit_testing(
+    cx: &mut TestAppContext,
+) {
+    let activations = Rc::new(RefCell::new(Vec::new()));
+    let (handle, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut entity = None;
+        let handle = MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            let view = cx.new(|cx| PolygonSurfaces {
+                progress: 0.,
+                activations: activations.clone(),
+                heart_focus: cx.focus_handle(),
+                source: cx.new(|_| InteractionSource::new()),
+            });
+            entity = Some(view.clone());
+            view
+        })
+        .unwrap();
+        (handle, entity.unwrap())
+    });
+    draw(cx, handle);
+
+    let (heart_bounds, morph_bounds) = cx
+        .update_window(handle.into(), |_, window, _| {
+            (
+                element(window, "shape-heart").bounds(),
+                element(window, "shape-morph").bounds(),
+            )
+        })
+        .unwrap();
+
+    // Outside corner of Heart's bounding box must NOT trigger hover or click activation.
+    let outside_heart = heart_bounds.origin + point(px(4.), px(96.));
+    let inside_heart = heart_bounds.center();
+    {
+        let mut visual = VisualTestContext::from_window(handle.into(), cx);
+        visual.simulate_mouse_move(outside_heart, None, Modifiers::default());
+    }
+    draw(cx, handle);
+    cx.update_window(handle.into(), |_, _, cx| {
+        let state = view
+            .read(cx)
+            .source
+            .read(cx)
+            .state(handle.window_id(), &"shape-heart".into())
+            .unwrap();
+        assert!(!state.hovered, "hover must ignore points outside Heart");
+    })
+    .unwrap();
+    VisualTestContext::from_window(handle.into(), cx)
+        .simulate_click(outside_heart, Modifiers::default());
+    draw(cx, handle);
+    assert!(
+        activations.borrow().is_empty(),
+        "click outside Heart contour must not activate"
+    );
+
+    // Moving and clicking inside Heart triggers hover and activation.
+    {
+        let mut visual = VisualTestContext::from_window(handle.into(), cx);
+        visual.simulate_mouse_move(inside_heart, None, Modifiers::default());
+    }
+    draw(cx, handle);
+    cx.update_window(handle.into(), |_, _, cx| {
+        let state = view
+            .read(cx)
+            .source
+            .read(cx)
+            .state(handle.window_id(), &"shape-heart".into())
+            .unwrap();
+        assert!(state.hovered, "hover must activate inside Heart");
+    })
+    .unwrap();
+    VisualTestContext::from_window(handle.into(), cx)
+        .simulate_click(inside_heart, Modifiers::default());
+    draw(cx, handle);
+    assert_eq!(&*activations.borrow(), &["heart"]);
+
+    // Keyboard activation still works regardless of pointer location.
+    cx.update_window(handle.into(), |_, window, cx| {
+        view.read(cx).heart_focus.clone().focus(window, cx);
+    })
+    .unwrap();
+    draw(cx, handle);
+    key(cx, handle, "enter", true);
+    key(cx, handle, "enter", false);
+    assert_eq!(&*activations.borrow(), &["heart", "heart"]);
+
+    // Morphed surface hit region follows live progress (Square at 0.0 hits near corner; Circle at 1.0 misses).
+    let near_corner = morph_bounds.center() + point(px(40.), px(34.));
+    VisualTestContext::from_window(handle.into(), cx)
+        .simulate_click(near_corner, Modifiers::default());
+    draw(cx, handle);
+    assert_eq!(&*activations.borrow(), &["heart", "heart", "morph"]);
+
+    cx.update(|cx| {
+        view.update(cx, |view, cx| {
+            view.progress = 1.;
+            cx.notify();
+        });
+    });
+    draw(cx, handle);
+    VisualTestContext::from_window(handle.into(), cx)
+        .simulate_click(near_corner, Modifiers::default());
+    draw(cx, handle);
+    assert_eq!(
+        &*activations.borrow(),
+        &["heart", "heart", "morph"],
+        "Circle endpoint must reject corner clicks that Square accepted"
+    );
 }

@@ -22,8 +22,9 @@ mod motion;
 mod shape;
 
 pub use feedback::{InteractionFeedback, InteractionState, Ripple};
+pub use gpui_material_theme::MaterialShape;
 pub use motion::animate;
-pub use shape::{PolygonMorph, Shape};
+pub use shape::{PolygonMorph, Shape, ShapeFit, ShapeMorph, ShapeMorphSequence, ShapePolygon};
 
 mod input;
 mod interaction;

@@ -113,9 +113,9 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 表面默认使用与主题背景角色配对的前景色。没有配对前景色的背景角色，以及通过 `.container_color(color)` 设置的容器颜色，沿用当前前景色。`.inherit_content_color(true)` 可让有配对色的背景角色也沿用当前前景，`.content_color(color)` 可覆盖内容颜色。颜色通过 GPUI 文本样式传递给子元素，包括未明确设置颜色的 Material 文字和图标。
 
-通过 `.shape(CornerShape)` 设置逻辑方向圆角，通过 `.border(SurfaceBorder { width, color })` 设置以逻辑像素表示的描边。背景、外框和反馈使用这些设置。其他 GPUI Styled 布局与绘制接口仍可使用。GPUI 使用矩形内容区域裁剪溢出的子元素。`.tonal_elevation(Elevation)` 为使用主题 Surface 角色的背景着色，`.shadow_elevation(Elevation)` 独立设置阴影。
+通过 `.shape(CornerShape)` 设置逻辑方向圆角，或通过 `.polygon_shape(...)` 传入任意 `MaterialShape`、`PolygonRole`、自定义 `ShapePolygon` 或 `ShapeMorph` 采样轮廓。`.shape_fit(ShapeFit)` 可选保持宽高比的 `Contain`（多边形默认）或拉伸填充的 `Stretch`。通过 `.border(SurfaceBorder { width, color })` 设置以逻辑像素表示的描边。背景、外框和反馈使用这些设置。其他 GPUI Styled 布局与绘制接口仍可使用。GPUI 使用矩形内容区域裁剪溢出的子元素；在纯色背景上可传入 `.shape_clip_backdrop(color)`，以 EvenOdd 外部遮罩将溢出子元素视觉裁剪到形状轮廓内。`.tonal_elevation(Elevation)` 为使用主题 Surface 角色的背景着色，`.shadow_elevation(Elevation)` 独立设置阴影。
 
-交互表面显示 Material 状态层、有边界的涟漪和键盘焦点环。`.feedback(SurfaceFeedback)` 配置单个表面的效果和颜色。通过 `.interaction_source(&source)` 观察悬停、按下、键盘焦点和禁用状态，`.track_focus(&focus)` 接入调用方持有的焦点句柄。减少动态效果设置使用静态按下反馈。
+交互表面显示 Material 状态层、有边界的涟漪和键盘焦点环。`.feedback(SurfaceFeedback)` 配置单个表面的效果和颜色。多边形表面默认启用形状感知指针命中检测，使指针悬停、按下和点击忽略形状轮廓外的区域；可通过 `.shape_hit_test(bool)` 为任意表面配置该行为。键盘与无障碍激活不受影响。通过 `.interaction_source(&source)` 观察悬停、按下、键盘焦点和禁用状态，`.track_focus(&focus)` 接入调用方持有的焦点句柄。减少动态效果设置使用静态按下反馈。
 
 ### 卡片
 
@@ -171,7 +171,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 `LoadingIndicator::new(id, label)` 占用 48 dp 的空间，默认循环播放七种形状，表示不确定进度。用 `.contained(true)` 添加圆形容器。Default 的指示形状使用窗口的 `Primary` 色；Contained 使用 `OnPrimaryContainer` 绘制指示形状，使用 `PrimaryContainer` 绘制容器。两种样式均可用 `.indicator_color(color)` 覆盖指示形状的颜色。Contained 可用 `.container_color(color)` 和 `.container_shape(CornerShape)` 配置容器。起始侧和末尾侧的圆角随窗口布局方向调整。
 
-确定进度由应用持有，每次渲染时用 `.value(fraction)` 传入。进度值限制在 `0..=1`，NaN 按零处理。默认序列在零时显示圆形，在一时显示 Soft Burst。用至少两个 `LoadingIndicatorShape` 构造可复用的 `LoadingIndicatorShapes`，再用 `.shapes(&shapes)` 传引用。使用 `LoadingIndicatorShape::circle()`，或用 `LoadingIndicatorShape::rounded_polygon(&vertices, radius)` 传入 GPUI 顶点和同单位的半径。多边形坐标或半径非有限、形状退化或自相交时返回 `None`。形状少于两个时，序列构造器返回 `None`。确定进度从序列首形状变换到末形状，不确定进度还会从末形状变回首形状。
+确定进度由应用持有，每次渲染时用 `.value(fraction)` 传入。进度值限制在 `0..=1`，NaN 按零处理。默认序列在零时显示圆形，在一时显示 Soft Burst。用至少两个 `LoadingIndicatorShape` 构造可复用的 `LoadingIndicatorShapes`，再用 `.shapes(&shapes)` 传引用。可使用 `LoadingIndicatorShape::circle()`、`LoadingIndicatorShape::material(MaterialShape)`、`LoadingIndicatorShape::from(ShapePolygon)`，或用 `LoadingIndicatorShape::rounded_polygon(&vertices, radius)` 传入 GPUI 顶点和同单位的半径。多边形坐标或半径非有限、形状退化或自相交时返回 `None`。形状少于两个时，序列构造器返回 `None`。确定进度从序列首形状变换到末形状，不确定进度还会从末形状变回首形状。
 
 标签为进度指示器提供无障碍名称。确定模式公开数值百分比并直接绘制传入的进度。不确定模式提供礼貌播报的状态，无数值。减少动态效果时，不确定模式停留在首形状，确定模式继续响应进度变化。`.active(false)` 保留布局空间，同时隐藏图形和无障碍进度信息。只有活动窗口内处于活动状态的不确定指示器才会请求动画帧。
 

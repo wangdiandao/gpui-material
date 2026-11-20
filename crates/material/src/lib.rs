@@ -35,9 +35,9 @@ pub use gpui_material_extras::{
 };
 pub use gpui_material_foundation as foundation;
 pub use gpui_material_foundation::{
-    InteractionSource, InteractionState, InteractionUpdate, MaterialRoot, Scrim, Surface,
-    SurfaceBorder, SurfaceFeedback, ThemeScope, current_material_theme, material_theme,
-    set_material_theme,
+    InteractionSource, InteractionState, InteractionUpdate, MaterialRoot, PolygonMorph, Scrim,
+    Shape, ShapeFit, ShapeMorph, ShapeMorphSequence, ShapePolygon, Surface, SurfaceBorder,
+    SurfaceFeedback, ThemeScope, current_material_theme, material_theme, set_material_theme,
 };
 pub use gpui_material_theme as theme;
-pub use gpui_material_theme::MaterialTheme;
+pub use gpui_material_theme::{MaterialShape, MaterialTheme};

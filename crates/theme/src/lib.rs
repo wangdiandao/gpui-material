@@ -27,7 +27,7 @@ pub use dynamic_color::{DynamicVariant, SpecVersion, ThemePreset};
 pub use generated::ColorRole;
 pub use layout::{Density, Direction, LayoutPolicy, WidthClass};
 pub use motion::{CubicBezier, MotionKind, MotionScheme, MotionSpec, MotionSpeed, Spring};
-pub use shape::{CornerRole, CornerShape, PolygonRole, PolygonSpec};
+pub use shape::{CornerRole, CornerShape, MaterialShape, PolygonRole, PolygonSpec};
 pub use typography::{FontFamilies, TypeRole, TypeStyle, Typeface, Typography, TypographyEmphasis};
 
 /// Application-owned configuration consumed by the Material rendering layer.

@@ -15,7 +15,7 @@ STYLES = ("Outlined", "Rounded", "Sharp")
 FONTTOOLS_VERSION = "4.63.0"
 SOURCE_REVISION = "10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7"
 SOURCE_AXES = "[FILL,GRAD,opsz,wght]"
-CRATE = Path(__file__).resolve().parent.parent / "crates" / "symbols"
+CRATE = Path(__file__).resolve().parent.parent / "crates" / "design-symbols"
 
 
 def font_stem(style):

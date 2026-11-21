@@ -47,7 +47,7 @@ fn main() {
 
 ## Material Symbols
 
-需要完整图标目录时，在 `gpui-material` 之外引入配套 crate。从源码集成时使用 `gpui-material-design-symbols = { path = "../gpui-material/crates/symbols" }`。图标目录包含固定版本的全部 4,304 个名称，包括别名。通过 `Symbol::ALL` 遍历，或通过 `Symbol::from_name("favorite")` 查找上游名称。[上游码点表和字体资源](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
+需要完整图标目录时，在 `gpui-material` 之外引入配套 crate。从源码集成时使用 `gpui-material-design-symbols = { path = "../gpui-material/crates/design-symbols" }`。图标目录包含固定版本的全部 4,304 个名称，包括别名。通过 `Symbol::ALL` 遍历，或通过 `Symbol::from_name("favorite")` 查找上游名称。[上游码点表和字体资源](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
 
 桌面端为 `gpui-material-design-symbols` 启用 `embed-assets`，调用 `SymbolFont::embedded` 加载 Outlined、Rounded 或 Sharp 字体。字体保留 `FILL` 和 `wght`，grade 固定为 0，光学尺寸固定为 24。`SymbolAxes::default()` 使用未填充样式和 400 字重。`.filled(true)` 选择 FILL=1，`Weight::new(550)` 可指定 100–700 范围内的任意整数值。
 
@@ -72,9 +72,9 @@ let font = SymbolFont::fetch("/fonts/material-symbols-rounded.ttf").await?;
 let favorite = font.svg_data(Symbol::Favorite, SymbolAxes::default())?;
 ```
 
-[配套资源](../crates/symbols/assets/)中有三份可直接部署的字体。`embed-assets` 仅在原生目标内嵌字体，即使 Cargo 在 WASM 构建中启用了该 feature。使用自定义子集或自行下载时，将 TrueType 字节传给 `SymbolFont::from_bytes`。请求子集缺少的图标时返回 `SymbolError::MissingGlyph`。
+[配套资源](../crates/design-symbols/assets/)中有三份可直接部署的字体。`embed-assets` 仅在原生目标内嵌字体，即使 Cargo 在 WASM 构建中启用了该 feature。使用自定义子集或自行下载时，将 TrueType 字节传给 `SymbolFont::from_bytes`。请求子集缺少的图标时返回 `SymbolError::MissingGlyph`。
 
-重新生成资源时，把上游三份 `.ttf` 文件、对应的 `.codepoints` 文件和上游 `LICENSE` 放在同一个目录。安装 fontTools 4.63.0，在检出目录运行 `python xtask/material-symbols.py <source-directory>`。[固定输入与校验和](../crates/symbols/assets/manifest.toml)
+重新生成资源时，把上游三份 `.ttf` 文件、对应的 `.codepoints` 文件和上游 `LICENSE` 放在同一个目录。安装 fontTools 4.63.0，在检出目录运行 `python xtask/material-symbols.py <source-directory>`。[固定输入与校验和](../crates/design-symbols/assets/manifest.toml)
 
 ## API 与迁移
 

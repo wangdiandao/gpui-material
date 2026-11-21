@@ -29,7 +29,7 @@ CRATES: list[tuple[str, str]] = [
     ("gpui-material-components", "crates/components"),
     ("gpui-material-extras", "crates/extras"),
     ("gpui-material", "crates/material"),
-    ("gpui-material-design-symbols", "crates/symbols"),
+    ("gpui-material-design-symbols", "crates/design-symbols"),
 ]
 
 INTERNAL_WORKSPACE_DEPS: list[str] = [

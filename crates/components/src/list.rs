@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use gpui::{
     AnyElement, App, Axis, ElementId, Entity, FocusHandle, InteractiveElement, IntoElement,
-    ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Window, div,
-    prelude::FluentBuilder, px,
+    ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Window,
+    accesskit::Toggled, div, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
 use gpui_material_foundation::{InteractionSource, current_material_theme, move_roving_focus};
@@ -73,8 +73,11 @@ pub struct ListItem {
     long_press_button: Option<ElementId>,
     expansion: Option<Expansion>,
     swipe: Option<RowSwipe>,
-    checked: Option<bool>,
+    checked: Option<Toggled>,
     checked_role: Role,
+    checked_selects_row: bool,
+    invalid: bool,
+    footer: Option<AnyElement>,
     #[cfg(feature = "feedback")]
     menu_trigger: Option<(bool, Activate)>,
     selected: bool,
@@ -108,6 +111,9 @@ impl ListItem {
             swipe: None,
             checked: None,
             checked_role: Role::CheckBox,
+            checked_selects_row: true,
+            invalid: false,
+            footer: None,
             #[cfg(feature = "feedback")]
             menu_trigger: None,
             selected: false,
@@ -166,7 +172,11 @@ impl ListItem {
 
     /// The controlled checked value, separate from the row's selection state.
     pub fn checked(mut self, checked: bool) -> Self {
-        self.checked = Some(checked);
+        self.checked = Some(if checked {
+            Toggled::True
+        } else {
+            Toggled::False
+        });
         self
     }
 
@@ -175,7 +185,7 @@ impl ListItem {
         mut self,
         handler: impl Fn(bool, &mut Window, &mut App) + 'static,
     ) -> Self {
-        self.checked.get_or_insert(false);
+        self.checked.get_or_insert(Toggled::False);
         self.checked_change = Some(Rc::new(handler));
         self
     }
@@ -289,10 +299,42 @@ impl ListItem {
         self
     }
 
+    #[cfg(feature = "selection")]
+    pub(crate) fn checked_toggled(mut self, state: Toggled) -> Self {
+        self.checked = Some(state);
+        self
+    }
+
+    #[cfg(feature = "selection")]
+    pub(crate) fn checked_selects_row(mut self, selects: bool) -> Self {
+        self.checked_selects_row = selects;
+        self
+    }
+
+    #[cfg(feature = "selection")]
+    pub(crate) fn invalid(mut self, invalid: bool) -> Self {
+        self.invalid = invalid;
+        self
+    }
+
+    #[cfg(feature = "selection")]
+    pub(crate) fn footer(mut self, footer: impl IntoElement) -> Self {
+        self.footer = Some(footer.into_any_element());
+        self
+    }
+
     #[cfg(feature = "feedback")]
     pub(crate) fn menu_trigger(mut self, open: bool, a11y_toggle: Activate) -> Self {
         self.menu_trigger = Some((open, a11y_toggle));
         self
+    }
+
+    pub(crate) fn id(&self) -> &ElementId {
+        &self.id
+    }
+
+    pub(crate) fn is_selected(&self) -> bool {
+        self.selected
     }
 
     fn has_primary_action(&self) -> bool {
@@ -312,7 +354,7 @@ impl ListItem {
         }
     }
 
-    fn takes_focus(&self, cx: &App) -> bool {
+    pub(crate) fn takes_focus(&self, cx: &App) -> bool {
         !self.disabled
             && (self.has_primary_action() || self.has_menu_trigger() || self.long_press.is_some())
             && self
@@ -334,7 +376,7 @@ impl ListItem {
             .zip(self.expanded_change.clone());
         Some(Rc::new(move |window, cx| {
             if let Some((checked, change)) = &check {
-                change(!checked, window, cx);
+                change(*checked != Toggled::True, window, cx);
             }
             if let Some((expanded, change)) = &expansion {
                 change(!expanded, window, cx);
@@ -345,7 +387,7 @@ impl ListItem {
         }))
     }
 
-    fn row(
+    pub(crate) fn row(
         self,
         resting: CornerShape,
         selected_shape: CornerShape,

@@ -9,11 +9,12 @@ use gpui_material::theme::{
 };
 use gpui_material::{
     Avatar, AvatarGroup, AvatarShape, AvatarSize, Badge, Banner, Button, ButtonVariant, Card,
-    CardBorder, CardColors, CardElevations, CardVariant, ChoiceOption, ChoiceTile,
-    CircularProgress, DisplayScrollbar, DisplayScrollbarFade, DisplayScrollbarStyle, Divider,
-    DropTarget, EmptyState, Icon, IconName, LinearProgress, List, ListItem, ListVariant,
-    LoadingIndicator, LoadingIndicatorShape, LoadingIndicatorShapes, ProgressCap, ProgressShape,
-    ProgressStroke, SemanticTone, Skeleton, SwitchTile, Text,
+    CardBorder, CardColors, CardElevations, CardVariant, CheckboxState, CheckboxTile, ChoiceOption,
+    ChoiceTile, CircularProgress, DisplayScrollbar, DisplayScrollbarFade, DisplayScrollbarStyle,
+    Divider, DropTarget, EmptyState, Icon, IconName, LinearProgress, List, ListItem, ListSection,
+    ListVariant, LoadingIndicator, LoadingIndicatorShape, LoadingIndicatorShapes, ProgressCap,
+    ProgressShape, ProgressStroke, RadioTile, SemanticTone, Skeleton, SliderState, SliderTile,
+    SwitchTile, Text,
 };
 
 use crate::story::{Story, section, stack};
@@ -72,6 +73,9 @@ pub(crate) struct DisplayExamples {
     banner_status: SharedString,
     skeleton_animated: bool,
     auto_sync: bool,
+    telemetry_opt_in: CheckboxState,
+    release_channel: SharedString,
+    notification_volume: Option<Entity<SliderState>>,
     choice_density: SharedString,
 }
 
@@ -99,6 +103,9 @@ impl Default for DisplayExamples {
             banner_status: "Ready".into(),
             skeleton_animated: true,
             auto_sync: true,
+            telemetry_opt_in: CheckboxState::Indeterminate,
+            release_channel: "stable".into(),
+            notification_volume: None,
             choice_density: "comfortable".into(),
         }
     }
@@ -862,22 +869,38 @@ impl DisplayExamples {
             )
     }
 
-    fn settings_tiles_section(&self, cx: &mut Context<Self>) -> crate::story::StorySection {
+    fn settings_tiles_section(&mut self, cx: &mut Context<Self>) -> crate::story::StorySection {
         let toggle_view = cx.entity();
+        let checkbox_view = cx.entity();
+        let stable_view = cx.entity();
+        let beta_view = cx.entity();
         let choice_view = cx.entity();
-        section("Settings tiles")
-            .description("Convenience rows for switch toggles and anchored option menus.")
+        let volume = self
+            .notification_volume
+            .get_or_insert_with(|| {
+                let state = cx.new(|_| {
+                    SliderState::new()
+                        .min(0.)
+                        .max(100.)
+                        .step(5.)
+                        .default_value(65.)
+                });
+                cx.observe(&state, |_, _, cx| cx.notify()).detach();
+                state
+            })
+            .clone();
+        section("Settings tiles and ListSection")
+            .description(
+                "Grouped M3E Segmented settings section mixing SwitchTile, CheckboxTile, RadioTile, SliderTile, and ChoiceTile with unified roving focus.",
+            )
             .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap_2()
-                    .child(
+                ListSection::segmented("gallery-settings-section")
+                    .title("Workspace preferences")
+                    .item(
                         SwitchTile::new("tile-auto-sync", "Automatic sync", self.auto_sync)
                             .overline("Cloud")
                             .supporting("Keep workspace preferences synchronized across devices.")
                             .leading(Icon::new(IconName::Notifications).size(px(24.)))
-                            .variant(ListVariant::Segmented)
                             .on_change(move |checked, _, cx| {
                                 toggle_view.update(cx, |this, cx| {
                                     this.auto_sync = checked;
@@ -885,7 +908,56 @@ impl DisplayExamples {
                                 });
                             }),
                     )
-                    .child(
+                    .item(
+                        CheckboxTile::new(
+                            "tile-diagnostics",
+                            "Diagnostics & crash reports",
+                            self.telemetry_opt_in,
+                        )
+                        .supporting("Supports checked, unchecked, and indeterminate states.")
+                        .leading(Icon::new(IconName::Info).size(px(24.)))
+                        .on_change(move |next, _, cx| {
+                            checkbox_view.update(cx, |this, cx| {
+                                this.telemetry_opt_in = next;
+                                cx.notify();
+                            });
+                        }),
+                    )
+                    .item(
+                        RadioTile::new(
+                            "tile-channel-stable",
+                            "Stable release channel",
+                            self.release_channel == "stable",
+                        )
+                        .supporting("Verified desktop builds.")
+                        .on_select(move |_, cx| {
+                            stable_view.update(cx, |this, cx| {
+                                this.release_channel = "stable".into();
+                                cx.notify();
+                            });
+                        }),
+                    )
+                    .item(
+                        RadioTile::new(
+                            "tile-channel-beta",
+                            "Beta release channel",
+                            self.release_channel == "beta",
+                        )
+                        .supporting("Preview upcoming Material 3 features early.")
+                        .on_select(move |_, cx| {
+                            beta_view.update(cx, |this, cx| {
+                                this.release_channel = "beta".into();
+                                cx.notify();
+                            });
+                        }),
+                    )
+                    .item(
+                        SliderTile::new("tile-volume", "Notification volume", &volume)
+                            .supporting("Adjust desktop alert level.")
+                            .format_value(|v| format!("{}%", v.round() as i32).into())
+                            .slider(|slider| slider.tick_intervals(5)),
+                    )
+                    .item(
                         ChoiceTile::new(
                             "tile-density",
                             "Layout density",
@@ -902,7 +974,6 @@ impl DisplayExamples {
                         .overline("Appearance")
                         .supporting("Choose the default density for tables and lists.")
                         .leading(Icon::new(IconName::Contrast).size(px(24.)))
-                        .variant(ListVariant::Segmented)
                         .on_select(move |id, _, cx| {
                             choice_view.update(cx, |this, cx| {
                                 this.choice_density = id;

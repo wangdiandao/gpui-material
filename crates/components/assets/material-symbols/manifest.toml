@@ -236,3 +236,23 @@ sha256 = "342e88fa8ef1bb0174a85e7fd4ac78835732ed70d7284b5d3201a75ff44a2894"
 file = "exposure_fill1_24px.svg"
 upstream_path = "symbols/web/exposure/materialsymbolsoutlined/exposure_fill1_24px.svg"
 sha256 = "342e88fa8ef1bb0174a85e7fd4ac78835732ed70d7284b5d3201a75ff44a2894"
+
+[[icons]]
+file = "visibility_24px.svg"
+upstream_path = "symbols/web/visibility/materialsymbolsoutlined/visibility_24px.svg"
+sha256 = "07f07478fc58500ce05000c3b123cb95de57aad9b106b9cfa58720528ea09bd7"
+
+[[icons]]
+file = "visibility_fill1_24px.svg"
+upstream_path = "symbols/web/visibility/materialsymbolsoutlined/visibility_fill1_24px.svg"
+sha256 = "8cb10600688c2bbfadec66c4c4993256873e0a1304ae6aa1ae60cfb61d4de610"
+
+[[icons]]
+file = "visibility_off_24px.svg"
+upstream_path = "symbols/web/visibility_off/materialsymbolsoutlined/visibility_off_24px.svg"
+sha256 = "3e59e535535441d5965efcd76011d0d9fca1df3b1ac3a065d4ce0aa9d6df6a87"
+
+[[icons]]
+file = "visibility_off_fill1_24px.svg"
+upstream_path = "symbols/web/visibility_off/materialsymbolsoutlined/visibility_off_fill1_24px.svg"
+sha256 = "aa6e193123bb38ac0faaf5b6acc16bd8d082bad9d23885684481187e9787d8a2"

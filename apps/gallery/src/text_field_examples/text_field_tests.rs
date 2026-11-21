@@ -1,16 +1,18 @@
 use std::{cell::RefCell, rc::Rc, time::Duration};
 
 use gpui::{
-    AppContext, ClipboardItem, Context, Edges, Entity, EntityInputHandler, Hsla, InputEvent,
-    IntoElement, MouseButton, MouseDownEvent, MouseUpEvent, Render, Rgba, Role, TestAppContext,
-    Window, WindowOptions, point, px, rgb, size,
+    AppContext, ClipboardItem, Context, Edges, ElementId, Entity, EntityInputHandler, Focusable,
+    Hsla, InputEvent, InteractiveElement, IntoElement, MouseButton, MouseDownEvent, MouseUpEvent,
+    ParentElement, Render, Rgba, Role, Styled, TestAppContext, Window, WindowOptions, div, point,
+    px, rgb, size,
 };
-use gpui_base::test_support::find;
+use gpui_base::{TestSupportExt, test_support::find};
 use gpui_material::{
-    InteractionSource, MaterialRoot, TextField, TextFieldColorOverrides, TextFieldColors,
-    TextFieldLayout, TextFieldMaskPattern, TextFieldState, TextFieldVariant, material_theme,
-    set_material_theme,
-    theme::{CornerShape, Direction, TypeRole, TypographyEmphasis},
+    InteractionSource, MaterialRoot, MaterialTheme, TextField, TextFieldColorOverrides,
+    TextFieldColors, TextFieldLayout, TextFieldMaskPattern, TextFieldState, TextFieldVariant,
+    foundation::set_window_material_theme,
+    material_theme, set_material_theme,
+    theme::{Appearance, CornerShape, Direction, TypeRole, TypographyEmphasis},
 };
 
 use super::TextFieldExamples;
@@ -989,6 +991,294 @@ fn text_field_filled_and_outlined_shorthands_render_expected_variants(cx: &mut T
                 .value(),
             Some("world")
         );
+    })
+    .unwrap();
+}
+
+#[gpui::test]
+fn text_field_clearable_shows_when_editable_nonempty_clears_and_keeps_focus(
+    cx: &mut TestAppContext,
+) {
+    struct ClearableView {
+        editable: Entity<TextFieldState>,
+        readonly: Entity<TextFieldState>,
+        disabled: Entity<TextFieldState>,
+    }
+
+    impl Render for ClearableView {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div()
+                .w(px(360.))
+                .p_4()
+                .flex()
+                .flex_col()
+                .gap_3()
+                .child(
+                    TextField::outlined("query", "Search", &self.editable)
+                        .clearable(true)
+                        .trailing(div().id("custom-end").test_support().child("GO")),
+                )
+                .child(TextField::outlined("ro", "Readonly", &self.readonly).clearable(true))
+                .child(TextField::outlined("dis", "Disabled", &self.disabled).clearable(true))
+        }
+    }
+
+    let mut states = None;
+    let window = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let editable = cx.new(|cx| TextFieldState::new(window, cx));
+            let readonly = cx.new(|cx| {
+                let mut state = TextFieldState::new(window, cx).default_value("Fixed");
+                state.set_readonly(true, cx);
+                state
+            });
+            let disabled = cx.new(|cx| {
+                let mut state = TextFieldState::new(window, cx).default_value("Locked");
+                state.set_disabled(true, cx);
+                state
+            });
+            states = Some(editable.clone());
+            cx.new(|_| ClearableView {
+                editable,
+                readonly,
+                disabled,
+            })
+        })
+        .unwrap()
+    });
+    let editable = states.unwrap();
+
+    let clear_id = |id: &'static str| ElementId::from((ElementId::from(id), "clear-button"));
+    cx.update_window(window.into(), |_, window, cx| {
+        window.activate_window();
+        window.refresh();
+        window.draw(cx).clear(cx);
+
+        // Hidden when empty, readonly, or disabled.
+        assert!(find(window, &[], &clear_id("query")).is_none());
+        assert!(find(window, &[], &clear_id("ro")).is_none());
+        assert!(find(window, &[], &clear_id("dis")).is_none());
+
+        // Populating text reveals the clear button with default "Clear" accessible label.
+        editable.update(cx, |state, cx| state.set_value("hello", window, cx));
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let clear = find(window, &[], &clear_id("query")).expect("clear button visible");
+        assert_eq!(clear.label(), Some("Clear"));
+        let custom_end = find(window, &[], &"custom-end".into()).unwrap();
+        assert!(
+            clear.bounds().center().x < custom_end.bounds().center().x,
+            "clear button should precede custom trailing in LTR"
+        );
+
+        // Clicking clear empties the editor, hides the button, and keeps focus on the editor.
+        let pos = clear.bounds().center();
+        window.dispatch_event(
+            MouseDownEvent {
+                button: MouseButton::Left,
+                position: pos,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(
+            MouseUpEvent {
+                button: MouseButton::Left,
+                position: pos,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert_eq!(editable.read(cx).value(), "");
+        assert!(find(window, &[], &clear_id("query")).is_none());
+        assert!(
+            editable.read(cx).focus_handle(cx).is_focused(window),
+            "editor must retain focus after clear"
+        );
+
+        // In RTL, clear button sits to the right of custom trailing (logical order mirrored).
+        let mut rtl = MaterialTheme::baseline(Appearance::Light);
+        rtl.layout.direction = Direction::Rtl;
+        set_window_material_theme(Some(rtl), window, cx);
+        editable.update(cx, |state, cx| state.set_value("rtl", window, cx));
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let clear_rtl = find(window, &[], &clear_id("query")).unwrap();
+        let custom_rtl = find(window, &[], &"custom-end".into()).unwrap();
+        assert!(
+            clear_rtl.bounds().center().x > custom_rtl.bounds().center().x,
+            "clear button should precede custom trailing in RTL"
+        );
+    })
+    .unwrap();
+}
+
+#[gpui::test]
+fn text_field_visibility_toggle_syncs_obfuscation_and_toggles_labels(cx: &mut TestAppContext) {
+    struct SecretView {
+        secret: Entity<TextFieldState>,
+        disabled_secret: Entity<TextFieldState>,
+        plain: Entity<TextFieldState>,
+        visible: bool,
+        disabled_clicks: usize,
+    }
+
+    impl Render for SecretView {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let view = cx.entity();
+            let dis_view = cx.entity();
+            div()
+                .w(px(360.))
+                .p_4()
+                .flex()
+                .flex_col()
+                .gap_3()
+                .child(
+                    TextField::secure("secret-field", "Secret", &self.secret)
+                        .variant(TextFieldVariant::Outlined)
+                        .visibility_toggle(self.visible, move |next, _, cx| {
+                            view.update(cx, |this, cx| {
+                                this.visible = next;
+                                cx.notify();
+                            });
+                        }),
+                )
+                .child(
+                    TextField::secure("disabled-secret", "Locked secret", &self.disabled_secret)
+                        .visibility_toggle(false, move |_, _, cx| {
+                            dis_view.update(cx, |this, _| this.disabled_clicks += 1);
+                        }),
+                )
+                .child(
+                    TextField::new("plain-field", "Plain", &self.plain)
+                        .visibility_toggle(false, |_, _, _| {}),
+                )
+        }
+    }
+
+    let mut view_handle = None;
+    let mut secret_entity = None;
+    let window = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let secret = cx.new(|cx| {
+                TextFieldState::new(window, cx)
+                    .masked(true)
+                    .default_value("hunter2")
+            });
+            let disabled_secret = cx.new(|cx| {
+                let mut state = TextFieldState::new(window, cx)
+                    .masked(true)
+                    .default_value("locked");
+                state.set_disabled(true, cx);
+                state
+            });
+            let plain = cx.new(|cx| TextFieldState::new(window, cx).default_value("abc"));
+            secret_entity = Some(secret.clone());
+            let entity = cx.new(|_| SecretView {
+                secret,
+                disabled_secret,
+                plain,
+                visible: false,
+                disabled_clicks: 0,
+            });
+            view_handle = Some(entity.clone());
+            entity
+        })
+        .unwrap()
+    });
+    let view = view_handle.unwrap();
+    let secret = secret_entity.unwrap();
+
+    let toggle_id = |id: &'static str| ElementId::from((ElementId::from(id), "visibility-toggle"));
+    cx.update_window(window.into(), |_, window, cx| {
+        window.activate_window();
+        window.refresh();
+        window.draw(cx).clear(cx);
+
+        // Non-secure field ignores visibility_toggle.
+        assert!(find(window, &[], &toggle_id("plain-field")).is_none());
+
+        // Secure field starts masked with "Show password" label.
+        let field = find(window, &[], &"secret-field".into()).unwrap();
+        assert_eq!(field.role(), Some(Role::PasswordInput));
+        assert_eq!(field.value(), None);
+        let toggle = find(window, &[], &toggle_id("secret-field")).unwrap();
+        assert_eq!(toggle.label(), Some("Show password"));
+
+        // Click toggle to reveal password.
+        let pos = toggle.bounds().center();
+        window.dispatch_event(
+            MouseDownEvent {
+                button: MouseButton::Left,
+                position: pos,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(
+            MouseUpEvent {
+                button: MouseButton::Left,
+                position: pos,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.refresh();
+        window.draw(cx).clear(cx);
+
+        assert!(view.read(cx).visible);
+        let field = find(window, &[], &"secret-field".into()).unwrap();
+        assert_eq!(field.role(), Some(Role::TextInput));
+        assert_eq!(field.value(), Some("hunter2"));
+        assert!(secret.read(cx).focus_handle(cx).is_focused(window));
+        assert_eq!(
+            find(window, &[], &toggle_id("secret-field"))
+                .unwrap()
+                .label(),
+            Some("Hide password")
+        );
+
+        // Disabled secure field disables its toggle and ignores clicks.
+        let dis_toggle = find(window, &[], &toggle_id("disabled-secret")).unwrap();
+        assert_eq!(dis_toggle.disabled(), Some(true));
+        let dis_pos = dis_toggle.bounds().center();
+        window.dispatch_event(
+            MouseDownEvent {
+                button: MouseButton::Left,
+                position: dis_pos,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(
+            MouseUpEvent {
+                button: MouseButton::Left,
+                position: dis_pos,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert_eq!(view.read(cx).disabled_clicks, 0);
     })
     .unwrap();
 }

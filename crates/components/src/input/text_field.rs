@@ -93,6 +93,12 @@ pub struct TextFieldLayout {
 
 type OnTextLayout = Box<dyn FnOnce(TextFieldLayout, &mut Window, &mut App)>;
 type DropdownRequest = Rc<dyn Fn(bool, &mut Window, &mut App)>;
+type VisibilityCallback = Rc<dyn Fn(bool, &mut Window, &mut App)>;
+
+struct VisibilityToggle {
+    visible: bool,
+    on_toggle: VisibilityCallback,
+}
 
 struct FieldDescription {
     text: SharedString,
@@ -124,6 +130,10 @@ pub struct TextField {
     character_count: Option<usize>,
     leading: Option<AnyElement>,
     trailing: Option<AnyElement>,
+    clearable: bool,
+    clear_label: Option<SharedString>,
+    visibility_toggle: Option<VisibilityToggle>,
+    visibility_labels: Option<(SharedString, SharedString)>,
     prefix: Option<AnyElement>,
     suffix: Option<AnyElement>,
     dropdown_editor: bool,
@@ -256,6 +266,10 @@ impl TextField {
             character_count: None,
             leading: None,
             trailing: None,
+            clearable: false,
+            clear_label: None,
+            visibility_toggle: None,
+            visibility_labels: None,
             prefix: None,
             suffix: None,
             dropdown_editor: false,
@@ -280,6 +294,53 @@ impl TextField {
     /// Ignored for non-secure fields.
     pub fn obfuscation_mode(mut self, mode: TextFieldObfuscationMode) -> Self {
         self.obfuscation_mode = mode;
+        self
+    }
+
+    /// Displays a trailing clear button when the editor is editable and non-empty.
+    ///
+    /// Activating the button clears the Base state via `replace_all("")` and keeps focus on the
+    /// editor. When combined with `.visibility_toggle(...)` or `.trailing(...)`, built-in controls
+    /// render in logical order before custom trailing content.
+    pub fn clearable(mut self, clearable: bool) -> Self {
+        self.clearable = clearable;
+        self
+    }
+
+    /// Overrides the accessible label of the `.clearable(true)` button (default `"Clear"`).
+    pub fn clear_label(mut self, label: impl Into<SharedString>) -> Self {
+        self.clear_label = Some(label.into());
+        self
+    }
+
+    /// Adds a controlled password reveal toggle on [`TextField::secure`] editors and syncs
+    /// [`Self::obfuscation_mode`] automatically (`Visible` when `visible` is `true`, `Hidden`
+    /// otherwise). Ignored for non-secure fields.
+    pub fn visibility_toggle(
+        mut self,
+        visible: bool,
+        on_toggle: impl Fn(bool, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.obfuscation_mode = if visible {
+            TextFieldObfuscationMode::Visible
+        } else {
+            TextFieldObfuscationMode::Hidden
+        };
+        self.visibility_toggle = Some(VisibilityToggle {
+            visible,
+            on_toggle: Rc::new(on_toggle),
+        });
+        self
+    }
+
+    /// Overrides the accessible labels of the `.visibility_toggle(...)` button
+    /// (defaults to `"Show password"` and `"Hide password"`).
+    pub fn visibility_labels(
+        mut self,
+        show: impl Into<SharedString>,
+        hide: impl Into<SharedString>,
+    ) -> Self {
+        self.visibility_labels = Some((show.into(), hide.into()));
         self
     }
 

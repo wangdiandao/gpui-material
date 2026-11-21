@@ -3,8 +3,8 @@
   en: "0c16ec483c073c5d"
   zh: "b24fff9ed8f0b160"
 /components/actions-and-selection:
-  en: "6a335a7a6944189d"
-  zh: "d128daf75d06cb88"
+  en: "e80f3226330ffcee"
+  zh: "9a9bc309c4862db3"
 /components/actions-and-selection/floating-action-button:
   en: "c77a57b086907ad0"
   zh: "e5c132ba393b8843"
@@ -27,8 +27,8 @@
   en: "51a406ecd386905a"
   zh: "5e59d88142753aa0"
 /components/content-and-feedback:
-  en: "0dd0bf7641ffa5cc"
-  zh: "7489a46550011fff"
+  en: "f7f8e400ef85a47b"
+  zh: "07b1025f776c6703"
 /components/content-and-feedback/surfaces:
   en: "e0f5d2b66870d586"
   zh: "7c7c4891edaf84a4"
@@ -38,9 +38,9 @@
 /components/content-and-feedback/lists:
   en: "31095ee35ec859f3"
   zh: "09918936439b1d1b"
-/components/content-and-feedback/settings-tiles:
-  en: "28acb1d2449e634f"
-  zh: "8f71bfc64e24bf4d"
+/components/content-and-feedback/settings-tiles-and-list-sections:
+  en: "659a97c967a58772"
+  zh: "727c4de274c6392e"
 /components/content-and-feedback/drop-target:
   en: "686c7f0a8713cbc0"
   zh: "d4ab54d7fe4f9800"
@@ -81,8 +81,8 @@
   en: "652d4f4f4421dc47"
   zh: "efa23e7600bab5f0"
 /components/input-and-overlays:
-  en: "7fa1fce4cf6fbf3d"
-  zh: "bcdb7c7983367984"
+  en: "afe4206ecef4201b"
+  zh: "737c838255cb0f4e"
 /components/input-and-overlays/exposed-dropdowns:
   en: "5af40c400c43abca"
   zh: "ddef8112ceaeebaf"

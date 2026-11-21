@@ -180,6 +180,9 @@ pub(crate) struct TextFieldExamples {
     amount: Entity<TextFieldState>,
     phone: Entity<TextFieldState>,
     code: Entity<TextFieldState>,
+    clearable_query: Entity<TextFieldState>,
+    api_secret: Entity<TextFieldState>,
+    api_secret_visible: bool,
 }
 
 impl TextFieldExamples {
@@ -225,6 +228,18 @@ impl TextFieldExamples {
                             && text.chars().all(|ch| ch.is_ascii_alphanumeric())
                     })
             }),
+            clearable_query: cx.new(|cx| {
+                TextFieldState::new(window, cx)
+                    .default_value("Material 3")
+                    .placeholder("Type to search")
+            }),
+            api_secret: cx.new(|cx| {
+                TextFieldState::new(window, cx)
+                    .masked(true)
+                    .default_value("sk-demo-421")
+                    .placeholder("API secret")
+            }),
+            api_secret_visible: false,
         }
     }
 }
@@ -232,7 +247,9 @@ impl TextFieldExamples {
 impl Render for TextFieldExamples {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let owner = cx.entity().downgrade();
+        let secret_owner = cx.entity().downgrade();
         let password_visible = self.password_visible;
+        let api_secret_visible = self.api_secret_visible;
         let unmasked_phone = self.phone.read(cx).unmask_value();
         let phone_supporting = if unmasked_phone.is_empty() {
             "US phone mask; unmasked digits appear here".to_string()
@@ -346,6 +363,33 @@ impl Render for TextFieldExamples {
                                 "Rejects non-alphanumeric characters and excess length",
                             )
                             .character_count(6),
+                    ),
+            )
+            .child(
+                section("Clearable and visibility toggle")
+                    .child(
+                        TextField::outlined(
+                            "clearable-search",
+                            "Search query",
+                            &self.clearable_query,
+                        )
+                        .leading(Icon::new(IconName::Search))
+                        .clearable(true)
+                        .supporting_text("Trailing clear button appears while non-empty"),
+                    )
+                    .child(
+                        TextField::secure("api-secret", "API secret", &self.api_secret)
+                            .variant(TextFieldVariant::Outlined)
+                            .clearable(true)
+                            .visibility_toggle(api_secret_visible, move |visible, _, cx| {
+                                let _ = secret_owner.update(cx, |view, cx| {
+                                    view.api_secret_visible = visible;
+                                    cx.notify();
+                                });
+                            })
+                            .supporting_text(
+                                "Combines clearable and built-in Visibility/VisibilityOff toggle",
+                            ),
                     ),
             )
     }

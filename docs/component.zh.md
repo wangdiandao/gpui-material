@@ -12,8 +12,8 @@
 
 | 组件 | 支持的变体与行为 | Material 3 |
 | --- | --- | --- |
-| `Button`、`ToggleButton` | Elevated、Filled、Filled Tonal、Outlined。`Button` 还提供 Text 变体及变体快捷构造器（`filled`、`tonal`、`elevated`、`outlined`、`text`）。两者支持 XS–XL 尺寸、圆形和方形外观、`SemanticTone`（别名 `ButtonTone`）语义快捷配色（`Default`、`Danger`、`Success`、`Warning`、`Info`）、自定义内容和样式，以及可选的交互观察。 | [按钮](https://m3.material.io/components/buttons/overview) |
-| `IconButton`、`IconToggleButton` | Standard、Filled、Filled Tonal、Outlined，提供 `IconButton` 变体快捷构造器（`standard`、`filled`、`tonal`、`outlined`），可选尺寸和宽度，支持 `SemanticTone`（`ButtonTone`）语义快捷配色，可为单个实例配置形状、颜色和描边，并可观察交互。 | [图标按钮](https://m3.material.io/components/icon-buttons/overview) |
+| `Button`、`ToggleButton` | Elevated、Filled、Filled Tonal、Outlined。`Button` 还提供 Text 变体、变体快捷构造器（`filled`、`tonal`、`elevated`、`outlined`、`text`）以及受控的 `.loading(bool)` 忙碌状态。两者支持 XS–XL 尺寸、圆形和方形外观、`SemanticTone`（别名 `ButtonTone`）语义快捷配色（`Default`、`Danger`、`Success`、`Warning`、`Info`）、自定义内容和样式，以及可选的交互观察。 | [按钮](https://m3.material.io/components/buttons/overview) |
+| `IconButton`、`IconToggleButton` | Standard、Filled、Filled Tonal、Outlined，提供 `IconButton` 变体快捷构造器（`standard`、`filled`、`tonal`、`outlined`）及 `.loading(bool)` 忙碌状态，可选尺寸和宽度，支持 `SemanticTone`（`ButtonTone`）语义快捷配色，可为单个实例配置形状、颜色和描边，并可观察交互。 | [图标按钮](https://m3.material.io/components/icon-buttons/overview) |
 | `Fab`、`ExtendedFab` | Small、Medium、Large 尺寸，可配置实例外观和控制显示状态。`ExtendedFab` 支持文字标签、可选图标和自定义内容。 | [悬浮操作按钮](https://m3.material.io/components/floating-action-button/overview) · [扩展悬浮操作按钮](https://m3.material.io/components/extended-fab/overview) |
 | `Checkbox` | 未选中、选中、混合、错误和禁用状态，可配置实例颜色和描边并观察交互。 | [复选框](https://m3.material.io/components/checkbox/overview) |
 | `Radio`、`RadioGroup` | 互斥选择、组内键盘导航、单项颜色配置和可选的交互观察。 | [单选按钮](https://m3.material.io/components/radio-button/specs) |
@@ -21,7 +21,7 @@
 | `Chip`、`ChipGroup` | Assist、Filter、Input、Suggestion 标签组件，支持内容插槽、自定义外观以及独立的选中与移除；受控 `ChipGroup` 集合支持 `Single`、`SingleRequired`、`Multiple` 选择模式、自动换行或横向滚动布局及漫游键盘焦点。 | [标签组件](https://m3.material.io/components/chips/overview) |
 | `Slider` | 单值、居中和范围滑块，可自定义轨道、滑柄和指示器，支持横向及可反转的纵向布局，以及连续值或步进值。 | [滑块](https://m3.material.io/components/sliders/specs) |
 
-使用 `.content(element)` 自定义显示的标签。构造器提供的无障碍名称和前后图标插槽仍然生效。内容中应避免放置独立控件，由按钮负责激活和焦点。可使用 `Button::filled`、`Button::tonal`、`Button::elevated`、`Button::outlined` 或 `Button::text` 作为 `Button::new(id, label).variant(...)` 的快捷构造器。可通过 `.tone(SemanticTone)`（亦保留 `ButtonTone` 别名）在所有变体与切换状态上快捷应用 Material 3 语义色板（`Default`、`Danger`、`Success`、`Warning`、`Info`）。可通过 `.shapes(ButtonShapes)`、`.colors(ButtonColors)`、`.border(ButtonBorder)`、`.content_padding(ButtonPadding)` 和 `.elevations(ButtonElevations)` 配置单个实例；显式传入的 `.colors` 和 `.border` 始终优先于语义色板默认值。未指定的形状、颜色和 elevation 字段沿用对应状态的尺寸、变体和语义色调默认值。`ButtonPadding` 随窗口文本方向调整。零宽度边框会移除默认描边。
+使用 `.content(element)` 自定义显示的标签。构造器提供的无障碍名称和前后图标插槽仍然生效。内容中应避免放置独立控件，由按钮负责激活和焦点。可使用 `Button::filled`、`Button::tonal`、`Button::elevated`、`Button::outlined` 或 `Button::text` 作为 `Button::new(id, label).variant(...)` 的快捷构造器。在 `Button` 或 `IconButton` 上设置 `.loading(true)` 可进入受控忙碌状态：阻止指针、键盘与无障碍激活并暴露忙碌语义，除非同时设置 `.disabled(true)` 否则保持启用配色，保留静止宽度避免布局抖动，并在按钮中央渲染紧凑的内联 Material 环形旋转指示器，同时遵循窗口/视口可见性与减少动态效果（回退为静态圆弧）。可通过 `.tone(SemanticTone)`（亦保留 `ButtonTone` 别名）在所有变体与切换状态上快捷应用 Material 3 语义色板（`Default`、`Danger`、`Success`、`Warning`、`Info`）。可通过 `.shapes(ButtonShapes)`、`.colors(ButtonColors)`、`.border(ButtonBorder)`、`.content_padding(ButtonPadding)` 和 `.elevations(ButtonElevations)` 配置单个实例；显式传入的 `.colors` 和 `.border` 始终优先于语义色板默认值。未指定的形状、颜色和 elevation 字段沿用对应状态的尺寸、变体和语义色调默认值。`ButtonPadding` 随窗口文本方向调整。零宽度边框会移除默认描边。
 
 构造 `IconButton::new(id, name, icon)`（或变体快捷构造器 `IconButton::standard`、`IconButton::filled`、`IconButton::tonal`、`IconButton::outlined`）或 `IconToggleButton::new` 时传入无障碍名称和装饰性图标元素。图标按钮默认使用 Small 尺寸、Uniform 宽度、Round 形状和 Standard 配色。使用 `.shapes(ButtonShapes)` 设置静止和按下时的圆角，以及切换按钮选中时的圆角。使用 `.colors(ButtonColors)` 设置启用、禁用和选中状态下的容器与图标颜色。省略的字段沿用当前尺寸和变体的默认值。`.border(ButtonBorder)` 替换默认描边，宽度为零时移除描边。`IconToggleButton` 根据调用方传入的值渲染选中状态，并在选中时使用可选的 `.selected_icon(element)`。
 
@@ -100,7 +100,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `Text`、`Icon` | 主题排版（提供全部 15 个 Material 字阶快捷构造器 `display_large`–`label_small` 及 `.muted()`）、可替换图标和随库提供的 Material Symbols。 | [排版](https://m3.material.io/styles/typography/overview) · [图标](https://m3.material.io/styles/icons/overview) |
 | `Surface` | 支持静态、可点击、可选及可勾选表面，提供主题内容颜色与层级。 | [层级](https://m3.material.io/styles/elevation/overview) |
 | `Card` | Elevated、Filled、Outlined，支持静态或可操作的卡片及独立外观配置。 | [卡片](https://m3.material.io/components/cards/specs) |
-| `List`、`ListItem`、`SwitchTile`、`ChoiceTile` | Standard 和 Segmented 列表，支持自定义插槽、受控行操作、各状态外观，以及带开关切换与锚定选项菜单的设置项快捷行。 | [列表](https://m3.material.io/components/lists/overview) |
+| `List`、`ListItem`、`ListSection`、`SwitchTile`、`CheckboxTile`、`RadioTile`、`SliderTile`、`ChoiceTile` | Standard 和 Segmented 列表及带标题的列表分组，支持自定义插槽、受控行操作、各状态外观，以及开关、复选框、单选框、滑块与锚定选项菜单等设置项快捷行。 | [列表](https://m3.material.io/components/lists/overview) |
 | `DropTarget` | Material 风格拖放容器，同时支持外部系统文件拖放（`ExternalPaths`）与应用内类型化负载，提供校验反馈及可选点击/键盘激活。 | [拖放交互](https://m3.material.io/foundations/interaction/gestures) |
 | `SwipeToDismiss` | 横向滑动关闭，内容、背景及操作由调用方提供。 | [列表](https://m3.material.io/components/lists/guidelines) · [Compose SwipeToDismissBox](https://developer.android.com/reference/kotlin/androidx/compose/material3/SwipeToDismissBox.composable) |
 | `Divider`、`Badge`、`Avatar`、`AvatarGroup` | 横向与纵向分隔线支持逻辑内缩、粗细和单独配色。徽标支持独立或附着显示，可使用圆点、文本、计数、自定义内容和单独配色。头像支持圆形或圆角，可呈现首字母、图标、带回退内容的图片或自定义元素；`AvatarGroup` 支持重叠堆叠、表面色镂空环与 `+N` 溢出计数。 | [分隔线](https://m3.material.io/components/divider/overview) · [徽标](https://m3.material.io/components/badges/overview) |
@@ -143,11 +143,19 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 `.shapes(ListItemShapes)` 覆盖静止、选中、按下、聚焦、悬停和拖动状态的逻辑圆角。`.colors(ListItemColors)` 通过 `ListItemStateColors` 分别配置普通、禁用、选中和拖动状态下的容器、主体、前置、尾部、上方标签及辅助内容颜色。省略的字段沿用窗口默认值。`.vertical_alignment(ListItemAlignment)` 可选 Auto、Start、Center 或 End。Auto 将较矮的行内容居中，将较高文本行的内容置顶。`.content_padding(ListItemPadding)` 以像素指定逻辑起始侧、尾侧、顶部和底部的内边距。默认水平 16 像素、垂直 10 像素，三行内容的垂直内边距为 12 像素。`.elevations(ListItemElevations)` 覆盖静止及交互状态的阴影高程。`.dragged(bool)` 提供由调用方管理的拖动状态，`.interaction_source(&source)` 可观察行的悬停、按下、键盘焦点、拖动和禁用状态。
 
-### 设置项快捷行
+### 设置项快捷行与列表分组
 
 `SwitchTile::new(id, label, checked)` 将 `ListItem` 与状态同步的尾部视觉 `Switch` 组合（同时启用 `surfaces` 与 `selection` 特性时可用）。点击整行任意区域或按 Enter / Space 均通过 `.on_change(...)` 单次切换，仅占一个焦点停靠点并暴露 `Role::Switch` 语义，避免双重焦点或重复切换。可通过 `.supporting`、`.overline`、`.leading`、`.disabled`、`.variant(ListVariant)`、`.colors(ListItemColors)` 和 `.switch_colors(SwitchColors)` 独立配置行和开关外观。
 
+`CheckboxTile::new(id, label, state)`（或 `CheckboxTile::bool(id, label, checked)`）将 `ListItem` 与状态同步的装饰性 `Checkbox` 组合（需要 `surfaces` + `selection`）。点击整行或按 Enter / Space 通过 `.on_change(...)` 请求下一个 `CheckboxState`（`Unchecked` 或 `Indeterminate` → `Checked`；`Checked` → `Unchecked`），仅占一个焦点停靠点并暴露 `Role::CheckBox` 语义。支持 `.supporting`、`.overline`、`.leading`、`.trailing_checkbox(bool)`（默认置于尾侧，传 `false` 置于前侧）、`.error(bool)`、`.disabled(bool)`、`.variant(ListVariant)`、`.colors(ListItemColors)` 与 `.checkbox_colors(CheckboxColors)`。
+
+`RadioTile::new(id, label, selected)` 将 `ListItem` 与状态同步的装饰性 `Radio` 组合（需要 `surfaces` + `selection`）。点击未选中的整行或按 Enter / Space 触发 `.on_select(...)`，仅占一个焦点停靠点并暴露 `Role::RadioButton` 语义。支持 `.supporting`、`.overline`、`.leading`、`.trailing_radio(bool)`、`.disabled(bool)`、`.variant(ListVariant)`、`.colors(ListItemColors)` 与 `.radio_colors(RadioColors)`。
+
+`SliderTile::new(id, label, &state)` 将 `ListItem` 行头（支持 `.overline`、`.leading`、`.supporting` 及尾侧通过 `.format_value(...)` 实时格式化的当前值）与绑定到调用方 `Entity<SliderState>` 的内嵌 `Slider` 组合（需要 `surfaces` + `selection`）。支持 `.disabled(bool)`、`.variant(ListVariant)`、`.colors(ListItemColors)` 与 `.slider(|slider| ...)` 配置闭包，无需重复暴露全部滑块方法。
+
 `ChoiceTile::new(id, label, options, selected)` 将 `ListItem` 与由 `ChoiceOption` 构成的锚定 Material `Menu` 组合（同时启用 `surfaces` 与 `feedback` 特性时可用）。行尾显示当前选中项的标签（或 `.placeholder(...)`）与下拉箭头，菜单中以勾选标记标识当前选项，选中后通过 `.on_select(...)` 报告选项 ID 并在关闭时恢复焦点。可传入外部 `.menu_state(&state)`（`Entity<DialogState>`）进行受控管理，或由组件保留内部的键控 `DialogState`。
+
+`ListSection::new(id)`（或 `ListSection::segmented(id)`，需要 `surfaces`）在可选的 `.title(...)` 分组标题（`LabelMedium` 与逻辑水平缩进）下通过 `.item(...)` / `.items(...)`（`ListSectionItem`）混排任意 `ListItem`、`SwitchTile`、`CheckboxTile`、`RadioTile`、`SliderTile` 和 `ChoiceTile`。在 `ListVariant::Segmented` 模式下应用 Material 3 Expressive 分组圆角几何（首项 `[16, 16, 4, 4]`、中间项 `[4, 4, 4, 4]`、末项 `[4, 4, 16, 16]`、单项 `[16, 16, 16, 16]` 及 2 dp 间距），并在交互行之间接入统一的纵向漫游焦点（`Up`/`Down`/`Home`/`End`，跳过禁用行），同时保留 `SliderTile` 内嵌滑块的原生键盘调节。
 
 ### 拖放目标
 
@@ -254,9 +262,9 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `Dialog` | 结构化基本对话框、自适应全屏任务对话框、自定义内容的模态外壳，以及按需打开的原生对话框窗口。 | [对话框](https://m3.material.io/components/dialogs/overview) |
 | `Sheet` | 标准和模态底部面板，以及在逻辑起始侧或末尾侧停靠或覆盖的侧面板。 | [底部面板](https://m3.material.io/components/bottom-sheets/overview) · [侧面板](https://m3.material.io/components/side-sheets/overview) |
 
-`TextField` 为调用方持有的 Base 编辑器提供外观。可使用 `TextField::filled(id, label, &state)` 或 `TextField::outlined(id, label, &state)` 作为 `TextField::new(id, label, &state).variant(...)` 的快捷构造器。使用 `label_content`、`placeholder_content` 和 `supporting_content` 时，纯文本分别提供无障碍名称、提示和说明。首尾元素与紧邻输入值的前后缀分开。标签收起时显示前后缀，且前后缀不进入存储值。Filled 默认使用内部标签，Outlined 默认使用缺口标签。可通过 Above 将标签放在容器上方，也可设置水平对齐方式，让内部或缺口标签始终保持收起。字符计数按 `value()` 的 Unicode 标量值统计，输入长度仍由编辑器处理。可独立于窗口主题设置实例配色、容器形状、内容内边距和输入文字样式。`on_text_layout` 在帧结束后报告编辑器与文本的布局边界和换行后的行数。通过 `interaction_source` 共享悬停、键盘焦点和禁用状态的观测结果。Base 实体继续管理编辑、选区、校验、滚动和输入法组合。
+`TextField` 为调用方持有的 Base 编辑器提供外观。可使用 `TextField::filled(id, label, &state)` 或 `TextField::outlined(id, label, &state)` 作为 `TextField::new(id, label, &state).variant(...)` 的快捷构造器。使用 `label_content`、`placeholder_content` 和 `supporting_content` 时，纯文本分别提供无障碍名称、提示和说明。首尾元素与紧邻输入值的前后缀分开。标签收起时显示前后缀，且前后缀不进入存储值。设置 `.clearable(true)`（可用 `.clear_label(label)` 覆盖默认标签 `"Clear"`）后，在字段可编辑且内容非空时自动显示尾部清除按钮（`IconName::Close`），激活后通过 Base `replace_all("")` 清空并保持编辑器焦点；同时配置 `.clearable(true)` 与自定义 `.trailing(...)`（或 `.visibility_toggle(...)`）时，内置控件按逻辑顺序排在自定义尾元素之前。Filled 默认使用内部标签，Outlined 默认使用缺口标签。可通过 Above 将标签放在容器上方，也可设置水平对齐方式，让内部或缺口标签始终保持收起。字符计数按 `value()` 的 Unicode 标量值统计，输入长度仍由编辑器处理。可独立于窗口主题设置实例配色、容器形状、内容内边距和输入文字样式。`on_text_layout` 在帧结束后报告编辑器与文本的布局边界和换行后的行数。通过 `interaction_source` 共享悬停、键盘焦点和禁用状态的观测结果。Base 实体继续管理编辑、选区、校验、滚动和输入法组合。
 
-安全字段请使用以 `.masked(true)` 初始化的独立 `TextFieldState` 并搭配 `TextField::secure` 渲染。通过 `.obfuscation_mode(TextFieldObfuscationMode::Hidden | Visible)`（默认 `Hidden`）控制显隐，例如配合尾部切换按钮使用。`Hidden` 使用 Base 固定的圆点（`•`）遮罩，禁用复制与剪切，并隐藏无障碍值、无障碍 `SetValue` 与字符计数；`Visible` 切换为普通明文输入，与桌面和 Web 原生密码切换惯例保持一致。作为桌面适配边界，不提供自定义掩码字符及移动端短暂显露末字符的计时模式。
+安全字段请使用以 `.masked(true)` 初始化的独立 `TextFieldState` 并搭配 `TextField::secure` 渲染。可通过 `.obfuscation_mode(TextFieldObfuscationMode::Hidden | Visible)`（默认 `Hidden`）手动控制显隐，或调用 `.visibility_toggle(visible, on_toggle)`（可用 `.visibility_labels(show, hide)` 覆盖默认的 `"Show password"` / `"Hide password"`）自动同步掩码模式并渲染使用内置 `IconName::Visibility` 与 `IconName::VisibilityOff` 符号的尾部显隐切换按钮。`Hidden` 使用 Base 固定的圆点（`•`）遮罩，禁用复制与剪切，并隐藏无障碍值、无障碍 `SetValue` 与字符计数；`Visible` 切换为普通明文输入，与桌面和 Web 原生密码切换惯例保持一致。作为桌面适配边界，不提供自定义掩码字符及移动端短暂显露末字符的计时模式。
 
 如需在提交前拦截非法输入，使用 Base 的 `TextFieldState::validate` 或 `pattern`，覆盖键入、粘贴、输入法组合和无障碍 `SetValue`。结构化格式与数字分组使用 `TextFieldMaskPattern` 配合 `TextFieldState::mask_pattern` 和 `unmask_value()`；固定纯展示前后缀使用 `prefix` 和 `suffix`。任意内容规范化（如大小写转换）在应用的 `TextFieldEvent::Change` 或 `Blur` 处理中完成；提交后的改写会形成独立的撤销步骤，不再额外维护独立的仅显示偏移映射层。
 

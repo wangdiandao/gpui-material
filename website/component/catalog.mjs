@@ -11,8 +11,8 @@ export const components = [
       zh: "用有文本标签的按钮执行命令。",
     },
     usage: {
-      en: "Use on_activate for pointer, keyboard, and accessibility activation. Filled is the default variant. Set disabled when the command is unavailable.",
-      zh: "用 on_activate 统一处理指针、键盘和无障碍激活。默认是 Filled。命令不可用时设置 disabled。",
+      en: "Use on_activate for pointer, keyboard, and accessibility activation. Filled is the default variant. Set disabled when the command is unavailable, or loading(true) to show an inline circular spinner while suppressing activation and preserving width.",
+      zh: "用 on_activate 统一处理指针、键盘和无障碍激活。默认是 Filled。命令不可用时设置 disabled，忙碌中设置 loading(true) 在保留宽度的同时显示内联环形指示器并屏蔽激活。",
     },
     imports: "use gpui_material::Button;",
     code: `Button::new("save", "Save")
@@ -296,8 +296,8 @@ use gpui_material::{Card, CardVariant, Text};`,
       zh: "展示带标题、辅助文本和操作的列表行。",
     },
     usage: {
-      en: "Build rows with unique, stable IDs. Use ListItem::on_activate for a row action. Each row can provide its own leading and trailing elements.",
-      zh: "给每行提供唯一且稳定的 ID。用 ListItem::on_activate 处理行操作，每行都可以添加前置和尾部元素。",
+      en: "Build rows with unique, stable IDs. Use ListItem::on_activate for a row action, or group ListItem, SwitchTile, CheckboxTile, RadioTile, SliderTile, and ChoiceTile inside ListSection::segmented for M3E grouped corners and unified vertical roving focus.",
+      zh: "给每行提供唯一且稳定的 ID。用 ListItem::on_activate 处理行操作，或在 ListSection::segmented 中混排 ListItem、SwitchTile、CheckboxTile、RadioTile、SliderTile 与 ChoiceTile 以获得 M3E 分组圆角和统一纵向漫游焦点。",
     },
     imports: "use gpui_material::{List, ListItem};",
     code: `List::new("projects").items([
@@ -412,8 +412,8 @@ Scaffold::new("project", content).snackbar(self.host.clone())`,
       zh: "编辑单行、多行或带掩码的文本字段。",
     },
     usage: {
-      en: "Create and retain a TextFieldState entity. Subscribe to TextFieldEvent on it to react to edits, and use validate or TextFieldMaskPattern on the state for filtering and structured formatting. Use TextAreaState with TextField::multiline, and a dedicated masked state with TextField::secure and TextFieldObfuscationMode.",
-      zh: "创建并保留 TextFieldState 实体，通过订阅 TextFieldEvent 响应编辑，并在状态上使用 validate 或 TextFieldMaskPattern 进行过滤和结构化格式化。多行输入使用 TextAreaState 和 TextField::multiline，密码输入使用独立的掩码状态搭配 TextField::secure 和 TextFieldObfuscationMode。",
+      en: "Create and retain a TextFieldState entity. Subscribe to TextFieldEvent on it to react to edits, use clearable(true) for a built-in trailing clear button, and use validate or TextFieldMaskPattern on the state for filtering and structured formatting. Use TextAreaState with TextField::multiline, and a dedicated masked state with TextField::secure and visibility_toggle or TextFieldObfuscationMode.",
+      zh: "创建并保留 TextFieldState 实体，通过订阅 TextFieldEvent 响应编辑，使用 clearable(true) 自动添加尾部清除按钮，并在状态上使用 validate 或 TextFieldMaskPattern 进行过滤和结构化格式化。多行输入使用 TextAreaState 和 TextField::multiline，密码输入使用独立的掩码状态搭配 TextField::secure 与 visibility_toggle 或 TextFieldObfuscationMode。",
     },
     imports: "use gpui_material::{TextField, TextFieldState, TextFieldVariant};",
     code: `// In the owning view's constructor

@@ -50,6 +50,7 @@ pub(crate) struct ActionExamples {
     interactions: Option<Entity<InteractionSource>>,
     observed_toggle: bool,
     custom_icon_selected: bool,
+    submitting: bool,
 }
 
 impl ActionExamples {
@@ -149,6 +150,48 @@ impl ActionExamples {
                     .aria_label(count.clone())
                     .test_support()
                     .child(Text::new(count).role(TypeRole::BodySmall)),
+            )
+    }
+
+    fn button_loading_section(&self, cx: &mut Context<Self>) -> crate::story::StorySection {
+        let view = cx.entity();
+        section("Loading state")
+            .description(
+                "Controlled `.loading(bool)` suppresses activation, preserves resting width, and renders an inline circular spinner.",
+            )
+            .child(
+                row()
+                    .child(
+                        ToggleButton::new("toggle-loading", "Simulate loading", self.submitting)
+                            .variant(ToggleButtonVariant::Outlined)
+                            .on_change(move |next, _, cx| {
+                                view.update(cx, |this, cx| {
+                                    this.submitting = next;
+                                    cx.notify();
+                                });
+                            }),
+                    )
+                    .child(
+                        Button::filled("loading-save", "Save changes")
+                            .loading(self.submitting)
+                            .on_activate(|_, _| {}),
+                    )
+                    .child(
+                        Button::tonal("loading-sync", "Sync workspace")
+                            .leading_icon(Icon::new(IconName::Add))
+                            .loading(self.submitting)
+                            .on_activate(|_, _| {}),
+                    )
+                    .child(
+                        Button::outlined("loading-export", "Export report")
+                            .loading(self.submitting)
+                            .on_activate(|_, _| {}),
+                    )
+                    .child(
+                        IconButton::filled("loading-icon", "Refresh", Icon::new(IconName::Add))
+                            .loading(self.submitting)
+                            .on_activate(|_, _| {}),
+                    ),
             )
     }
 
@@ -622,6 +665,10 @@ impl Render for ActionExamples {
                     .then(|| self.disabled_icon_buttons_section()),
             )
             .children(interaction_sample)
+            .children(
+                self.shows(Story::Button)
+                    .then(|| self.button_loading_section(cx)),
+            )
             .children(
                 self.shows(Story::Button)
                     .then(|| self.button_tones_section()),

@@ -184,6 +184,7 @@ fn render_surface(
     leading: Option<AnyElement>,
     content: Div,
     trailing: Option<AnyElement>,
+    footer: Option<AnyElement>,
     long_press: Option<&SecondaryAction>,
     long_press_button: Option<ElementId>,
     colors: &RowColors,
@@ -216,17 +217,45 @@ fn render_surface(
     } else {
         alignment
     };
+    fn align_row<E: Styled>(row: E, alignment: ListItemAlignment) -> E {
+        match alignment {
+            ListItemAlignment::Start => row.items_start(),
+            ListItemAlignment::End => row.items_end(),
+            _ => row.items_center(),
+        }
+    }
+    if let Some(footer) = footer {
+        let header = align_row(div().flex().w_full().gap(px(12.)), alignment)
+            .when(layout.direction == Direction::Rtl, Styled::flex_row_reverse)
+            .children(leading.map(|element| inherit_color("leading-slot", element, colors.leading)))
+            .child(content)
+            .children(
+                trailing.map(|element| inherit_color("trailing-slot", element, colors.trailing)),
+            )
+            .children(press_button.map(|button| div().id("long-press-slot").child(button)));
+        return div()
+            .id("list-surface")
+            .relative()
+            .min_h(px(height))
+            .w_full()
+            .flex()
+            .flex_col()
+            .gap(px(6.))
+            .pl(left)
+            .pr(right)
+            .pt(finite_length(padding.top))
+            .pb(finite_length(padding.bottom))
+            .child(visual)
+            .child(header)
+            .child(div().id("footer-slot").w_full().child(footer));
+    }
     div()
         .id("list-surface")
         .relative()
         .min_h(px(height))
         .w_full()
         .flex()
-        .map(|row| match alignment {
-            ListItemAlignment::Start => row.items_start(),
-            ListItemAlignment::End => row.items_end(),
-            _ => row.items_center(),
-        })
+        .map(|row| align_row(row, alignment))
         .gap(px(12.))
         .pl(left)
         .pr(right)
@@ -279,6 +308,7 @@ fn wrap_interactive_row(
     dragged: bool,
     checked: Option<Toggled>,
     checked_role: Role,
+    invalid: bool,
     expanded: Option<bool>,
     menu_a11y_toggle: Option<Activate>,
     ring: Hsla,
@@ -300,6 +330,12 @@ fn wrap_interactive_row(
         .selected(selected)
         .when_some(checked, |control, checked| {
             control.role(checked_role).aria_toggled(checked)
+        })
+        .when(invalid, |control| {
+            control.a11y_synthetic_children(|tree| {
+                tree.parent_node()
+                    .set_invalid(gpui::accesskit::Invalid::True);
+            })
         })
         .when_some(expanded, |control, expanded| {
             control.aria_expanded(expanded)
@@ -388,6 +424,7 @@ fn wrap_static_row(
     disabled: bool,
     checked: Option<Toggled>,
     checked_role: Role,
+    invalid: bool,
     expanded: Option<bool>,
 ) -> AnyElement {
     surface
@@ -399,8 +436,18 @@ fn wrap_static_row(
                 .aria_expanded(expanded)
         })
         .when(
-            disabled && (checked.is_some() || expanded.is_some()),
-            |row| row.a11y_synthetic_children(|tree| tree.parent_node().set_disabled()),
+            invalid || (disabled && (checked.is_some() || expanded.is_some())),
+            |row| {
+                row.a11y_synthetic_children(move |tree| {
+                    let node = tree.parent_node();
+                    if disabled && (checked.is_some() || expanded.is_some()) {
+                        node.set_disabled();
+                    }
+                    if invalid {
+                        node.set_invalid(gpui::accesskit::Invalid::True);
+                    }
+                })
+            },
         )
         .into_any_element()
 }
@@ -475,8 +522,10 @@ impl ListItem {
             (theme.layout, theme.motion)
         };
         let reduced = cx.reduce_motion();
-        let selected =
-            self.selected || (self.checked == Some(true) && self.checked_role != Role::Switch);
+        let selected = self.selected
+            || (self.checked == Some(Toggled::True)
+                && self.checked_selects_row
+                && self.checked_role != Role::Switch);
         let shape = self
             .shapes
             .resolve(resting, selected_shape, selected, interaction);
@@ -597,6 +646,7 @@ impl ListItem {
             self.leading,
             content,
             self.trailing,
+            self.footer,
             secondary_action.as_ref(),
             self.long_press_button,
             &colors,
@@ -612,13 +662,7 @@ impl ListItem {
         let (menu_open, menu_a11y_toggle): (Option<bool>, Option<Activate>) = (None, None);
         let expanded =
             menu_open.or_else(|| self.expansion.as_ref().map(|expansion| expansion.expanded));
-        let checked = self.checked.map(|checked| {
-            if checked {
-                Toggled::True
-            } else {
-                Toggled::False
-            }
-        });
+        let checked = self.checked;
         let expanded_content =
             render_expanded_content(self.expansion, interactive, enabled, &focus, window, cx);
         let row = if interactive {
@@ -633,6 +677,7 @@ impl ListItem {
                 dragged,
                 checked,
                 self.checked_role,
+                self.invalid,
                 expanded,
                 menu_a11y_toggle,
                 ring,
@@ -645,7 +690,14 @@ impl ListItem {
                 cx,
             )
         } else {
-            wrap_static_row(surface, self.disabled, checked, self.checked_role, expanded)
+            wrap_static_row(
+                surface,
+                self.disabled,
+                checked,
+                self.checked_role,
+                self.invalid,
+                expanded,
+            )
         };
         let id = self.id;
         let row = div()

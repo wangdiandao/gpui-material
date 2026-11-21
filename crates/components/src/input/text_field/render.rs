@@ -1,10 +1,10 @@
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{
-    AccessibleAction, AnyElement, App, BorderStyle, Bounds, ContentMask, Corners, Edges, ElementId,
-    FocusHandle, Font, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement, Pixels,
-    RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, TextAlign, Window, canvas,
-    div, point, prelude::FluentBuilder, px, quad,
+    AccessibleAction, AnyElement, App, BorderStyle, Bounds, ClickEvent, ContentMask, Corners,
+    Edges, ElementId, FocusHandle, Font, Hsla, InteractiveElement, IntoElement, MouseButton,
+    ParentElement, Pixels, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
+    TextAlign, Window, canvas, div, point, prelude::FluentBuilder, px, quad,
 };
 use gpui_base::{
     ScrollbarAxis, TestSupportExt,
@@ -25,7 +25,7 @@ use gpui_material_theme::{
 use super::{
     Editor, FieldDescription, OnTextLayout, TextField, TextFieldColorOverrides, TextFieldColors,
     TextFieldLabelAlignment, TextFieldLabelPosition, TextFieldLayout, TextFieldObfuscationMode,
-    TextFieldVariant,
+    TextFieldVariant, VisibilityToggle,
 };
 
 struct FieldAnimation {
@@ -762,6 +762,148 @@ fn build_editor_row(
 }
 
 #[allow(clippy::too_many_arguments)]
+fn build_trailing_controls(
+    id: &ElementId,
+    editor: &Editor,
+    editor_focus: &FocusHandle,
+    clearable: bool,
+    clear_label: Option<SharedString>,
+    visibility_toggle: Option<VisibilityToggle>,
+    visibility_labels: Option<(SharedString, SharedString)>,
+    custom_trailing: Option<AnyElement>,
+    is_secure: bool,
+    has_text: bool,
+    disabled: bool,
+    readonly: bool,
+    rtl: bool,
+    tint: Hsla,
+    focus_ring: Hsla,
+    window: &mut Window,
+    cx: &mut App,
+) -> Option<AnyElement> {
+    let mut items: Vec<AnyElement> = Vec::new();
+
+    if clearable && !disabled && !readonly && has_text {
+        let clear_focus = window
+            .use_keyed_state((id.clone(), "clear-button-focus"), cx, |_, cx| {
+                cx.focus_handle()
+            })
+            .read(cx)
+            .clone();
+        let label = clear_label.unwrap_or_else(|| "Clear".into());
+        let editor_click = editor.clone();
+        let editor_a11y = editor.clone();
+        let focus_click = editor_focus.clone();
+        let focus_a11y = editor_focus.clone();
+        let clear_btn = gpui_base::Button::new((id.clone(), "clear-button"))
+            .track_focus(&clear_focus)
+            .accessibility_label(label)
+            .size(px(36.))
+            .flex_none()
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded_full()
+            .text_color(tint)
+            .border_2()
+            .border_color(gpui::transparent_black())
+            .hover(move |style| style.bg(tint.opacity(0.08)))
+            .active(move |style| style.bg(tint.opacity(0.12)))
+            .focus_visible(move |style| style.border_color(focus_ring))
+            .on_click(move |_, window, cx| {
+                cx.stop_propagation();
+                editor_click.replace_all(SharedString::default(), window, cx);
+                focus_click.focus(window, cx);
+            })
+            .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
+                editor_a11y.replace_all(SharedString::default(), window, cx);
+                focus_a11y.focus(window, cx);
+            })
+            .child(crate::Icon::new(crate::IconName::Close).size(px(20.)));
+        items.push(clear_btn.into_any_element());
+    }
+
+    if is_secure && let Some(toggle) = visibility_toggle {
+        let toggle_focus = window
+            .use_keyed_state((id.clone(), "visibility-toggle-focus"), cx, |_, cx| {
+                cx.focus_handle()
+            })
+            .read(cx)
+            .clone();
+        let (show_label, hide_label) =
+            visibility_labels.unwrap_or_else(|| ("Show password".into(), "Hide password".into()));
+        let label = if toggle.visible {
+            hide_label
+        } else {
+            show_label
+        };
+        let icon = if toggle.visible {
+            crate::IconName::VisibilityOff
+        } else {
+            crate::IconName::Visibility
+        };
+        let next_visible = !toggle.visible;
+        let mut button = gpui_base::Button::new((id.clone(), "visibility-toggle"))
+            .track_focus(&toggle_focus)
+            .disabled(disabled)
+            .accessibility_label(label)
+            .size(px(36.))
+            .flex_none()
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded_full()
+            .text_color(tint)
+            .border_2()
+            .border_color(gpui::transparent_black())
+            .focus_visible(move |style| style.border_color(focus_ring))
+            .child(crate::Icon::new(icon).size(px(20.)));
+        if !disabled {
+            let on_toggle = toggle.on_toggle;
+            let bound = Rc::new(ThemeScope::bind_action(
+                move |window, cx| on_toggle(next_visible, window, cx),
+                window,
+                cx,
+            ));
+            let invoke_click = bound.clone();
+            let focus_click = editor_focus.clone();
+            button = button
+                .hover(move |style| style.bg(tint.opacity(0.08)))
+                .active(move |style| style.bg(tint.opacity(0.12)))
+                .on_click(move |event, window, cx| {
+                    cx.stop_propagation();
+                    invoke_click(window, cx);
+                    if matches!(event, ClickEvent::Mouse(_)) {
+                        focus_click.focus(window, cx);
+                    }
+                })
+                .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
+                    bound(window, cx);
+                });
+        }
+        items.push(button.into_any_element());
+    }
+
+    if let Some(custom) = custom_trailing {
+        items.push(custom);
+    }
+
+    match items.len() {
+        0 => None,
+        1 => items.into_iter().next(),
+        _ => Some(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(4.))
+                .when(rtl, Styled::flex_row_reverse)
+                .children(items)
+                .into_any_element(),
+        ),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn build_supporting_row(
     support: Option<FieldDescription>,
     count: Option<SharedString>,
@@ -904,6 +1046,8 @@ impl RenderOnce for TextField {
         };
         let layout_probe =
             build_layout_probe(&self.id, &self.editor, self.on_text_layout, window, cx);
+        let editor_for_clear = self.editor.clone();
+        let is_secure = matches!(self.editor, Editor::Secure(_));
         let configured = configure_and_build_editor(
             &self.id,
             self.editor,
@@ -973,6 +1117,27 @@ impl RenderOnce for TextField {
             palette.outline_tint,
             cutout.clone(),
         );
+        let trailing_tint = palette.state_colors.trailing.unwrap_or(palette.secondary);
+        let focus_ring = color(theme.colors.color(ColorRole::Secondary));
+        let trailing = build_trailing_controls(
+            &self.id,
+            &editor_for_clear,
+            &focus,
+            self.clearable,
+            self.clear_label,
+            self.visibility_toggle,
+            self.visibility_labels,
+            self.trailing,
+            is_secure,
+            has_text,
+            disabled,
+            readonly,
+            rtl,
+            trailing_tint,
+            focus_ring,
+            window,
+            cx,
+        );
         let (above_label, attached_label) = build_label(
             LabelConfig {
                 label: label.clone(),
@@ -983,7 +1148,7 @@ impl RenderOnce for TextField {
                 disabled,
                 rtl,
                 has_leading: self.leading.is_some(),
-                has_trailing: self.trailing.is_some(),
+                has_trailing: trailing.is_some(),
                 floating: animation.floating,
                 expanded_alignment: self.expanded_alignment,
                 minimized_alignment: self.minimized_alignment,
@@ -1002,7 +1167,7 @@ impl RenderOnce for TextField {
                 placeholder: self.placeholder,
                 layout_probe,
                 suffix: self.suffix,
-                trailing: self.trailing,
+                trailing,
             },
             font.clone(),
             type_style,

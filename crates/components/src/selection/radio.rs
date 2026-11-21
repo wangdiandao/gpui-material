@@ -5,7 +5,7 @@ use gpui::{
     IntoElement, ParentElement, RenderOnce, SharedString, StatefulInteractiveElement, Styled,
     Window, div, prelude::FluentBuilder, px,
 };
-use gpui_base::{Radio as BaseRadio, RadioGroup as BaseRadioGroup};
+use gpui_base::{Radio as BaseRadio, RadioGroup as BaseRadioGroup, TestSupportExt};
 use gpui_material_foundation::{
     InteractionSource, ThemeScope, animate, current_material_theme, move_roving_focus,
 };
@@ -49,6 +49,7 @@ pub struct Radio {
     colors: RadioColors,
     focus: Option<FocusHandle>,
     interaction_source: Option<Entity<InteractionSource>>,
+    decorative: bool,
 }
 
 impl Radio {
@@ -62,7 +63,14 @@ impl Radio {
             colors: RadioColors::default(),
             focus: None,
             interaction_source: None,
+            decorative: false,
         }
+    }
+
+    #[cfg(feature = "surfaces")]
+    pub(crate) fn decorative(mut self, decorative: bool) -> Self {
+        self.decorative = decorative;
+        self
     }
 
     pub fn selected(mut self, selected: bool) -> Self {
@@ -99,14 +107,7 @@ impl Radio {
         self
     }
 
-    fn render_control(
-        self,
-        focus: Option<FocusHandle>,
-        position: Option<(usize, usize)>,
-        tab_stop: bool,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> BaseRadio {
+    fn render_indicator(&self, window: &mut Window, cx: &mut App) -> (Hsla, gpui::Div) {
         let motion = current_material_theme(window, cx).motion;
         let reduced = self.disabled || cx.reduce_motion();
         let dot = animate(
@@ -139,6 +140,18 @@ impl Radio {
             .items_center()
             .justify_center()
             .child(div().size(px(10. * dot)).rounded_full().bg(accent));
+        (accent, indicator)
+    }
+
+    fn render_control(
+        self,
+        focus: Option<FocusHandle>,
+        position: Option<(usize, usize)>,
+        tab_stop: bool,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> BaseRadio {
+        let (accent, indicator) = self.render_indicator(window, cx);
         let direction = current_material_theme(window, cx).layout.direction;
         let ripple = ripple_state(&self.id, !self.disabled, window, cx);
         let focus = focus.or(self.focus).unwrap_or_else(|| {
@@ -214,7 +227,21 @@ impl Radio {
 
 impl RenderOnce for Radio {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        if self.decorative {
+            let (_, indicator) = self.render_indicator(window, cx);
+            return div()
+                .id(self.id)
+                .test_support()
+                .flex_none()
+                .size(px(24.))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(indicator)
+                .into_any_element();
+        }
         self.render_control(None, None, true, window, cx)
+            .into_any_element()
     }
 }
 

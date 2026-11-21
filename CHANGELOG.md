@@ -27,12 +27,15 @@ See [versioning and releases](docs/release.md) for the release process.
 - Add `Stepper` (`navigation` feature) with horizontal and vertical orientations, `StepStatus`, `.active_step`, `.non_linear`, RTL mirroring, and roving keyboard navigation.
 - Add standalone `NavigationDrawer` (`navigation` feature) with Standard and Modal (side-sheet) modes, sections, headers, dividers, 56 dp pill indicators, and roving vertical navigation.
 - Add `BottomAppBar` (`navigation` feature) with 80 dp Material styling, action and trailing FAB slots, `Scaffold::bottom_bar` compatibility, and `AppBarScrollBehavior` / `AppBarScrollState` hide-on-scroll support.
-- Add settings convenience tiles `SwitchTile` (`surfaces` + `selection`) and `ChoiceTile` / `ChoiceOption` (`surfaces` + `feedback`) with single-stop accessibility, anchored selection menus, and focus restoration.
+- Add settings convenience tiles `SwitchTile`, `CheckboxTile`, `RadioTile`, `SliderTile` (`surfaces` + `selection`), `ChoiceTile` / `ChoiceOption` (`surfaces` + `feedback`), and `ListSection` / `ListSectionItem` (`surfaces`) with optional `LabelMedium` section headings, true M3E Segmented grouped corner geometry (`16/4`, 2 dp gap), and unified vertical roving focus.
+- Add `Button::loading(bool)` and `IconButton::loading(bool)` (`actions` feature, no dependency on `feedback`) with busy accessibility semantics, activation suppression, resting-width preservation, and an inline Material circular spinner respecting `is_bounds_visible` and `reduced_motion`.
+- Bundle official Material Symbols Outlined `IconName::Visibility` and `IconName::VisibilityOff` (both fill variants) from the pinned upstream revision.
 - Fix `Sheet::expandable` drag handle creating an unlabeled keyboard tab stop, delay `Tooltip` motion sampling until its trigger anchor is measured, prevent `SnackbarHost` first-frame zero-width layout and bound exiting queue growth under reduced motion, and defer render-time transition notifications across `NavigationRail`, `AdaptiveNavigation`, and `AdaptivePaneState`.
 
 ### Inputs
 
 - Add `TextFieldObfuscationMode` (`Hidden`, `Visible`) and `TextField::obfuscation_mode(...)` for `TextField::secure` visibility toggles, re-export `TextFieldMaskPattern` through the `inputs` feature facade, and add Gallery examples and tests covering password visibility toggling, structured mask patterns, and pre-commit validation.
+- Add `TextField::clearable(bool)` (`.clear_label(...)`) and `TextField::visibility_toggle(visible, on_toggle)` (`.visibility_labels(show, hide)`) inside the `inputs` feature without adding a dependency on `actions`, automatically syncing secure obfuscation mode and preserving focus.
 - Add `ExposedDropdown::with_shared_options` for `O(1)` `Rc<[DropdownOption]>` option sharing, accelerate dropdown filtering with zero-allocation ASCII case-insensitive matching and cached active indices, reserve trailing inset for `TextField` resting labels when `.trailing(...)` is present, and cache per-frame character counts.
 
 ### Performance, theme, foundation, and symbols

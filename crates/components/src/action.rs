@@ -81,6 +81,7 @@ pub(crate) struct ActionLayout {
     pub(crate) tab_stop: bool,
     pub(crate) semantic_only: bool,
     pub(crate) decorative: bool,
+    pub(crate) loading: bool,
     pub(crate) appearance: ButtonStyle,
     pub(crate) presentation_selected: Option<bool>,
     pub(crate) dragged: bool,
@@ -157,27 +158,6 @@ impl ActionControl {
         }
     }
 
-    pub(crate) fn render_scaled(
-        self,
-        scale: f32,
-        interaction_source: Option<&Entity<InteractionSource>>,
-        appearance: ButtonStyle,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> AnyElement {
-        self.render_layout(
-            scale,
-            ActionLayout {
-                tab_stop: true,
-                appearance,
-                ..Default::default()
-            },
-            interaction_source,
-            window,
-            cx,
-        )
-    }
-
     pub(crate) fn render_layout(
         self,
         scale: f32,
@@ -238,12 +218,13 @@ impl ActionControl {
             .width
             .unwrap_or_else(|| px(density.interactive_size(style.min_width.max(1.)) * scale));
 
-        let enabled = !self.disabled;
+        let interactive = !self.disabled && !layout.loading;
         let interaction = record_interaction(
             &feedback,
             &focus,
             tracker,
-            enabled,
+            self.disabled,
+            layout.loading,
             layout.dragged,
             layout.decorative,
             window,
@@ -255,7 +236,7 @@ impl ActionControl {
             layout,
             interaction,
             selected,
-            enabled,
+            interactive,
             scale,
             motion,
             effects,
@@ -396,21 +377,23 @@ fn record_interaction(
     feedback: &RefCell<FeedbackState>,
     focus: &FocusHandle,
     tracker: Option<InteractionTracker>,
-    enabled: bool,
+    disabled: bool,
+    loading: bool,
     dragged: bool,
     decorative: bool,
     window: &Window,
     cx: &mut App,
 ) -> InteractionState {
+    let interactive = !disabled && !loading;
     let mut state = feedback.borrow_mut();
-    state.cancel_unavailable(enabled, window);
-    state.set_dragged(enabled && dragged);
-    let interaction = if decorative {
+    state.cancel_unavailable(interactive, window);
+    state.set_dragged(interactive && dragged);
+    let interaction = if decorative || loading {
         let mut interaction = InteractionState::default();
-        interaction.disabled = !enabled;
+        interaction.disabled = disabled;
         interaction
     } else {
-        state.interaction(enabled, focus, window)
+        state.interaction(interactive, focus, window)
     };
     state.track_snapshot(interaction, focus, tracker, cx);
     interaction
@@ -604,14 +587,19 @@ fn render_invoke_control(
     window: &Window,
     cx: &App,
 ) -> AnyElement {
-    let enabled = !disabled;
+    let interactive = !disabled && !layout.loading;
     let control = Button::new(id)
         .track_focus(&focus)
         .tab_stop(layout.tab_stop)
         .disabled(disabled)
-        .accessibility_label(label);
+        .accessibility_label(label)
+        .when(layout.loading, |control| {
+            control.a11y_synthetic_children(|tree| {
+                tree.parent_node().set_busy();
+            })
+        });
     let control = match on_activate {
-        Some(on_activate) if enabled => {
+        Some(on_activate) if interactive => {
             let on_activate = Rc::new(ThemeScope::bind_action(
                 move |window, cx| on_activate(window, cx),
                 window,
@@ -644,7 +632,7 @@ fn render_invoke_control(
         foreground,
         target_height,
         width,
-        enabled,
+        interactive,
     )
 }
 

@@ -106,10 +106,7 @@ mod drag_handle;
 mod drop_target;
 #[cfg(feature = "surfaces")]
 mod list;
-#[cfg(any(
-    all(feature = "surfaces", feature = "selection"),
-    all(feature = "surfaces", feature = "feedback")
-))]
+#[cfg(feature = "surfaces")]
 mod settings_tiles;
 #[cfg(feature = "surfaces")]
 mod swipe_to_dismiss;
@@ -126,9 +123,11 @@ pub use list::{
     ListItemShapes, ListItemStateColors, ListVariant,
 };
 #[cfg(all(feature = "surfaces", feature = "selection"))]
-pub use settings_tiles::SwitchTile;
+pub use settings_tiles::{CheckboxTile, RadioTile, SliderTile, SwitchTile};
 #[cfg(all(feature = "surfaces", feature = "feedback"))]
 pub use settings_tiles::{ChoiceOption, ChoiceTile};
+#[cfg(feature = "surfaces")]
+pub use settings_tiles::{ListSection, ListSectionItem};
 #[cfg(feature = "surfaces")]
 pub use swipe_to_dismiss::{SwipeToDismiss, SwipeToDismissState, SwipeToDismissValue};
 

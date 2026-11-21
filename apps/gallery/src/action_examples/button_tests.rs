@@ -1017,8 +1017,10 @@ fn material_buttons_activate_once_and_toggles_update_the_owner(cx: &mut TestAppC
         window.refresh();
         window.draw(cx).clear(cx);
     };
+    cx.update_window(handle.into(), |_, window, _| window.activate_window())
+        .unwrap();
+    cx.run_until_parked();
     cx.update_window(handle.into(), |_, window, cx| {
-        window.activate_window();
         draw(window, cx);
         for (id, expected, destination) in [
             (ElementId::from(("action-variant", 0_usize)), 1, None),
@@ -1171,6 +1173,235 @@ fn button_tone_applies_semantic_palettes_and_yields_to_explicit_colors(cx: &mut 
             find(window, &[], &"danger-icon".into()).unwrap().label(),
             Some("Remove")
         );
+    })
+    .unwrap();
+}
+
+#[gpui::test]
+fn button_loading_suppresses_activation_preserves_width_and_respects_motion_and_visibility(
+    cx: &mut TestAppContext,
+) {
+    struct LoadingView {
+        loading: bool,
+        disabled: bool,
+        offscreen: bool,
+        button_clicks: usize,
+        icon_clicks: usize,
+    }
+
+    impl Render for LoadingView {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let v1 = cx.entity();
+            let v2 = cx.entity();
+            let content = row()
+                .child(
+                    Button::filled("save-btn", "Save changes")
+                        .loading(self.loading)
+                        .disabled(self.disabled)
+                        .on_activate(move |_, cx| {
+                            v1.update(cx, |this, _| this.button_clicks += 1);
+                        }),
+                )
+                .child(
+                    IconButton::filled("sync-btn", "Sync", Icon::new(IconName::Add))
+                        .loading(self.loading)
+                        .disabled(self.disabled)
+                        .on_activate(move |_, cx| {
+                            v2.update(cx, |this, _| this.icon_clicks += 1);
+                        }),
+                );
+            if self.offscreen {
+                // Clip completely off-screen inside a bounded container.
+                div()
+                    .w(px(200.))
+                    .h(px(60.))
+                    .overflow_hidden()
+                    .child(div().mt(px(400.)).child(content))
+            } else {
+                div().p_4().child(content)
+            }
+        }
+    }
+
+    let mut entity = None;
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            let e = cx.new(|_| LoadingView {
+                loading: false,
+                disabled: false,
+                offscreen: false,
+                button_clicks: 0,
+                icon_clicks: 0,
+            });
+            entity = Some(e.clone());
+            e
+        })
+        .unwrap()
+    });
+    let view = entity.unwrap();
+
+    let draw = |window: &mut Window, cx: &mut App| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+    };
+
+    cx.update_window(handle.into(), |_, window, _| window.activate_window())
+        .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle.into(), |_, window, cx| {
+        draw(window, cx);
+
+        let resting_bounds = find(window, &[], &"save-btn".into()).unwrap().bounds();
+        let icon_resting_bounds = find(window, &[], &"sync-btn".into()).unwrap().bounds();
+        let primary = color(
+            window_material_theme(window, cx)
+                .colors
+                .color(ColorRole::Primary),
+        );
+
+        // Switch to loading: resting width must stay identical and spinner must render.
+        view.update(cx, |this, cx| {
+            this.loading = true;
+            cx.notify();
+        });
+        draw(window, cx);
+
+        let loading_bounds = find(window, &[], &"save-btn".into()).unwrap().bounds();
+        let icon_loading_bounds = find(window, &[], &"sync-btn".into()).unwrap().bounds();
+        assert_eq!(loading_bounds.size.width, resting_bounds.size.width);
+        assert_eq!(
+            icon_loading_bounds.size.width,
+            icon_resting_bounds.size.width
+        );
+
+        let btn_spinner: ElementId = (ElementId::from("save-btn"), "loading-spinner").into();
+        let icon_spinner: ElementId = (ElementId::from("sync-btn"), "loading-spinner").into();
+        assert!(find(window, &[], &btn_spinner).is_some());
+        assert!(find(window, &[], &icon_spinner).is_some());
+
+        // Active palette is preserved while loading without disabled.
+        assert!(
+            window
+                .painted_quads()
+                .iter()
+                .any(|quad| quad.background == primary.into()),
+            "loading button must preserve active container color"
+        );
+
+        // Pointer click and Space key are suppressed while loading.
+        for center in [loading_bounds.center(), icon_loading_bounds.center()] {
+            window.dispatch_event(
+                MouseDownEvent {
+                    button: MouseButton::Left,
+                    position: center,
+                    click_count: 1,
+                    first_mouse: false,
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.dispatch_event(
+                MouseUpEvent {
+                    button: MouseButton::Left,
+                    position: center,
+                    click_count: 1,
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+        }
+        window.focus_next(cx);
+        let space = Keystroke::parse("space").unwrap();
+        window.dispatch_event(
+            KeyDownEvent {
+                keystroke: space.clone(),
+                is_held: false,
+                prefer_character_input: false,
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(KeyUpEvent { keystroke: space }.to_platform_input(), cx);
+        draw(window, cx);
+        assert_eq!(view.read(cx).button_clicks, 0);
+        assert_eq!(view.read(cx).icon_clicks, 0);
+
+        // Reduced motion must request zero animation frames while loading.
+        assert_eq!(window.simulate_next_frame(cx), 0);
+
+        // With full motion enabled, visible loading animates, while offscreen loading requests zero frames.
+        cx.set_reduce_motion(false);
+        draw(window, cx);
+        assert!(
+            window.simulate_next_frame(cx) > 0,
+            "visible animated loading button should schedule frames"
+        );
+
+        view.update(cx, |this, cx| {
+            this.offscreen = true;
+            cx.notify();
+        });
+        draw(window, cx);
+        assert_eq!(
+            window.simulate_next_frame(cx),
+            0,
+            "off-screen clipped loading spinner must not schedule frames"
+        );
+
+        // Disabled appearance takes precedence over loading active palette.
+        cx.set_reduce_motion(true);
+        view.update(cx, |this, cx| {
+            this.offscreen = false;
+            this.disabled = true;
+            cx.notify();
+        });
+        draw(window, cx);
+        assert!(
+            !window
+                .painted_quads()
+                .iter()
+                .any(|quad| quad.background == primary.into()),
+            "disabled + loading must use disabled palette"
+        );
+
+        // Returning to idle re-enables activation cleanly.
+        view.update(cx, |this, cx| {
+            this.loading = false;
+            this.disabled = false;
+            cx.notify();
+        });
+        draw(window, cx);
+        let center = find(window, &[], &"save-btn".into())
+            .unwrap()
+            .bounds()
+            .center();
+        window.dispatch_event(
+            MouseDownEvent {
+                button: MouseButton::Left,
+                position: center,
+                click_count: 1,
+                first_mouse: false,
+                modifiers: Default::default(),
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(
+            MouseUpEvent {
+                button: MouseButton::Left,
+                position: center,
+                click_count: 1,
+                modifiers: Default::default(),
+            }
+            .to_platform_input(),
+            cx,
+        );
+        draw(window, cx);
+        assert_eq!(view.read(cx).button_clicks, 1);
     })
     .unwrap();
 }

@@ -33,7 +33,7 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ### Icons
 
-- Add the optional `gpui-material-symbols` companion crate with the full Outlined, Rounded, and Sharp catalog, fill and weight controls, desktop embedding, and asynchronous browser loading.
+- Add the optional `gpui-material-design-symbols` companion crate with the full Outlined, Rounded, and Sharp catalog, fill and weight controls, desktop embedding, and asynchronous browser loading.
 
 ### Windows
 

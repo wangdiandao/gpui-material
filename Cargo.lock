@@ -2209,6 +2209,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpui-material-design-symbols"
+version = "0.1.2"
+dependencies = [
+ "js-sys",
+ "ttf-parser",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "gpui-material-extras"
 version = "0.1.2"
 dependencies = [
@@ -2257,16 +2267,6 @@ dependencies = [
  "gpui-pre-web",
  "js-sys",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "gpui-material-symbols"
-version = "0.1.2"
-dependencies = [
- "js-sys",
- "ttf-parser",
- "wasm-bindgen",
- "web-sys",
 ]
 
 [[package]]

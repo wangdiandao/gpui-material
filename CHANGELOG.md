@@ -4,9 +4,14 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+## 0.3.0 - 2026-11-22
+
+Changes since [v0.2.0](https://github.com/wangdiandao/gpui-material/releases/tag/v0.2.0).
+
 ### API and migration
 
 - **Breaking**: Rename the optional `windows-chrome` Cargo feature and `gpui_material::windows_chrome` module to `window-chrome` and `gpui_material::window_chrome` across `gpui-material-extras`, `gpui-material`, and `gpui-material-gallery`, and remove the Windows-only compilation gate.
+- **Breaking**: `IconName` adds `IconName::Visibility` and `IconName::VisibilityOff`. Update exhaustive `IconName` matches to cover the new variants, or add a fallback arm.
 
 ### Window chrome and cross-platform defaults
 
@@ -51,6 +56,12 @@ See [versioning and releases](docs/release.md) for the release process.
 ### Gallery
 
 - Lazily instantiate Gallery story views on first visit while retaining visited story state, scope `ModalExamples` entity creation to the active story (`Dialog` vs `Sheets`), exclude the desktop `Gallery` shell from `wasm32` builds, and consolidate Gallery tests into a single test binary.
+
+### Contributors
+
+- [@wangdiandao](https://github.com/wangdiandao)
+
+**Full Changelog** [`v0.2.0...v0.3.0`](https://github.com/wangdiandao/gpui-material/compare/v0.2.0...v0.3.0)
 
 ## 0.2.0 - 2026-11-21
 

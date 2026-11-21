@@ -543,3 +543,29 @@ fn task_dialog_adapts_at_compact_breakpoint_without_losing_state(cx: &mut TestAp
     cx.simulate_keystrokes(window.into(), "escape");
     cx.update(|cx| assert!(!state.read(cx).is_open()));
 }
+
+#[gpui::test]
+fn modal_examples_scope_demo_state_to_active_story(cx: &mut TestAppContext) {
+    use super::ModalExamples;
+    use crate::story::Story;
+
+    cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut dialog_view = None;
+        let mut sheets_view = None;
+        MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let dialog = cx.new(|cx| ModalExamples::new(Story::Dialog, window, cx));
+            let sheets = cx.new(|cx| ModalExamples::new(Story::Sheets, window, cx));
+            dialog_view = Some(dialog.clone());
+            sheets_view = Some(sheets);
+            dialog
+        })
+        .unwrap();
+        let dialog_view = dialog_view.unwrap();
+        let sheets_view = sheets_view.unwrap();
+        assert!(dialog_view.read(cx).dialog.is_some());
+        assert!(dialog_view.read(cx).sheet.is_none());
+        assert!(sheets_view.read(cx).dialog.is_none());
+        assert!(sheets_view.read(cx).sheet.is_some());
+    });
+}

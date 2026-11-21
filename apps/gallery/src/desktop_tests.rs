@@ -1,8 +1,14 @@
-use super::*;
-use gpui::{ElementId, InputEvent as _, Role, TestAppContext};
-use gpui_base::{Theme, ThemeAppearance, test_support::find};
-use gpui_material::foundation::{color, shape_text, window_material_theme};
-use gpui_material::theme::{ColorRole, TypeRole, TypographyEmphasis};
+use gpui::{
+    AppContext, ElementId, InputEvent as _, Role, TestAppContext, WindowHandle, WindowOptions, px,
+    size,
+};
+use gpui_base::{Root, Theme, ThemeAppearance, test_support::find};
+use gpui_material::foundation::{
+    MaterialRoot, color, material_theme, set_material_theme, shape_text, window_material_theme,
+};
+use gpui_material::theme::{Appearance, ColorRole, MaterialTheme, TypeRole, TypographyEmphasis};
+
+use crate::{Gallery, Story, init_gallery, open_gallery};
 
 fn click(cx: &mut TestAppContext, handle: WindowHandle<Root>, id: ElementId) {
     cx.update_window(handle.into(), |_, window, cx| {
@@ -355,4 +361,94 @@ fn mixed_script_uses_one_layout_for_metrics_and_paint(cx: &mut TestAppContext) {
         );
     })
     .unwrap();
+}
+
+#[gpui::test]
+fn gallery_lazy_loads_stories_and_preserves_visited_views(cx: &mut TestAppContext) {
+    let (handle, gallery) = cx.update(|cx| {
+        init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut gallery = None;
+        let handle = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let view = cx.new(|cx| Gallery::new(Story::Introduction, window, cx));
+            gallery = Some(view.clone());
+            view
+        })
+        .unwrap();
+        (handle, gallery.unwrap())
+    });
+    cx.simulate_window_resize(handle.into(), size(px(1040.), px(744.)));
+
+    cx.update(|cx| {
+        let g = gallery.read(cx);
+        assert_eq!(g.loaded_story_count(), 0);
+        assert!(g.story_view_id(Story::AdaptiveLayout).is_none());
+        assert!(g.story_view_id(Story::Button).is_none());
+    });
+
+    let adaptive_story = ElementId::from((ElementId::from("gallery-story"), "adaptive-layout"));
+    click(cx, handle, (adaptive_story.clone(), "activate").into());
+    let adaptive_view_id = cx.update(|cx| {
+        let g = gallery.read(cx);
+        assert_eq!(g.loaded_story_count(), 1);
+        assert!(g.story_view_id(Story::Button).is_none());
+        g.story_view_id(Story::AdaptiveLayout)
+            .expect("adaptive layout story view loaded")
+    });
+
+    let feed = ElementId::from("adaptive-feed");
+    click(cx, handle, feed.clone());
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert_eq!(find(window, &[], &feed).unwrap().selected(), Some(true));
+    })
+    .unwrap();
+
+    let button_story = ElementId::from((ElementId::from("gallery-story"), "button"));
+    click(cx, handle, (button_story, "activate").into());
+    let button_view_id = cx.update(|cx| {
+        let g = gallery.read(cx);
+        assert_eq!(g.loaded_story_count(), 2);
+        assert_eq!(
+            g.story_view_id(Story::AdaptiveLayout),
+            Some(adaptive_view_id)
+        );
+        g.story_view_id(Story::Button)
+            .expect("button story view loaded")
+    });
+
+    click(cx, handle, (adaptive_story, "activate").into());
+    cx.update(|cx| {
+        let g = gallery.read(cx);
+        assert_eq!(g.loaded_story_count(), 2);
+        assert_eq!(
+            g.story_view_id(Story::AdaptiveLayout),
+            Some(adaptive_view_id)
+        );
+        assert_eq!(g.story_view_id(Story::Button), Some(button_view_id));
+    });
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert_eq!(find(window, &[], &feed).unwrap().selected(), Some(true));
+    })
+    .unwrap();
+
+    let initial_button_gallery = cx.update(|cx| {
+        let mut gallery = None;
+        MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let view = cx.new(|cx| Gallery::new(Story::Button, window, cx));
+            gallery = Some(view.clone());
+            view
+        })
+        .unwrap();
+        gallery.unwrap()
+    });
+    cx.update(|cx| {
+        let g = initial_button_gallery.read(cx);
+        assert_eq!(g.loaded_story_count(), 1);
+        assert!(g.story_view_id(Story::Button).is_some());
+        assert!(g.story_view_id(Story::AdaptiveLayout).is_none());
+    });
 }

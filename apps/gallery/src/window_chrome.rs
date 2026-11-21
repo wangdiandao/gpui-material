@@ -1,3 +1,4 @@
+use crate::Gallery;
 use gpui::{
     Context, Entity, InteractiveElement, IntoElement, ParentElement, Render, Role,
     StatefulInteractiveElement, Styled, Window, div,
@@ -8,7 +9,6 @@ use gpui_material::{
     theme::{ColorRole, TypeRole},
     window_chrome::TitleBar,
 };
-use gpui_material_story::Gallery;
 
 pub(super) struct ChromePreview {
     gallery: Entity<Gallery>,
@@ -79,6 +79,7 @@ mod tests {
     use std::cell::Cell;
     use std::rc::Rc;
 
+    use crate::init_gallery;
     use gpui::{
         AppContext, Context, ElementId, InputEvent as _, InteractiveElement, IntoElement,
         ParentElement, Render, Role, Styled, TestAppContext, Window, WindowOptions, div, px, size,
@@ -90,7 +91,6 @@ mod tests {
         theme::{Appearance, Direction, TypeRole},
         window_chrome::{ChromePlatform, TitleBar, title_bar_window_options_with_height},
     };
-    use gpui_material_story::init_gallery;
 
     struct TitleBarHarness {
         platform: ChromePlatform,

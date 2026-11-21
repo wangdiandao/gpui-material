@@ -94,6 +94,18 @@ impl ButtonShape {
     }
 }
 
+/// Semantic palette shortcut for Material buttons and icon buttons.
+/// Per-instance [`ButtonColors`] and [`ButtonBorder`] overrides still take precedence.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum ButtonTone {
+    #[default]
+    Default,
+    Danger,
+    Success,
+    Warning,
+    Info,
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ButtonVariant {
     Elevated,
@@ -139,6 +151,7 @@ struct Common {
     appearance: ButtonStyle,
     size: ControlSize,
     shape: ButtonShape,
+    tone: ButtonTone,
 }
 
 impl Common {
@@ -152,6 +165,7 @@ impl Common {
             appearance: ButtonStyle::default(),
             size: ControlSize::default(),
             shape: ButtonShape::default(),
+            tone: ButtonTone::default(),
         }
     }
 
@@ -206,6 +220,13 @@ macro_rules! common_builders {
         /// Sets the resting shape. Round is the default.
         pub fn shape(mut self, shape: ButtonShape) -> Self {
             self.common.shape = shape;
+            self
+        }
+
+        /// Applies a Material 3 semantic tone shortcut. Explicit `.colors` and `.border`
+        /// overrides still take precedence.
+        pub fn tone(mut self, tone: ButtonTone) -> Self {
+            self.common.tone = tone;
             self
         }
 
@@ -433,7 +454,7 @@ impl Button {
 impl RenderOnce for Button {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let metrics = self.common.size.metrics();
-        let appearance = button_appearance(self.variant, None);
+        let appearance = button_appearance(self.variant, None, self.common.tone);
         let style = appearance.style(
             metrics,
             self.common.shape.corner(metrics.square, false),
@@ -508,7 +529,7 @@ impl RenderOnce for ToggleButton {
             ToggleButtonVariant::FilledTonal => ButtonVariant::FilledTonal,
             ToggleButtonVariant::Outlined => ButtonVariant::Outlined,
         };
-        let mut style = button_appearance(variant, Some(self.selected)).style(
+        let mut style = button_appearance(variant, Some(self.selected), self.common.tone).style(
             metrics,
             self.common.shape.corner(metrics.square, false),
             0.,
@@ -586,7 +607,7 @@ impl IconButton {
 impl RenderOnce for IconButton {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let (metrics, width) = self.common.size.icon_metrics(self.width);
-        let mut style = icon_appearance(self.variant, None).style(
+        let mut style = icon_appearance(self.variant, None, self.common.tone).style(
             metrics,
             self.common.shape.corner(metrics.square, false),
             width,
@@ -660,7 +681,7 @@ impl IconToggleButton {
 impl RenderOnce for IconToggleButton {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let (metrics, width) = self.common.size.icon_metrics(self.width);
-        let mut style = icon_appearance(self.variant, Some(self.selected)).style(
+        let mut style = icon_appearance(self.variant, Some(self.selected), self.common.tone).style(
             metrics,
             self.common.shape.corner(metrics.square, false),
             width,

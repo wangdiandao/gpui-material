@@ -910,4 +910,162 @@ TimePicker::new("reminder", "Reminder time", &self.picker, self.time)
 ])
 .variant(CarouselVariant::MultiBrowse)`,
   },
+  {
+    slug: "avatar",
+    group: "basic",
+    title: "Avatar",
+    source: "crates/components/src/avatar.rs",
+    api: "struct.Avatar.html",
+    description: {
+      en: "Represent a person or entity with initials, an icon, an image, or custom content.",
+      zh: "用首字母、图标、图片或自定义内容展示用户或实体头像。",
+    },
+    usage: {
+      en: "Choose Avatar::initials, Avatar::icon, Avatar::image, or Avatar::custom. Configure size with AvatarSize and shape with AvatarShape. Add accessible_label when the avatar conveys standalone meaning.",
+      zh: "按需选用 Avatar::initials、Avatar::icon、Avatar::image 或 Avatar::custom。通过 AvatarSize 与 AvatarShape 调整尺寸和形状；当头像传达独立信息时添加 accessible_label。",
+    },
+    imports: "use gpui_material::{Avatar, AvatarSize};",
+    code: `Avatar::initials("AL")
+    .size(AvatarSize::Large)
+    .accessible_label("user-avatar", "Ada Lovelace")`,
+  },
+  {
+    slug: "drop-target",
+    group: "form",
+    title: "DropTarget",
+    source: "crates/components/src/drop_target.rs",
+    api: "struct.DropTarget.html",
+    description: {
+      en: "Accept external OS files or typed in-app drag payloads with Material drop feedback.",
+      zh: "接收外部系统文件或应用内强类型拖拽载荷，并提供 Material 拖放反馈。",
+    },
+    usage: {
+      en: "Use DropTarget::files for gpui::ExternalPaths or DropTarget::new::<T> for typed in-app payloads. Supply can_drop to validate hovered payloads and on_drop to handle accepted drops.",
+      zh: "外部文件拖放使用 DropTarget::files（gpui::ExternalPaths），应用内载荷使用 DropTarget::new::<T>。通过 can_drop 校验悬停载荷，并在 on_drop 中处理接收结果。",
+    },
+    imports: "use gpui_material::DropTarget;",
+    code: `DropTarget::files("upload-zone")
+    .title("Drop files here")
+    .supporting("PNG, SVG, or JSON")
+    .on_drop(|paths, _, _| println!("Dropped {} files", paths.paths().len()))`,
+  },
+  {
+    slug: "switch-tile",
+    group: "form",
+    title: "SwitchTile",
+    source: "crates/components/src/settings_tiles.rs",
+    api: "struct.SwitchTile.html",
+    story: "list",
+    description: {
+      en: "Combine a settings list row and a synchronized Switch into a single focus stop.",
+      zh: "将设置列表行与同步开关封装为单一焦点的快捷设置项。",
+    },
+    usage: {
+      en: "Pass the controlled boolean state to new and update your application state inside on_change. The entire row activates with pointer, keyboard, or accessibility actions without double-toggling.",
+      zh: "将受控布尔状态传给 new，并在 on_change 中更新应用状态。整行支持指针、键盘和无障碍激活且不会重复触发。",
+    },
+    imports: "use gpui_material::SwitchTile;",
+    code: `SwitchTile::new("auto-save", "Auto-save", auto_save)
+    .supporting("Save documents automatically while editing")
+    .on_change(|enabled, _, _| println!("Auto-save: {enabled}"))`,
+  },
+  {
+    slug: "choice-tile",
+    group: "form",
+    title: "ChoiceTile",
+    source: "crates/components/src/settings_tiles.rs",
+    api: "struct.ChoiceTile.html",
+    story: "list",
+    description: {
+      en: "Display the active setting value in a list row and choose from an anchored Material menu.",
+      zh: "在设置列表行展示当前选中值，并通过锚定 Material 菜单切换选项。",
+    },
+    usage: {
+      en: "Supply stable ChoiceOption entries and the currently selected option ID. Apply the chosen ID in on_select; focus returns to the row when the menu closes.",
+      zh: "提供带稳定 ID 的 ChoiceOption 列表与当前选中 ID，在 on_select 中应用新值；菜单关闭后焦点自动回到设置行。",
+    },
+    imports: "use gpui_material::{ChoiceOption, ChoiceTile};",
+    code: `ChoiceTile::new(
+    "density",
+    "Density",
+    [
+        ChoiceOption::new("compact", "Compact"),
+        ChoiceOption::new("standard", "Standard"),
+        ChoiceOption::new("comfortable", "Comfortable"),
+    ],
+    selected_density,
+)
+.on_select(|id, _, _| println!("Density: {id}"))`,
+  },
+  {
+    slug: "bottom-app-bar",
+    group: "layout",
+    title: "BottomAppBar",
+    source: "crates/components/src/navigation/bottom_app_bar.rs",
+    api: "struct.BottomAppBar.html",
+    description: {
+      en: "Place secondary icon actions and an optional trailing FAB in a bottom bar.",
+      zh: "在底部栏中排列次要图标操作与可选的尾侧悬浮操作按钮。",
+    },
+    usage: {
+      en: "Mount BottomAppBar directly or inside Scaffold::bottom_bar. Add leading IconButton actions with action/actions and an optional trailing Fab with fab. Attach AppBarScrollState to hide on scroll.",
+      zh: "可直接放置或传入 Scaffold::bottom_bar。用 action/actions 添加起始侧图标按钮，用 fab 放置尾侧悬浮按钮，并可绑定 AppBarScrollState 实现滚动隐藏。",
+    },
+    imports: "use gpui_material::{BottomAppBar, Fab, Icon, IconButton, IconName};",
+    code: `BottomAppBar::new("editor-bottom-bar")
+    .action(IconButton::new("search", "Search", Icon::new(IconName::Search)))
+    .action(IconButton::new("archive", "Archive", Icon::new(IconName::Archive)))
+    .fab(Fab::new("add", "Add", Icon::new(IconName::Add)))`,
+  },
+  {
+    slug: "navigation-drawer",
+    group: "layout",
+    title: "NavigationDrawer",
+    source: "crates/components/src/navigation/drawer.rs",
+    api: "struct.NavigationDrawer.html",
+    description: {
+      en: "Present top-level destinations in a permanent standard panel or a modal drawer.",
+      zh: "在常驻标准面板或模态抽屉中呈现顶层导航目的地。",
+    },
+    usage: {
+      en: "Build destinations with NavigationItems, sections, headers, and dividers. Use NavigationDrawerMode::Standard for a docked 360 dp drawer or Modal with a retained DialogState for scrim and focus restoration.",
+      zh: "使用 NavigationItems、分组、标题和分隔线组织导航项。Standard 模式呈现 360 dp 停靠抽屉，Modal 模式搭配持久化的 DialogState 提供遮罩与回焦。",
+    },
+    imports: "use gpui_material::{IconName, NavigationDrawer, NavigationItem, NavigationItems};",
+    code: `NavigationDrawer::new(
+    "main-drawer",
+    NavigationItems::new([
+        NavigationItem::new("inbox", "Inbox", IconName::Inbox),
+        NavigationItem::new("archive", "Archive", IconName::Archive),
+    ])
+    .selected("inbox"),
+)
+.headline("Workspace")`,
+  },
+  {
+    slug: "stepper",
+    group: "layout",
+    title: "Stepper",
+    source: "crates/components/src/navigation/stepper.rs",
+    api: "struct.Stepper.html",
+    description: {
+      en: "Guide users through a multi-step horizontal or vertical workflow.",
+      zh: "引导用户完成横向或纵向的多步骤流程。",
+    },
+    usage: {
+      en: "Supply ordered StepItem entries and set active_step for automatic completed, active, and upcoming status derivation. Enable non_linear to allow jumping directly to any enabled step.",
+      zh: "传入有序的 StepItem 列表并用 active_step 自动推导已完成、当前和待办状态；开启 non_linear 可直接跳转至任意启用步骤。",
+    },
+    imports: "use gpui_material::{StepItem, Stepper};",
+    code: `Stepper::new(
+    "setup-steps",
+    [
+        StepItem::new("account", "Account"),
+        StepItem::new("profile", "Profile"),
+        StepItem::new("confirm", "Confirm"),
+    ],
+)
+.active_step(1)
+.on_select(|index, _, _| println!("Step {index}"))`,
+  },
 ].map((guide) => ({ story: guide.slug, ...guide }));

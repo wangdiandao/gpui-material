@@ -4,11 +4,13 @@ use gpui::{
 };
 use gpui_material::{
     AppBar, AppBarAlignment, AppBarItem, AppBarRow, AppBarScrollBehavior, AppBarScrollState,
-    AppBarVariant, Badge, Button, ButtonVariant, DialogState, Divider, Fab, Icon, IconButton,
-    IconName, NavigationBar, NavigationBarArrangement, NavigationBarLayout, NavigationItem,
-    NavigationItemIconPosition, NavigationItems, NavigationRail, NavigationRailColors,
-    NavigationRailPadding, NavigationRailShapes, NavigationRailState, RailModalOptions, RailMode,
-    TabIndicatorStyle, TabIndicatorWidth, TabVariant, Tabs, Text,
+    AppBarVariant, Badge, BottomAppBar, Button, ButtonVariant, DialogState, Divider, Fab, Icon,
+    IconButton, IconName, NavigationBar, NavigationBarArrangement, NavigationBarLayout,
+    NavigationDrawer, NavigationDrawerMode, NavigationItem, NavigationItemIconPosition,
+    NavigationItems, NavigationRail, NavigationRailColors, NavigationRailPadding,
+    NavigationRailShapes, NavigationRailState, RailModalOptions, RailMode, Scaffold, StepItem,
+    StepStatus, Stepper, StepperOrientation, TabIndicatorStyle, TabIndicatorWidth, TabVariant,
+    Tabs, Text,
     theme::{CornerRole, CornerShape, TypeRole},
 };
 
@@ -19,6 +21,15 @@ mod app_bar_tests;
 
 #[cfg(all(test, feature = "test-support"))]
 mod bar_tests;
+
+#[cfg(all(test, feature = "test-support"))]
+mod bottom_app_bar_tests;
+
+#[cfg(all(test, feature = "test-support"))]
+mod drawer_tests;
+
+#[cfg(all(test, feature = "test-support"))]
+mod stepper_tests;
 
 #[cfg(all(test, feature = "test-support"))]
 mod tabs_tests;
@@ -44,6 +55,10 @@ pub(crate) struct NavigationExamples {
     scroll: ScrollHandle,
     tab_scroll: ScrollHandle,
     app_bar_scroll: Entity<AppBarScrollState>,
+    bottom_bar_scroll: Entity<AppBarScrollState>,
+    active_step: usize,
+    vertical_step: usize,
+    bottom_bar_action: SharedString,
 }
 
 impl NavigationExamples {
@@ -57,6 +72,10 @@ impl NavigationExamples {
             scroll: ScrollHandle::new(),
             tab_scroll: ScrollHandle::new(),
             app_bar_scroll: cx.new(|_| AppBarScrollState::new()),
+            bottom_bar_scroll: cx.new(|_| AppBarScrollState::new()),
+            active_step: 1,
+            vertical_step: 0,
+            bottom_bar_action: "Ready".into(),
         }
     }
 
@@ -486,6 +505,234 @@ impl NavigationExamples {
             )
             .into_any_element()
     }
+    fn bottom_app_bar(&self, cx: &mut Context<Self>) -> AnyElement {
+        let on_search = cx.entity();
+        let on_archive = cx.entity();
+        let on_add = cx.entity();
+        let bar = BottomAppBar::new("gallery-bottom-app-bar")
+            .action(
+                IconButton::new("bottom-search", "Search", Icon::new(IconName::Search))
+                    .on_activate(move |_, cx| {
+                        on_search.update(cx, |this, cx| {
+                            this.bottom_bar_action = "Search activated".into();
+                            cx.notify();
+                        });
+                    }),
+            )
+            .action(
+                IconButton::new("bottom-archive", "Archive", Icon::new(IconName::Archive))
+                    .on_activate(move |_, cx| {
+                        on_archive.update(cx, |this, cx| {
+                            this.bottom_bar_action = "Archive activated".into();
+                            cx.notify();
+                        });
+                    }),
+            )
+            .fab(
+                Fab::new("bottom-fab", "Create", Icon::new(IconName::Add)).on_activate(
+                    move |_, cx| {
+                        on_add.update(cx, |this, cx| {
+                            this.bottom_bar_action = "FAB activated".into();
+                            cx.notify();
+                        });
+                    },
+                ),
+            )
+            .scroll_behavior(AppBarScrollBehavior::EnterAlways, &self.bottom_bar_scroll)
+            .track_scroll(&self.scroll);
+
+        stack()
+            .child(
+                section("Bottom app bar in Scaffold")
+                    .description(
+                        "Dock leading icon actions and a trailing FAB along the bottom edge.",
+                    )
+                    .child(Text::new(self.bottom_bar_action.clone()).role(TypeRole::BodySmall))
+                    .child(
+                        div().h(px(260.)).w_full().child(
+                            Scaffold::new(
+                                "bottom-app-bar-scaffold",
+                                div()
+                                    .id("bottom-bar-scroll-content")
+                                    .size_full()
+                                    .overflow_y_scroll()
+                                    .track_scroll(&self.scroll)
+                                    .children((1..=12).map(|i| {
+                                        div().p_3().child(Text::new(format!("Document item {i}")))
+                                    })),
+                            )
+                            .bottom_bar(bar),
+                        ),
+                    ),
+            )
+            .into_any_element()
+    }
+
+    fn drawer(&self, cx: &mut Context<Self>) -> AnyElement {
+        let open_modal = self.modal.clone();
+        let make_drawer_items = |id: &'static str, close_modal: bool| {
+            NavigationItems::new(id, "Workspace navigation", [])
+                .selected(self.selected.clone())
+                .on_select(cx.listener(move |this, id: &SharedString, window, cx| {
+                    this.selected = id.clone();
+                    if close_modal {
+                        this.modal.update(cx, |state, cx| state.close(window, cx));
+                    }
+                    cx.notify();
+                }))
+        };
+        let populate = |drawer: NavigationDrawer| {
+            drawer
+                .headline("Workspace")
+                .section(
+                    "Mail",
+                    [
+                        NavigationItem::new("inbox", "Inbox")
+                            .icon(Icon::new(IconName::Inbox))
+                            .badge(
+                                Badge::standalone()
+                                    .content("drawer-inbox-count", "12")
+                                    .accessible_label("drawer-inbox-unread", "12 unread"),
+                            ),
+                        NavigationItem::new("archive", "Archive")
+                            .icon(Icon::new(IconName::Archive)),
+                        NavigationItem::new("favorites", "Starred")
+                            .icon(Icon::new(IconName::Favorite))
+                            .disabled(true),
+                    ],
+                )
+                .divider()
+                .section(
+                    "Resources",
+                    [
+                        NavigationItem::new("documents", "Documents")
+                            .icon(Icon::new(IconName::Description)),
+                        NavigationItem::new("notifications", "Notifications")
+                            .icon(Icon::new(IconName::Notifications)),
+                    ],
+                )
+        };
+
+        stack()
+            .child(
+                section("Standard navigation drawer")
+                    .description("Docked 360 dp drawer with grouped sections, dividers, and pill indicators.")
+                    .child(
+                        div().h(px(360.)).flex().child(populate(NavigationDrawer::new(
+                            "standard-drawer",
+                            make_drawer_items("standard-drawer-items", false),
+                        ))),
+                    ),
+            )
+            .child(
+                section("Modal navigation drawer")
+                    .description("Opens as a modal side sheet with scrim, Escape dismissal, and focus restoration.")
+                    .child(
+                        Button::new("open-modal-drawer", "Open modal drawer").on_activate(
+                            move |window, cx| {
+                                open_modal.update(cx, |state, cx| state.open(window, cx));
+                            },
+                        ),
+                    )
+                    .child(
+                        populate(NavigationDrawer::new(
+                            "modal-drawer",
+                            make_drawer_items("modal-drawer-items", true),
+                        ))
+                        .mode(NavigationDrawerMode::Modal)
+                        .modal_state(&self.modal),
+                    ),
+            )
+            .into_any_element()
+    }
+
+    fn stepper(&self, cx: &mut Context<Self>) -> AnyElement {
+        let on_horiz = cx.entity();
+        let on_vert = cx.entity();
+        let next_view = cx.entity();
+        let prev_view = cx.entity();
+        stack()
+            .child(
+                section("Horizontal linear stepper")
+                    .description("Advance or revisit completed steps with pointer or arrow keys.")
+                    .child(
+                        Stepper::new(
+                            "horizontal-stepper",
+                            [
+                                StepItem::new("account", "Account").supporting("Credentials"),
+                                StepItem::new("profile", "Profile").supporting("Team details"),
+                                StepItem::new("review", "Review").supporting("Confirm setup"),
+                            ],
+                        )
+                        .active_step(self.active_step)
+                        .on_select(move |index, _, cx| {
+                            on_horiz.update(cx, |this, cx| {
+                                this.active_step = index;
+                                cx.notify();
+                            });
+                        }),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .gap_2()
+                            .child(
+                                Button::new("step-back", "Back")
+                                    .variant(ButtonVariant::Outlined)
+                                    .disabled(self.active_step == 0)
+                                    .on_activate(move |_, cx| {
+                                        prev_view.update(cx, |this, cx| {
+                                            this.active_step = this.active_step.saturating_sub(1);
+                                            cx.notify();
+                                        });
+                                    }),
+                            )
+                            .child(
+                                Button::new("step-next", "Next")
+                                    .disabled(self.active_step >= 2)
+                                    .on_activate(move |_, cx| {
+                                        next_view.update(cx, |this, cx| {
+                                            this.active_step = (this.active_step + 1).min(2);
+                                            cx.notify();
+                                        });
+                                    }),
+                            ),
+                    ),
+            )
+            .child(
+                section("Vertical non-linear stepper")
+                    .description(
+                        "Supports expandable step content, error status, and disabled steps.",
+                    )
+                    .child(
+                        Stepper::new(
+                            "vertical-stepper",
+                            [
+                                StepItem::new("source", "Select source")
+                                    .supporting("Choose workspace repository")
+                                    .content(Text::new("Repository configured cleanly.")),
+                                StepItem::new("validate", "Validate schema")
+                                    .supporting("Check required fields")
+                                    .status(StepStatus::Error)
+                                    .content(Text::new("Schema check reported one warning.")),
+                                StepItem::new("deploy", "Deploy")
+                                    .supporting("Requires approval")
+                                    .status(StepStatus::Disabled),
+                            ],
+                        )
+                        .orientation(StepperOrientation::Vertical)
+                        .active_step(self.vertical_step)
+                        .non_linear(true)
+                        .on_select(move |index, _, cx| {
+                            on_vert.update(cx, |this, cx| {
+                                this.vertical_step = index;
+                                cx.notify();
+                            });
+                        }),
+                    ),
+            )
+            .into_any_element()
+    }
 }
 
 impl Render for NavigationExamples {
@@ -496,6 +743,9 @@ impl Render for NavigationExamples {
             Story::NavigationBar => self.bar(cx),
             Story::NavigationRail => self.rail(cx),
             Story::AppBar => self.app_bar(),
+            Story::BottomAppBar => self.bottom_app_bar(cx),
+            Story::NavigationDrawer => self.drawer(cx),
+            Story::Stepper => self.stepper(cx),
             _ => unreachable!(),
         };
         stack()

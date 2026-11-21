@@ -124,6 +124,7 @@ pub struct Switch {
     colors: SwitchColors,
     interaction_source: Option<Entity<InteractionSource>>,
     on_change: Option<Change>,
+    decorative: bool,
 }
 
 impl Switch {
@@ -139,7 +140,14 @@ impl Switch {
             colors: SwitchColors::default(),
             interaction_source: None,
             on_change: None,
+            decorative: false,
         }
+    }
+
+    #[cfg(feature = "surfaces")]
+    pub(crate) fn decorative(mut self, decorative: bool) -> Self {
+        self.decorative = decorative;
+        self
     }
 
     pub fn disabled(mut self, disabled: bool) -> Self {
@@ -368,6 +376,24 @@ impl RenderOnce for Switch {
             .colors
             .resolve(self.checked, self.disabled, tint, window, cx);
         let decoration = self.thumb_decoration();
+        if self.decorative {
+            let (diameter, offset) =
+                self.thumb_geometry(decoration.is_some(), false, motion, window, cx);
+            let track = render_track(
+                &self.id,
+                palette,
+                diameter,
+                offset,
+                direction,
+                div().id("switch-state-layer"),
+                decoration,
+            );
+            return div()
+                .id(self.id)
+                .flex_none()
+                .child(track)
+                .into_any_element();
+        }
         let ripple = ripple_state(&self.id, !self.disabled, window, cx);
         let focus = window
             .use_keyed_state(self.id.clone(), cx, |_, cx| cx.focus_handle())
@@ -439,8 +465,9 @@ impl RenderOnce for Switch {
                         change(!self.checked, window, cx)
                     })
                     .on_change(move |checked, _, window, cx| handler(checked, window, cx))
+                    .into_any_element()
             }
-            _ => control,
+            _ => control.into_any_element(),
         }
     }
 }

@@ -277,7 +277,9 @@ fn wrap_interactive_row(
     enabled: bool,
     dragged: bool,
     checked: Option<Toggled>,
+    checked_role: Role,
     expanded: Option<bool>,
+    menu_a11y_toggle: Option<Activate>,
     ring: Hsla,
     feedback: Rc<RefCell<FeedbackState>>,
     primary: Option<Activate>,
@@ -294,7 +296,7 @@ fn wrap_interactive_row(
         .disabled(!enabled)
         .selected(selected)
         .when_some(checked, |control, checked| {
-            control.role(Role::CheckBox).aria_toggled(checked)
+            control.role(checked_role).aria_toggled(checked)
         })
         .when_some(expanded, |control, expanded| {
             control.aria_expanded(expanded)
@@ -306,7 +308,13 @@ fn wrap_interactive_row(
         .when(enabled && !dragged, |control| {
             feedback_target(control, feedback, true, Some(focus.clone()))
         });
-    if let Some(primary) = primary.filter(|_| enabled && !dragged) {
+    if let Some(toggle) = menu_a11y_toggle.filter(|_| enabled && !dragged) {
+        let return_focus = focus.clone();
+        control = control.on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
+            return_focus.focus(window, cx);
+            toggle(window, cx);
+        });
+    } else if let Some(primary) = primary.filter(|_| enabled && !dragged) {
         let invoke = primary.clone();
         let hold = long_press.clone();
         control = control
@@ -374,11 +382,12 @@ fn wrap_static_row(
     surface: Stateful<Div>,
     disabled: bool,
     checked: Option<Toggled>,
+    checked_role: Role,
     expanded: Option<bool>,
 ) -> AnyElement {
     surface
         .when_some(checked, |row, checked| {
-            row.role(Role::CheckBox).aria_toggled(checked)
+            row.role(checked_role).aria_toggled(checked)
         })
         .when_some(expanded, |row, expanded| {
             row.when(checked.is_none(), |row| row.role(Role::Group))
@@ -408,7 +417,8 @@ impl ListItem {
             (focus, true)
         });
         let primary = self.primary_action();
-        let interactive = primary.is_some() || self.long_press.is_some();
+        let has_menu_trigger = self.has_menu_trigger();
+        let interactive = primary.is_some() || has_menu_trigger || self.long_press.is_some();
         let visible = self
             .swipe
             .as_ref()
@@ -443,7 +453,8 @@ impl ListItem {
         let layout = theme.layout;
         let motion = theme.motion;
         let reduced = cx.reduce_motion();
-        let selected = self.selected || self.checked == Some(true);
+        let selected =
+            self.selected || (self.checked == Some(true) && self.checked_role != Role::Switch);
         let shape = self
             .shapes
             .resolve(resting, selected_shape, selected, interaction);
@@ -553,7 +564,15 @@ impl ListItem {
             enabled,
             dragged,
         );
-        let expanded = self.expansion.as_ref().map(|expansion| expansion.expanded);
+        #[cfg(feature = "feedback")]
+        let (menu_open, menu_a11y_toggle) = match self.menu_trigger {
+            Some((open, toggle)) => (Some(open), Some(toggle)),
+            None => (None, None),
+        };
+        #[cfg(not(feature = "feedback"))]
+        let (menu_open, menu_a11y_toggle): (Option<bool>, Option<Activate>) = (None, None);
+        let expanded =
+            menu_open.or_else(|| self.expansion.as_ref().map(|expansion| expansion.expanded));
         let checked = self.checked.map(|checked| {
             if checked {
                 Toggled::True
@@ -574,7 +593,9 @@ impl ListItem {
                 enabled,
                 dragged,
                 checked,
+                self.checked_role,
                 expanded,
+                menu_a11y_toggle,
                 ring,
                 feedback,
                 primary,
@@ -583,7 +604,7 @@ impl ListItem {
                 long_press,
             )
         } else {
-            wrap_static_row(surface, self.disabled, checked, expanded)
+            wrap_static_row(surface, self.disabled, checked, self.checked_role, expanded)
         };
         let id = self.id;
         let row = div()

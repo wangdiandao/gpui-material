@@ -34,7 +34,9 @@ pub enum Story {
     Introduction,
     AdaptiveLayout,
     AppBar,
+    Avatar,
     Badge,
+    BottomAppBar,
     Button,
     ButtonGroup,
     Card,
@@ -45,6 +47,7 @@ pub enum Story {
     DateRangePicker,
     Dialog,
     Divider,
+    DropTarget,
     ExposedDropdown,
     ExtendedFab,
     Fab,
@@ -55,6 +58,7 @@ pub enum Story {
     LoadingIndicator,
     Menu,
     NavigationBar,
+    NavigationDrawer,
     NavigationRail,
     Progress,
     Radio,
@@ -63,6 +67,7 @@ pub enum Story {
     Slider,
     Snackbar,
     SplitButton,
+    Stepper,
     Surface,
     Switch,
     Tabs,
@@ -81,7 +86,9 @@ impl Story {
         Self::Introduction,
         Self::AdaptiveLayout,
         Self::AppBar,
+        Self::Avatar,
         Self::Badge,
+        Self::BottomAppBar,
         Self::Button,
         Self::ButtonGroup,
         Self::Card,
@@ -92,6 +99,7 @@ impl Story {
         Self::DateRangePicker,
         Self::Dialog,
         Self::Divider,
+        Self::DropTarget,
         Self::ExposedDropdown,
         Self::ExtendedFab,
         Self::Fab,
@@ -102,6 +110,7 @@ impl Story {
         Self::LoadingIndicator,
         Self::Menu,
         Self::NavigationBar,
+        Self::NavigationDrawer,
         Self::NavigationRail,
         Self::Progress,
         Self::Radio,
@@ -110,6 +119,7 @@ impl Story {
         Self::Slider,
         Self::Snackbar,
         Self::SplitButton,
+        Self::Stepper,
         Self::Surface,
         Self::Switch,
         Self::Tabs,
@@ -129,7 +139,9 @@ impl Story {
             Self::Introduction => "introduction",
             Self::AdaptiveLayout => "adaptive-layout",
             Self::AppBar => "app-bar",
+            Self::Avatar => "avatar",
             Self::Badge => "badge",
+            Self::BottomAppBar => "bottom-app-bar",
             Self::Button => "button",
             Self::Card => "card",
             Self::Carousel => "carousel",
@@ -139,6 +151,7 @@ impl Story {
             Self::DateRangePicker => "date-range-picker",
             Self::Dialog => "dialog",
             Self::Divider => "divider",
+            Self::DropTarget => "drop-target",
             Self::ExposedDropdown => "exposed-dropdown",
             Self::ExtendedFab => "extended-fab",
             Self::Fab => "fab",
@@ -149,6 +162,7 @@ impl Story {
             Self::LoadingIndicator => "loading-indicator",
             Self::Menu => "menu",
             Self::NavigationBar => "navigation-bar",
+            Self::NavigationDrawer => "navigation-drawer",
             Self::NavigationRail => "navigation-rail",
             Self::Progress => "progress",
             Self::Radio => "radio",
@@ -157,6 +171,7 @@ impl Story {
             Self::Slider => "slider",
             Self::Snackbar => "snackbar",
             Self::SplitButton => "split-button",
+            Self::Stepper => "stepper",
             Self::Surface => "surface",
             Self::Switch => "switch",
             Self::Tabs => "tabs",
@@ -177,7 +192,9 @@ impl Story {
             Self::Introduction => "Introduction",
             Self::AdaptiveLayout => "Adaptive layout",
             Self::AppBar => "App bar",
+            Self::Avatar => "Avatar",
             Self::Badge => "Badge",
+            Self::BottomAppBar => "Bottom app bar",
             Self::Button => "Button",
             Self::Card => "Card",
             Self::Carousel => "Carousel",
@@ -187,6 +204,7 @@ impl Story {
             Self::DateRangePicker => "Date range picker",
             Self::Dialog => "Dialog",
             Self::Divider => "Divider",
+            Self::DropTarget => "Drop target",
             Self::ExposedDropdown => "Exposed dropdown",
             Self::ExtendedFab => "Extended FAB",
             Self::Fab => "FAB",
@@ -197,6 +215,7 @@ impl Story {
             Self::LoadingIndicator => "Loading indicator",
             Self::Menu => "Menu",
             Self::NavigationBar => "Navigation bar",
+            Self::NavigationDrawer => "Navigation drawer",
             Self::NavigationRail => "Navigation rail",
             Self::Progress => "Progress",
             Self::Radio => "Radio group",
@@ -205,6 +224,7 @@ impl Story {
             Self::Slider => "Slider",
             Self::Snackbar => "Snackbar",
             Self::SplitButton => "Split button",
+            Self::Stepper => "Stepper",
             Self::Surface => "Surface",
             Self::Switch => "Switch",
             Self::Tabs => "Tabs",
@@ -231,7 +251,11 @@ impl Story {
                 "Resize the window and switch between Inbox, Activity, and Feed to compare the layouts."
             }
             Self::AppBar => "Place navigation, titles, and commands above scrolling content.",
+            Self::Avatar => "Display user or entity initials, icons, images, and fallback avatars.",
             Self::Badge => "Annotate icons with a dot, label, or count.",
+            Self::BottomAppBar => {
+                "Dock primary actions and a floating action button along the bottom edge."
+            }
             Self::Button => {
                 "Trigger commands with Material button variants, sizes, and icon slots."
             }
@@ -245,6 +269,9 @@ impl Story {
             }
             Self::Dialog => "Request a decision or input and restore focus when dismissed.",
             Self::Divider => "Separate related content with horizontal or vertical rules.",
+            Self::DropTarget => {
+                "Accept external OS file drops or typed in-app drag payloads with validation feedback."
+            }
             Self::ExposedDropdown => "Pick an option from an editable or fixed list.",
             Self::ExtendedFab => "Give a prominent action a label that can expand or collapse.",
             Self::Fab => "Make the primary action easy to reach with a floating button.",
@@ -259,6 +286,9 @@ impl Story {
             }
             Self::Menu => "Offer commands through a trigger, context menu, or submenu.",
             Self::NavigationBar => "Switch between primary destinations from a short bottom bar.",
+            Self::NavigationDrawer => {
+                "Present grouped destinations in a docked or modal 360 dp navigation drawer."
+            }
             Self::NavigationRail => {
                 "Keep destinations at the leading edge or open them in a modal rail."
             }
@@ -269,6 +299,7 @@ impl Story {
             Self::Slider => "Adjust a value or range with a pointer or keyboard.",
             Self::Snackbar => "Announce an outcome and offer a follow-up action such as Undo.",
             Self::SplitButton => "Run a primary command or choose a related action from its menu.",
+            Self::Stepper => "Guide users through horizontal or vertical multi-step workflows.",
             Self::Surface => "Compose passive surfaces and named controls with custom content.",
             Self::Switch => "Turn a setting on or off.",
             Self::Tabs => "Switch between related panels with fixed or scrolling tabs.",
@@ -328,18 +359,24 @@ impl Story {
             Self::Surface => cx.new(SurfaceExamples::new).into(),
             Self::VerticalDragHandle => cx.new(DragHandleExamples::new).into(),
             Self::Search => cx.new(|cx| SearchExamples::new(window, cx)).into(),
-            Self::AppBar | Self::NavigationBar | Self::NavigationRail | Self::Tabs => {
-                cx.new(|cx| NavigationExamples::new(self, cx)).into()
-            }
+            Self::AppBar
+            | Self::BottomAppBar
+            | Self::NavigationBar
+            | Self::NavigationDrawer
+            | Self::NavigationRail
+            | Self::Stepper
+            | Self::Tabs => cx.new(|cx| NavigationExamples::new(self, cx)).into(),
             Self::Menu | Self::Tooltip => cx.new(|cx| MenuTooltipExamples::new(self, cx)).into(),
             Self::Dialog | Self::Sheets => cx.new(|cx| ModalExamples::new(self, window, cx)).into(),
             Self::TextField => cx.new(|cx| TextFieldExamples::new(window, cx)).into(),
             Self::ExposedDropdown => cx.new(|cx| DropdownExamples::new(window, cx)).into(),
             Self::Snackbar => cx.new(SnackbarExamples::new).into(),
             Self::FabMenu | Self::Toolbars => cx.new(|cx| ToolbarExamples::new(self, cx)).into(),
-            Self::Badge
+            Self::Avatar
+            | Self::Badge
             | Self::Card
             | Self::Divider
+            | Self::DropTarget
             | Self::Icon
             | Self::List
             | Self::LoadingIndicator

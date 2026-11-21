@@ -8,8 +8,9 @@ use gpui::{
 };
 use gpui_base::{TestSupportExt, test_support::find};
 use gpui_material::{
-    Button, ButtonBorder, ButtonColors, ButtonShapes, ControlSize, IconButton, IconButtonVariant,
-    IconButtonWidth, IconToggleButton, InteractionSource, InteractionUpdate, Switch, ToggleButton,
+    Button, ButtonBorder, ButtonColors, ButtonShapes, ButtonTone, ButtonVariant, ControlSize, Icon,
+    IconButton, IconButtonVariant, IconButtonWidth, IconName, IconToggleButton, InteractionSource,
+    InteractionUpdate, Switch, ToggleButton, ToggleButtonVariant,
     foundation::{MaterialRoot, color, set_window_material_theme, window_material_theme},
     theme::{ColorRole, CornerShape, Direction},
 };
@@ -1079,6 +1080,97 @@ fn material_buttons_activate_once_and_toggles_update_the_owner(cx: &mut TestAppC
         draw(window, cx);
         assert!(!view.read(cx).toggles[0]);
         assert_eq!(view.read(cx).count, 1);
+    })
+    .unwrap();
+}
+
+#[gpui::test]
+fn button_tone_applies_semantic_palettes_and_yields_to_explicit_colors(cx: &mut TestAppContext) {
+    const OVERRIDE_BG: u32 = 0x1a4d2e;
+
+    struct ToneView;
+
+    impl Render for ToneView {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            row()
+                .child(
+                    Button::new("danger-filled", "Delete")
+                        .variant(ButtonVariant::Filled)
+                        .tone(ButtonTone::Danger)
+                        .on_activate(|_, _| {}),
+                )
+                .child(
+                    Button::new("success-tonal", "Approve")
+                        .variant(ButtonVariant::FilledTonal)
+                        .tone(ButtonTone::Success)
+                        .on_activate(|_, _| {}),
+                )
+                .child(
+                    Button::new("warning-outlined", "Caution")
+                        .variant(ButtonVariant::Outlined)
+                        .tone(ButtonTone::Warning)
+                        .on_activate(|_, _| {}),
+                )
+                .child(
+                    ToggleButton::new("info-toggle", "Info", true)
+                        .variant(ToggleButtonVariant::Filled)
+                        .tone(ButtonTone::Info)
+                        .on_change(|_, _, _| {}),
+                )
+                .child(
+                    IconButton::new("danger-icon", "Remove", Icon::new(IconName::Close))
+                        .variant(IconButtonVariant::Filled)
+                        .tone(ButtonTone::Danger)
+                        .on_activate(|_, _| {}),
+                )
+                .child(
+                    Button::new("override-danger", "Override")
+                        .variant(ButtonVariant::Filled)
+                        .tone(ButtonTone::Danger)
+                        .colors(ButtonColors {
+                            container: Some(rgb(OVERRIDE_BG).into()),
+                            ..Default::default()
+                        })
+                        .on_activate(|_, _| {}),
+                )
+        }
+    }
+
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| cx.new(|_| ToneView))
+            .unwrap()
+    });
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.activate_window();
+        window.refresh();
+        window.draw(cx).clear(cx);
+
+        let theme = window_material_theme(window, cx);
+        let quads = window.painted_quads();
+        let has_fill = |fill: Hsla| quads.iter().any(|quad| quad.background == fill.into());
+        let has_border = |stroke: Hsla| {
+            quads
+                .iter()
+                .any(|quad| quad.border_color == stroke && quad.border_widths.top > 0.0_f32.into())
+        };
+
+        assert!(has_fill(color(theme.colors.color(ColorRole::Error))));
+        assert!(has_fill(color(
+            theme.colors.color(ColorRole::SuccessContainer)
+        )));
+        assert!(has_border(color(theme.colors.color(ColorRole::Warning))));
+        assert!(has_fill(color(theme.colors.color(ColorRole::Info))));
+        assert!(has_fill(rgb(OVERRIDE_BG).into()));
+
+        assert_eq!(
+            find(window, &[], &"danger-filled".into()).unwrap().label(),
+            Some("Delete")
+        );
+        assert_eq!(
+            find(window, &[], &"danger-icon".into()).unwrap().label(),
+            Some("Remove")
+        );
     })
     .unwrap();
 }

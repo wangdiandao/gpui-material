@@ -3,8 +3,8 @@
   en: "0c16ec483c073c5d"
   zh: "b24fff9ed8f0b160"
 /components/actions-and-selection:
-  en: "cb56338267c86ac9"
-  zh: "6c47af955f97856b"
+  en: "06a9e74b24688423"
+  zh: "011a1baea4aa1fb3"
 /components/actions-and-selection/floating-action-button:
   en: "c77a57b086907ad0"
   zh: "e5c132ba393b8843"
@@ -27,8 +27,8 @@
   en: "51a406ecd386905a"
   zh: "5e59d88142753aa0"
 /components/content-and-feedback:
-  en: "89fdec0860937ac8"
-  zh: "9255a380b662ca95"
+  en: "52e6978ab148ec4f"
+  zh: "2750d81c959c0a08"
 /components/content-and-feedback/surfaces:
   en: "e0f5d2b66870d586"
   zh: "7c7c4891edaf84a4"
@@ -38,12 +38,21 @@
 /components/content-and-feedback/lists:
   en: "31095ee35ec859f3"
   zh: "09918936439b1d1b"
+/components/content-and-feedback/settings-tiles:
+  en: "28acb1d2449e634f"
+  zh: "8f71bfc64e24bf4d"
+/components/content-and-feedback/drop-target:
+  en: "686c7f0a8713cbc0"
+  zh: "d4ab54d7fe4f9800"
 /components/content-and-feedback/divider:
   en: "91017ca9ca1e50e9"
   zh: "552fa38bdd6c09d0"
 /components/content-and-feedback/badges:
   en: "3b4731e1ca05ba87"
   zh: "df321083c3b7761c"
+/components/content-and-feedback/avatars:
+  en: "e3e2a6559088a201"
+  zh: "85a7febe5c74b6e7"
 /components/content-and-feedback/swipe-to-dismiss:
   en: "9fe72312679c3039"
   zh: "0f1e8979db2e2a18"
@@ -90,8 +99,8 @@
   en: "88d7f9f958c88e33"
   zh: "800322be47d3d24b"
 /components/navigation-and-adaptive-layout:
-  en: "8dcb3e954c95444e"
-  zh: "2c4b3d875f39a8c7"
+  en: "723e56098f6e8e1d"
+  zh: "4590d2ca67c54ee6"
 /components/navigation-and-adaptive-layout/adaptive-navigation:
   en: "5bfec344f6037300"
   zh: "6dd7c52a5068c1a3"
@@ -110,6 +119,15 @@
 /components/navigation-and-adaptive-layout/navigation-rails:
   en: "ef16bfa21ca07422"
   zh: "4ab19a79db9c9a7f"
+/components/navigation-and-adaptive-layout/bottom-app-bar:
+  en: "77c6a47a852136a7"
+  zh: "d2bec6c5ce62624f"
+/components/navigation-and-adaptive-layout/navigation-drawer:
+  en: "443f4a8c0d575555"
+  zh: "109548ea0165a726"
+/components/navigation-and-adaptive-layout/stepper:
+  en: "50fb78880b3df6cd"
+  zh: "cc0b46eb91da9d5c"
 /components/navigation-and-adaptive-layout/vertical-drag-handle:
   en: "c9ce9bd62d6df8f7"
   zh: "69452f32921b5f85"
@@ -117,8 +135,8 @@
   en: "f749e65450d351e3"
   zh: "fdbeaa7d7dfdc868"
 /components/optional-components:
-  en: "872dcf4e1362d6ef"
-  zh: "b85edeb9a085a958"
+  en: "0fae2339a29ee075"
+  zh: "ab28ebcb9cd91fa4"
 /components/optional-components/window-chrome:
   en: "aaefab3fe6f6063b"
   zh: "aff96eee8fcf7ae7"

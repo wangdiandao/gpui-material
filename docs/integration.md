@@ -45,13 +45,13 @@ fn main() {
 
 ## Material Symbols
 
-Add the companion crate alongside `gpui-material` for the full Material Symbols catalog. In a source integration, use `gpui-material-symbols = { path = "../gpui-material/crates/symbols" }`. The catalog contains all 4,304 names at the pinned revision, including aliases. Use `Symbol::ALL` to browse it or `Symbol::from_name("favorite")` to resolve an upstream name. [Upstream codepoints and font assets](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
+Add the companion crate alongside `gpui-material` for the full Material Symbols catalog. In a source integration, use `gpui-material-design-symbols = { path = "../gpui-material/crates/symbols" }`. The catalog contains all 4,304 names at the pinned revision, including aliases. Use `Symbol::ALL` to browse it or `Symbol::from_name("favorite")` to resolve an upstream name. [Upstream codepoints and font assets](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
 
-On desktop, enable `embed-assets` on `gpui-material-symbols` and open an Outlined, Rounded, or Sharp font with `SymbolFont::embedded`. The fonts preserve `FILL` and `wght` with grade 0 and optical size 24. `SymbolAxes::default()` uses an unfilled glyph and weight 400. Use `.filled(true)` for FILL=1 and `Weight::new(550)` for an intermediate weight in the inclusive 100–700 range.
+On desktop, enable `embed-assets` on `gpui-material-design-symbols` and open an Outlined, Rounded, or Sharp font with `SymbolFont::embedded`. The fonts preserve `FILL` and `wght` with grade 0 and optical size 24. `SymbolAxes::default()` uses an unfilled glyph and weight 400. Use `.filled(true)` for FILL=1 and `Weight::new(550)` for an intermediate weight in the inclusive 100–700 range.
 
 ```rust
 use gpui_material::Icon;
-use gpui_material_symbols::{Symbol, SymbolAxes, SymbolFont, SymbolStyle, Weight};
+use gpui_material_design_symbols::{Symbol, SymbolAxes, SymbolFont, SymbolStyle, Weight};
 
 let font = SymbolFont::embedded(SymbolStyle::Rounded);
 let axes = SymbolAxes::default().filled(true).weight(Weight::BOLD);
@@ -64,7 +64,7 @@ Keep the returned SVG bytes in view or application state if you reuse the same g
 For browser WASM, serve the desired `.ttf` files and their license as separate static assets. The application controls when a style loads and can retain the resulting `SymbolFont` or the prepared SVG bytes in view state. While awaiting the font, the view can render a built-in icon and notify GPUI after replacing it. `fetch` reports network, HTTP, and invalid-font errors. Use a same-origin URL or configure CORS on the asset host.
 
 ```rust
-use gpui_material_symbols::{Symbol, SymbolAxes, SymbolFont};
+use gpui_material_design_symbols::{Symbol, SymbolAxes, SymbolFont};
 
 let font = SymbolFont::fetch("/fonts/material-symbols-rounded.ttf").await?;
 let favorite = font.svg_data(Symbol::Favorite, SymbolAxes::default())?;

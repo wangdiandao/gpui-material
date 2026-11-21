@@ -47,13 +47,13 @@ fn main() {
 
 ## Material Symbols
 
-需要完整图标目录时，在 `gpui-material` 之外引入配套 crate。从源码集成时使用 `gpui-material-symbols = { path = "../gpui-material/crates/symbols" }`。图标目录包含固定版本的全部 4,304 个名称，包括别名。通过 `Symbol::ALL` 遍历，或通过 `Symbol::from_name("favorite")` 查找上游名称。[上游码点表和字体资源](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
+需要完整图标目录时，在 `gpui-material` 之外引入配套 crate。从源码集成时使用 `gpui-material-design-symbols = { path = "../gpui-material/crates/symbols" }`。图标目录包含固定版本的全部 4,304 个名称，包括别名。通过 `Symbol::ALL` 遍历，或通过 `Symbol::from_name("favorite")` 查找上游名称。[上游码点表和字体资源](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
 
-桌面端为 `gpui-material-symbols` 启用 `embed-assets`，调用 `SymbolFont::embedded` 加载 Outlined、Rounded 或 Sharp 字体。字体保留 `FILL` 和 `wght`，grade 固定为 0，光学尺寸固定为 24。`SymbolAxes::default()` 使用未填充样式和 400 字重。`.filled(true)` 选择 FILL=1，`Weight::new(550)` 可指定 100–700 范围内的任意整数值。
+桌面端为 `gpui-material-design-symbols` 启用 `embed-assets`，调用 `SymbolFont::embedded` 加载 Outlined、Rounded 或 Sharp 字体。字体保留 `FILL` 和 `wght`，grade 固定为 0，光学尺寸固定为 24。`SymbolAxes::default()` 使用未填充样式和 400 字重。`.filled(true)` 选择 FILL=1，`Weight::new(550)` 可指定 100–700 范围内的任意整数值。
 
 ```rust
 use gpui_material::Icon;
-use gpui_material_symbols::{Symbol, SymbolAxes, SymbolFont, SymbolStyle, Weight};
+use gpui_material_design_symbols::{Symbol, SymbolAxes, SymbolFont, SymbolStyle, Weight};
 
 let font = SymbolFont::embedded(SymbolStyle::Rounded);
 let axes = SymbolAxes::default().filled(true).weight(Weight::BOLD);
@@ -66,7 +66,7 @@ let icon = Icon::svg_data(favorite);
 浏览器 WASM 端将所需的 `.ttf` 和许可证作为独立静态资源部署。应用决定何时加载某个样式，可将返回的 `SymbolFont` 或生成的 SVG 字节保存在视图状态中。等待期间可显示内置图标，替换后通知 GPUI。`fetch` 会返回网络、HTTP 和无效字体错误。使用同源 URL，或在资源服务器上配置 CORS。
 
 ```rust
-use gpui_material_symbols::{Symbol, SymbolAxes, SymbolFont};
+use gpui_material_design_symbols::{Symbol, SymbolAxes, SymbolFont};
 
 let font = SymbolFont::fetch("/fonts/material-symbols-rounded.ttf").await?;
 let favorite = font.svg_data(Symbol::Favorite, SymbolAxes::default())?;

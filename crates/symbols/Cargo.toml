@@ -1,5 +1,5 @@
 [package]
-name = "gpui-material-symbols"
+name = "gpui-material-design-symbols"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

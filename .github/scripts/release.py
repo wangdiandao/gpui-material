@@ -29,7 +29,7 @@ CRATES: list[tuple[str, str]] = [
     ("gpui-material-components", "crates/components"),
     ("gpui-material-extras", "crates/extras"),
     ("gpui-material", "crates/material"),
-    ("gpui-material-symbols", "crates/symbols"),
+    ("gpui-material-design-symbols", "crates/symbols"),
 ]
 
 INTERNAL_WORKSPACE_DEPS: list[str] = [
@@ -363,14 +363,14 @@ def cmd_verify_packages(args: argparse.Namespace) -> None:
                 *(
                     f'{name} = {{ path = {json.dumps(unpacked_dirs[name].as_posix())} }}'
                     for name, _ in CRATES
-                    if name != "gpui-material-symbols"
+                    if name != "gpui-material-design-symbols"
                 ),
             ]
         )
         symbols_patch_block = "\n".join(
             [
                 "[patch.crates-io]",
-                f'gpui-material-symbols = {{ path = {json.dumps(unpacked_dirs["gpui-material-symbols"].as_posix())} }}',
+                f'gpui-material-design-symbols = {{ path = {json.dumps(unpacked_dirs["gpui-material-design-symbols"].as_posix())} }}',
             ]
         )
 
@@ -445,10 +445,10 @@ publish = false
 
 [features]
 default = []
-embed-assets = ["gpui-material-symbols/embed-assets"]
+embed-assets = ["gpui-material-design-symbols/embed-assets"]
 
 [dependencies]
-gpui-material-symbols = {{ version = "={version}", default-features = false }}
+gpui-material-design-symbols = {{ version = "={version}", default-features = false }}
 
 {symbols_patch_block}
 """,
@@ -456,7 +456,7 @@ gpui-material-symbols = {{ version = "={version}", default-features = false }}
             newline="\n",
         )
         (symbols_dir / "src/lib.rs").write_text(
-            """use gpui_material_symbols::{Symbol, SymbolAxes, SymbolFont, SymbolStyle};
+            """use gpui_material_design_symbols::{Symbol, SymbolAxes, SymbolFont, SymbolStyle};
 
 pub fn smoke_symbols(bytes: &[u8]) {
     let _ = Symbol::Favorite.codepoint();

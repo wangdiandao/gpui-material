@@ -569,3 +569,94 @@ fn modal_examples_scope_demo_state_to_active_story(cx: &mut TestAppContext) {
         assert!(sheets_view.read(cx).sheet.is_some());
     });
 }
+
+#[gpui::test]
+fn dialog_alert_on_confirm_and_confirm_tone_work_in_basic_and_full_screen_modes(
+    cx: &mut TestAppContext,
+) {
+    use gpui_material::{DialogVariant, SemanticTone};
+
+    struct AlertProbe {
+        state: Entity<DialogState>,
+        variant: DialogVariant,
+        confirmed: Rc<Cell<usize>>,
+    }
+
+    impl Render for AlertProbe {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let confirmed = self.confirmed.clone();
+            div().size_full().child(
+                Dialog::alert(
+                    "delete-alert",
+                    &self.state,
+                    "Delete workspace?",
+                    "This action cannot be undone.",
+                )
+                .variant(self.variant)
+                .confirm_tone(SemanticTone::Danger)
+                .on_confirm("Delete", move |_, _| {
+                    confirmed.set(confirmed.get() + 1);
+                }),
+            )
+        }
+    }
+
+    let confirmed = Rc::new(Cell::new(0usize));
+    let (window, state, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let state = cx.new(DialogState::new);
+        let view = cx.new(|_| AlertProbe {
+            state: state.clone(),
+            variant: DialogVariant::Basic,
+            confirmed: confirmed.clone(),
+        });
+        let window =
+            MaterialRoot::open_window(WindowOptions::default(), cx, |_, _| view.clone()).unwrap();
+        (window.into(), state, view)
+    });
+
+    cx.update_window(window, |_, window, cx| {
+        window.activate_window();
+        state.update(cx, |state, cx| state.open(window, cx));
+    })
+    .unwrap();
+    frame(window, cx);
+
+    cx.update_window(window, |_, window, _| {
+        assert!(
+            find(window, &[], &"cancel".into()).is_none(),
+            "Dialog::alert hides the default cancel button"
+        );
+        let confirm = find(window, &[], &"confirm".into()).expect("confirm button rendered");
+        assert_eq!(confirm.label(), Some("Delete"));
+    })
+    .unwrap();
+
+    // Activate confirm button via Enter while dialog container has focus; on_confirm closes immediately.
+    cx.simulate_keystrokes(window, "enter");
+    frame(window, cx);
+    assert_eq!(confirmed.get(), 1);
+    assert!(!cx.update(|cx| state.read(cx).is_open()));
+
+    // Verify full-screen compact layout also renders confirm_tone + on_confirm without cancel.
+    cx.simulate_window_resize(window, size(px(480.), px(640.)));
+    cx.update_window(window, |_, window, cx| {
+        view.update(cx, |view, cx| {
+            view.variant = DialogVariant::FullScreen;
+            cx.notify();
+        });
+        state.update(cx, |state, cx| state.open(window, cx));
+    })
+    .unwrap();
+    frame(window, cx);
+    cx.update_window(window, |_, window, _| {
+        assert!(find(window, &[], &"dialog-app-bar".into()).is_some());
+        assert!(find(window, &[], &"cancel".into()).is_none());
+        assert_eq!(
+            find(window, &[], &"confirm".into()).unwrap().label(),
+            Some("Delete")
+        );
+    })
+    .unwrap();
+}

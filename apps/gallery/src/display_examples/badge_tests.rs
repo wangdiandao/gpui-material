@@ -139,3 +139,76 @@ fn badge_content_color_geometry_and_host_focus(cx: &mut TestAppContext) {
         .unwrap();
     }
 }
+
+#[gpui::test]
+fn badge_tones_standalone_shorthands_and_element_ext_precedence(cx: &mut TestAppContext) {
+    use gpui_material::{MaterialElementExt, SemanticTone};
+
+    struct ToneBadges;
+
+    impl Render for ToneBadges {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let icon = || Icon::new(IconName::Notifications).size(px(24.));
+            div()
+                .flex()
+                .items_center()
+                .gap_4()
+                .p_4()
+                .child(Badge::standalone_label("LIVE").tone(SemanticTone::Success))
+                .child(Badge::standalone_count(120, 99).tone(SemanticTone::Warning))
+                .child(
+                    Badge::standalone_label("ROLE")
+                        .tone(SemanticTone::Danger)
+                        .color_role(ColorRole::Tertiary, ColorRole::OnTertiary),
+                )
+                .child(
+                    Badge::standalone_label("EXPLICIT")
+                        .tone(SemanticTone::Info)
+                        .color_role(ColorRole::Secondary, ColorRole::OnSecondary)
+                        .container_color(rgb(0x114466)),
+                )
+                .child(icon().badge_dot().tone(SemanticTone::Info))
+                .child(icon().badge_label("NEW").tone(SemanticTone::Danger))
+                .child(icon().badge_count(5, 99).tone(SemanticTone::Success))
+        }
+    }
+
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+            cx.new(|_| ToneBadges)
+        })
+        .unwrap()
+    });
+
+    cx.update_window(handle.into(), |_, window, cx| {
+        let theme = MaterialTheme::baseline(Appearance::Light);
+        let success = color(theme.colors.color(ColorRole::Success));
+        let warning = color(theme.colors.color(ColorRole::Warning));
+        let info = color(theme.colors.color(ColorRole::Info));
+        let error = color(theme.colors.color(ColorRole::Error));
+        let tertiary = color(theme.colors.color(ColorRole::Tertiary));
+        let explicit: Hsla = rgb(0x114466).into();
+
+        set_window_material_theme(Some(theme), window, cx);
+        window.activate_window();
+        window.refresh();
+        window.draw(cx).clear(cx);
+
+        let quads = window.painted_quads();
+        for (name, expected) in [
+            ("success", success),
+            ("warning", warning),
+            ("info", info),
+            ("error", error),
+            ("tertiary", tertiary),
+            ("explicit", explicit),
+        ] {
+            assert!(
+                quads.iter().any(|quad| quad.background == expected.into()),
+                "missing painted badge quad for {name} ({expected:?})"
+            );
+        }
+    })
+    .unwrap();
+}

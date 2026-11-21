@@ -190,6 +190,24 @@ impl TextField {
         Self::with_editor(id, label, Editor::Single(state.clone()))
     }
 
+    /// Renders a Filled single-line editor.
+    pub fn filled(
+        id: impl Into<ElementId>,
+        label: impl Into<SharedString>,
+        state: &Entity<TextFieldState>,
+    ) -> Self {
+        Self::new(id, label, state).variant(TextFieldVariant::Filled)
+    }
+
+    /// Renders an Outlined single-line editor.
+    pub fn outlined(
+        id: impl Into<ElementId>,
+        label: impl Into<SharedString>,
+        state: &Entity<TextFieldState>,
+    ) -> Self {
+        Self::new(id, label, state).variant(TextFieldVariant::Outlined)
+    }
+
     /// Renders a multi-line editor using the row policy configured in its state.
     pub fn multiline(
         id: impl Into<ElementId>,

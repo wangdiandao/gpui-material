@@ -1,5 +1,6 @@
 use std::{cell::Cell, collections::VecDeque, rc::Rc, time::Duration};
 
+use crate::SemanticTone;
 use crate::motion::{OverlayMotion, ScaledOverlay};
 use gpui::{
     AnyElement, App, ClickEvent, Context, EntityId, FocusHandle, Hsla, InteractiveElement,
@@ -63,6 +64,7 @@ pub struct Snackbar {
     show_dismiss: bool,
     action_on_new_line: bool,
     shape: CornerShape,
+    tone: SemanticTone,
     colors: SnackbarColors,
     on_dismiss: Option<Action>,
     on_result: Option<Completion>,
@@ -80,6 +82,7 @@ impl Snackbar {
             show_dismiss: true,
             action_on_new_line: false,
             shape: CornerShape::Radii([4.; 4]),
+            tone: SemanticTone::Default,
             colors: SnackbarColors::default(),
             on_dismiss: None,
             on_result: None,
@@ -166,6 +169,16 @@ impl Snackbar {
         self
     }
 
+    /// Applies a Material 3 semantic tone shortcut.
+    ///
+    /// [`SemanticTone::Default`] keeps the M3 inverse palette; semantic tones
+    /// use `(Container, OnContainer, Role)` while explicit [`Self::colors`]
+    /// overrides still take precedence.
+    pub fn tone(mut self, tone: SemanticTone) -> Self {
+        self.tone = tone;
+        self
+    }
+
     pub fn colors(mut self, colors: SnackbarColors) -> Self {
         self.colors = colors;
         self
@@ -221,6 +234,39 @@ impl SnackbarHost {
     /// Queues the message after any already pending messages.
     pub fn push(&mut self, snackbar: Snackbar, window: &mut Window, cx: &mut Context<Self>) {
         self.enqueue(snackbar, window, cx);
+    }
+
+    /// Queues a plain message snackbar and returns its opaque identity.
+    pub fn push_message(
+        &mut self,
+        message: impl Into<SharedString>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> SnackbarId {
+        self.enqueue(Snackbar::new(message), window, cx)
+    }
+
+    /// Dismisses the currently active snackbar (if any, firing its dismissal
+    /// completion cleanly) and immediately presents the new snackbar ahead of
+    /// any pending entries.
+    pub fn replace(
+        &mut self,
+        snackbar: Snackbar,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> SnackbarId {
+        self.next_id += 1;
+        let id = SnackbarId {
+            host: cx.entity_id(),
+            sequence: self.next_id,
+        };
+        self.pending.push_front((id, snackbar));
+        if let Some((active_id, _)) = self.current() {
+            self.finish(active_id, SnackbarResult::Dismissed, window, cx);
+        } else {
+            self.show_next(window, cx);
+        }
+        id
     }
 
     /// Queues the message and returns an opaque identity scoped to this host.
@@ -394,6 +440,17 @@ impl Render for SnackbarHost {
     }
 }
 
+fn snackbar_tone_roles(tone: SemanticTone) -> (ColorRole, ColorRole, ColorRole) {
+    tone.roles().map_or(
+        (
+            ColorRole::InverseSurface,
+            ColorRole::InverseOnSurface,
+            ColorRole::InversePrimary,
+        ),
+        |(role, _, container, on_container)| (container, on_container, role),
+    )
+}
+
 fn snackbar_surface(
     entry: &Entry,
     motion: OverlayMotion,
@@ -408,12 +465,13 @@ fn snackbar_surface(
     let message = &entry.message;
     let theme = current_material_theme(window, cx);
     let tone = |role| color(theme.colors.color(role));
-    let inverse_primary = tone(ColorRole::InversePrimary);
-    let inverse_on_surface = tone(ColorRole::InverseOnSurface);
-    let content_color = message.colors.content.unwrap_or(inverse_on_surface);
-    let action_color = message.colors.action.unwrap_or(inverse_primary);
-    let dismiss_color = message.colors.dismiss.unwrap_or(inverse_on_surface);
-    let dismiss_feedback = message.colors.dismiss.unwrap_or(inverse_primary);
+    let (_, content_role, action_role) = snackbar_tone_roles(message.tone);
+    let default_content = tone(content_role);
+    let default_action = tone(action_role);
+    let content_color = message.colors.content.unwrap_or(default_content);
+    let action_color = message.colors.action.unwrap_or(default_action);
+    let dismiss_color = message.colors.dismiss.unwrap_or(default_content);
+    let dismiss_feedback = message.colors.dismiss.unwrap_or(default_action);
     let spacing = motion.px(16.);
     let message_content = message.message_content.as_ref().map_or_else(
         || message.message.clone().into_any_element(),
@@ -573,11 +631,12 @@ fn default_layout(
     let rtl = direction == Direction::Rtl;
     let tone = |role| color(theme.colors.color(role));
     let spacing = motion.px(16.);
+    let (container_role, _, _) = snackbar_tone_roles(message.tone);
     let mut surface = div()
         .bg(message
             .colors
             .container
-            .unwrap_or_else(|| tone(ColorRole::InverseSurface)))
+            .unwrap_or_else(|| tone(container_role)))
         .shadow(elevation_shadows(
             Elevation::Level3.dp(),
             motion.scale,
@@ -621,5 +680,35 @@ fn default_layout(
             .child(content)
             .children(action)
             .children(dismiss),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn snackbar_tone_roles_map_inverse_default_and_semantic_palettes() {
+        use ColorRole::*;
+        assert_eq!(
+            snackbar_tone_roles(SemanticTone::Default),
+            (InverseSurface, InverseOnSurface, InversePrimary)
+        );
+        assert_eq!(
+            snackbar_tone_roles(SemanticTone::Danger),
+            (ErrorContainer, OnErrorContainer, Error)
+        );
+        assert_eq!(
+            snackbar_tone_roles(SemanticTone::Success),
+            (SuccessContainer, OnSuccessContainer, Success)
+        );
+        assert_eq!(
+            snackbar_tone_roles(SemanticTone::Warning),
+            (WarningContainer, OnWarningContainer, Warning)
+        );
+        assert_eq!(
+            snackbar_tone_roles(SemanticTone::Info),
+            (InfoContainer, OnInfoContainer, Info)
+        );
     }
 }

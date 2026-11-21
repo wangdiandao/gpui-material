@@ -9,7 +9,7 @@ use gpui_material_foundation::{
 };
 use gpui_material_theme::{ColorRole, CornerRole, CornerShape, Direction, Elevation, TypeRole};
 
-use crate::{Button, ButtonVariant, IconButton};
+use crate::{Button, ButtonVariant, IconButton, SemanticTone};
 
 use super::{
     ActionSlot, Confirm, Dialog, DialogAction, DialogCloseReason, DialogColors, DialogProperties,
@@ -62,6 +62,7 @@ fn build_surface_shell(
 #[allow(clippy::too_many_arguments)]
 fn build_actions(
     confirm: Option<(SharedString, Confirm)>,
+    confirm_tone: SemanticTone,
     confirm_content: Option<ActionSlot>,
     confirm_action: DialogAction,
     confirm_focus: &FocusHandle,
@@ -78,6 +79,7 @@ fn build_actions(
             Button::new("confirm", label)
                 .track_focus(confirm_focus)
                 .variant(ButtonVariant::Text)
+                .tone(confirm_tone)
                 .on_activate(move |window, cx| confirm_action.activate(window, cx))
                 .into_any_element()
         }),
@@ -422,6 +424,7 @@ impl RenderOnce for Dialog {
         } else {
             let (cancel, confirm) = build_actions(
                 self.confirm,
+                self.confirm_tone,
                 self.confirm_content,
                 confirm_action.clone(),
                 &confirm_focus,

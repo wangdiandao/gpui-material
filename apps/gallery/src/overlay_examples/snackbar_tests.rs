@@ -589,3 +589,169 @@ fn snackbar_renders_nonzero_fallback_width_on_first_frame(cx: &mut TestAppContex
         );
     });
 }
+
+#[gpui::test]
+fn snackbar_tone_push_message_and_replace_precedence(cx: &mut TestAppContext) {
+    use gpui_material::{
+        SemanticTone,
+        foundation::{color, window_material_theme},
+        theme::ColorRole,
+    };
+
+    let (view, cx) = open(cx, SnackbarHost::default());
+    let host = cx.update(|_, cx| view.read(cx).host.clone().unwrap());
+
+    // 1. push_message queues a plain message and returns its SnackbarId.
+    let pushed_id = cx.update(|window, cx| {
+        host.update(cx, |host, cx| host.push_message("Plain push", window, cx))
+    });
+    draw(cx);
+    assert_eq!(current(&host, cx), Some((pushed_id, "Plain push".into())));
+    cx.update(|window, cx| {
+        host.update(cx, |host, cx| {
+            assert!(host.dismiss_message(pushed_id, window, cx));
+        })
+    });
+    draw(cx);
+    assert!(current(&host, cx).is_none());
+
+    // 2. replace works when host is idle, and when active dismisses active cleanly ahead of pending entries.
+    let events = Rc::new(RefCell::new(Vec::new()));
+    let ev_a_dismiss = events.clone();
+    let ev_a_result = events.clone();
+    let ev_b_result = events.clone();
+    let ev_c_result = events.clone();
+
+    let id_a = cx.update(|window, cx| {
+        host.update(cx, |host, cx| {
+            host.replace(
+                Snackbar::new("First active")
+                    .timeout(None)
+                    .on_dismiss(move |_, _| ev_a_dismiss.borrow_mut().push("a:dismiss"))
+                    .on_result(move |res, _, _| {
+                        assert_eq!(res, SnackbarResult::Dismissed);
+                        ev_a_result.borrow_mut().push("a:result");
+                    }),
+                window,
+                cx,
+            )
+        })
+    });
+    let id_b = enqueue(
+        &host,
+        cx,
+        Snackbar::new("Pending B")
+            .timeout(None)
+            .on_result(move |res, _, _| {
+                assert_eq!(res, SnackbarResult::Dismissed);
+                ev_b_result.borrow_mut().push("b:result");
+            }),
+    );
+    draw(cx);
+    assert_eq!(current(&host, cx), Some((id_a, "First active".into())));
+
+    // Replacing while A is active and B is pending must dismiss A and show C ahead of B.
+    let tints = Rc::new(RefCell::new(Vec::new()));
+    let msg_tints = tints.clone();
+    let action_tints = tints.clone();
+    let id_c = cx.update(|window, cx| {
+        host.update(cx, |host, cx| {
+            host.replace(
+                Snackbar::new("Urgent danger")
+                    .timeout(None)
+                    .tone(SemanticTone::Danger)
+                    .message_content(move |_, _| TintProbe {
+                        region: "message",
+                        paints: msg_tints.clone(),
+                        text: "Urgent danger",
+                    })
+                    .action("Retry", |_, _| {})
+                    .action_content(move |_, _| TintProbe {
+                        region: "action",
+                        paints: action_tints.clone(),
+                        text: "Retry",
+                    })
+                    .on_result(move |res, _, _| {
+                        assert_eq!(res, SnackbarResult::Dismissed);
+                        ev_c_result.borrow_mut().push("c:result");
+                    }),
+                window,
+                cx,
+            )
+        })
+    });
+    draw(cx);
+    assert_eq!(current(&host, cx), Some((id_c, "Urgent danger".into())));
+    assert_eq!(*events.borrow(), ["a:dismiss", "a:result"]);
+
+    // Verify Danger tone paints ErrorContainer, OnErrorContainer, and Error action color.
+    cx.update(|window, cx| {
+        let theme = window_material_theme(window, cx);
+        let error_container = color(theme.colors.color(ColorRole::ErrorContainer));
+        let on_error_container = color(theme.colors.color(ColorRole::OnErrorContainer));
+        let error = color(theme.colors.color(ColorRole::Error));
+
+        assert!(
+            window
+                .painted_quads()
+                .iter()
+                .any(|quad| quad.background == error_container.into()),
+            "Danger snackbar must paint ErrorContainer"
+        );
+        let painted = tints.borrow();
+        assert_eq!(
+            painted
+                .iter()
+                .rev()
+                .find(|(region, _)| *region == "message")
+                .map(|(_, c)| *c),
+            Some(on_error_container)
+        );
+        assert_eq!(
+            painted
+                .iter()
+                .rev()
+                .find(|(region, _)| *region == "action")
+                .map(|(_, c)| *c),
+            Some(error)
+        );
+    });
+
+    // Dismissing C advances to the previously pending B.
+    cx.update(|window, cx| {
+        host.update(cx, |host, cx| {
+            assert!(host.dismiss_message(id_c, window, cx));
+        })
+    });
+    draw(cx);
+    assert_eq!(current(&host, cx), Some((id_b, "Pending B".into())));
+    assert_eq!(*events.borrow(), ["a:dismiss", "a:result", "c:result"]);
+
+    // 3. Explicit SnackbarColors overrides SemanticTone.
+    let explicit_bg: Hsla = rgb(0x224466).into();
+    let _id_override = cx.update(|window, cx| {
+        host.update(cx, |host, cx| {
+            host.replace(
+                Snackbar::new("Override")
+                    .timeout(None)
+                    .tone(SemanticTone::Success)
+                    .colors(SnackbarColors {
+                        container: Some(explicit_bg),
+                        ..Default::default()
+                    }),
+                window,
+                cx,
+            )
+        })
+    });
+    draw(cx);
+    cx.update(|window, _| {
+        assert!(
+            window
+                .painted_quads()
+                .iter()
+                .any(|quad| quad.background == explicit_bg.into()),
+            "explicit SnackbarColors::container must override SemanticTone"
+        );
+    });
+}

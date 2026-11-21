@@ -113,6 +113,21 @@ impl Card {
         }
     }
 
+    /// Creates an Elevated card.
+    pub fn elevated(id: impl Into<ElementId>) -> Self {
+        Self::new(id).variant(CardVariant::Elevated)
+    }
+
+    /// Creates a Filled card.
+    pub fn filled(id: impl Into<ElementId>) -> Self {
+        Self::new(id).variant(CardVariant::Filled)
+    }
+
+    /// Creates an Outlined card.
+    pub fn outlined(id: impl Into<ElementId>) -> Self {
+        Self::new(id).variant(CardVariant::Outlined)
+    }
+
     pub fn variant(mut self, variant: CardVariant) -> Self {
         self.variant = variant;
         self
@@ -452,5 +467,12 @@ mod tests {
             state.disabled = true;
             assert_eq!(levels.resolve(variant, state), resting);
         }
+    }
+
+    #[test]
+    fn card_variant_shorthands_set_expected_variants() {
+        assert_eq!(Card::elevated("c1").variant, CardVariant::Elevated);
+        assert_eq!(Card::filled("c2").variant, CardVariant::Filled);
+        assert_eq!(Card::outlined("c3").variant, CardVariant::Outlined);
     }
 }

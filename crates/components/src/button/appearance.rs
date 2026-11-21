@@ -35,17 +35,6 @@ impl Appearance {
     }
 }
 
-fn tone_roles(tone: ButtonTone) -> Option<(ColorRole, ColorRole, ColorRole, ColorRole)> {
-    use ColorRole::*;
-    match tone {
-        ButtonTone::Default => None,
-        ButtonTone::Danger => Some((Error, OnError, ErrorContainer, OnErrorContainer)),
-        ButtonTone::Success => Some((Success, OnSuccess, SuccessContainer, OnSuccessContainer)),
-        ButtonTone::Warning => Some((Warning, OnWarning, WarningContainer, OnWarningContainer)),
-        ButtonTone::Info => Some((Info, OnInfo, InfoContainer, OnInfoContainer)),
-    }
-}
-
 pub(super) fn button_appearance(
     variant: ButtonVariant,
     selected: Option<bool>,
@@ -54,7 +43,7 @@ pub(super) fn button_appearance(
     use ColorRole::*;
     use Elevation::*;
     let (background, foreground, outlined, outline_role, elevation, hover_elevation) =
-        if let Some((role, on_role, container, on_container)) = tone_roles(tone) {
+        if let Some((role, on_role, container, on_container)) = tone.roles() {
             match (variant, selected) {
                 (ButtonVariant::Elevated, Some(true)) => {
                     (Some(role), on_role, false, OutlineVariant, Level1, Level2)

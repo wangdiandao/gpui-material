@@ -22,9 +22,61 @@ use crate::button_style::{
     ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShapes, ButtonStyle,
     finite_length,
 };
-use crate::{Icon, IconName};
+use crate::{Icon, IconName, SemanticTone};
 
 use super::{Chip, ChipColors, ChipElevations, ChipVariant};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ChipToneRoles {
+    foreground: ColorRole,
+    leading: ColorRole,
+    trailing: ColorRole,
+    selected_container: ColorRole,
+    border: ColorRole,
+}
+
+fn chip_tone_roles(
+    variant: ChipVariant,
+    selected: bool,
+    tonal: bool,
+    tone: SemanticTone,
+) -> ChipToneRoles {
+    use ColorRole::*;
+    if let Some((role, _, container, on_container)) = tone.roles() {
+        let fg = if selected { on_container } else { role };
+        ChipToneRoles {
+            foreground: fg,
+            leading: fg,
+            trailing: fg,
+            selected_container: container,
+            border: role,
+        }
+    } else {
+        ChipToneRoles {
+            foreground: if selected {
+                OnSecondaryContainer
+            } else if variant == ChipVariant::Assist {
+                OnSurface
+            } else {
+                OnSurfaceVariant
+            },
+            leading: match (variant, selected, tonal) {
+                (ChipVariant::Input, false, _) | (ChipVariant::Filter, false, true) => {
+                    OnSurfaceVariant
+                }
+                (ChipVariant::Filter, true, _) => OnSecondaryContainer,
+                _ => Primary,
+            },
+            trailing: if selected {
+                OnSecondaryContainer
+            } else {
+                OnSurfaceVariant
+            },
+            selected_container: SecondaryContainer,
+            border: OutlineVariant,
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 struct ChipPalette {
@@ -45,6 +97,7 @@ fn resolve_palette(
     selectable: bool,
     selected: bool,
     tonal: bool,
+    tone: SemanticTone,
     elevated: bool,
     disabled: bool,
     chip_colors: ChipColors,
@@ -54,13 +107,8 @@ fn resolve_palette(
 ) -> ChipPalette {
     use ColorRole::*;
     let colors = chip_colors.for_state(disabled, selected);
-    let foreground = if selected {
-        OnSecondaryContainer
-    } else if variant == ChipVariant::Assist {
-        OnSurface
-    } else {
-        OnSurfaceVariant
-    };
+    let roles = chip_tone_roles(variant, selected, tonal, tone);
+    let foreground = roles.foreground;
     let (on_surface, label, leading, trailing, idle, checked, border_color, effects) = {
         let theme = current_material_theme(window, cx);
         let theme_color = |role| color(theme.colors.color(role));
@@ -76,35 +124,27 @@ fn resolve_palette(
             if disabled {
                 on_surface.opacity(0.38)
             } else {
-                theme_color(match (variant, selected, tonal) {
-                    (ChipVariant::Input, false, _) | (ChipVariant::Filter, false, true) => {
-                        OnSurfaceVariant
-                    }
-                    (ChipVariant::Filter, true, _) => OnSecondaryContainer,
-                    _ => Primary,
-                })
+                theme_color(roles.leading)
             }
         });
         let trailing = colors.trailing.unwrap_or_else(|| {
             if disabled {
                 on_surface.opacity(0.38)
-            } else if selected {
-                theme_color(OnSecondaryContainer)
             } else {
-                theme_color(OnSurfaceVariant)
+                theme_color(roles.trailing)
             }
         });
         let idle = chip_colors.enabled.container.unwrap_or_else(|| {
             if elevated {
                 theme_color(SurfaceContainerLow)
             } else {
-                theme_color(SecondaryContainer).opacity(0.)
+                theme_color(roles.selected_container).opacity(0.)
             }
         });
         let checked = chip_colors
             .selected
             .container
-            .unwrap_or_else(|| theme_color(SecondaryContainer));
+            .unwrap_or_else(|| theme_color(roles.selected_container));
         let border_color = colors
             .border
             .or(border.map(|border| border.color))
@@ -112,7 +152,7 @@ fn resolve_palette(
                 if disabled {
                     on_surface.opacity(0.12)
                 } else {
-                    theme_color(OutlineVariant)
+                    theme_color(roles.border)
                 }
             });
         let effects = theme.motion.spec(
@@ -464,6 +504,7 @@ impl RenderOnce for Chip {
             selectable,
             selected,
             tonal,
+            self.tone,
             elevated,
             self.disabled,
             self.colors,
@@ -784,5 +825,61 @@ impl SplitSurface {
         )
         .absolute()
         .inset_0()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn chip_tone_roles_map_semantic_tones_and_preserve_defaults() {
+        use ColorRole::*;
+        let default_assist =
+            chip_tone_roles(ChipVariant::Assist, false, false, SemanticTone::Default);
+        assert_eq!(default_assist.foreground, OnSurface);
+        assert_eq!(default_assist.border, OutlineVariant);
+        assert_eq!(default_assist.selected_container, SecondaryContainer);
+
+        let default_selected =
+            chip_tone_roles(ChipVariant::Filter, true, false, SemanticTone::Default);
+        assert_eq!(default_selected.foreground, OnSecondaryContainer);
+        assert_eq!(default_selected.leading, OnSecondaryContainer);
+        assert_eq!(default_selected.trailing, OnSecondaryContainer);
+
+        for (tone, role, container, on_container) in [
+            (
+                SemanticTone::Danger,
+                Error,
+                ErrorContainer,
+                OnErrorContainer,
+            ),
+            (
+                SemanticTone::Success,
+                Success,
+                SuccessContainer,
+                OnSuccessContainer,
+            ),
+            (
+                SemanticTone::Warning,
+                Warning,
+                WarningContainer,
+                OnWarningContainer,
+            ),
+            (SemanticTone::Info, Info, InfoContainer, OnInfoContainer),
+        ] {
+            let unselected = chip_tone_roles(ChipVariant::Filter, false, false, tone);
+            assert_eq!(unselected.foreground, role);
+            assert_eq!(unselected.leading, role);
+            assert_eq!(unselected.trailing, role);
+            assert_eq!(unselected.border, role);
+            assert_eq!(unselected.selected_container, container);
+
+            let selected = chip_tone_roles(ChipVariant::Filter, true, false, tone);
+            assert_eq!(selected.foreground, on_container);
+            assert_eq!(selected.leading, on_container);
+            assert_eq!(selected.trailing, on_container);
+            assert_eq!(selected.selected_container, container);
+        }
     }
 }

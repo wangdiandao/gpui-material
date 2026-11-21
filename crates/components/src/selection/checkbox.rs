@@ -4,9 +4,9 @@ use gpui::{
     AccessibleAction, App, BorderStyle, Bounds, ContentMask, ElementId, Entity, FocusHandle, Hsla,
     InteractiveElement, IntoElement, ParentElement, Path, PathBuilder, PathStyle, Pixels,
     RenderOnce, Rgba, SharedString, StatefulInteractiveElement, StrokeOptions, Styled, Window,
-    canvas, point, prelude::FluentBuilder, px, quad,
+    canvas, div, point, prelude::FluentBuilder, px, quad,
 };
-use gpui_base::{Checkbox as BaseCheckbox, CheckboxState};
+use gpui_base::{Checkbox as BaseCheckbox, CheckboxState, TestSupportExt};
 use gpui_material_foundation::{InteractionSource, ThemeScope, animate, current_material_theme};
 use gpui_material_theme::{ColorRole, MotionKind, MotionSpec, MotionSpeed};
 
@@ -72,6 +72,7 @@ pub struct Checkbox {
     focus: Option<FocusHandle>,
     interaction_source: Option<Entity<InteractionSource>>,
     on_change: Option<CheckboxChange>,
+    decorative: bool,
 }
 
 impl Checkbox {
@@ -92,7 +93,14 @@ impl Checkbox {
             focus: None,
             interaction_source: None,
             on_change: None,
+            decorative: false,
         }
+    }
+
+    #[cfg(feature = "surfaces")]
+    pub(crate) fn decorative(mut self, decorative: bool) -> Self {
+        self.decorative = decorative;
+        self
     }
 
     pub fn error(mut self, error: bool) -> Self {
@@ -240,6 +248,18 @@ impl RenderOnce for Checkbox {
         )
         .size(px(CHECKBOX_SIZE))
         .flex_none();
+        if self.decorative {
+            return div()
+                .id(self.id)
+                .test_support()
+                .flex_none()
+                .size(px(24.))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(indicator)
+                .into_any_element();
+        }
         let direction = current_material_theme(window, cx).layout.direction;
         let ripple = ripple_state(&self.id, !self.disabled, window, cx);
         let focus = self.focus.unwrap_or_else(|| {
@@ -319,8 +339,9 @@ impl RenderOnce for Checkbox {
                         pending.set(value);
                         handler(window, cx);
                     })
+                    .into_any_element()
             }
-            _ => control,
+            _ => control.into_any_element(),
         }
     }
 }

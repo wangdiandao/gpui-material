@@ -1,11 +1,13 @@
 mod appearance;
+mod spinner;
 
 use std::rc::Rc;
 
 use gpui::{
-    AnyElement, App, ElementId, Entity, FocusHandle, IntoElement, ParentElement, Pixels,
-    RenderOnce, SharedString, Styled, Window, div, px,
+    AnyElement, App, ElementId, Entity, FocusHandle, InteractiveElement, IntoElement,
+    ParentElement, Pixels, RenderOnce, SharedString, Styled, Window, div, px,
 };
+use gpui_base::TestSupportExt;
 use gpui_material_foundation::{InteractionSource, current_material_theme};
 use gpui_material_theme::{
     CornerRole, Direction, MotionKind, MotionSpeed, TypeRole, TypographyEmphasis,
@@ -20,6 +22,7 @@ use crate::button_style::{
 };
 
 use appearance::{button_appearance, icon_appearance};
+use spinner::render_loading_spinner;
 
 #[derive(Clone, Copy)]
 struct Metrics {
@@ -139,6 +142,7 @@ struct Common {
     id: ElementId,
     label: SharedString,
     disabled: bool,
+    loading: bool,
     focus: Option<FocusHandle>,
     interaction_source: Option<Entity<InteractionSource>>,
     appearance: ButtonStyle,
@@ -153,6 +157,7 @@ impl Common {
             id: id.into(),
             label: label.into(),
             disabled: false,
+            loading: false,
             focus: None,
             interaction_source: None,
             appearance: ButtonStyle::default(),
@@ -191,10 +196,15 @@ impl Common {
             style,
             content,
         }
-        .render_scaled(
+        .render_layout(
             scale,
+            ActionLayout {
+                tab_stop: true,
+                loading: self.loading,
+                appearance: self.appearance,
+                ..Default::default()
+            },
             self.interaction_source.as_ref(),
-            self.appearance,
             window,
             cx,
         )
@@ -457,6 +467,13 @@ impl Button {
         self
     }
 
+    /// Shows a centered inline circular spinner while suppressing activation and preserving the
+    /// button's resting width. Keeps the active palette unless `.disabled(true)` is also set.
+    pub fn loading(mut self, loading: bool) -> Self {
+        self.common.loading = loading;
+        self
+    }
+
     #[cfg(feature = "feedback")]
     pub(crate) fn scale(mut self, scale: f32) -> Self {
         self.scale = scale;
@@ -478,18 +495,48 @@ impl RenderOnce for Button {
             self.common.shape.corner(metrics.square, false),
             58.,
         );
-        let content = self.slots.render(
+        let tint = self
+            .common
+            .appearance
+            .colors
+            .content(self.common.disabled, false)
+            .unwrap_or_else(|| style.foreground(self.common.disabled, window, cx));
+        let resting_content = self.slots.render(
             self.common.label.clone(),
             metrics,
             self.scale,
             window,
-            self.common
-                .appearance
-                .colors
-                .content(self.common.disabled, false)
-                .unwrap_or_else(|| style.foreground(self.common.disabled, window, cx)),
+            tint,
             cx,
         );
+        let content = if self.common.loading {
+            div()
+                .relative()
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(div().opacity(0.).child(resting_content))
+                .child(
+                    div()
+                        .id((self.common.id.clone(), "loading-spinner"))
+                        .test_support()
+                        .absolute()
+                        .inset_0()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(render_loading_spinner(
+                            &self.common.id,
+                            metrics.icon * self.scale,
+                            tint,
+                            window,
+                            cx,
+                        )),
+                )
+                .into_any_element()
+        } else {
+            resting_content
+        };
         self.common.render_scaled(
             content,
             style,
@@ -652,6 +699,13 @@ impl IconButton {
         self
     }
 
+    /// Shows an inline circular spinner in place of the icon while suppressing activation.
+    /// Keeps the active palette unless `.disabled(true)` is also set.
+    pub fn loading(mut self, loading: bool) -> Self {
+        self.common.loading = loading;
+        self
+    }
+
     pub fn on_activate(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
         self.on_activate = Some(Rc::new(handler));
         self
@@ -667,13 +721,32 @@ impl RenderOnce for IconButton {
             width,
         );
         style.corner_motion = (MotionKind::Effects, MotionSpeed::Default);
-        self.common.render(
-            icon_slot(self.icon, metrics.icon).into_any_element(),
-            style,
-            Action::Invoke(self.on_activate),
-            window,
-            cx,
-        )
+        let content = if self.common.loading {
+            let tint = self
+                .common
+                .appearance
+                .colors
+                .content(self.common.disabled, false)
+                .unwrap_or_else(|| style.foreground(self.common.disabled, window, cx));
+            div()
+                .id((self.common.id.clone(), "loading-spinner"))
+                .test_support()
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(render_loading_spinner(
+                    &self.common.id,
+                    metrics.icon,
+                    tint,
+                    window,
+                    cx,
+                ))
+                .into_any_element()
+        } else {
+            icon_slot(self.icon, metrics.icon).into_any_element()
+        };
+        self.common
+            .render(content, style, Action::Invoke(self.on_activate), window, cx)
     }
 }
 

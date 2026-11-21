@@ -55,6 +55,8 @@ symbols! {
     Info => "info",
     Edit => "edit",
     Exposure => "exposure",
+    Visibility => "visibility",
+    VisibilityOff => "visibility_off",
 }
 
 /// A decorative icon by default; `.label` exposes an independently meaningful image.

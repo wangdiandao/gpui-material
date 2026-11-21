@@ -1,4 +1,10 @@
-use std::{borrow::Cow, error::Error, fmt, fmt::Write as _, sync::Arc};
+use std::{
+    borrow::Cow,
+    error::Error,
+    fmt,
+    fmt::Write as _,
+    sync::{Arc, Mutex},
+};
 
 use ttf_parser::{Face, OutlineBuilder, Tag};
 
@@ -8,6 +14,9 @@ const FILL: Tag = Tag::from_bytes(b"FILL");
 const WEIGHT: Tag = Tag::from_bytes(b"wght");
 const GRADE: Tag = Tag::from_bytes(b"GRAD");
 const OPTICAL_SIZE: Tag = Tag::from_bytes(b"opsz");
+const SVG_CACHE_LEN: usize = 256;
+
+type SvgCacheSlot = Option<((u32, SymbolAxes), Arc<[u8]>)>;
 
 /// A font load or glyph extraction error.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -48,6 +57,8 @@ impl Error for SymbolError {}
 /// Rendered SVGs can be retained and reused independently of the font.
 pub struct SymbolFont {
     bytes: Cow<'static, [u8]>,
+    has_grade_opsz: bool,
+    cache: Mutex<Vec<SvgCacheSlot>>,
 }
 
 impl SymbolFont {
@@ -66,7 +77,14 @@ impl SymbolFont {
         if !covers(FILL, 0., 1.) || !covers(WEIGHT, 100., 700.) {
             return Err(SymbolError::UnsupportedAxes);
         }
-        Ok(Self { bytes })
+        let has_grade_opsz = axes
+            .into_iter()
+            .any(|axis| axis.tag == GRADE || axis.tag == OPTICAL_SIZE);
+        Ok(Self {
+            bytes,
+            has_grade_opsz,
+            cache: Mutex::new(Vec::new()),
+        })
     }
 
     /// Use a bundled font on desktop. Requires the `embed-assets` feature.
@@ -81,6 +99,8 @@ impl SymbolFont {
         };
         Self {
             bytes: Cow::Borrowed(bytes),
+            has_grade_opsz: false,
+            cache: Mutex::new(Vec::new()),
         }
     }
 
@@ -89,27 +109,53 @@ impl SymbolFont {
     /// The design grid uses grade 0 and optical size 24. A font subset returns
     /// [SymbolError::MissingGlyph] when it omits the requested symbol.
     pub fn svg_data(&self, symbol: Symbol, axes: SymbolAxes) -> Result<Arc<[u8]>, SymbolError> {
+        let codepoint = symbol.codepoint();
+        let key = (codepoint, axes);
+        let slot_index = ((codepoint as usize).wrapping_mul(0x9e37_79b9)
+            ^ (usize::from(axes.filled) << 16)
+            ^ usize::from(axes.weight.get()))
+            & (SVG_CACHE_LEN - 1);
+        if let Ok(cache) = self.cache.lock()
+            && let Some(Some((cached_key, svg))) = cache.get(slot_index)
+            && *cached_key == key
+        {
+            return Ok(svg.clone());
+        }
+
         let mut face = Face::parse(&self.bytes, 0).map_err(|_| SymbolError::InvalidFont)?;
         face.set_variation(FILL, f32::from(axes.filled))
             .ok_or(SymbolError::UnsupportedAxes)?;
         face.set_variation(WEIGHT, f32::from(axes.weight.get()))
             .ok_or(SymbolError::UnsupportedAxes)?;
-        // The derived fonts already use these values. The original upstream
-        // fonts expose both axes and use the same design grid at these values.
-        face.set_variation(GRADE, 0.);
-        face.set_variation(OPTICAL_SIZE, 24.);
+        if self.has_grade_opsz {
+            // The derived fonts already use these values. The original upstream
+            // fonts expose both axes and use the same design grid at these values.
+            face.set_variation(GRADE, 0.);
+            face.set_variation(OPTICAL_SIZE, 24.);
+        }
 
-        let glyph = char::from_u32(symbol.codepoint())
+        let glyph = char::from_u32(codepoint)
             .and_then(|codepoint| face.glyph_index(codepoint))
             .ok_or(SymbolError::MissingGlyph(symbol))?;
         let em = face.units_per_em();
-        let mut svg = SvgPath(format!(
+        let mut buf = String::with_capacity(1024);
+        write!(
+            buf,
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 -{em} {em} {em}"><path transform="scale(1 -1)" d=""#,
-        ));
+        )
+        .unwrap();
+        let mut svg = SvgPath(buf);
         face.outline_glyph(glyph, &mut svg)
             .ok_or(SymbolError::InvalidOutline(symbol))?;
         svg.0.push_str(r#""/></svg>"#);
-        Ok(Arc::from(svg.0.into_bytes()))
+        let data: Arc<[u8]> = Arc::from(svg.0.into_bytes());
+        if let Ok(mut cache) = self.cache.lock() {
+            if cache.is_empty() {
+                cache.resize(SVG_CACHE_LEN, None);
+            }
+            cache[slot_index] = Some((key, data.clone()));
+        }
+        Ok(data)
     }
 }
 
@@ -188,6 +234,8 @@ mod tests {
         let axes = SymbolAxes::default();
         let glyph = Symbol::Favorite;
         let base = outlined.svg_data(glyph, axes).unwrap();
+        let alias = outlined.svg_data(Symbol::FavoriteBorder, axes).unwrap();
+        assert!(Arc::ptr_eq(&base, &alias));
 
         assert_ne!(base, rounded.svg_data(glyph, axes).unwrap());
         assert_ne!(base, outlined.svg_data(glyph, axes.filled(true)).unwrap());

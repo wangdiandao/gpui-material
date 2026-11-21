@@ -303,7 +303,7 @@ fn rotate_polygon(polygon: RoundedPolygon, degrees: f32) -> RoundedPolygon {
     })
 }
 
-pub(super) fn rounded_rect_polygon(
+fn rounded_rect_polygon(
     width: f32,
     height: f32,
     corners: CornerShape,
@@ -322,6 +322,31 @@ pub(super) fn rounded_rect_polygon(
     Some(polygon.transformed(|p: PolygonPoint| {
         PolygonPoint::new(p.x * side / width + 0.5, p.y * side / height + 0.5)
     }))
+}
+
+pub(super) fn rounded_rect_cubics(
+    width: f32,
+    height: f32,
+    corners: CornerShape,
+    direction: Direction,
+) -> Option<Vec<Cubic>> {
+    if !width.is_finite() || !height.is_finite() || width <= 0. || height <= 0. {
+        return None;
+    }
+    let [tl, tr, br, bl] = corners.radii(width, height, direction);
+    let side = width.max(height);
+    let mut cubics = RoundedPolygon::rectangle()
+        .with_width(width / side)
+        .with_height(height / side)
+        .with_rounding_per_vertex([br, bl, tl, tr].map(|radius| CornerRounding::new(radius / side)))
+        .build()
+        .cubics;
+    for cubic in &mut cubics {
+        *cubic = cubic.transformed(&|p: PolygonPoint| {
+            PolygonPoint::new(p.x * side / width + 0.5, p.y * side / height + 0.5)
+        });
+    }
+    Some(cubics)
 }
 
 fn material_polygon(shape: MaterialShape) -> RoundedPolygon {

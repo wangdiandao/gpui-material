@@ -37,6 +37,10 @@ fn all_35_expressive_material_shapes_stay_closed_in_bounds_and_tessellate() {
             prepared.stroke_path(px(2.)).is_some(),
             "{shape:?} failed stroke path"
         );
+        assert_eq!(
+            prepared.stroke_path(px(2.)).unwrap().vertices.len(),
+            prepared.stroke_path(px(2.)).unwrap().vertices.len()
+        );
         assert!(
             prepared.contains(bounds.center()),
             "{shape:?} should contain its center"

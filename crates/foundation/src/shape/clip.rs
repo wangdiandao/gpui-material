@@ -285,23 +285,26 @@ fn push_fan(path: &mut Path<Pixels>, polygon: &[Point<Pixels>], stencil: Point<f
     }
 }
 
+static UNIT_CIRCLE: std::sync::LazyLock<[(f32, f32); RIPPLE_SEGMENTS]> =
+    std::sync::LazyLock::new(|| {
+        std::array::from_fn(|index| {
+            let angle = std::f32::consts::TAU * index as f32 / RIPPLE_SEGMENTS as f32;
+            (angle.cos(), angle.sin())
+        })
+    });
+
 pub(crate) fn clipped_ripple(
     fill: &Path<Pixels>,
     origin: Point<Pixels>,
     radius: Pixels,
 ) -> Path<Pixels> {
     let raw_radius = f32::from(radius);
-    if !raw_radius.is_finite()
-        || raw_radius <= 0.
-        || !f32::from(origin.x).is_finite()
-        || !f32::from(origin.y).is_finite()
-    {
+    let ox = f32::from(origin.x);
+    let oy = f32::from(origin.y);
+    if !raw_radius.is_finite() || raw_radius <= 0. || !ox.is_finite() || !oy.is_finite() {
         return Path::new(origin);
     }
-    let circle: [_; RIPPLE_SEGMENTS] = std::array::from_fn(|index| {
-        let angle = std::f32::consts::TAU * index as f32 / RIPPLE_SEGMENTS as f32;
-        origin + point(radius * angle.cos(), radius * angle.sin())
-    });
+    let mut circle: Option<[Point<Pixels>; RIPPLE_SEGMENTS]> = None;
     let mut ripple = Path::new(origin);
     let stencil = point(0., 1.);
     let mut polygon = Vec::with_capacity(RIPPLE_SEGMENTS + 3);
@@ -310,6 +313,14 @@ pub(crate) fn clipped_ripple(
     let min = origin - extent;
     let max = origin + extent;
     let has_area = min.x < max.x && min.y < max.y;
+    let apothem = raw_radius * (std::f32::consts::PI / RIPPLE_SEGMENTS as f32).cos();
+    let inscribed_sq = apothem * apothem;
+    let radius_sq = raw_radius * raw_radius;
+    let dist_sq = |p: Point<Pixels>| {
+        let dx = f32::from(p.x) - ox;
+        let dy = f32::from(p.y) - oy;
+        dx * dx + dy * dy
+    };
 
     // Intersect the disc with each disjoint fill triangle so paint and hit
     // testing use the same tessellated curve, including concave shapes.
@@ -328,6 +339,22 @@ pub(crate) fn clipped_ripple(
         if winding.abs() <= f32::EPSILON {
             continue;
         }
+        if dist_sq(a) <= inscribed_sq && dist_sq(b) <= inscribed_sq && dist_sq(c) <= inscribed_sq {
+            ripple.push_triangle((a, b, c), (stencil, stencil, stencil));
+            continue;
+        }
+        let t_min_x = f32::from(a.x.min(b.x).min(c.x));
+        let t_max_x = f32::from(a.x.max(b.x).max(c.x));
+        let t_min_y = f32::from(a.y.min(b.y).min(c.y));
+        let t_max_y = f32::from(a.y.max(b.y).max(c.y));
+        let cx = ox.clamp(t_min_x, t_max_x);
+        let cy = oy.clamp(t_min_y, t_max_y);
+        if (ox - cx) * (ox - cx) + (oy - cy) * (oy - cy) >= radius_sq {
+            continue;
+        }
+        let circle = circle.get_or_insert_with(|| {
+            UNIT_CIRCLE.map(|(cos, sin)| origin + point(radius * cos, radius * sin))
+        });
         polygon.clear();
         polygon.extend([a, b, c]);
         for (&start, &end) in circle.iter().zip(circle.iter().cycle().skip(1)) {

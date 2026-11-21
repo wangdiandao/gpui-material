@@ -91,6 +91,11 @@ impl Ripple {
         true
     }
 
+    pub(crate) fn is_finished(&self, now: Instant) -> bool {
+        let (progress, alpha) = self.sample(now);
+        alpha <= 0. && progress >= 1.
+    }
+
     /// Draws above the state layer and requests another frame while its radius or opacity changes.
     pub fn paint(
         &self,
@@ -262,6 +267,13 @@ mod tests {
         );
         ripple.release(now + Duration::from_secs(2));
         assert_eq!(ripple.sample(now + Duration::from_secs(2)), (1., 0.));
+        assert!(ripple.is_finished(now + Duration::from_secs(2)));
+        let mut feedback = crate::control_feedback::FeedbackState::default();
+        feedback.ripple = Some(ripple);
+        feedback.prune_finished_ripple(now);
+        assert!(feedback.ripple.is_some());
+        feedback.prune_finished_ripple(now + Duration::from_secs(2));
+        assert!(feedback.ripple.is_none());
     }
 
     #[test]

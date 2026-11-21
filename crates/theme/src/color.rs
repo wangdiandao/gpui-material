@@ -42,12 +42,55 @@ pub struct ColorPair {
 
 /// All semantic color roles for one appearance, with per-role overrides.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ColorScheme {
     appearance: Appearance,
-    // Keep the serialized form keyed by role so additions can use baseline defaults.
-    #[cfg_attr(feature = "serde", serde(default))]
-    overrides: std::collections::BTreeMap<ColorRole, Argb>,
+    colors: [Argb; ColorRole::ALL.len()],
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for ColorScheme {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[derive(serde::Serialize)]
+        #[serde(rename = "ColorScheme")]
+        struct SerializedColorScheme {
+            appearance: Appearance,
+            overrides: std::collections::BTreeMap<ColorRole, Argb>,
+        }
+
+        let mut overrides = std::collections::BTreeMap::new();
+        for role in ColorRole::ALL {
+            let color = self.colors[role as usize];
+            if color != self.baseline_color(role) {
+                overrides.insert(role, color);
+            }
+        }
+        SerializedColorScheme {
+            appearance: self.appearance,
+            overrides,
+        }
+        .serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for ColorScheme {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(serde::Deserialize)]
+        #[serde(rename = "ColorScheme")]
+        struct SerializedColorScheme {
+            appearance: Appearance,
+            // Keep the serialized form keyed by role so additions can use baseline defaults.
+            #[serde(default)]
+            overrides: std::collections::BTreeMap<ColorRole, Argb>,
+        }
+
+        let raw = SerializedColorScheme::deserialize(deserializer)?;
+        let mut scheme = Self::baseline(raw.appearance);
+        for (role, color) in raw.overrides {
+            scheme.set_color(role, color);
+        }
+        Ok(scheme)
+    }
 }
 
 impl Default for ColorScheme {
@@ -57,34 +100,31 @@ impl Default for ColorScheme {
 }
 
 impl ColorScheme {
-    pub fn baseline(appearance: Appearance) -> Self {
+    pub const fn baseline(appearance: Appearance) -> Self {
         Self {
             appearance,
-            overrides: Default::default(),
+            colors: match appearance {
+                Appearance::Light => LIGHT,
+                Appearance::Dark => DARK,
+            },
         }
     }
 
-    pub fn appearance(&self) -> Appearance {
+    pub const fn appearance(&self) -> Appearance {
         self.appearance
     }
 
-    pub fn color(&self, role: ColorRole) -> Argb {
-        self.overrides
-            .get(&role)
-            .copied()
-            .unwrap_or_else(|| self.baseline_color(role))
+    pub const fn color(&self, role: ColorRole) -> Argb {
+        self.colors[role as usize]
     }
 
     /// Overrides one role. Callers overriding a background should also check its foreground.
     pub fn set_color(&mut self, role: ColorRole, color: Argb) {
-        if color == self.baseline_color(role) {
-            self.overrides.remove(&role);
-        } else {
-            self.overrides.insert(role, color);
-        }
+        self.colors[role as usize] = color;
     }
 
-    fn baseline_color(&self, role: ColorRole) -> Argb {
+    #[cfg(feature = "serde")]
+    const fn baseline_color(&self, role: ColorRole) -> Argb {
         match self.appearance {
             Appearance::Light => LIGHT[role as usize],
             Appearance::Dark => DARK[role as usize],
@@ -146,17 +186,16 @@ impl ColorScheme {
         } else {
             target.appearance
         };
-        let mut blended = Self::baseline(appearance);
-        for role in ColorRole::ALL {
-            let from = self.color(role).channels();
-            let to = target.color(role).channels();
+        let colors = std::array::from_fn(|index| {
+            let from = self.colors[index].channels();
+            let to = target.colors[index].channels();
             let channels = std::array::from_fn(|i| {
                 let start = f32::from(from[i]);
                 (start + (f32::from(to[i]) - start) * t).round() as u8
             });
-            blended.set_color(role, Argb::from_u32(u32::from_be_bytes(channels)));
-        }
-        blended
+            Argb::from_u32(u32::from_be_bytes(channels))
+        });
+        Self { appearance, colors }
     }
 
     /// Applies the Compose tonal-elevation tint to the surface role.

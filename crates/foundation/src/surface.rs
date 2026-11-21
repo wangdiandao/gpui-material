@@ -25,18 +25,27 @@ pub fn scrim_color(theme: &MaterialTheme, opacity: f32) -> Hsla {
     color(theme.colors.color(ColorRole::Scrim)).opacity(opacity.clamp(0., 1.))
 }
 
+/// Stack-allocated two-layer desktop shadow projection for custom canvas painters.
+pub fn elevation_shadow_pair(
+    elevation: f32,
+    scale: f32,
+    shadow: Hsla,
+) -> Option<[gpui::BoxShadow; 2]> {
+    let dp = elevation * scale;
+    if !dp.is_finite() || dp <= 0. || !scale.is_finite() || scale <= 0. {
+        return None;
+    }
+    Some([
+        gpui_base::box_shadow(0., dp * 0.4, dp, 0., shadow.opacity(0.18)),
+        gpui_base::box_shadow(0., scale, dp * 0.5, 0., shadow.opacity(0.13)),
+    ])
+}
+
 /// Desktop shadow projection shared by surfaces and custom-painted controls.
 /// `elevation` is in Material logical units; `scale` follows the component geometry.
 /// Compose delegates shadows to its platform renderer; GPUI uses these two layers.
 pub fn elevation_shadows(elevation: f32, scale: f32, shadow: Hsla) -> Vec<gpui::BoxShadow> {
-    let dp = elevation * scale;
-    if !dp.is_finite() || dp <= 0. || !scale.is_finite() || scale <= 0. {
-        return Vec::new();
-    }
-    vec![
-        gpui_base::box_shadow(0., dp * 0.4, dp, 0., shadow.opacity(0.18)),
-        gpui_base::box_shadow(0., scale, dp * 0.5, 0., shadow.opacity(0.13)),
-    ]
+    elevation_shadow_pair(elevation, scale, shadow).map_or_else(Vec::new, Vec::from)
 }
 
 /// An outline in logical pixels, drawn around the surface's shape.
@@ -345,8 +354,14 @@ struct PolygonPaint {
 
 impl RenderOnce for Surface {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let current = current_material_theme(window, cx);
-        let theme = self.theme.as_ref().unwrap_or(&current);
+        let current;
+        let theme = match &self.theme {
+            Some(theme) => theme,
+            None => {
+                current = current_material_theme(window, cx);
+                &*current
+            }
+        };
         let scheme = &theme.colors;
         let default_focus = color(scheme.color(ColorRole::Secondary));
         let shadow_color = color(scheme.color(ColorRole::Shadow));
@@ -593,9 +608,18 @@ impl Surface {
         let visual = canvas(
             move |bounds, window, _| {
                 if !has_bg {
-                    geometry
-                        .borrow_mut()
-                        .set_shape(resolved_shape.build(bounds), window);
+                    match &resolved_shape {
+                        ResolvedShape::Corners(corners, direction) => {
+                            geometry
+                                .borrow_mut()
+                                .set_rounded_shape(bounds, *corners, *direction, window);
+                        }
+                        ResolvedShape::Polygon(polygon, fit) => {
+                            geometry
+                                .borrow_mut()
+                                .set_shape(Shape::polygon(bounds, polygon, *fit), window);
+                        }
+                    }
                 }
             },
             move |bounds, _, window, cx| {
@@ -610,7 +634,7 @@ impl Surface {
                     let reduced = cx.reduce_motion();
                     let ripple = state.ripple.as_ref().filter(|_| appearance.ripple);
                     let layer = interaction
-                        .layer_with_ripple(reduced || !appearance.ripple)
+                        .layer_with_ripple(reduced || ripple.is_none())
                         .filter(|_| appearance.state_layer)
                         .map_or(0., |layer| layer.opacity());
                     InteractionFeedback::new(interaction, ink, ring).paint_with_opacity(

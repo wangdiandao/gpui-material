@@ -7,6 +7,12 @@ use gpui_material_theme::{
 
 #[test]
 fn static_appearances_resolve_color_pairs_and_elevation() {
+    const CONST_LIGHT: ColorScheme = ColorScheme::baseline(Appearance::Light);
+    const CONST_PRIMARY: Argb = CONST_LIGHT.color(ColorRole::Primary);
+    const CONST_APPEARANCE: Appearance = CONST_LIGHT.appearance();
+    assert_eq!(CONST_PRIMARY.to_u32(), 0xff67_50a4);
+    assert_eq!(CONST_APPEARANCE, Appearance::Light);
+
     let mut light = ColorScheme::baseline(Appearance::Light);
     let dark = ColorScheme::baseline(Appearance::Dark);
 
@@ -370,6 +376,9 @@ fn serde_round_trips_theme_overrides_and_keeps_baseline_roles() {
     let older: ColorScheme = serde_json::from_str(r#"{"appearance":"Dark"}"#).unwrap();
     assert_eq!(older, ColorScheme::baseline(Appearance::Dark));
     let mut serialized = serde_json::to_value(&decoded).unwrap();
+    let overrides = serialized["colors"]["overrides"].as_object().unwrap();
+    assert_eq!(overrides.len(), 1);
+    assert!(overrides.contains_key("Primary"));
     serialized["typography"]
         .as_object_mut()
         .unwrap()

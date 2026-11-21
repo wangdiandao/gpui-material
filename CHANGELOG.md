@@ -28,6 +28,13 @@ See [versioning and releases](docs/release.md) for the release process.
 
 - Add `TextFieldObfuscationMode` (`Hidden`, `Visible`) and `TextField::obfuscation_mode(...)` for `TextField::secure` visibility toggles, re-export `TextFieldMaskPattern` through the `inputs` feature facade, and add Gallery examples and tests covering password visibility toggling, structured mask patterns, and pre-commit validation.
 
+### Performance, theme, foundation, and symbols
+
+- Store all 61 Material color roles inline in `ColorScheme` for allocation-free `O(1)` lookups and blending, expose `ColorScheme::baseline`, `appearance`, and `color` as `const fn`, and preserve the compact `{ appearance, overrides }` `serde` format.
+- Cache resolved system and custom `Font` family descriptors and letter-spaced `LineLayout` runs in `gpui-material-foundation`, cache tessellated `Shape` stroke paths and transparent `Surface` rounded feedback geometry, prune finished ripples before `Escape` cancel checks, and expose `elevation_shadow_pair` for allocation-free canvas shadow painting.
+- Accelerate `clipped_ripple` with precomputed 64-gon unit-circle normals and inscribed-disk / triangle-AABB fast paths.
+- Add `const fn` constructors and accessors `SymbolAxes::new`, `SymbolAxes::is_filled`, and `SymbolAxes::get_weight` in `gpui-material-design-symbols`, and cache outlined SVG bytes by `(codepoint, axes)` in `SymbolFont::svg_data` so repeated lookups and alias symbols share a single `Arc<[u8]>`.
+
 ## 0.2.0 - 2026-11-21
 
 Changes since [v0.1.2](https://github.com/wangdiandao/gpui-material/releases/tag/v0.1.2).

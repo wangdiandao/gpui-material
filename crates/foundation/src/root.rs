@@ -118,10 +118,10 @@ pub struct MaterialRoot;
 impl MaterialRoot {
     pub fn init(theme: MaterialTheme, cx: &mut App) {
         gpui_base::init(cx);
-        if let Some(animator) = cx.try_global::<ThemeAnimator>()
-            && animator.transition.is_some()
-        {
-            cx.global_mut::<ThemeAnimator>().transition = None;
+        if cx.has_global::<ThemeAnimator>() {
+            let animator = cx.global_mut::<ThemeAnimator>();
+            animator.transition = None;
+            animator.driver = None;
         }
         refresh_installed_fonts(cx);
         apply_material_theme(theme, true, cx);
@@ -244,7 +244,9 @@ pub fn set_material_theme(mut theme: MaterialTheme, cx: &mut App) {
             }
         }
     } else if cx.has_global::<ThemeAnimator>() {
-        cx.global_mut::<ThemeAnimator>().transition = None;
+        let animator = cx.global_mut::<ThemeAnimator>();
+        animator.transition = None;
+        animator.driver = None;
     }
     apply_material_theme(theme, true, cx);
 }
@@ -319,9 +321,14 @@ fn advance_theme_frame(window: &mut Window, cx: &mut App) {
 }
 
 fn apply_palette(colors: ColorScheme, cx: &mut App) {
-    let mut theme = material_theme(cx).clone();
-    if theme.colors != colors {
-        theme.colors = colors;
+    let current = material_theme(cx);
+    if current.colors != colors {
+        let theme = MaterialTheme {
+            colors,
+            typography: current.typography.clone(),
+            motion: current.motion,
+            layout: current.layout,
+        };
         apply_material_theme(theme, false, cx);
     }
 }

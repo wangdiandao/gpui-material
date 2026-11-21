@@ -98,6 +98,14 @@ pub struct SymbolAxes {
 }
 
 impl SymbolAxes {
+    /// Default unfilled (FILL=0), regular-weight (400) axes for `const` contexts.
+    pub const fn new() -> Self {
+        Self {
+            filled: false,
+            weight: Weight::REGULAR,
+        }
+    }
+
     /// Select FILL=1 when true and FILL=0 otherwise.
     pub const fn filled(mut self, filled: bool) -> Self {
         self.filled = filled;
@@ -107,6 +115,14 @@ impl SymbolAxes {
     pub const fn weight(mut self, weight: Weight) -> Self {
         self.weight = weight;
         self
+    }
+
+    pub const fn is_filled(self) -> bool {
+        self.filled
+    }
+
+    pub const fn get_weight(self) -> Weight {
+        self.weight
     }
 }
 
@@ -132,6 +148,10 @@ mod tests {
 
     #[test]
     fn weight_accepts_the_entire_axis_range() {
+        const CONST_AXES: SymbolAxes = SymbolAxes::new().filled(true).weight(Weight::BOLD);
+        assert!(CONST_AXES.is_filled());
+        assert_eq!(CONST_AXES.get_weight(), Weight::BOLD);
+        assert_eq!(SymbolAxes::new(), SymbolAxes::default());
         assert_eq!(Weight::new(99), None);
         assert_eq!(Weight::new(100), Some(Weight::THIN));
         assert_eq!(Weight::new(550).unwrap().get(), 550);

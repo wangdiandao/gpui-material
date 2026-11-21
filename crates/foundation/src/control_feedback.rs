@@ -1,9 +1,11 @@
 use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
-    App, ClickEvent, ElementId, EntityId, FocusHandle, MouseButton, Pixels, Point,
+    App, Bounds, ClickEvent, ElementId, EntityId, FocusHandle, MouseButton, Pixels, Point,
     StatefulInteractiveElement, Window,
 };
+use gpui_material_theme::{CornerShape, Direction};
+use web_time::Instant;
 
 use crate::{InteractionState, InteractionTracker, Ripple, Shape};
 
@@ -15,6 +17,7 @@ pub struct FeedbackState {
     pointer_cancelled: bool,
     shape_hit_test: bool,
     keyboard_focus: Option<FocusHandle>,
+    rounded_key: Option<(Bounds<Pixels>, CornerShape, Direction)>,
     pub shape: Option<Shape>,
     pub ripple: Option<Ripple>,
     view: Option<EntityId>,
@@ -26,7 +29,35 @@ impl FeedbackState {
     /// Updates the feedback geometry and captures its owning view during prepaint.
     pub fn set_shape(&mut self, shape: Option<Shape>, window: &Window) {
         self.view = Some(window.current_view());
+        self.rounded_key = None;
         self.shape = shape;
+    }
+
+    #[doc(hidden)]
+    /// Updates rounded-rectangle feedback geometry only when the bounds, corners, or direction change.
+    pub fn set_rounded_shape(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        corners: CornerShape,
+        direction: Direction,
+        window: &Window,
+    ) {
+        self.view = Some(window.current_view());
+        let key = (bounds, corners, direction);
+        if self.rounded_key != Some(key) {
+            self.rounded_key = Some(key);
+            self.shape = Shape::rounded(bounds, corners, direction);
+        }
+    }
+
+    pub(crate) fn prune_finished_ripple(&mut self, now: Instant) {
+        if self
+            .ripple
+            .as_ref()
+            .is_some_and(|ripple| ripple.is_finished(now))
+        {
+            self.ripple = None;
+        }
     }
 
     #[doc(hidden)]
@@ -183,6 +214,7 @@ pub fn activate_feedback(
         // here even if the separate mouse-up listener does not run.
         ClickEvent::Mouse(_) => release_ripple(&mut state, cx),
         event if !state.pressed => {
+            state.prune_finished_ripple(cx.background_executor().now());
             let replaced_ripple = state.ripple.is_some();
             let pointer = match event {
                 ClickEvent::Touch(event) => Some(event.position),
@@ -296,6 +328,7 @@ where
         .capture_key_down(move |event, window, cx| {
             if event.keystroke.key == "escape" {
                 let mut state = keyboard.borrow_mut();
+                state.prune_finished_ripple(cx.background_executor().now());
                 let changed = state.cancel();
                 state.update_feedback(changed, window, cx);
             } else if matches!(event.keystroke.key.as_str(), "space" | "enter")
@@ -335,6 +368,10 @@ pub fn ripple_state(
         })
         .read(cx)
         .clone();
-    state.borrow_mut().cancel_unavailable(enabled, window);
+    {
+        let mut state = state.borrow_mut();
+        state.prune_finished_ripple(cx.background_executor().now());
+        state.cancel_unavailable(enabled, window);
+    }
     state
 }

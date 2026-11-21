@@ -1,6 +1,24 @@
 use gpui_base::motion::Easing;
-use gpui_material_theme::{TokenValue, token};
 use web_time::Instant;
+
+const EMPHASIZED_ACCELERATE: Easing = Easing::CubicBezier {
+    x1: 0.3,
+    y1: 0.0,
+    x2: 0.8,
+    y2: 0.15,
+};
+const EMPHASIZED_DECELERATE: Easing = Easing::CubicBezier {
+    x1: 0.05,
+    y1: 0.7,
+    x2: 0.1,
+    y2: 1.0,
+};
+const STANDARD: Easing = Easing::CubicBezier {
+    x1: 0.2,
+    y1: 0.0,
+    x2: 0.0,
+    y2: 1.0,
+};
 
 pub(super) struct ProgressMotion {
     pub(super) last_measured: f32,
@@ -86,12 +104,7 @@ impl ProgressMotion {
 // The keyframe timings match ProgressIndicator.kt in Material 3 1.5.0-rc01.
 pub(super) fn linear_indeterminate(elapsed_ms: f32) -> [(f32, f32); 2] {
     let clock = elapsed_ms % 1750.;
-    let sample = |delay, duration| {
-        easing_sample(
-            "md.sys.motion.easing-emphasized-accelerate",
-            (clock - delay) / duration,
-        )
-    };
+    let sample = |delay, duration| easing_sample(EMPHASIZED_ACCELERATE, (clock - delay) / duration);
     [
         (sample(250., 1000.), sample(0., 1000.)),
         (sample(900., 850.), sample(650., 850.)),
@@ -101,15 +114,12 @@ pub(super) fn linear_indeterminate(elapsed_ms: f32) -> [(f32, f32); 2] {
 pub(super) fn circular_indeterminate(elapsed_ms: f32) -> (f32, f32) {
     let clock = elapsed_ms % 6000.;
     let step = (clock / 1500.).floor();
-    let turn = easing_sample(
-        "md.sys.motion.easing-emphasized-decelerate",
-        (clock % 1500.) / 300.,
-    );
+    let turn = easing_sample(EMPHASIZED_DECELERATE, (clock % 1500.) / 300.);
     let phase = clock / 3000.;
     let length = if phase < 1. {
         0.1 + (0.87 - 0.1) * phase
     } else {
-        0.87 - (0.87 - 0.1) * easing_sample("md.sys.motion.easing-standard", phase - 1.)
+        0.87 - (0.87 - 0.1) * easing_sample(STANDARD, phase - 1.)
     };
     // Keep the angle unwrapped during a mode change, then paint it periodically.
     (
@@ -118,14 +128,8 @@ pub(super) fn circular_indeterminate(elapsed_ms: f32) -> (f32, f32) {
     )
 }
 
-pub(super) fn easing_sample(name: &str, progress: f32) -> f32 {
-    let progress = progress.clamp(0., 1.);
-    let TokenValue::Easing(curve) = token(name).expect("bundled progress easing") else {
-        unreachable!("progress easing token must contain a cubic Bézier");
-    };
-    let easing =
-        Easing::cubic_bezier(curve.x1, curve.y1, curve.x2, curve.y2).expect("valid Material curve");
-    easing.sample(progress)
+pub(super) fn easing_sample(easing: Easing, progress: f32) -> f32 {
+    easing.sample(progress.clamp(0., 1.))
 }
 
 #[cfg(test)]

@@ -320,20 +320,22 @@ impl FadeState {
         let elapsed = now.saturating_duration_since(scrolled_at);
         if elapsed < fade.delay {
             let wait = fade.delay - elapsed;
-            if now.checked_add(wait).is_none() {
+            let Some(wake_deadline) = now.checked_add(wait) else {
                 self.wake = None;
                 return 1.;
-            }
-            if self.wake.as_ref().is_none_or(|(last_scroll, delay, _)| {
-                *last_scroll != scrolled_at || *delay != fade.delay
-            }) {
+            };
+            if self
+                .wake
+                .as_ref()
+                .is_none_or(|(deadline, delay, _)| *deadline <= now || *delay != fade.delay)
+            {
                 let current_view = window.current_view();
                 let deadline = cx.background_executor().timer(wait);
                 let wake = window.spawn(cx, async move |cx| {
                     deadline.await;
                     cx.update(|_, cx| cx.notify(current_view)).ok();
                 });
-                self.wake = Some((scrolled_at, fade.delay, wake));
+                self.wake = Some((wake_deadline, fade.delay, wake));
             }
             return 1.;
         }

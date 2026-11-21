@@ -193,28 +193,27 @@ fn clean_line(value: SharedString) -> SharedString {
     }
 }
 
-#[cfg(feature = "actions")]
-pub(crate) fn single_line_width(
-    value: &SharedString,
+pub(crate) fn shape_single_line(
+    value: SharedString,
     style: TypeStyle,
+    font_scale: f32,
     tint: Hsla,
     window: &Window,
     cx: &App,
-) -> Pixels {
+) -> (SharedString, ShapedText) {
+    let clean = clean_line(value);
     let theme = current_material_theme(window, cx);
-    shape_text(
-        clean_line(value.clone()),
+    let shaped = shape_text(
+        clean.clone(),
         style,
         &theme.typography,
-        1.,
+        font_scale,
         tint,
         window,
         cx,
     )
-    .expect("single-line text")
-    .line()
-    .width
-    .ceil()
+    .expect("single-line text");
+    (clean, shaped)
 }
 
 pub(crate) fn single_line(
@@ -226,7 +225,27 @@ pub(crate) fn single_line(
     window: &Window,
     cx: &App,
 ) -> gpui::Div {
-    let clean = clean_line(value);
+    let shaped = shape_single_line(value, style, font_scale, tint, window, cx);
+    single_line_with_shaped(
+        shaped,
+        style,
+        font_scale,
+        tint,
+        (max_width, expansion, opacity),
+        window,
+        cx,
+    )
+}
+
+pub(crate) fn single_line_with_shaped(
+    (clean, shaped): (SharedString, ShapedText),
+    style: TypeStyle,
+    font_scale: f32,
+    tint: Hsla,
+    (max_width, expansion, opacity): (Option<Pixels>, f32, f32),
+    window: &Window,
+    cx: &App,
+) -> gpui::Div {
     let theme = current_material_theme(window, cx);
     let typography = theme.typography.clone();
     let align = if theme.layout.direction == Direction::Rtl {
@@ -234,16 +253,6 @@ pub(crate) fn single_line(
     } else {
         TextAlign::Left
     };
-    let shaped = shape_text(
-        clean.clone(),
-        style,
-        &typography,
-        font_scale,
-        tint,
-        window,
-        cx,
-    )
-    .expect("single-line text");
     let width = shaped.line().width.ceil();
     let height = shaped.line_height();
     div()
@@ -292,6 +301,29 @@ pub(crate) fn single_line(
         )
 }
 
+fn find_ellipsis_fit<T>(ends: &[usize], mut try_fit: impl FnMut(usize) -> Option<T>) -> Option<T> {
+    let mut last_fitting: Option<(usize, T)> = None;
+    let cut = ends.partition_point(|&end| {
+        if let Some(fitted) = try_fit(end) {
+            last_fitting = Some((end, fitted));
+            true
+        } else {
+            false
+        }
+    });
+    if cut == 0 {
+        return None;
+    }
+    let target = ends[cut - 1];
+    if let Some((end, fitted)) = last_fitting
+        && end == target
+    {
+        Some(fitted)
+    } else {
+        try_fit(target)
+    }
+}
+
 fn ellipsize(
     shaped: &ShapedText,
     key: &EllipsisKey,
@@ -320,16 +352,15 @@ fn ellipsize(
         .iter()
         .flat_map(|run| &run.glyphs)
         .map(|glyph| glyph.index)
-        .filter(|&index| key.text.is_char_boundary(index))
+        .filter(|&index| index > 0 && key.text.is_char_boundary(index))
         .collect::<Vec<_>>();
     ends.sort_unstable();
     ends.dedup();
-    ends.into_iter()
-        .rev()
-        .filter(|&end| end > 0)
-        .map(|end| shape(format!("{}…", &key.text[..end]).into()))
-        .find(|line| line.line().width <= key.width)
-        .or(Some(ellipsis))
+    find_ellipsis_fit(&ends, |end| {
+        let line = shape(format!("{}…", &key.text[..end]).into());
+        (line.line().width <= key.width).then_some(line)
+    })
+    .or(Some(ellipsis))
 }
 
 #[cfg(test)]
@@ -384,6 +415,32 @@ mod tests {
                 None
             });
             assert!(missed);
+        }
+    }
+
+    #[test]
+    fn binary_search_ellipsis_fit_matches_linear_reverse_truncation() {
+        let text =
+            "Material 3 Expressive 中文排版与省略号测试 — longer sample for logarithmic search";
+        let ends: Vec<usize> = text
+            .char_indices()
+            .map(|(ix, _)| ix)
+            .filter(|&ix| ix > 0)
+            .collect();
+        let max_probes = (usize::BITS - ends.len().leading_zeros()) as usize + 1;
+        assert_eq!(find_ellipsis_fit(&[], Some), None);
+        for max_bytes in 0..=text.len() + 5 {
+            let linear = ends.iter().copied().rev().find(|&end| end <= max_bytes);
+            let mut probes = 0usize;
+            let binary = find_ellipsis_fit(&ends, |end| {
+                probes += 1;
+                (end <= max_bytes).then_some(end)
+            });
+            assert_eq!(binary, linear, "mismatch for max_bytes={max_bytes}");
+            assert!(
+                probes <= max_probes,
+                "expected O(log N) probes <= {max_probes}, got {probes}"
+            );
         }
     }
 }

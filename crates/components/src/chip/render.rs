@@ -7,16 +7,16 @@ use gpui::{
 };
 use gpui_material_foundation::{
     InteractionSource, InteractionState, InteractionTracker, animate, color,
-    current_material_theme, elevation_shadows,
+    current_material_theme, elevation_shadow_pair,
 };
 use gpui_material_theme::{
-    ColorRole, CornerRole, Direction, Elevation, MaterialTheme, MotionKind, MotionSpeed, TypeRole,
+    ColorRole, CornerRole, Direction, Elevation, MotionKind, MotionSpeed, TypeRole,
     TypographyEmphasis,
 };
 
 use crate::action::{
-    Action, ActionControl, ActionLayout, ActionStyle, Activate, DisabledStyle, icon_slot,
-    interpolated_corners,
+    Action, ActionControl, ActionLayout, ActionStyle, Activate, DisabledStyle, SegmentShape,
+    icon_slot, interpolated_corners,
 };
 use crate::button_style::{
     ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShapes, ButtonStyle,
@@ -49,13 +49,10 @@ fn resolve_palette(
     disabled: bool,
     chip_colors: ChipColors,
     border: Option<ButtonBorder>,
-    theme: &MaterialTheme,
     window: &mut Window,
     cx: &mut App,
 ) -> ChipPalette {
     use ColorRole::*;
-    let theme_color = |role| color(theme.colors.color(role));
-    let on_surface = theme_color(OnSurface);
     let colors = chip_colors.for_state(disabled, selected);
     let foreground = if selected {
         OnSecondaryContainer
@@ -64,40 +61,76 @@ fn resolve_palette(
     } else {
         OnSurfaceVariant
     };
-    let label = colors.label.unwrap_or_else(|| {
-        if disabled {
-            on_surface.opacity(0.38)
-        } else {
-            theme_color(foreground)
-        }
-    });
-    let leading = colors.leading.unwrap_or_else(|| {
-        if disabled {
-            on_surface.opacity(0.38)
-        } else {
-            theme_color(match (variant, selected, tonal) {
-                (ChipVariant::Input, false, _) | (ChipVariant::Filter, false, true) => {
-                    OnSurfaceVariant
+    let (on_surface, label, leading, trailing, idle, checked, border_color, effects) = {
+        let theme = current_material_theme(window, cx);
+        let theme_color = |role| color(theme.colors.color(role));
+        let on_surface = theme_color(OnSurface);
+        let label = colors.label.unwrap_or_else(|| {
+            if disabled {
+                on_surface.opacity(0.38)
+            } else {
+                theme_color(foreground)
+            }
+        });
+        let leading = colors.leading.unwrap_or_else(|| {
+            if disabled {
+                on_surface.opacity(0.38)
+            } else {
+                theme_color(match (variant, selected, tonal) {
+                    (ChipVariant::Input, false, _) | (ChipVariant::Filter, false, true) => {
+                        OnSurfaceVariant
+                    }
+                    (ChipVariant::Filter, true, _) => OnSecondaryContainer,
+                    _ => Primary,
+                })
+            }
+        });
+        let trailing = colors.trailing.unwrap_or_else(|| {
+            if disabled {
+                on_surface.opacity(0.38)
+            } else if selected {
+                theme_color(OnSecondaryContainer)
+            } else {
+                theme_color(OnSurfaceVariant)
+            }
+        });
+        let idle = chip_colors.enabled.container.unwrap_or_else(|| {
+            if elevated {
+                theme_color(SurfaceContainerLow)
+            } else {
+                theme_color(SecondaryContainer).opacity(0.)
+            }
+        });
+        let checked = chip_colors
+            .selected
+            .container
+            .unwrap_or_else(|| theme_color(SecondaryContainer));
+        let border_color = colors
+            .border
+            .or(border.map(|border| border.color))
+            .unwrap_or_else(|| {
+                if disabled {
+                    on_surface.opacity(0.12)
+                } else {
+                    theme_color(OutlineVariant)
                 }
-                (ChipVariant::Filter, true, _) => OnSecondaryContainer,
-                _ => Primary,
-            })
-        }
-    });
-    let trailing = colors.trailing.unwrap_or_else(|| {
-        if disabled {
-            on_surface.opacity(0.38)
-        } else if selected {
-            theme_color(OnSecondaryContainer)
-        } else {
-            theme_color(OnSurfaceVariant)
-        }
-    });
-    let effects = theme.motion.spec(
-        MotionKind::Effects,
-        MotionSpeed::Fast,
-        cx.reduce_motion() || disabled,
-    );
+            });
+        let effects = theme.motion.spec(
+            MotionKind::Effects,
+            MotionSpeed::Fast,
+            cx.reduce_motion() || disabled,
+        );
+        (
+            on_surface,
+            label,
+            leading,
+            trailing,
+            idle,
+            checked,
+            border_color,
+            effects,
+        )
+    };
     let selection = if selectable {
         animate(
             (id.clone(), "chip-tint"),
@@ -110,17 +143,6 @@ fn resolve_palette(
     } else {
         0.
     };
-    let idle = chip_colors.enabled.container.unwrap_or_else(|| {
-        if elevated {
-            theme_color(SurfaceContainerLow)
-        } else {
-            theme_color(SecondaryContainer).opacity(0.)
-        }
-    });
-    let checked = chip_colors
-        .selected
-        .container
-        .unwrap_or_else(|| theme_color(SecondaryContainer));
     let container = if disabled {
         colors
             .container
@@ -132,16 +154,6 @@ fn resolve_palette(
     } else {
         crate::motion::mix(idle, checked, selection)
     };
-    let border_color = colors
-        .border
-        .or(border.map(|border| border.color))
-        .unwrap_or_else(|| {
-            if disabled {
-                on_surface.opacity(0.12)
-            } else {
-                theme_color(OutlineVariant)
-            }
-        });
     let border_width = border.map_or(px(f32::from(!elevated && !selected)), |border| {
         finite_length(border.width)
     });
@@ -404,21 +416,35 @@ fn render_split_chip(
         visual_height,
     }
     .render(interaction, window, cx);
+    let primary_layout = ActionLayout {
+        segment: Some(SegmentShape {
+            leading: true,
+            trailing: false,
+            outer: style.corner,
+            inner: CornerRole::None,
+            pressed: CornerRole::None,
+        }),
+        ..layout
+    };
+    let remove_layout = ActionLayout {
+        segment: Some(SegmentShape {
+            leading: false,
+            trailing: true,
+            outer: style.corner,
+            inner: CornerRole::None,
+            pressed: CornerRole::None,
+        }),
+        presentation_selected: Some(selected),
+        appearance: ButtonStyle {
+            shapes: layout.appearance.shapes,
+            colors: action_colors(palette.trailing, gpui::transparent_black()),
+            ..Default::default()
+        },
+        ..layout
+    };
     row.child(surface)
-        .child(primary.render_with_tracker(1., layout, tracker, window, cx))
-        .child(remove.render_with_tracker(
-            1.,
-            ActionLayout {
-                appearance: ButtonStyle {
-                    colors: action_colors(palette.trailing, gpui::transparent_black()),
-                    ..Default::default()
-                },
-                ..layout
-            },
-            None,
-            window,
-            cx,
-        ))
+        .child(primary.render_with_tracker(1., primary_layout, tracker, window, cx))
+        .child(remove.render_with_tracker(1., remove_layout, None, window, cx))
 }
 
 impl RenderOnce for Chip {
@@ -428,8 +454,10 @@ impl RenderOnce for Chip {
         let tonal = selectable && self.tonal;
         let elevated = self.elevated && self.variant != ChipVariant::Input;
         let split = selectable && self.remove.is_some();
-        let theme = current_material_theme(window, cx).clone();
-        let direction = theme.layout.direction;
+        let (direction, density) = {
+            let theme = current_material_theme(window, cx);
+            (theme.layout.direction, theme.layout.density)
+        };
         let palette = resolve_palette(
             &self.id,
             self.variant,
@@ -440,7 +468,6 @@ impl RenderOnce for Chip {
             self.disabled,
             self.colors,
             self.border,
-            &theme,
             window,
             cx,
         );
@@ -534,10 +561,7 @@ impl RenderOnce for Chip {
         } else {
             (trailing, None)
         };
-        let visual_height = Rc::new(Cell::new(px(theme
-            .layout
-            .density
-            .visual_size(style.height))));
+        let visual_height = Rc::new(Cell::new(px(density.visual_size(style.height))));
         let content = build_primary_content(
             leading,
             trailing,
@@ -552,7 +576,7 @@ impl RenderOnce for Chip {
         let primary = ActionControl {
             id: ElementId::from((self.id.clone(), "activate")),
             label: self.label,
-            focus: None,
+            focus: self.focus,
             disabled: self.disabled,
             action: if selectable {
                 Action::Toggle {
@@ -739,12 +763,8 @@ impl SplitSurface {
                     bottom_right,
                     bottom_left,
                 };
-                if elevation > 0. {
-                    window.paint_drop_shadows(
-                        bounds,
-                        radii,
-                        &elevation_shadows(elevation, 1., shadow),
-                    );
+                if let Some(shadows) = elevation_shadow_pair(elevation, 1., shadow) {
+                    window.paint_drop_shadows(bounds, radii, &shadows);
                 }
                 if self.container.a > 0. || outline > 0. {
                     window.paint_quad(quad(

@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
     AccessibleAction, App, Axis, ElementId, Entity, FocusHandle, Hsla, InteractiveElement,
@@ -7,13 +7,13 @@ use gpui::{
 };
 use gpui_base::{Radio as BaseRadio, RadioGroup as BaseRadioGroup};
 use gpui_material_foundation::{
-    InteractionSource, animate, current_material_theme, move_roving_focus,
+    InteractionSource, ThemeScope, animate, current_material_theme, move_roving_focus,
 };
 use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpeed};
 
 use crate::action::{feedback_target, ripple_state, ripple_target};
 
-use super::{focus_style, row, selection_target, selection_tone, tone};
+use super::{focus_style, row, selection_label, selection_target, selection_tone, tone};
 
 type RadioChange = Rc<dyn Fn(&ElementId, &mut Window, &mut App)>;
 
@@ -47,6 +47,7 @@ pub struct Radio {
     disabled: bool,
     on_select: Option<crate::action::Activate>,
     colors: RadioColors,
+    focus: Option<FocusHandle>,
     interaction_source: Option<Entity<InteractionSource>>,
 }
 
@@ -59,6 +60,7 @@ impl Radio {
             disabled: false,
             on_select: None,
             colors: RadioColors::default(),
+            focus: None,
             interaction_source: None,
         }
     }
@@ -84,6 +86,12 @@ impl Radio {
         self
     }
 
+    /// Uses the caller's focus handle when rendered as a standalone radio.
+    pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
+        self.focus = Some(focus.clone());
+        self
+    }
+
     /// Observes hover, press, keyboard focus, and disabled state.
     /// Group options are observed under their rendered, group-scoped IDs.
     pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
@@ -93,7 +101,7 @@ impl Radio {
 
     fn render_control(
         self,
-        focus: Option<&FocusHandle>,
+        focus: Option<FocusHandle>,
         position: Option<(usize, usize)>,
         tab_stop: bool,
         window: &mut Window,
@@ -133,7 +141,7 @@ impl Radio {
             .child(div().size(px(10. * dot)).rounded_full().bg(accent));
         let direction = current_material_theme(window, cx).layout.direction;
         let ripple = ripple_state(&self.id, !self.disabled, window, cx);
-        let focus = focus.cloned().unwrap_or_else(|| {
+        let focus = focus.or(self.focus).unwrap_or_else(|| {
             // Match Base's standalone focus ID so changing the source retains focus.
             window
                 .use_keyed_state(self.id.clone(), cx, |_, cx| cx.focus_handle())
@@ -177,7 +185,7 @@ impl Radio {
                         direction,
                         cx.reduce_motion(),
                     ))
-                    .child(div().min_w_0().truncate().child(self.label)),
+                    .child(selection_label(self.label, self.disabled, window, cx)),
             )
             .track_focus(&focus)
             .when_some(position, |radio, (position, size)| {
@@ -185,6 +193,11 @@ impl Radio {
             });
         match self.on_select {
             Some(handler) if !self.disabled => {
+                let handler = Rc::new(ThemeScope::bind_action(
+                    move |window, cx| handler(window, cx),
+                    window,
+                    cx,
+                ));
                 let select = handler.clone();
                 radio
                     .when(!self.selected, |radio| {
@@ -280,7 +293,23 @@ impl RenderOnce for RadioGroup {
             .zip(&focus)
             .map(|(item, focus)| (item.id.clone(), focus.clone(), !item.disabled))
             .collect();
-        let change = self.on_select.clone();
+        let change = self.on_select.clone().map(|change| {
+            let pending = Rc::new(RefCell::new(None::<ElementId>));
+            let pending_arg = pending.clone();
+            let bound = ThemeScope::bind_action(
+                move |window, cx| {
+                    if let Some(id) = pending_arg.borrow_mut().take() {
+                        change(&id, window, cx);
+                    }
+                },
+                window,
+                cx,
+            );
+            move |id: &ElementId, window: &mut Window, cx: &mut App| {
+                *pending.borrow_mut() = Some(id.clone());
+                bound(window, cx);
+            }
+        });
         let selected = self.selected.clone();
         let axis = self.axis;
         let group = BaseRadioGroup::new(self.id.clone())
@@ -312,7 +341,7 @@ impl RenderOnce for RadioGroup {
                 }
             });
 
-        group.children(self.options.into_iter().zip(&focus).enumerate().map(
+        group.children(self.options.into_iter().zip(focus).enumerate().map(
             |(ix, (mut radio, focus))| {
                 let option_id = radio.id.clone();
                 radio.id = ElementId::from((self.id.clone(), option_id.to_string()));

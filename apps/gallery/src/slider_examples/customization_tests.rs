@@ -363,3 +363,49 @@ fn slider_reversal_mirrors_geometry_and_physical_keys(cx: &mut TestAppContext) {
     assert!(snapshot(cx, &view, 0).focus_visible);
     assert!(!snapshot(cx, &view, 1).focus_visible);
 }
+
+#[gpui::test]
+fn overlapping_range_slider_can_drag_start_thumb_after_zero_delta_move(cx: &mut TestAppContext) {
+    let (view, cx) = open(cx);
+    cx.update(|window, cx| {
+        let range = view.read(cx).range.clone();
+        range.update(cx, |state, cx| {
+            state.set_value(5.0..5.0, window, cx);
+        });
+    });
+    draw(cx);
+    assert_range(&view, (5., 5.), cx);
+    let center = thumb(cx, "test-range", "end").center();
+    cx.simulate_mouse_down(center, MouseButton::Left, Modifiers::default());
+    draw(cx);
+    // First move crosses GPUI's drag threshold vertically (initiating on_drag).
+    cx.simulate_mouse_move(
+        center + point(px(0.), px(5.)),
+        MouseButton::Left,
+        Modifiers::default(),
+    );
+    draw(cx);
+    // Second move dispatches DragMoveEvent with zero horizontal delta along the slider axis.
+    cx.simulate_mouse_move(
+        center + point(px(0.), px(6.)),
+        MouseButton::Left,
+        Modifiers::default(),
+    );
+    draw(cx);
+    // Third move drags toward Start; origin must still be intact so Start is selected.
+    cx.simulate_mouse_move(
+        center - point(px(120.), px(0.)),
+        MouseButton::Left,
+        Modifiers::default(),
+    );
+    draw(cx);
+    assert_range(&view, (2., 5.), cx);
+    assert!(snapshot(cx, &view, 0).dragged);
+    assert!(!snapshot(cx, &view, 1).dragged);
+    cx.simulate_mouse_up(
+        center - point(px(120.), px(0.)),
+        MouseButton::Left,
+        Modifiers::default(),
+    );
+    draw(cx);
+}

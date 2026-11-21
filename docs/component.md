@@ -49,13 +49,13 @@ The same `.shape`, `.colors`, `.elevations`, `.interaction_source`, `.visible`, 
 
 Use `.colors(CheckboxColors)` to set `CheckboxStateColors` for each unchecked, checked, or indeterminate state, including error and disabled states. Each state can override its `checkmark`, `box_color`, and `border` independently. Omitted fields keep the window theme's defaults. In the unchecked state, checkmark color applies while the mark retracts.
 
-Set `.checkmark_stroke(gpui::StrokeOptions)` for the uniform checkmark and mixed mark stroke, including width, caps, and joins. Use `.outline_stroke(width)` for the rounded box outline in logical pixels. Both widths default to two logical pixels. A zero width removes that stroke. Negative or non-finite widths use the default, and large widths are bounded by the indicator size. Use a caller-owned `Entity<InteractionSource>` with `.interaction_source(&source)` to observe hover, press, keyboard focus, and disabled state. The source can be shared with other controls using distinct IDs and leaves the value with the caller.
+Set `.checkmark_stroke(gpui::StrokeOptions)` for the uniform checkmark and mixed mark stroke, including width, caps, and joins. Use `.outline_stroke(width)` for the rounded box outline in logical pixels. Both widths default to two logical pixels. A zero width removes that stroke. Negative or non-finite widths use the default, and large widths are bounded by the indicator size. Use a caller-owned `Entity<InteractionSource>` with `.interaction_source(&source)` to observe hover, press, keyboard focus, and disabled state. The source can be shared with other controls using distinct IDs and leaves the value with the caller. Pass `.track_focus(&focus)` to attach a caller-owned `FocusHandle`.
 
 ### Radio buttons
 
 Use `Radio::colors(RadioColors)` to override the indicator's selected, unselected, disabled-selected, and disabled-unselected colors independently. Unspecified fields use the current window palette. Selected defaults to Primary, unselected defaults to On Surface Variant, and both disabled defaults use On Surface at 38% opacity.
 
-Pass `.interaction_source(&source)` to observe a standalone radio or individual options in a `RadioGroup`. Grouped snapshots use the rendered ID `ElementId::from((group_id, option_id.to_string()))`, so groups can share one `Entity<InteractionSource>`. Removing an option or replacing its source clears its snapshot in the old source. The caller owns selection and applies `.on_select(...)` requests. A group has one Tab stop, skips disabled options, and mirrors horizontal navigation in RTL.
+Pass `.interaction_source(&source)` to observe a standalone radio or individual options in a `RadioGroup`. Grouped snapshots use the rendered ID `ElementId::from((group_id, option_id.to_string()))`, so groups can share one `Entity<InteractionSource>`. Removing an option or replacing its source clears its snapshot in the old source. The caller owns selection and applies `.on_select(...)` requests. A group has one Tab stop, skips disabled options, and mirrors horizontal navigation in RTL. Use `.track_focus(&focus)` on a standalone `Radio` to attach a caller-owned `FocusHandle`.
 
 ### Switches
 
@@ -63,7 +63,7 @@ Pass the application's current value to `Switch::new(id, label, checked)` and ha
 
 Use `.checked_icon` and `.unchecked_icon` for optional icons, or pass a decorative GPUI element through `.thumb_content(element)`. The custom element takes precedence for that render. Choose it from the caller's checked value to show different elements in each state. Custom content sits in a centered 16 px slot and inherits the state's content color. Keep labels and independent controls outside the thumb.
 
-Use `.colors(SwitchColors)` to configure each `SwitchStateColors` palette for checked, unchecked, disabled checked and disabled unchecked states. Each palette can override `track`, `border`, `thumb` and `content` independently. Omitted fields retain the theme defaults. Attach a caller-owned `Entity<InteractionSource>` with `.interaction_source(&source)` to observe hover, focus, press and disabled changes while the application continues to own the checked value.
+Use `.colors(SwitchColors)` to configure each `SwitchStateColors` palette for checked, unchecked, disabled checked and disabled unchecked states. Each palette can override `track`, `border`, `thumb` and `content` independently. Omitted fields retain the theme defaults. Attach a caller-owned `Entity<InteractionSource>` with `.interaction_source(&source)` to observe hover, focus, press and disabled changes while the application continues to own the checked value. Pass `.track_focus(&focus)` to attach a caller-owned `FocusHandle`.
 
 ### Chips
 
@@ -75,7 +75,7 @@ Filter and Input render the owner's `.selected(value)` and request changes throu
 
 Use `.border(ButtonBorder)` to change the outline width and its fallback color. A zero width hides the outline. `.elevations(ChipElevations)` overrides rest, press, focus, hover, drag, and disabled shadow levels. `.dragged(bool)` reflects an application-owned drag and cancels the pending pointer activation; the application owns the gesture. `.spacing(width)` sets the horizontal gap between content slots, and `.content_padding(ButtonPadding)` sets logical inner edges. The default gap is 8 dp, label-only edges are 16 dp, icon edges are 8 dp, and the avatar starts at 4 dp.
 
-Give each chip a distinct ID and use a caller-owned `Entity<InteractionSource>` with `.interaction_source(&source)` to observe the main action by that ID. The source reports hover, press, keyboard focus, dragged, and disabled feedback; selection and removal remain controlled by the caller.
+Give each chip a distinct ID and use a caller-owned `Entity<InteractionSource>` with `.interaction_source(&source)` to observe the main action by that ID. The source reports hover, press, keyboard focus, dragged, and disabled feedback; selection and removal remain controlled by the caller. Use `.track_focus(&focus)` to attach a caller-owned `FocusHandle` to the main action, such as a restoration target for an adjacent chip's `.on_remove(...)`.
 
 ### Sliders
 
@@ -124,7 +124,7 @@ Use `Card::new(id).variant(CardVariant::Elevated)`, `Filled`, or `Outlined` for 
 
 Set `.shape(CornerShape)` for the container, border, shadow, and feedback. It follows the window's writing direction. Use `.border(CardBorder { width, color })` for a custom stroke. A width of zero removes the stroke. `.colors(CardColors)` independently overrides enabled and disabled container and content colors. `.elevations(CardElevations)` independently overrides resting, pressed, focused, hovered, dragged, and disabled shadow levels. Omitted fields keep the variant defaults, including Medium corners, an outline on Outlined cards, and flat Outlined cards on hover. Disabled elevation takes priority, followed by drag, press, keyboard focus, hover, and rest.
 
-Set `.dragged(bool)` from the caller's drag lifecycle, including completion and cancellation. A drag interrupts a pending pointer activation. Pass `.interaction_source(&source)` to observe the card through a shared `Entity<InteractionSource>`. Give each observed card a distinct ID within its window.
+Set `.dragged(bool)` from the caller's drag lifecycle, including completion and cancellation. A drag interrupts a pending pointer activation. Pass `.interaction_source(&source)` to observe the card through a shared `Entity<InteractionSource>`. Give each observed card a distinct ID within its window. Use `.track_focus(&focus)` to attach a caller-owned `FocusHandle` to an actionable card.
 
 ### Lists
 

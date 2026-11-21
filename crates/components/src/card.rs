@@ -1,14 +1,15 @@
 use std::rc::Rc;
 
 use gpui::{
-    AccessibleAction, AnyElement, App, BorderStyle, ClickEvent, Corners, ElementId, Entity, Hsla,
-    InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce, Role, SharedString,
-    StatefulInteractiveElement, Styled, Window, canvas, div, prelude::FluentBuilder, px, quad,
+    AccessibleAction, AnyElement, App, BorderStyle, ClickEvent, Corners, ElementId, Entity,
+    FocusHandle, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce, Role,
+    SharedString, StatefulInteractiveElement, Styled, Window, canvas, div, prelude::FluentBuilder,
+    px, quad,
 };
 use gpui_base::TestSupportExt as _;
 use gpui_material_foundation::{
-    InteractionFeedback, InteractionSource, InteractionState, Shape, animate, color,
-    current_material_theme, elevation_shadows,
+    InteractionFeedback, InteractionSource, InteractionState, ThemeScope, animate, color,
+    current_material_theme, elevation_shadow_pair,
 };
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Elevation, MotionKind, MotionSpec, MotionSpeed,
@@ -90,6 +91,7 @@ pub struct Card {
     border: Option<CardBorder>,
     colors: CardColors,
     elevations: CardElevations,
+    focus: Option<FocusHandle>,
     source: Option<Entity<InteractionSource>>,
 }
 
@@ -106,6 +108,7 @@ impl Card {
             border: None,
             colors: CardColors::default(),
             elevations: CardElevations::default(),
+            focus: None,
             source: None,
         }
     }
@@ -155,6 +158,12 @@ impl Card {
         self
     }
 
+    /// Uses the caller's focus handle when the card is actionable.
+    pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
+        self.focus = Some(focus.clone());
+        self
+    }
+
     pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
         self.source = Some(source.clone());
         self
@@ -173,12 +182,14 @@ impl RenderOnce for Card {
         let enabled = !self.disabled;
         let dragged = enabled && self.dragged;
         let feedback = ripple_state(&self.id, actionable && enabled, window, cx);
-        let focus = window
-            .use_keyed_state((self.id.clone(), "card-focus"), cx, |_, cx| {
-                cx.focus_handle()
-            })
-            .read(cx)
-            .clone();
+        let focus = self.focus.filter(|_| actionable).unwrap_or_else(|| {
+            window
+                .use_keyed_state((self.id.clone(), "card-focus"), cx, |_, cx| {
+                    cx.focus_handle()
+                })
+                .read(cx)
+                .clone()
+        });
         let tracker = self
             .source
             .as_ref()
@@ -275,12 +286,13 @@ impl RenderOnce for Card {
         let shape = self.shape;
         let visual = canvas(
             move |bounds, window, _| {
-                let feedback_shape = if enabled && (actionable || dragged) {
-                    Shape::rounded(bounds, shape, direction)
+                if enabled && (actionable || dragged) {
+                    geometry
+                        .borrow_mut()
+                        .set_rounded_shape(bounds, shape, direction, window);
                 } else {
-                    None
-                };
-                geometry.borrow_mut().set_shape(feedback_shape, window);
+                    geometry.borrow_mut().set_shape(None, window);
+                }
                 let [top_left, top_right, bottom_right, bottom_left] = shape
                     .radii(
                         f32::from(bounds.size.width),
@@ -296,12 +308,8 @@ impl RenderOnce for Card {
                 }
             },
             move |bounds, corners, window, cx| {
-                if elevation > 0. {
-                    window.paint_drop_shadows(
-                        bounds,
-                        corners,
-                        &elevation_shadows(elevation, 1., shadow),
-                    );
+                if let Some(shadows) = elevation_shadow_pair(elevation, 1., shadow) {
+                    window.paint_drop_shadows(bounds, corners, &shadows);
                 }
                 window.paint_quad(quad(
                     bounds,
@@ -340,6 +348,11 @@ impl RenderOnce for Card {
             .children(self.children);
         match self.activation {
             Some((name, activate)) => {
+                let activate = Rc::new(ThemeScope::bind_action(
+                    move |window, cx| activate(window, cx),
+                    window,
+                    cx,
+                ));
                 let invoke = activate.clone();
                 let press = feedback.clone();
                 gpui_base::Button::new(self.id)

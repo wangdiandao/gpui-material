@@ -385,3 +385,44 @@ fn swipe_named_commands_work_with_disabled_gestures_and_caller_removal(cx: &mut 
         draw(cx);
     }
 }
+
+#[gpui::test]
+fn swipe_mount_settle_skips_redundant_width_notification_until_active(cx: &mut TestAppContext) {
+    use std::{cell::Cell, rc::Rc};
+
+    cx.update(|cx| {
+        MaterialRoot::init(MaterialTheme::default(), cx);
+        cx.set_reduce_motion(true);
+    });
+    let notifications = Rc::new(Cell::new(0usize));
+    let observed = notifications.clone();
+    let (view, cx) = cx.add_window_view(|window, cx| {
+        window.activate_window();
+        let state = cx.new(|_| SwipeToDismissState::new());
+        cx.observe(&state, move |_, _, _| {
+            observed.set(observed.get() + 1);
+        })
+        .detach();
+        SwipePreview {
+            state,
+            archive_focus: cx.focus_handle(),
+            remove_focus: cx.focus_handle(),
+            scroll: ScrollHandle::new(),
+            completions: Vec::new(),
+            foreground_clicks: 0,
+            vertical_moves: 0,
+            mounted: true,
+            unmount_on_dismiss: false,
+            gestures: true,
+            start_to_end: true,
+            end_to_start: true,
+        }
+    });
+    draw(cx);
+    draw(cx);
+    cx.update(|_, cx| {
+        assert_eq!(notifications.get(), 0);
+        assert_eq!(view.read(cx).state.read(cx).settled_value(), Settled);
+        assert_eq!(view.read(cx).state.read(cx).offset(), px(0.));
+    });
+}

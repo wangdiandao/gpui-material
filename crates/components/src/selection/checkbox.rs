@@ -1,18 +1,18 @@
-use std::rc::Rc;
+use std::{cell::Cell, rc::Rc};
 
 use gpui::{
-    AccessibleAction, App, BorderStyle, Bounds, ContentMask, ElementId, Entity, Hsla,
+    AccessibleAction, App, BorderStyle, Bounds, ContentMask, ElementId, Entity, FocusHandle, Hsla,
     InteractiveElement, IntoElement, ParentElement, Path, PathBuilder, PathStyle, Pixels,
     RenderOnce, Rgba, SharedString, StatefulInteractiveElement, StrokeOptions, Styled, Window,
     canvas, point, prelude::FluentBuilder, px, quad,
 };
 use gpui_base::{Checkbox as BaseCheckbox, CheckboxState};
-use gpui_material_foundation::{InteractionSource, animate, current_material_theme};
+use gpui_material_foundation::{InteractionSource, ThemeScope, animate, current_material_theme};
 use gpui_material_theme::{ColorRole, MotionKind, MotionSpec, MotionSpeed};
 
 use crate::action::{feedback_target, ripple_state, ripple_target};
 
-use super::{focus_style, row, selection_target, selection_tone, tone};
+use super::{focus_style, row, selection_label, selection_target, selection_tone, tone};
 
 type CheckboxChange = Rc<dyn Fn(CheckboxState, &mut Window, &mut App)>;
 
@@ -69,6 +69,7 @@ pub struct Checkbox {
     colors: CheckboxColors,
     checkmark_stroke: StrokeOptions,
     outline_stroke: Pixels,
+    focus: Option<FocusHandle>,
     interaction_source: Option<Entity<InteractionSource>>,
     on_change: Option<CheckboxChange>,
 }
@@ -88,6 +89,7 @@ impl Checkbox {
             colors: CheckboxColors::default(),
             checkmark_stroke: StrokeOptions::default().with_line_width(CHECKBOX_STROKE),
             outline_stroke: px(CHECKBOX_STROKE),
+            focus: None,
             interaction_source: None,
             on_change: None,
         }
@@ -117,6 +119,12 @@ impl Checkbox {
     /// Sets the width of the rounded box outline. Zero omits the outline.
     pub fn outline_stroke(mut self, width: Pixels) -> Self {
         self.outline_stroke = width;
+        self
+    }
+
+    /// Uses the caller's focus handle instead of an internal keyed handle.
+    pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
+        self.focus = Some(focus.clone());
         self
     }
 
@@ -234,10 +242,12 @@ impl RenderOnce for Checkbox {
         .flex_none();
         let direction = current_material_theme(window, cx).layout.direction;
         let ripple = ripple_state(&self.id, !self.disabled, window, cx);
-        let focus = window
-            .use_keyed_state(self.id.clone(), cx, |_, cx| cx.focus_handle())
-            .read(cx)
-            .clone();
+        let focus = self.focus.unwrap_or_else(|| {
+            window
+                .use_keyed_state(self.id.clone(), cx, |_, cx| cx.focus_handle())
+                .read(cx)
+                .clone()
+        });
         let tracker = self
             .interaction_source
             .as_ref()
@@ -282,21 +292,33 @@ impl RenderOnce for Checkbox {
                         direction,
                         cx.reduce_motion(),
                     ))
-                    .child(label),
+                    .child(selection_label(label, self.disabled, window, cx)),
             );
         match self.on_change {
             Some(handler) if !self.disabled => {
-                let change = handler.clone();
                 let next = if self.state == CheckboxState::Checked {
                     CheckboxState::Unchecked
                 } else {
                     CheckboxState::Checked
                 };
+                let pending = Rc::new(Cell::new(next));
+                let pending_arg = pending.clone();
+                let handler = Rc::new(ThemeScope::bind_action(
+                    move |window, cx| handler(pending_arg.get(), window, cx),
+                    window,
+                    cx,
+                ));
+                let change = handler.clone();
+                let a11y_pending = pending.clone();
                 control
                     .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
-                        change(next, window, cx)
+                        a11y_pending.set(next);
+                        change(window, cx);
                     })
-                    .on_change(move |value, _, window, cx| handler(value, window, cx))
+                    .on_change(move |value, _, window, cx| {
+                        pending.set(value);
+                        handler(window, cx);
+                    })
             }
             _ => control,
         }

@@ -1,4 +1,7 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
 
 use gpui::{
     AccessibleAction, AnyElement, App, BorderStyle, Bounds, Corners, ElementId, Entity,
@@ -7,8 +10,8 @@ use gpui::{
 };
 use gpui_base::{Button, Toggle};
 use gpui_material_foundation::{
-    InteractionFeedback, InteractionSource, InteractionState, InteractionTracker, Shape,
-    ThemeScope, animate, color, current_material_theme, elevation_shadows,
+    InteractionFeedback, InteractionSource, InteractionState, InteractionTracker, ThemeScope,
+    animate, color, current_material_theme, elevation_shadow_pair,
 };
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Direction, Elevation, MotionKind, MotionSpec, MotionSpeed,
@@ -326,6 +329,8 @@ impl ActionControl {
                 palette.foreground,
                 target_height,
                 width,
+                window,
+                cx,
             ),
         }
     }
@@ -526,8 +531,8 @@ fn render_visual_surface(
                 scale,
                 layout,
             );
-            let shape = Shape::rounded(bounds, corners, direction);
-            mesh.borrow_mut().set_shape(shape, window);
+            mesh.borrow_mut()
+                .set_rounded_shape(bounds, corners, direction, window);
             corners
                 .radii(
                     f32::from(bounds.size.width),
@@ -544,12 +549,8 @@ fn render_visual_surface(
                 bottom_left,
                 bottom_right,
             };
-            if visuals.elevation > 0. {
-                window.paint_drop_shadows(
-                    bounds,
-                    radii,
-                    &elevation_shadows(visuals.elevation, scale, palette.shadow),
-                );
+            if let Some(shadows) = elevation_shadow_pair(visuals.elevation, scale, palette.shadow) {
+                window.paint_drop_shadows(bounds, radii, &shadows);
             }
             // A zero-width outline is still visible through antialiasing on some
             // backends if its pigment is opaque.
@@ -661,6 +662,8 @@ fn render_toggle_control(
     foreground: Hsla,
     target_height: Pixels,
     width: (Pixels, bool),
+    window: &Window,
+    cx: &App,
 ) -> AnyElement {
     let enabled = !disabled;
     let control = Toggle::new(id)
@@ -671,20 +674,30 @@ fn render_toggle_control(
         .accessibility_label(label);
     let control = match on_change {
         Some(on_change) if enabled => {
+            let pending = Rc::new(Cell::new(!selected));
+            let pending_arg = pending.clone();
+            let on_change = Rc::new(ThemeScope::bind_action(
+                move |window, cx| on_change(pending_arg.get(), window, cx),
+                window,
+                cx,
+            ));
             let feedback = feedback.clone();
             let toggle = on_change.clone();
             let semantic_feedback = feedback.clone();
+            let semantic_pending = pending.clone();
             control
                 .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
                     if !semantic_feedback.borrow().is_dragged() {
-                        toggle(!selected, window, cx);
+                        semantic_pending.set(!selected);
+                        toggle(window, cx);
                     }
                 })
                 .on_change(move |selected, event, window, cx| {
                     cx.stop_propagation();
                     if !feedback.borrow().blocks_activation(event) {
                         activate_feedback(event, &feedback, window, cx);
-                        on_change(selected, window, cx);
+                        pending.set(selected);
+                        on_change(window, cx);
                     }
                 })
         }
@@ -754,14 +767,26 @@ pub(crate) fn interpolated_corners(
             segment.trailing,
             segment.leading,
         ];
-        if resting.is_none() {
-            rest = outside.map(|outer_edge| if outer_edge { outer } else { inner });
-        }
-        if checked.is_none() {
-            selected = radii(CornerRole::Full.shape());
-        }
-        if pressed_shape.is_none() {
-            pressed = outside.map(|outer_edge| if outer_edge { outer } else { inner_pressed });
+        if segment.inner == CornerRole::None {
+            rest = std::array::from_fn(|ix| if outside[ix] { rest[ix] } else { inner });
+            selected = std::array::from_fn(|ix| if outside[ix] { selected[ix] } else { inner });
+            pressed = std::array::from_fn(|ix| {
+                if outside[ix] {
+                    pressed[ix]
+                } else {
+                    inner_pressed
+                }
+            });
+        } else {
+            if resting.is_none() {
+                rest = outside.map(|outer_edge| if outer_edge { outer } else { inner });
+            }
+            if checked.is_none() {
+                selected = radii(CornerRole::Full.shape());
+            }
+            if pressed_shape.is_none() {
+                pressed = outside.map(|outer_edge| if outer_edge { outer } else { inner_pressed });
+            }
         }
     }
     CornerShape::Radii(std::array::from_fn(|ix| {
@@ -788,7 +813,7 @@ pub(crate) fn ripple_ink(
         move |bounds, window, _| {
             geometry
                 .borrow_mut()
-                .set_shape(Shape::rounded(bounds, corners, direction), window);
+                .set_rounded_shape(bounds, corners, direction, window);
         },
         move |_, _, window, cx| {
             let state = state.borrow();
@@ -818,4 +843,72 @@ pub(crate) fn icon_slot(icon: AnyElement, side: f32) -> impl IntoElement {
         .text_size(px(side))
         .line_height(px(side))
         .child(icon)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn split_segment_zero_inner_clips_interior_seam_in_all_states() {
+        let style = ActionStyle {
+            background: None,
+            background_color: None,
+            foreground: ColorRole::OnSurface,
+            disabled: DisabledStyle {
+                foreground: ColorRole::OnSurface,
+                background: None,
+                outline: (ColorRole::OnSurface, 0.12),
+            },
+            height: 32.,
+            min_width: 32.,
+            corner: CornerRole::Small,
+            pressed_corner: CornerRole::Small,
+            selected_corner: Some(CornerRole::Medium),
+            corner_motion: (MotionKind::Spatial, MotionSpeed::Fast),
+            outline: 0.,
+            outline_role: ColorRole::Outline,
+            elevation: Elevation::Level0,
+            hover_elevation: Elevation::Level0,
+        };
+        let bounds = Bounds::new(gpui::point(px(0.), px(0.)), gpui::size(px(80.), px(32.)));
+        let custom_shapes = ButtonShapes {
+            resting: Some(CornerShape::Radii([10., 12., 14., 16.])),
+            pressed: Some(CornerShape::Radii([6., 7., 8., 9.])),
+            checked: Some(CornerRole::Full.shape()),
+        };
+
+        for (leading, trailing) in [(true, false), (false, true)] {
+            let layout = ActionLayout {
+                segment: Some(SegmentShape {
+                    leading,
+                    trailing,
+                    outer: style.corner,
+                    inner: CornerRole::None,
+                    pressed: CornerRole::None,
+                }),
+                appearance: ButtonStyle {
+                    shapes: custom_shapes,
+                    ..Default::default()
+                },
+                ..ActionLayout::default()
+            };
+            for (selection, press) in [(0., 0.), (1., 0.), (0., 1.), (1., 1.)] {
+                let CornerShape::Radii(radii) =
+                    interpolated_corners(bounds, style, selection, press, 1., layout)
+                else {
+                    panic!("interpolated_corners must return explicit radii");
+                };
+                if leading {
+                    assert!(radii[0] > 0. && radii[3] > 0.);
+                    assert_eq!(radii[1], 0.);
+                    assert_eq!(radii[2], 0.);
+                } else {
+                    assert_eq!(radii[0], 0.);
+                    assert_eq!(radii[3], 0.);
+                    assert!(radii[1] > 0. && radii[2] > 0.);
+                }
+            }
+        }
+    }
 }

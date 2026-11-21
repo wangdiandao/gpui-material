@@ -599,7 +599,9 @@ impl Element for SwipeContent {
             .update(cx, |state, cx| {
                 if state.width != bounds.size.width {
                     state.width = bounds.size.width;
-                    cx.notify();
+                    if state.position != 0. || state.moving {
+                        cx.notify();
+                    }
                 }
                 (state.offset(), state.shows_foreground())
             })

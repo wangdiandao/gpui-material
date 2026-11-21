@@ -572,6 +572,7 @@ impl RenderOnce for ExtendedFab {
             .unwrap_or_else(|| action.style.foreground(action.disabled, window, cx));
         let typography = role.style(TypographyEmphasis::Baseline);
         let mut custom_content = self.custom_content;
+        let mut pre_shaped = None;
         let label_width = if progress == 0. {
             px(0.)
         } else if let Some(content) = &mut custom_content {
@@ -593,7 +594,17 @@ impl RenderOnce for ExtendedFab {
                 )
                 .width
         } else {
-            crate::text::single_line_width(&action.label, typography, ink, window, cx)
+            let (clean, shaped) = crate::text::shape_single_line(
+                action.label.clone(),
+                typography,
+                1.,
+                ink,
+                window,
+                cx,
+            );
+            let width = shaped.line().width.ceil();
+            pre_shaped = Some((clean, shaped));
+            width
         };
         let fixed_width = px(icon_size + gap + padding * 2.);
         let width = (fixed_width + label_width * progress).max(px(extent));
@@ -632,6 +643,18 @@ impl RenderOnce for ExtendedFab {
                             label_width,
                             px(visual_height * scale),
                             opacity,
+                        ));
+                    } else if scale == 1.
+                        && let Some(shaped) = pre_shaped
+                    {
+                        row = row.child(crate::text::single_line_with_shaped(
+                            shaped,
+                            typography,
+                            1.,
+                            ink,
+                            (Some(label_width / progress), progress, opacity),
+                            window,
+                            cx,
                         ));
                     } else {
                         row = row.child(crate::text::single_line(

@@ -11,8 +11,8 @@ use gpui::{
 };
 use gpui_base::TestSupportExt;
 use gpui_material_foundation::{
-    InteractionFeedback, InteractionSource, InteractionState, Shape, animate, color,
-    current_material_theme, elevation_shadows,
+    InteractionFeedback, InteractionSource, InteractionState, ThemeScope, animate, color,
+    current_material_theme, elevation_shadow_pair,
 };
 use gpui_material_theme::{
     ColorRole, CornerShape, Direction, MotionKind, MotionSpec, MotionSpeed, TypeRole,
@@ -25,7 +25,7 @@ use crate::{
 };
 
 use super::long_press::LongPress;
-use super::style::{ListItemAlignment, ListItemPadding, RowColors};
+use super::style::{ListItemAlignment, ListItemPadding, ListItemShapes, RowColors};
 use super::{Expansion, ListItem, SecondaryAction, Slot, ValueChange};
 
 impl Slot {
@@ -71,10 +71,13 @@ fn render_visual_canvas(
                     direction,
                 )
                 .map(px);
-            let feedback_shape = enabled
-                .then(|| Shape::rounded(bounds, shape, direction))
-                .flatten();
-            geometry.borrow_mut().set_shape(feedback_shape, window);
+            if enabled {
+                geometry
+                    .borrow_mut()
+                    .set_rounded_shape(bounds, shape, direction, window);
+            } else {
+                geometry.borrow_mut().set_shape(None, window);
+            }
             Corners {
                 top_left,
                 top_right,
@@ -83,12 +86,8 @@ fn render_visual_canvas(
             }
         },
         move |bounds, corners, window, cx| {
-            if elevation > 0. {
-                window.paint_drop_shadows(
-                    bounds,
-                    corners,
-                    &elevation_shadows(elevation, 1., shadow),
-                );
+            if let Some(shadows) = elevation_shadow_pair(elevation, 1., shadow) {
+                window.paint_drop_shadows(bounds, corners, &shadows);
             }
             window.paint_quad(quad(
                 bounds,
@@ -129,7 +128,7 @@ fn render_content_slot(
     long_press: Option<&Rc<LongPress>>,
     enabled: bool,
     dragged: bool,
-    text_height: Rc<Cell<Pixels>>,
+    text_height: Option<Rc<Cell<Pixels>>>,
 ) -> Div {
     div()
         .relative()
@@ -158,18 +157,20 @@ fn render_content_slot(
                 .filter(|_| enabled && !dragged)
                 .map(|press| press.target()),
         )
-        .child(
-            canvas(
-                move |bounds, window, _| {
-                    if text_height.replace(bounds.size.height) != bounds.size.height {
-                        window.refresh();
-                    }
-                },
-                |_, _, _, _| {},
+        .when_some(text_height, |slot, text_height| {
+            slot.child(
+                canvas(
+                    move |bounds, window, _| {
+                        if text_height.replace(bounds.size.height) != bounds.size.height {
+                            window.refresh();
+                        }
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .inset_0(),
             )
-            .absolute()
-            .inset_0(),
-        )
+        })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -286,6 +287,8 @@ fn wrap_interactive_row(
     expanded_change: Option<ValueChange>,
     secondary_action: Option<SecondaryAction>,
     long_press: Option<Rc<LongPress>>,
+    window: &Window,
+    cx: &App,
 ) -> AnyElement {
     let activate = feedback.clone();
     let mut control = gpui_base::Button::new((id.clone(), "activate"))
@@ -341,13 +344,15 @@ fn wrap_interactive_row(
         .zip(expanded_change)
         .filter(|_| enabled && !dragged)
     {
+        let change =
+            ThemeScope::bind_action(move |window, cx| change(!expanded, window, cx), window, cx);
         control = control.on_a11y_action(
             if expanded {
                 AccessibleAction::Collapse
             } else {
                 AccessibleAction::Expand
             },
-            move |_, window, cx| change(!expanded, window, cx),
+            move |_, window, cx| change(window, cx),
         );
     }
     if let Some((secondary, hold)) = secondary_action
@@ -416,9 +421,25 @@ impl ListItem {
                 .clone();
             (focus, true)
         });
-        let primary = self.primary_action();
+        let primary = self.primary_action().map(|primary| {
+            let bound: Activate = Rc::new(ThemeScope::bind_action(
+                move |window, cx| primary(window, cx),
+                window,
+                cx,
+            ));
+            bound
+        });
         let has_menu_trigger = self.has_menu_trigger();
-        let interactive = primary.is_some() || has_menu_trigger || self.long_press.is_some();
+        let secondary_action = self.long_press.map(|mut action| {
+            let handler = action.handler;
+            action.handler = Rc::new(ThemeScope::bind_action(
+                move |window, cx| handler(window, cx),
+                window,
+                cx,
+            ));
+            action
+        });
+        let interactive = primary.is_some() || has_menu_trigger || secondary_action.is_some();
         let visible = self
             .swipe
             .as_ref()
@@ -442,16 +463,17 @@ impl ListItem {
             feedback.track(enabled, &focus, tracker, window, cx)
         };
 
-        let long_press = self.long_press.as_ref().map(|long_press| {
+        let long_press = secondary_action.as_ref().map(|long_press| {
             LongPress::mount(
                 (enabled && !dragged).then(|| long_press.handler.clone()),
                 window,
                 cx,
             )
         });
-        let theme = current_material_theme(window, cx);
-        let layout = theme.layout;
-        let motion = theme.motion;
+        let (layout, motion) = {
+            let theme = current_material_theme(window, cx);
+            (theme.layout, theme.motion)
+        };
         let reduced = cx.reduce_motion();
         let selected =
             self.selected || (self.checked == Some(true) && self.checked_role != Role::Switch);
@@ -462,11 +484,15 @@ impl ListItem {
         let spatial = motion.spec(MotionKind::Spatial, MotionSpeed::Fast, reduced);
         let selection =
             animate("selection", f32::from(selected), effects, window, cx).clamp(0., 1.);
-        let scheme = &current_material_theme(window, cx).colors;
-        let tone = |role| color(scheme.color(role));
-        let ring = tone(ColorRole::Secondary);
-        let shadow = tone(ColorRole::Shadow);
-        let colors = self.colors.resolve(selected, selection, interaction, tone);
+        let (ring, shadow, colors) = {
+            let scheme = &current_material_theme(window, cx).colors;
+            let tone = |role| color(scheme.color(role));
+            (
+                tone(ColorRole::Secondary),
+                tone(ColorRole::Shadow),
+                self.colors.resolve(selected, selection, interaction, tone),
+            )
+        };
         let layer = animate(
             "opacity",
             interaction
@@ -493,13 +519,20 @@ impl ListItem {
             cx,
         )
         .max(0.);
-        let text_height = window
-            .use_keyed_state("text-height", cx, |_, _| Rc::new(Cell::new(px(0.))))
-            .read(cx)
-            .clone();
-        let three_lines = self.overline.is_some() && self.supporting.is_some()
-            || self.supporting.as_ref().is_some_and(Slot::has_line_break)
-            || text_height.get() > px(44.);
+        let static_single_line =
+            self.overline.is_none() && self.supporting.is_none() && self.content.is_none();
+        let static_three_lines = (self.overline.is_some() && self.supporting.is_some())
+            || self.supporting.as_ref().is_some_and(Slot::has_line_break);
+        let text_height = (!static_single_line && !static_three_lines).then(|| {
+            window
+                .use_keyed_state("text-height", cx, |_, _| Rc::new(Cell::new(px(0.))))
+                .read(cx)
+                .clone()
+        });
+        let three_lines = static_three_lines
+            || text_height
+                .as_ref()
+                .is_some_and(|text_height| text_height.get() > px(44.));
         let height = match (self.overline.is_some(), self.supporting.is_some()) {
             _ if three_lines => 88.,
             (false, false) => 56.,
@@ -509,19 +542,25 @@ impl ListItem {
             CornerShape::Radii(radii) => radii,
             CornerShape::Full => [height * 0.5; 4],
         };
-        // Include the measured pill extent separately so the final shape follows
-        // custom content that raises the row above its minimum height.
-        let full = animate(
-            "full",
-            f32::from(shape == CornerShape::Full),
-            spatial,
-            window,
-            cx,
-        )
-        .clamp(0., 1.);
-        let radii = std::array::from_fn(|ix| {
-            animate(["ts", "te", "be", "bs"][ix], radii[ix], spatial, window, cx).max(0.)
-        });
+        let (full, radii) = if resting == selected_shape && self.shapes == ListItemShapes::default()
+        {
+            (f32::from(shape == CornerShape::Full), radii)
+        } else {
+            // Include the measured pill extent separately so the final shape follows
+            // custom content that raises the row above its minimum height.
+            let full = animate(
+                "full",
+                f32::from(shape == CornerShape::Full),
+                spatial,
+                window,
+                cx,
+            )
+            .clamp(0., 1.);
+            let radii = std::array::from_fn(|ix| {
+                animate(["ts", "te", "be", "bs"][ix], radii[ix], spatial, window, cx).max(0.)
+            });
+            (full, radii)
+        };
         let visual = render_visual_canvas(
             radii,
             full,
@@ -558,7 +597,7 @@ impl ListItem {
             self.leading,
             content,
             self.trailing,
-            self.long_press.as_ref(),
+            secondary_action.as_ref(),
             self.long_press_button,
             &colors,
             enabled,
@@ -600,8 +639,10 @@ impl ListItem {
                 feedback,
                 primary,
                 self.expanded_change,
-                self.long_press,
+                secondary_action,
                 long_press,
+                window,
+                cx,
             )
         } else {
             wrap_static_row(surface, self.disabled, checked, self.checked_role, expanded)

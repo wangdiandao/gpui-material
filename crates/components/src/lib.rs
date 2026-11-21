@@ -11,6 +11,7 @@ mod avatar;
 mod button_style;
 mod display;
 mod display_scrollbar;
+mod empty_state;
 mod icon;
 mod insets;
 mod menu_appearance;
@@ -36,12 +37,13 @@ mod menu_appearance;
 mod motion;
 mod text;
 
-pub use avatar::{Avatar, AvatarColors, AvatarShape, AvatarSize};
+pub use avatar::{Avatar, AvatarColors, AvatarGroup, AvatarShape, AvatarSize};
 pub use button_style::ControlSize;
 pub use display::{Badge, Divider};
 pub use display_scrollbar::{
     DisplayScrollbar, DisplayScrollbarFade, DisplayScrollbarStyle, ScrollbarHandle,
 };
+pub use empty_state::EmptyState;
 pub use icon::{Icon, IconName};
 pub use insets::ScaffoldInsets;
 pub use menu_appearance::MenuSurfaceStyle;

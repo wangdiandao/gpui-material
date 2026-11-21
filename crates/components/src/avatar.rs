@@ -346,6 +346,249 @@ impl RenderOnce for Avatar {
     }
 }
 
+type OverflowContent = Box<dyn FnOnce(usize) -> AnyElement>;
+
+const DEFAULT_RING_WIDTH: Pixels = px(2.);
+
+/// An overlapping horizontal stack of [`Avatar`] items with surface-matched cutout rings
+/// and an optional `+N` overflow indicator.
+#[derive(IntoElement)]
+pub struct AvatarGroup {
+    id: ElementId,
+    avatars: Vec<Avatar>,
+    size: AvatarSize,
+    max_visible: Option<usize>,
+    overlap: Option<Pixels>,
+    ring_width: Pixels,
+    ring_role: ColorRole,
+    ring_color: Option<Hsla>,
+    overflow_colors: AvatarColors,
+    overflow_content: Option<OverflowContent>,
+    accessible_label: Option<SharedString>,
+}
+
+impl AvatarGroup {
+    /// Creates an overlapping stack from an iterator of [`Avatar`] items.
+    pub fn new(id: impl Into<ElementId>, avatars: impl IntoIterator<Item = Avatar>) -> Self {
+        Self {
+            id: id.into(),
+            avatars: avatars.into_iter().collect(),
+            size: AvatarSize::default(),
+            max_visible: None,
+            overlap: None,
+            ring_width: DEFAULT_RING_WIDTH,
+            ring_role: ColorRole::Surface,
+            ring_color: None,
+            overflow_colors: AvatarColors::default(),
+            overflow_content: None,
+            accessible_label: None,
+        }
+    }
+
+    /// Applies a uniform diameter across all member avatars and the overflow indicator.
+    /// Defaults to `AvatarSize::Medium` (40 px).
+    pub fn size(mut self, size: AvatarSize) -> Self {
+        self.size = size;
+        self
+    }
+
+    /// Limits the number of displayed member avatars before appending a `+N` overflow indicator.
+    pub fn max_visible(mut self, count: usize) -> Self {
+        self.max_visible = Some(count);
+        self
+    }
+
+    /// Sets the positive overlap distance between adjacent avatars in logical pixels.
+    /// Defaults to 25% of the resolved diameter and is clamped to `[0, diameter - 1]`.
+    pub fn overlap(mut self, pixels: Pixels) -> Self {
+        self.overlap = Some(pixels);
+        self
+    }
+
+    /// Sets the surface-matched cutout ring width around each avatar in logical pixels.
+    /// Defaults to `2 px`. Set to `0 px` to omit the ring.
+    pub fn ring_width(mut self, pixels: Pixels) -> Self {
+        let value = f32::from(pixels);
+        self.ring_width = if value.is_finite() && value >= 0. {
+            pixels
+        } else {
+            px(0.)
+        };
+        self
+    }
+
+    /// Overrides the cutout ring with an explicit color. Takes precedence over `.ring_role`.
+    pub fn ring_color(mut self, color: impl Into<Hsla>) -> Self {
+        self.ring_color = Some(color.into());
+        self
+    }
+
+    /// Resolves the cutout ring color from the window theme's semantic color role.
+    /// Defaults to `ColorRole::Surface`.
+    pub fn ring_role(mut self, role: ColorRole) -> Self {
+        self.ring_role = role;
+        self.ring_color = None;
+        self
+    }
+
+    /// Overrides container, content, and border pigments on the `+N` overflow indicator.
+    /// Omitted fields use `SurfaceContainerHighest` / `OnSurfaceVariant`.
+    pub fn overflow_colors(mut self, colors: AvatarColors) -> Self {
+        self.overflow_colors = colors;
+        self
+    }
+
+    /// Replaces the default `+N` text inside the overflow avatar with custom visual content.
+    pub fn overflow_content<E: IntoElement>(
+        mut self,
+        content: impl FnOnce(usize) -> E + 'static,
+    ) -> Self {
+        self.overflow_content = Some(Box::new(move |count| content(count).into_any_element()));
+        self
+    }
+
+    /// Exposes a summary `Role::Group` accessible label for the avatar stack without adding focus stops.
+    pub fn accessible_label(mut self, label: impl Into<SharedString>) -> Self {
+        self.accessible_label = Some(label.into());
+        self
+    }
+}
+
+fn max_overlap_for_diameter(diameter: f32) -> f32 {
+    if diameter > 1. { diameter - 1. } else { 0. }
+}
+
+fn default_overlap(size: AvatarSize) -> Pixels {
+    let diameter = f32::from(size.pixels());
+    px((diameter * 0.25)
+        .round()
+        .clamp(0., max_overlap_for_diameter(diameter)))
+}
+
+fn resolve_overlap(size: AvatarSize, overlap: Option<Pixels>) -> Pixels {
+    let diameter = f32::from(size.pixels());
+    let upper = max_overlap_for_diameter(diameter);
+    match overlap {
+        Some(value) => {
+            let raw = f32::from(value);
+            if raw.is_finite() {
+                px(raw.clamp(0., upper))
+            } else {
+                default_overlap(size)
+            }
+        }
+        None => default_overlap(size),
+    }
+}
+
+fn split_visible(total: usize, max_visible: Option<usize>) -> (usize, usize) {
+    match max_visible {
+        Some(limit) if total > limit => (limit, total - limit),
+        _ => (total, 0),
+    }
+}
+
+impl RenderOnce for AvatarGroup {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let theme = current_material_theme(window, cx);
+        let direction = theme.layout.direction;
+        let is_rtl = direction == gpui_material_theme::Direction::Rtl;
+        let side = self.size.pixels();
+        let overlap = resolve_overlap(self.size, self.overlap);
+        let ring_width = self.ring_width;
+        let ring_color = self
+            .ring_color
+            .unwrap_or_else(|| color(theme.colors.color(self.ring_role)));
+        let (visible_count, overflow_count) = split_visible(self.avatars.len(), self.max_visible);
+        let overflow_shape = self
+            .avatars
+            .first()
+            .map_or(AvatarShape::Circle, |avatar| avatar.shape);
+
+        let mut items: Vec<Avatar> = self
+            .avatars
+            .into_iter()
+            .take(visible_count)
+            .map(|mut avatar| {
+                avatar.size = self.size;
+                avatar
+            })
+            .collect();
+
+        if overflow_count > 0 {
+            let overflow_avatar = match self.overflow_content {
+                Some(render) => Avatar::custom(render(overflow_count)),
+                None => Avatar::with_content(AvatarContent::Initials(
+                    format!("+{overflow_count}").into(),
+                )),
+            }
+            .size(self.size)
+            .shape(overflow_shape)
+            .color_role(
+                ColorRole::SurfaceContainerHighest,
+                ColorRole::OnSurfaceVariant,
+            )
+            .colors(self.overflow_colors);
+            items.push(overflow_avatar);
+        }
+
+        let mut row = div()
+            .id(self.id)
+            .test_support()
+            .flex()
+            .flex_row()
+            .items_center()
+            .when(is_rtl, Styled::flex_row_reverse)
+            .when_some(self.accessible_label, |row, label| {
+                row.role(Role::Group).aria_label(label)
+            });
+
+        for (index, avatar) in items.into_iter().enumerate() {
+            let [tl, tr, br, bl] = resolve_radii(avatar.shape, side, direction);
+            let slot = if ring_width > px(0.) {
+                let outer_side = side + ring_width * 2.;
+                let [otl, otr, obr, obl] = match avatar.shape {
+                    AvatarShape::Circle => [outer_side * 0.5; 4],
+                    AvatarShape::Rounded(_) => [
+                        tl + ring_width,
+                        tr + ring_width,
+                        br + ring_width,
+                        bl + ring_width,
+                    ],
+                };
+                div()
+                    .flex_none()
+                    .size(outer_side)
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .bg(ring_color)
+                    .border(ring_width)
+                    .border_color(ring_color)
+                    .rounded_tl(otl)
+                    .rounded_tr(otr)
+                    .rounded_br(obr)
+                    .rounded_bl(obl)
+                    .child(avatar)
+            } else {
+                div().flex_none().size(side).child(avatar)
+            };
+            let slot = if index > 0 && overlap > px(0.) {
+                if is_rtl {
+                    slot.mr(-overlap)
+                } else {
+                    slot.ml(-overlap)
+                }
+            } else {
+                slot
+            };
+            row = row.child(slot);
+        }
+
+        row
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -392,5 +635,36 @@ mod tests {
         let rtl = resolve_radii(shape, px(40.), Direction::Rtl);
         assert_eq!(ltr, [px(12.), px(4.), px(8.), px(2.)]);
         assert_eq!(rtl, [px(4.), px(12.), px(2.), px(8.)]);
+    }
+
+    #[test]
+    fn avatar_group_overlap_defaults_and_clamps_within_diameter() {
+        assert_eq!(resolve_overlap(AvatarSize::ExtraSmall, None), px(6.));
+        assert_eq!(resolve_overlap(AvatarSize::Small, None), px(8.));
+        assert_eq!(resolve_overlap(AvatarSize::Medium, None), px(10.));
+        assert_eq!(resolve_overlap(AvatarSize::Large, None), px(12.));
+        assert_eq!(resolve_overlap(AvatarSize::ExtraLarge, None), px(16.));
+
+        assert_eq!(resolve_overlap(AvatarSize::Medium, Some(px(14.))), px(14.));
+        assert_eq!(resolve_overlap(AvatarSize::Medium, Some(px(-5.))), px(0.));
+        assert_eq!(resolve_overlap(AvatarSize::Medium, Some(px(80.))), px(39.));
+        assert_eq!(
+            resolve_overlap(AvatarSize::Medium, Some(px(f32::NAN))),
+            px(10.)
+        );
+        assert_eq!(
+            resolve_overlap(AvatarSize::Medium, Some(px(f32::INFINITY))),
+            px(10.)
+        );
+    }
+
+    #[test]
+    fn avatar_group_split_visible_computes_overflow_counts() {
+        assert_eq!(split_visible(5, None), (5, 0));
+        assert_eq!(split_visible(5, Some(3)), (3, 2));
+        assert_eq!(split_visible(3, Some(3)), (3, 0));
+        assert_eq!(split_visible(2, Some(5)), (2, 0));
+        assert_eq!(split_visible(4, Some(0)), (0, 4));
+        assert_eq!(split_visible(0, Some(0)), (0, 0));
     }
 }

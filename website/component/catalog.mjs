@@ -753,8 +753,8 @@ use gpui_material::{Card, Feed, Text};`,
       zh: "组合一组命令或相连的选择按钮。",
     },
     usage: {
-      en: "Use ButtonGroupItem for each member. With a connected selection group, keep the selected IDs in your application and apply the changes reported by on_change.",
-      zh: "为每个成员构造 ButtonGroupItem。相连的选择按钮组由应用保存选中 ID，并应用 on_change 报告的变化。",
+      en: "Use ButtonGroupItem for each member. For connected single-choice rows, use ButtonGroup::connected with single_select or single_optional_select. For multi-selection, use selection and on_change.",
+      zh: "为每个成员构造 ButtonGroupItem。相连的单选按钮组可直接使用 ButtonGroup::connected 搭配 single_select 或 single_optional_select；多选场景使用 selection 与 on_change。",
     },
     imports: "use gpui_material::{ButtonGroup, ButtonGroupItem};",
     code: `ButtonGroup::new("alignment", "Alignment", [
@@ -913,21 +913,45 @@ TimePicker::new("reminder", "Reminder time", &self.picker, self.time)
   {
     slug: "avatar",
     group: "basic",
-    title: "Avatar",
+    title: "Avatar / AvatarGroup",
     source: "crates/components/src/avatar.rs",
     api: "struct.Avatar.html",
     description: {
-      en: "Represent a person or entity with initials, an icon, an image, or custom content.",
-      zh: "用首字母、图标、图片或自定义内容展示用户或实体头像。",
+      en: "Represent a person or entity with initials, an icon, an image, or custom content, or stack members in an AvatarGroup.",
+      zh: "用首字母、图标、图片或自定义内容展示用户或实体头像，或通过 AvatarGroup 展示重叠头像堆叠。",
     },
     usage: {
-      en: "Choose Avatar::initials, Avatar::icon, Avatar::image, or Avatar::custom. Configure size with AvatarSize and shape with AvatarShape. Add accessible_label when the avatar conveys standalone meaning.",
-      zh: "按需选用 Avatar::initials、Avatar::icon、Avatar::image 或 Avatar::custom。通过 AvatarSize 与 AvatarShape 调整尺寸和形状；当头像传达独立信息时添加 accessible_label。",
+      en: "Choose Avatar::initials, Avatar::icon, Avatar::image, or Avatar::custom. Configure size with AvatarSize and shape with AvatarShape. Use AvatarGroup::new with max_visible, overlap, and ring_width to stack avatars with a +N overflow indicator.",
+      zh: "按需选用 Avatar::initials、Avatar::icon、Avatar::image 或 Avatar::custom。通过 AvatarSize 与 AvatarShape 调整尺寸和形状；使用 AvatarGroup::new 搭配 max_visible、overlap 和 ring_width 构建带 +N 溢出计数的重叠堆叠。",
     },
-    imports: "use gpui_material::{Avatar, AvatarSize};",
-    code: `Avatar::initials("AL")
-    .size(AvatarSize::Large)
-    .accessible_label("user-avatar", "Ada Lovelace")`,
+    imports: "use gpui_material::{Avatar, AvatarGroup, AvatarSize};",
+    code: `AvatarGroup::new("team", [
+    Avatar::initials("Ada Lovelace"),
+    Avatar::initials("Grace Hopper"),
+    Avatar::initials("Alan Turing"),
+])
+.size(AvatarSize::Medium)
+.max_visible(2)`,
+  },
+  {
+    slug: "empty-state",
+    group: "layout",
+    title: "EmptyState",
+    source: "crates/components/src/empty_state.rs",
+    api: "struct.EmptyState.html",
+    description: {
+      en: "Present a centered Material 3 Expressive empty-state layout with an optional shape backdrop, copy, and actions.",
+      zh: "呈现居中的 Material 3 Expressive 空状态布局，包含可选形状衬底、说明文案与操作按钮。",
+    },
+    usage: {
+      en: "Pass a stable ID and title to EmptyState::new. Attach icon (rendered inside a decorative MaterialShape Surface backdrop) or visual, add supporting text, and supply primary_action / secondary_action buttons.",
+      zh: "向 EmptyState::new 传入稳定 ID 与标题。可配置带装饰性 MaterialShape 衬底的 icon 或自定义 visual，补充 supporting 文案，并提供 primary_action / secondary_action 操作按钮。",
+    },
+    imports: "use gpui_material::{Button, EmptyState, Icon, IconName};",
+    code: `EmptyState::new("no-projects", "No projects yet")
+    .icon(Icon::new(IconName::Inbox))
+    .supporting("Create your first project to start organizing files.")
+    .primary_action(Button::new("create-project", "Create project"))`,
   },
   {
     slug: "drop-target",

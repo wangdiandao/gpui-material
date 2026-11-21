@@ -10,7 +10,8 @@ use gpui_base::{
 };
 use gpui_material::{
     Button, ButtonColors, ButtonGroupAlignment, ButtonGroupConnectedShapes, ButtonGroupItemStyle,
-    ButtonGroupVerticalAlignment, ButtonShapes, InteractionSource, MaterialRoot, MaterialTheme,
+    ButtonGroupSelection, ButtonGroupVariant, ButtonGroupVerticalAlignment, ButtonShapes,
+    InteractionSource, MaterialRoot, MaterialTheme,
     foundation::set_window_material_theme,
     theme::{CornerShape, Direction},
 };
@@ -476,4 +477,151 @@ fn button_group_overflow_reuses_activation_and_closes_once_when_resized(cx: &mut
     .unwrap();
     click_member(cx, handle, "advanced");
     cx.update(|cx| assert!(view.read(cx).selected.is_empty()));
+}
+
+#[gpui::test]
+fn connected_single_select_and_optional_select_shortcuts_update_selection(cx: &mut TestAppContext) {
+    struct ShortcutsView {
+        required: SharedString,
+        required_events: Vec<SharedString>,
+        optional: Option<SharedString>,
+        optional_events: Vec<Option<SharedString>>,
+    }
+
+    impl Render for ShortcutsView {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
+            let req_view = cx.weak_entity();
+            let opt_view = cx.weak_entity();
+            div()
+                .w(px(520.))
+                .flex()
+                .flex_col()
+                .gap_4()
+                .child(
+                    ButtonGroup::connected(
+                        "req-group",
+                        "Required period",
+                        [
+                            ButtonGroupItem::new("day", "Day"),
+                            ButtonGroupItem::new("week", "Week"),
+                            ButtonGroupItem::new("month", "Month"),
+                        ],
+                    )
+                    .single_select(self.required.clone(), move |id, _, cx| {
+                        let _ = req_view.update(cx, |this, cx| {
+                            this.required_events.push(id.clone());
+                            this.required = id;
+                            cx.notify();
+                        });
+                    }),
+                )
+                .child(
+                    ButtonGroup::connected(
+                        "opt-group",
+                        "Optional filter",
+                        [
+                            ButtonGroupItem::new("open", "Open"),
+                            ButtonGroupItem::new("closed", "Closed"),
+                        ],
+                    )
+                    .single_optional_select(
+                        self.optional.clone(),
+                        move |id, _, cx| {
+                            let _ = opt_view.update(cx, |this, cx| {
+                                this.optional_events.push(id.clone());
+                                this.optional = id;
+                                cx.notify();
+                            });
+                        },
+                    ),
+                )
+        }
+    }
+
+    let (handle, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let view = cx.new(|_| ShortcutsView {
+            required: "day".into(),
+            required_events: Vec::new(),
+            optional: Some("open".into()),
+            optional_events: Vec::new(),
+        });
+        let handle =
+            MaterialRoot::open_window(WindowOptions::default(), cx, |_, _| view.clone()).unwrap();
+        (handle.into(), view)
+    });
+    cx.simulate_window_resize(handle, size(px(640.), px(480.)));
+    cx.update_window(handle, |_, window, _| window.activate_window())
+        .unwrap();
+    draw(cx, handle);
+
+    let item_snapshot = |window: &Window, group: &'static str, item: &'static str| {
+        find(
+            window,
+            &[],
+            &ElementId::from((ElementId::from(group), SharedString::from(item))),
+        )
+        .unwrap_or_else(|| panic!("missing {group}/{item}"))
+    };
+
+    // Connected spacing is 2 px between consecutive segments.
+    let (day_pt, week_pt, open_pt, closed_pt) = cx
+        .update_window(handle, |_, window, _| {
+            let day = item_snapshot(window, "req-group", "day");
+            let week = item_snapshot(window, "req-group", "week");
+            let open = item_snapshot(window, "opt-group", "open");
+            let closed = item_snapshot(window, "opt-group", "closed");
+            assert_eq!(day.checked(), Some(true));
+            assert_eq!(week.checked(), Some(false));
+            assert_eq!(open.checked(), Some(true));
+            assert_eq!(closed.checked(), Some(false));
+            assert_eq!(
+                (week.bounds().origin.x - (day.bounds().origin.x + day.bounds().size.width))
+                    .round(),
+                px(2.)
+            );
+            (
+                day.bounds().center(),
+                week.bounds().center(),
+                open.bounds().center(),
+                closed.bounds().center(),
+            )
+        })
+        .unwrap();
+
+    // Clicking already-selected item in single_select does NOT deselect or fire callback.
+    click_at(cx, handle, day_pt);
+    cx.update(|cx| {
+        let state = view.read(cx);
+        assert_eq!(state.required, "day");
+        assert!(state.required_events.is_empty());
+    });
+
+    // Clicking another item in single_select delivers the SharedString directly.
+    click_at(cx, handle, week_pt);
+    cx.update(|cx| {
+        let state = view.read(cx);
+        assert_eq!(state.required, "week");
+        assert_eq!(state.required_events, vec![SharedString::from("week")]);
+    });
+
+    // Clicking already-selected item in single_optional_select clears selection (delivers None).
+    click_at(cx, handle, open_pt);
+    cx.update(|cx| {
+        let state = view.read(cx);
+        assert_eq!(state.optional, None);
+        assert_eq!(state.optional_events, vec![None]);
+    });
+
+    // Clicking another item in single_optional_select selects it (delivers Some(id)).
+    click_at(cx, handle, closed_pt);
+    cx.update(|cx| {
+        let state = view.read(cx);
+        assert_eq!(state.optional, Some(SharedString::from("closed")));
+        assert_eq!(
+            state.optional_events,
+            vec![None, Some(SharedString::from("closed"))]
+        );
+    });
 }

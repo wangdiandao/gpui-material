@@ -101,7 +101,8 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `List`、`ListItem`、`SwitchTile`、`ChoiceTile` | Standard 和 Segmented 列表，支持自定义插槽、受控行操作、各状态外观，以及带开关切换与锚定选项菜单的设置项快捷行。 | [列表](https://m3.material.io/components/lists/overview) |
 | `DropTarget` | Material 风格拖放容器，同时支持外部系统文件拖放（`ExternalPaths`）与应用内类型化负载，提供校验反馈及可选点击/键盘激活。 | [拖放交互](https://m3.material.io/foundations/interaction/gestures) |
 | `SwipeToDismiss` | 横向滑动关闭，内容、背景及操作由调用方提供。 | [列表](https://m3.material.io/components/lists/guidelines) · [Compose SwipeToDismissBox](https://developer.android.com/reference/kotlin/androidx/compose/material3/SwipeToDismissBox.composable) |
-| `Divider`、`Badge`、`Avatar` | 横向与纵向分隔线支持逻辑内缩、粗细和单独配色。徽标支持独立或附着显示，可使用圆点、文本、计数、自定义内容和单独配色。头像支持圆形或圆角，可呈现首字母、图标、带回退内容的图片或自定义元素。 | [分隔线](https://m3.material.io/components/divider/overview) · [徽标](https://m3.material.io/components/badges/overview) |
+| `Divider`、`Badge`、`Avatar`、`AvatarGroup` | 横向与纵向分隔线支持逻辑内缩、粗细和单独配色。徽标支持独立或附着显示，可使用圆点、文本、计数、自定义内容和单独配色。头像支持圆形或圆角，可呈现首字母、图标、带回退内容的图片或自定义元素；`AvatarGroup` 支持重叠堆叠、表面色镂空环与 `+N` 溢出计数。 | [分隔线](https://m3.material.io/components/divider/overview) · [徽标](https://m3.material.io/components/badges/overview) |
+| `EmptyState` | 纯展示型的 Material 3 Expressive 空状态布局外壳，支持可选装饰图标或自定义视觉插槽（`MaterialShape` 或 `CornerShape` 衬底）、标题、辅助说明及居中操作槽位。 | [空状态](https://m3.material.io/foundations/content-design/overview) |
 | `DisplayScrollbar` | 根据视口状态绘制任一方向的滚动位置，支持自定义尺寸、配色和淡出。 | [Compose 显示型滚动条](https://developer.android.com/reference/kotlin/androidx/compose/material3/nonInteractiveScrollbar.composable) |
 | `LinearProgress`、`CircularProgress` | 确定和不确定进度，支持可配置的直线和波浪样式。 | [进度指示器](https://m3.material.io/components/progress-indicators/overview) |
 | `LoadingIndicator` | Default 和 Contained 样式，支持确定与不确定进度、自定义形状序列和实例配色。 | [加载指示器](https://m3.material.io/components/loading-indicator/overview) |
@@ -163,6 +164,12 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 ### 头像
 
 `Avatar::initials(text)`、`Avatar::icon(icon)`、`Avatar::image(source)` 和 `Avatar::custom(content)` 以 `ExtraSmall`（24 px）、`Small`（32 px）、`Medium`（40 px，默认）、`Large`（48 px）、`ExtraLarge`（64 px）或 `Custom(Pixels)` 尺寸呈现用户或实体头像，通过 `.size(AvatarSize)` 切换。首字母模式自动裁剪、转为大写并按尺寸匹配 Material 字阶。图片模式以 `ObjectFit::Cover` 裁剪至 `AvatarShape::Circle`（默认）或 `AvatarShape::Rounded(CornerShape)`，并在加载中或加载失败时显示可选的 `.fallback(element)`。支持 `.color_role(container, content)`（默认 `PrimaryContainer` / `OnPrimaryContainer`）、`.colors(AvatarColors)`、`.border(width)`，以及暴露 `Role::Image` 而不增加焦点停靠点的 `.accessible_label(id, label)`。
+
+使用 `AvatarGroup::new(id, avatars)` 渲染横向重叠的 `Avatar` 堆叠。`.size(AvatarSize)` 为成员头像与溢出徽章应用统一尺寸（默认 `Medium`）。`.max_visible(count)` 在数量超限时截断并追加使用 `SurfaceContainerHighest` / `OnSurfaceVariant` 配色的 `+N` 溢出头像，可通过 `.overflow_colors(AvatarColors)` 或 `.overflow_content(|count| ...)` 自定义。可通过 `.overlap(pixels)` 配置相邻重叠距离（默认直径的 25%，并限制在严格小于直径的非负范围内），并通过 `.ring_width(pixels)`（默认 2 px）、`.ring_role(ColorRole)`（默认 `Surface`）或 `.ring_color(color)` 配置与表面匹配的镂空描边环。堆叠顺序与负外边距在 RTL 窗口中自动镜像。`.accessible_label(label)` 暴露汇总的 `Role::Group` 无障碍标签且不增加额外焦点停靠点。
+
+### 空状态
+
+`EmptyState::new(id, title)` 提供纯展示型的 Material 3 Expressive 空状态布局外壳，不包含内置加载或重试状态机。通过 `.icon(element)` 在装饰性 `Surface` 衬底中渲染图标（默认使用 `MaterialShape::Cookie7Sided` 与 `SecondaryContainer` / `OnSecondaryContainer`），可用 `.icon_container_shape(shape)`（接收任意 `ShapePolygon`、`MaterialShape` 或 `PolygonRole`）、`.shape(CornerShape)` 和 `.icon_container_color_role(container, content)` 自定义；也可通过 `.visual(element)` 用任意自定义插画替换图标容器。通过 `.supporting(text)`（`BodyMedium` / `OnSurfaceVariant`）或 `.supporting_content(element)` 提供辅助说明，用 `.max_width(pixels)`（默认 360 dp）和 `.title_role(TypeRole)`（默认 `TitleLarge`）调整内容宽度与标题层级，并将调用方控件放入 `.primary_action(element)` 与 `.secondary_action(element)`（在居中横向行中以 12 dp 间距和 24 dp 顶边距排列，并在 RTL 下镜像）。图标容器为纯装饰元素不占焦点，标题、辅助文本及调用方按钮保持各自正常的无障碍语义与键盘焦点。
 
 ### 滑动关闭
 
@@ -438,7 +445,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ## 可选组件
 
-核心组件默认通过 `full` 全部启用。在 `gpui-material`（或 `gpui-material-components`）上关闭默认特性后，仅编译轻量核心（`Text`、`Icon`、`IconName`、`Avatar`、`Badge`、`Divider`、`DisplayScrollbar`、`ControlSize`、`ScaffoldInsets`、`MenuSurfaceStyle` 及 `init_components`）和所选分组：
+核心组件默认通过 `full` 全部启用。在 `gpui-material`（或 `gpui-material-components`）上关闭默认特性后，仅编译轻量核心（`Text`、`Icon`、`IconName`、`Avatar`、`AvatarGroup`、`EmptyState`、`Badge`、`Divider`、`DisplayScrollbar`、`ControlSize`、`ScaffoldInsets`、`MenuSurfaceStyle` 及 `init_components`）和所选分组：
 
 | 核心特性 | 组件 | 隐含分组 |
 | --- | --- | --- |
@@ -494,9 +501,9 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ### 按钮组
 
-`ButtonGroup::new(id, name, items)` 使用稳定的成员标识，并提供一个 Tab 焦点。左右方向键移动焦点，保留选中状态。导航会跳过禁用成员，视觉顺序和方向键随窗口书写方向调整。`.variant(ButtonGroupVariant::Connected)` 连接相邻成员。Standard 和 Connected 默认间距分别为 12 和 2 个逻辑像素。可通过 `.spacing(width)` 覆盖间距，使用 `.alignment(ButtonGroupAlignment)` 设置逻辑横向排列，使用 `.vertical_alignment(ButtonGroupVerticalAlignment)` 设置纵向对齐，默认 Top。成员可以单独设置纵向对齐。
+`ButtonGroup::new(id, name, items)` 使用稳定的成员标识，并提供一个 Tab 焦点。左右方向键移动焦点，保留选中状态。导航会跳过禁用成员，视觉顺序和方向键随窗口书写方向调整。使用 `ButtonGroup::connected(id, name, items)` 或 `.variant(ButtonGroupVariant::Connected)` 连接相邻成员。Standard 和 Connected 默认间距分别为 12 和 2 个逻辑像素。可通过 `.spacing(width)` 覆盖间距，使用 `.alignment(ButtonGroupAlignment)` 设置逻辑横向排列，使用 `.vertical_alignment(ButtonGroupVerticalAlignment)` 设置纵向对齐，默认 Top。成员可以单独设置纵向对齐。
 
-`ButtonGroupItem::new(id, name)` 在启用组选择时使用 `.selection(mode, selected_ids)` 和 `.on_change(...)`。Single 和 Multiple 允许取消选中，Required 模式会保留最后一个选中项。应用处理请求并提供当前选择。`.action(callback)` 在任一组内建立独立命令，`.toggle(selected, callback)` 建立单独受控的切换控件。`.on_activate(...)` 为 Actions 模式下的成员提供命令。
+`ButtonGroupItem::new(id, name)` 在启用组选择时使用 `.selection(mode, selected_ids)` 和 `.on_change(...)`。针对常见的单选场景，`.single_select(selected, |id, window, cx| ...)` 配置 `ButtonGroupSelection::SingleRequired` 并直接传入新选中的 `SharedString`，`.single_optional_select(selected, |id, window, cx| ...)` 则配置可取消选中的 `ButtonGroupSelection::Single` 并传入 `Option<SharedString>`。Single 和 Multiple 允许取消选中，Required 模式会保留最后一个选中项。应用处理请求并提供当前选择。`.action(callback)` 在任一组内建立独立命令，`.toggle(selected, callback)` 建立单独受控的切换控件。`.on_activate(...)` 为 Actions 模式下的成员提供命令。
 
 使用 `.leading_icon(|| ...)` 在标签旁加入图标，用 `.icon_only(|| ...)` 以图标替代标签，或通过 `.content(width, || ...)` 提供带首选逻辑宽度的装饰内容。构造器名称用于无障碍和默认溢出菜单行。`.icon_width(IconButtonWidth)` 选择纯图标尺寸。`.appearance(ButtonVariant)` 和 `.style(ButtonGroupItemStyle)` 分别覆盖成员的外观预设，以及静止、按下、选中形状、配色、描边、阴影和逻辑内边距。通过 `.shape(ButtonShape::Square)` 可将默认 Round 外侧形状改为方形。`.connected_shapes(ButtonGroupConnectedShapes)` 为首段、中间段、尾段和单一段设置各状态形状。成员设置的形状字段优先。
 

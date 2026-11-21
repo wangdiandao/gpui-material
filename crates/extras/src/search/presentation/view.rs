@@ -261,19 +261,35 @@ impl SearchView {
 
 impl RenderOnce for SearchView {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let measurement = (
-            current_material_theme(window, cx).typography.clone(),
-            window.rem_size(),
-            gpui_material_foundation::font_cache_revision(cx),
-        );
-        let animate = self.state.update(cx, |state, cx| {
-            let animate = state.sample_animation(window, cx);
-            if state.result_layout.as_ref() != Some(&measurement) {
-                state.result_layout = Some(measurement);
-                state.invalidate_result_measurements();
-            }
-            animate
-        });
+        let theme = current_material_theme(window, cx);
+        let rem_size = window.rem_size();
+        let font_revision = gpui_material_foundation::font_cache_revision(cx);
+        let (needs_animation, needs_layout) = {
+            let state = self.state.read(cx);
+            let needs_layout = match &state.result_layout {
+                Some((typography, cached_rem, cached_rev)) => {
+                    *cached_rem != rem_size
+                        || *cached_rev != font_revision
+                        || *typography != theme.typography
+                }
+                None => true,
+            };
+            (state.is_animating(), needs_layout)
+        };
+        let animate = if needs_animation || needs_layout {
+            let measurement =
+                needs_layout.then(|| (theme.typography.clone(), rem_size, font_revision));
+            self.state.update(cx, |state, cx| {
+                let animate = state.sample_animation(window, cx);
+                if let Some(measurement) = measurement {
+                    state.result_layout = Some(measurement);
+                    state.invalidate_result_measurements();
+                }
+                animate
+            })
+        } else {
+            false
+        };
         if animate && window.is_visible() {
             window.request_animation_frame();
         }
@@ -284,7 +300,7 @@ impl RenderOnce for SearchView {
             1.
         };
         let editor = model.input.clone();
-        let layout = current_material_theme(window, cx).layout;
+        let layout = theme.layout;
         let direction = layout.direction;
         let size = window.viewport_size();
         let docked = self.variant == SearchViewVariant::Docked;
@@ -463,43 +479,65 @@ fn provider_results(
 ) -> impl IntoElement + use<> {
     let model = state.read(cx);
     let scroll = model.scroll.clone();
+    let results_scope = model.results_scope.clone();
     let entry = scroll.logical_scroll_top().item_ix;
-    let roving = model
-        .result_focus
-        .values()
-        .any(|focus| focus.is_focused(window));
+    let roving = results_scope.contains_focused(window, cx)
+        || model
+            .active_result
+            .as_ref()
+            .and_then(|id| model.result_focus.get(id))
+            .is_some_and(|focus| focus.is_focused(window));
     let in_overlay = model.presented();
     let keys = state.clone();
     let row_state = state.clone();
     div()
         .id((id.clone(), "result-list"))
         .role(Role::List)
+        .track_focus(&results_scope)
         .flex_1()
         .min_h_0()
         .overflow_hidden()
         .on_key_down(move |event, window, cx| {
-            let model = keys.read(cx);
-            let rows = model.rows();
-            let Some(current) = rows
-                .iter()
-                .position(|row| model.result_focus[&row.id].is_focused(window))
-            else {
-                return;
+            let (next_id, focus) = {
+                let model = keys.read(cx);
+                let rows = model.rows();
+                let Some(current) = model
+                    .active_result
+                    .as_ref()
+                    .and_then(|id| {
+                        model
+                            .result_focus
+                            .get(id)
+                            .filter(|focus| focus.is_focused(window))
+                            .and_then(|_| rows.iter().position(|row| &row.id == id))
+                    })
+                    .or_else(|| {
+                        rows.iter()
+                            .position(|row| model.result_focus[&row.id].is_focused(window))
+                    })
+                else {
+                    return;
+                };
+                let next = match event.keystroke.key.as_str() {
+                    "up" => (current + rows.len() - 1) % rows.len(),
+                    "down" => (current + 1) % rows.len(),
+                    _ => return,
+                };
+                let next_id = rows[next].id.clone();
+                let focus = model.result_focus[&next_id].clone();
+                if model.scroll.bounds_for_item(next).is_some() {
+                    model.scroll.scroll_to_reveal_item(next);
+                } else {
+                    model.scroll.scroll_to(gpui::ListOffset {
+                        item_ix: next,
+                        offset_in_item: px(0.),
+                    });
+                }
+                (next_id, focus)
             };
-            let next = match event.keystroke.key.as_str() {
-                "up" => (current + rows.len() - 1) % rows.len(),
-                "down" => (current + 1) % rows.len(),
-                _ => return,
-            };
-            let focus = model.result_focus[&rows[next].id].clone();
-            if model.scroll.bounds_for_item(next).is_some() {
-                model.scroll.scroll_to_reveal_item(next);
-            } else {
-                model.scroll.scroll_to(gpui::ListOffset {
-                    item_ix: next,
-                    offset_in_item: px(0.),
-                });
-            }
+            keys.update(cx, |state, _| {
+                state.active_result = Some(next_id);
+            });
             focus.focus(window, cx);
             window.refresh();
             cx.stop_propagation();

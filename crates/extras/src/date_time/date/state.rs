@@ -1,4 +1,4 @@
-use std::{ops::RangeInclusive, rc::Rc, sync::Arc};
+use std::{cell::RefCell, ops::RangeInclusive, rc::Rc, sync::Arc};
 
 use chrono::{Datelike, Days, Months};
 use gpui::{
@@ -10,8 +10,8 @@ use gpui_material_components::{DialogCloseReason, DialogState, TextFieldState};
 use gpui_material_theme::Direction;
 
 use super::{
-    DateFilter, DatePickerDisplayMode, DatePickerDraft, DatePickerLocale, DatePickerVariant,
-    DateSelection, NaiveDate, Weekday, YearFilter, complete,
+    DateFilter, DateFormatter, DatePickerDisplayMode, DatePickerDraft, DatePickerLocale,
+    DatePickerVariant, DateSelection, NaiveDate, Weekday, YearFilter, complete,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -91,6 +91,45 @@ pub(super) fn parse_selection(
     Ok(DateSelection::Range(Some((start, end))))
 }
 
+pub(super) struct MonthCache {
+    month: NaiveDate,
+    day_formatter: DateFormatter,
+    month_formatter: DateFormatter,
+    pub(super) month_label: SharedString,
+    pub(super) day_ids: Vec<SharedString>,
+    pub(super) day_labels: Vec<SharedString>,
+}
+
+impl MonthCache {
+    fn matches(&self, month: NaiveDate, locale: &DatePickerLocale) -> bool {
+        self.month == month
+            && Rc::ptr_eq(&self.day_formatter, &locale.day)
+            && Rc::ptr_eq(&self.month_formatter, &locale.month)
+    }
+
+    fn build(month: NaiveDate, locale: &DatePickerLocale) -> Self {
+        let mut day_ids = Vec::with_capacity(31);
+        let mut day_labels = Vec::with_capacity(31);
+        let mut current = month;
+        while current.month() == month.month() {
+            day_ids.push(SharedString::from(format!("day-{current}")));
+            day_labels.push((locale.day)(current));
+            let Some(next) = current.succ_opt() else {
+                break;
+            };
+            current = next;
+        }
+        Self {
+            month,
+            day_formatter: locale.day.clone(),
+            month_formatter: locale.month.clone(),
+            month_label: (locale.month)(month),
+            day_ids,
+            day_labels,
+        }
+    }
+}
+
 /// Owns the Base calendar, input editors, and draft focus. The application owns
 /// the value passed to the picker. Every open copies that value into the draft.
 pub struct DatePickerState {
@@ -111,6 +150,7 @@ pub struct DatePickerState {
     variant: DatePickerVariant,
     pub(super) locale: DatePickerLocale,
     pub(super) locale_initialized: bool,
+    month_cache: RefCell<Option<MonthCache>>,
     initial_month: Option<NaiveDate>,
     pub(super) year_page: Option<i32>,
     pub(super) input_mode: bool,
@@ -154,6 +194,7 @@ impl DatePickerState {
             variant: DatePickerVariant::default(),
             locale: DatePickerLocale::default(),
             locale_initialized: false,
+            month_cache: RefCell::new(None),
             initial_month: None,
             year_page: None,
             input_mode: false,
@@ -220,6 +261,25 @@ impl DatePickerState {
 
     pub fn displayed_month(&self) -> NaiveDate {
         first_of_month(self.cursor)
+    }
+
+    pub(super) fn month_cache(
+        &self,
+        month: NaiveDate,
+        locale: &DatePickerLocale,
+    ) -> std::cell::Ref<'_, MonthCache> {
+        {
+            let mut cache = self.month_cache.borrow_mut();
+            if cache
+                .as_ref()
+                .is_none_or(|cached| !cached.matches(month, locale))
+            {
+                *cache = Some(MonthCache::build(month, locale));
+            }
+        }
+        std::cell::Ref::map(self.month_cache.borrow(), |cache| {
+            cache.as_ref().expect("month cache initialized")
+        })
     }
 
     pub fn draft(&self, cx: &App) -> DatePickerDraft {

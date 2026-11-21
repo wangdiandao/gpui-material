@@ -39,10 +39,10 @@ pub(super) struct Layout {
     cross_end: f32,
     gap: f32,
     small: (f32, f32),
-    centered: bool,
     sizes: Vec<f32>,
     prefix: Vec<f32>,
     preferred: f32,
+    contained_base: Option<(Vec<f32>, usize)>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -108,6 +108,26 @@ impl Layout {
                 start
             })
             .collect();
+        let contained_base = if !uncontained && !vertical && !sizes.is_empty() {
+            let count = sizes.len();
+            let widths = match variant {
+                CarouselVariant::MultiBrowse => {
+                    multi_browse(available, preferred, gap, count, centered, options.small)
+                }
+                CarouselVariant::Hero | CarouselVariant::CenteredHero => {
+                    hero(available, gap, count, centered, options.small)
+                }
+                _ => unreachable!(),
+            };
+            let maximum = widths.iter().copied().fold(0., f32::max);
+            let focal = widths
+                .iter()
+                .position(|&width| width == maximum)
+                .unwrap_or(0);
+            Some((widths, focal))
+        } else {
+            None
+        };
         Self {
             viewport,
             variant,
@@ -118,10 +138,10 @@ impl Layout {
             cross_end,
             gap,
             small: options.small,
-            centered,
             sizes,
             prefix,
             preferred,
+            contained_base,
         }
     }
 
@@ -284,32 +304,14 @@ impl Layout {
     }
 
     fn pose(&self, index: usize) -> Pose {
-        if self.variant.is_uncontained() || self.variant.is_vertical() {
+        let Some((base_widths, focal)) = &self.contained_base else {
             return Pose::Track {
                 offset: self.prefix[index].min(self.maximum_offset()),
             };
-        }
-        let available = (self.viewport - self.leading - self.trailing).max(0.);
-        let count = self.sizes.len();
-        let mut widths = match self.variant {
-            CarouselVariant::MultiBrowse => multi_browse(
-                available,
-                self.preferred,
-                self.gap,
-                count,
-                self.centered,
-                self.small,
-            ),
-            CarouselVariant::Hero | CarouselVariant::CenteredHero => {
-                hero(available, self.gap, count, self.centered, self.small)
-            }
-            _ => unreachable!(),
         };
-        let maximum = widths.iter().copied().fold(0., f32::max);
-        let focal = widths
-            .iter()
-            .position(|&width| width == maximum)
-            .unwrap_or(0);
+        let count = self.sizes.len();
+        let mut widths = base_widths.clone();
+        let focal = *focal;
         let first = index.saturating_sub(focal).min(count - widths.len());
         let actual_focal = index - first;
         if actual_focal >= focal {
@@ -651,6 +653,64 @@ mod tests {
                                     <= pair[1].1.start + 0.001),
                             "{variant:?}, {viewport}, {count}, {position}, {ltr:?}"
                         );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn precomputed_contained_keylines_match_direct_solver_across_indices() {
+        for variant in [
+            CarouselVariant::MultiBrowse,
+            CarouselVariant::Hero,
+            CarouselVariant::CenteredHero,
+        ] {
+            for viewport in [120., 360., 460., 840.] {
+                for count in [1, 2, 3, 6, 12] {
+                    let geometry = layout(variant, viewport, count);
+                    let available =
+                        (geometry.viewport - geometry.leading - geometry.trailing).max(0.);
+                    let centered = variant == CarouselVariant::CenteredHero;
+                    let expected_base = match variant {
+                        CarouselVariant::MultiBrowse => multi_browse(
+                            available,
+                            geometry.preferred,
+                            geometry.gap,
+                            count,
+                            centered,
+                            geometry.small,
+                        ),
+                        CarouselVariant::Hero | CarouselVariant::CenteredHero => {
+                            hero(available, geometry.gap, count, centered, geometry.small)
+                        }
+                        _ => unreachable!(),
+                    };
+                    let maximum = expected_base.iter().copied().fold(0., f32::max);
+                    let expected_focal = expected_base
+                        .iter()
+                        .position(|&width| width == maximum)
+                        .unwrap_or(0);
+                    assert_eq!(
+                        geometry.contained_base.as_ref(),
+                        Some(&(expected_base.clone(), expected_focal))
+                    );
+                    for index in 0..count {
+                        let Pose::Contained { first, widths } = geometry.pose(index) else {
+                            panic!("expected contained pose for {variant:?}");
+                        };
+                        let expected_first = index
+                            .saturating_sub(expected_focal)
+                            .min(count - expected_base.len());
+                        let actual_focal = index - expected_first;
+                        let mut expected_widths = expected_base.clone();
+                        if actual_focal >= expected_focal {
+                            expected_widths.rotate_right(actual_focal - expected_focal);
+                        } else {
+                            expected_widths.rotate_left(expected_focal - actual_focal);
+                        }
+                        assert_eq!(first, expected_first);
+                        assert_eq!(widths, expected_widths);
                     }
                 }
             }

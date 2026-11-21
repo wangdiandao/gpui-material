@@ -4,7 +4,7 @@ mod geometry;
 mod parallax;
 mod state;
 
-use std::{cell::Cell, rc::Rc, time::Duration};
+use std::{cell::RefCell, rc::Rc, time::Duration};
 
 use gpui::{
     AccessibleAction, AnyElement, App, Bounds, ContentMask, Element, ElementId, Entity,
@@ -307,12 +307,6 @@ impl RenderOnce for Carousel {
             }
             (state.requested, state.direct, state.items.clone())
         });
-        let width = window
-            .use_keyed_state((self.id.clone(), "carousel-width"), cx, |_, _| {
-                Rc::new(Cell::new(px(0.)))
-            })
-            .read(cx)
-            .clone();
         let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
         let ring = color(theme.colors.color(ColorRole::Secondary));
@@ -332,20 +326,7 @@ impl RenderOnce for Carousel {
         state.update(cx, |state, cx| state.sample(sample, cx));
         let sample = state.read(cx).sampled;
         let vertical = self.variant.is_vertical();
-        let measured_width = width.get();
-        let fallback_width = if measured_width > px(0.) {
-            measured_width
-        } else {
-            window.viewport_size().width
-        };
-        let layout = Rc::new(layout(
-            self.variant,
-            fallback_width,
-            self.height,
-            self.preferred_width,
-            self.layout_options,
-            &self.items,
-        ));
+        let shared_layout = Rc::new(RefCell::new(None));
         let fling = match self.fling {
             CarouselFling::Default if !self.variant.is_uncontained() || self.snap == Some(true) => {
                 CarouselFling::Snap
@@ -354,7 +335,7 @@ impl RenderOnce for Carousel {
             explicit => explicit,
         };
         let wheel = Interaction {
-            layout,
+            layout: shared_layout.clone(),
             focus: focus.clone(),
             state: state.clone(),
             vertical,
@@ -375,7 +356,6 @@ impl RenderOnce for Carousel {
         };
         let focused = focus.iter().position(|item| item.focus.is_focused(window));
         let tab_stop = focus_at_position(&focus, target);
-        let view = window.current_view();
 
         div()
             .id(self.id.clone())
@@ -429,8 +409,7 @@ impl RenderOnce for Carousel {
                 hover,
                 surface,
                 activate: self.on_activate,
-                width,
-                view,
+                layout: shared_layout,
             })
     }
 }
@@ -453,8 +432,7 @@ struct Viewport {
     hover: gpui::Hsla,
     surface: gpui::Hsla,
     activate: Option<Activate>,
-    width: Rc<Cell<Pixels>>,
-    view: gpui::EntityId,
+    layout: Rc<RefCell<Option<Layout>>>,
 }
 
 struct Prepaint {
@@ -504,14 +482,6 @@ impl Element for Viewport {
         window: &mut Window,
         cx: &mut App,
     ) -> Self::PrepaintState {
-        let previous = self.width.replace(bounds.size.width);
-        if previous != bounds.size.width {
-            let view = self.view;
-            window.on_next_frame(move |window, cx| {
-                cx.notify(view);
-                window.refresh();
-            });
-        }
         let vertical = self.variant.is_vertical();
         let layout = layout(
             self.variant,
@@ -545,6 +515,7 @@ impl Element for Viewport {
             visible = layout.visible(focused as f32, self.direction);
         }
         let (start, end) = layout.clip_range(self.direction);
+        *self.layout.borrow_mut() = Some(layout);
         let mask = if vertical {
             Bounds::new(
                 bounds.origin + point(inset, px(start)),
@@ -710,7 +681,7 @@ fn layout<'a>(
 
 #[derive(Clone)]
 struct Interaction {
-    layout: Rc<Layout>,
+    layout: Rc<RefCell<Option<Layout>>>,
     focus: Rc<[ItemFocus]>,
     state: Entity<CarouselState>,
     vertical: bool,
@@ -774,7 +745,14 @@ impl Interaction {
                 return true;
             }
 
-            let target = (previous + self.layout.scroll_delta(previous, -main)).clamp(0., limit);
+            let delta = {
+                let layout = self.layout.borrow();
+                let Some(layout) = layout.as_ref() else {
+                    return false;
+                };
+                layout.scroll_delta(previous, -main)
+            };
+            let target = (previous + delta).clamp(0., limit);
             if target != previous {
                 state.gesture_start.get_or_insert(previous);
                 state.set_requested(target, true, cx);
@@ -810,7 +788,13 @@ impl Interaction {
 
         // A pointer scroll can move already-contained focus to a visible item.
         let target = self.state.read(cx).requested;
-        let viewport = self.layout.visible(target, self.direction);
+        let viewport = {
+            let layout = self.layout.borrow();
+            layout
+                .as_ref()
+                .map(|layout| layout.visible(target, self.direction))
+                .unwrap_or_default()
+        };
         let current_focus = self
             .focus
             .iter()

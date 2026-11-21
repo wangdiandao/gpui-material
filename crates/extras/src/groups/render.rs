@@ -1,4 +1,8 @@
-use std::{cell::Cell, collections::HashMap, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashMap,
+    rc::Rc,
+};
 
 use gpui::{
     App, AppContext, Axis, ElementId, Entity, FocusHandle, InteractiveElement, IntoElement,
@@ -6,15 +10,15 @@ use gpui::{
     Window, div, prelude::FluentBuilder, px,
 };
 use gpui_material_components::{
-    ButtonShapes, ControlSize, Icon, IconName, Menu, MenuItem,
+    ButtonPadding, ButtonShapes, ControlSize, Icon, IconName, Menu, MenuItem,
     button_composition::{
         ButtonPart, Segment, group_icon_width, group_label_width, split_trailing_size,
     },
 };
 use gpui_material_foundation::{
-    InteractionSource, animate, current_material_theme, move_roving_focus,
+    InteractionSource, animate, current_material_theme, font_cache_revision, move_roving_focus,
 };
-use gpui_material_theme::{Direction, MotionKind, MotionSpeed};
+use gpui_material_theme::{Direction, MotionKind, MotionSpeed, Typography};
 
 use super::{
     ButtonGroup, ButtonGroupAlignment, ButtonGroupItem, ButtonGroupSelection, ButtonGroupVariant,
@@ -22,6 +26,21 @@ use super::{
     ToggleChange,
     layout::{nonnegative, pressed_widths, visible_count, weighted_widths},
 };
+
+struct LabelWidthEntry {
+    label: SharedString,
+    padding: Option<ButtonPadding>,
+    leading_icon: bool,
+    width: Pixels,
+}
+
+struct LabelWidthCache {
+    size: ControlSize,
+    rem_size: Pixels,
+    font_revision: u64,
+    typography: Typography,
+    entries: Vec<LabelWidthEntry>,
+}
 
 struct GroupState {
     width: Rc<Cell<Pixels>>,
@@ -31,10 +50,11 @@ struct GroupState {
     overflow_open: Rc<Cell<bool>>,
     shown: Option<usize>,
     source: Entity<InteractionSource>,
+    label_widths: RefCell<Option<LabelWidthCache>>,
 }
 
 struct SyncedGroupState {
-    handles: HashMap<SharedString, FocusHandle>,
+    handles: Vec<FocusHandle>,
     scope: FocusHandle,
     overflow_focus: FocusHandle,
     menu_open: Rc<Cell<bool>>,
@@ -45,28 +65,59 @@ struct SyncedGroupState {
 impl ButtonGroupItem {
     fn preferred_width(
         &self,
+        index: usize,
         size: ControlSize,
         minimum: Pixels,
+        cache: &mut LabelWidthCache,
         window: &Window,
         cx: &App,
     ) -> Pixels {
+        if self.weight > 0. {
+            return minimum;
+        }
         let width = match self.content {
-            ItemContent::Label | ItemContent::LeadingIcon(_) => group_label_width(
-                size,
-                self.label.clone(),
-                self.style.padding,
-                matches!(self.content, ItemContent::LeadingIcon(_)),
-                window,
-                cx,
-            ),
+            ItemContent::Label | ItemContent::LeadingIcon(_) => {
+                let leading_icon = matches!(self.content, ItemContent::LeadingIcon(_));
+                let cached = cache
+                    .entries
+                    .get(index)
+                    .filter(|entry| {
+                        entry.label == self.label
+                            && entry.padding == self.style.padding
+                            && entry.leading_icon == leading_icon
+                    })
+                    .or_else(|| {
+                        cache.entries.iter().find(|entry| {
+                            entry.label == self.label
+                                && entry.padding == self.style.padding
+                                && entry.leading_icon == leading_icon
+                        })
+                    })
+                    .map(|entry| entry.width);
+                if let Some(width) = cached {
+                    width
+                } else {
+                    let width = group_label_width(
+                        size,
+                        self.label.clone(),
+                        self.style.padding,
+                        leading_icon,
+                        window,
+                        cx,
+                    );
+                    cache.entries.push(LabelWidthEntry {
+                        label: self.label.clone(),
+                        padding: self.style.padding,
+                        leading_icon,
+                        width,
+                    });
+                    width
+                }
+            }
             ItemContent::Icon(_) => group_icon_width(size, self.icon_width, self.style.padding),
             ItemContent::Custom(width, _) => nonnegative(width).unwrap_or(minimum),
         };
-        if self.weight > 0. {
-            minimum
-        } else {
-            width.max(minimum)
-        }
+        width.max(minimum)
     }
 
     fn selected(&self, mode: ButtonGroupSelection, selected: &[SharedString]) -> Option<bool> {
@@ -149,18 +200,47 @@ fn sync_group_state(
     shown: usize,
     cx: &mut App,
 ) -> SyncedGroupState {
-    state.update(cx, |state, cx| {
-        let mut prior = std::mem::take(&mut state.focus);
-        state.focus = items
+    let needs_update = {
+        let state = state.read(cx);
+        let keys_match = items.len() == state.focus.len()
+            && items.iter().all(|item| state.focus.contains_key(&item.id));
+        !keys_match || state.shown != Some(shown)
+    };
+    if !needs_update {
+        let state = state.read(cx);
+        let handles = items
             .iter()
-            .map(|item| {
-                let handle = prior.remove(&item.id).unwrap_or_else(|| cx.focus_handle());
-                (item.id.clone(), handle)
-            })
+            .map(|item| state.focus[&item.id].clone())
             .collect();
+        return SyncedGroupState {
+            handles,
+            scope: state.scope.clone(),
+            overflow_focus: state.overflow_focus.clone(),
+            menu_open: state.overflow_open.clone(),
+            previous_visible: state.shown,
+            source: state.source.clone(),
+        };
+    }
+    state.update(cx, |state, cx| {
+        let keys_match = items.len() == state.focus.len()
+            && items.iter().all(|item| state.focus.contains_key(&item.id));
+        if !keys_match {
+            let mut prior = std::mem::take(&mut state.focus);
+            state.focus = items
+                .iter()
+                .map(|item| {
+                    let handle = prior.remove(&item.id).unwrap_or_else(|| cx.focus_handle());
+                    (item.id.clone(), handle)
+                })
+                .collect();
+        }
         let previous_visible = state.shown.replace(shown);
+        let handles = items
+            .iter()
+            .map(|item| state.focus[&item.id].clone())
+            .collect();
         SyncedGroupState {
-            handles: state.focus.clone(),
+            handles,
             scope: state.scope.clone(),
             overflow_focus: state.overflow_focus.clone(),
             menu_open: state.overflow_open.clone(),
@@ -196,7 +276,6 @@ fn resolve_selected(
 
 #[allow(clippy::too_many_arguments)]
 fn reconcile_overflow_focus(
-    items: &[ButtonGroupItem],
     shown: usize,
     overflow: bool,
     synced: &SyncedGroupState,
@@ -206,9 +285,8 @@ fn reconcile_overflow_focus(
     cx: &mut App,
 ) {
     if overflow {
-        if let Some(displaced) = items[shown..]
+        if let Some(displaced) = synced.handles[shown..]
             .iter()
-            .map(|item| &synced.handles[&item.id])
             .find(|handle| handle.is_focused(window))
         {
             move_focus_after_layout(displaced.clone(), synced.overflow_focus.clone(), window);
@@ -313,12 +391,40 @@ impl RenderOnce for ButtonGroup {
                 overflow_open: Rc::new(Cell::new(false)),
                 shown: None,
                 source: cx.new(|_| InteractionSource::new()),
+                label_widths: RefCell::new(None),
             });
-        let preferred = self
-            .items
-            .iter()
-            .map(|item| item.preferred_width(self.size, minimum, window, cx))
-            .collect::<Vec<_>>();
+        let preferred = {
+            let group_state = state.read(cx);
+            let rem_size = window.rem_size();
+            let font_revision = font_cache_revision(cx);
+            let mut slot = group_state.label_widths.borrow_mut();
+            let cache_valid = slot.as_ref().is_some_and(|cached| {
+                cached.size == self.size
+                    && cached.rem_size == rem_size
+                    && cached.font_revision == font_revision
+                    && cached.typography == theme.typography
+            });
+            if !cache_valid {
+                *slot = Some(LabelWidthCache {
+                    size: self.size,
+                    rem_size,
+                    font_revision,
+                    typography: theme.typography.clone(),
+                    entries: Vec::with_capacity(self.items.len()),
+                });
+            }
+            let cache = slot.as_mut().expect("label width cache initialized");
+            if cache.entries.len() > self.items.len().saturating_mul(2).max(16) {
+                cache.entries.clear();
+            }
+            self.items
+                .iter()
+                .enumerate()
+                .map(|(index, item)| {
+                    item.preferred_width(index, self.size, minimum, cache, window, cx)
+                })
+                .collect::<Vec<_>>()
+        };
         let preferred_trigger = self
             .overflow_trigger
             .as_ref()
@@ -335,7 +441,8 @@ impl RenderOnce for ButtonGroup {
         let selected = resolve_selected(&self.items, self.selection, &self.selected);
         let focus: Vec<_> = self.items[..shown]
             .iter()
-            .map(|item| (synced.handles[&item.id].clone(), !item.disabled))
+            .zip(&synced.handles[..shown])
+            .map(|(item, handle)| (handle.clone(), !item.disabled))
             .chain(overflow.then(|| (synced.overflow_focus.clone(), true)))
             .collect();
         let tab_stop = focus
@@ -348,7 +455,6 @@ impl RenderOnce for ButtonGroup {
             })
             .or_else(|| focus.iter().position(|(_, enabled)| *enabled));
         reconcile_overflow_focus(
-            &self.items,
             shown,
             overflow,
             &synced,
@@ -419,7 +525,7 @@ impl RenderOnce for ButtonGroup {
                 .variant(item.appearance.unwrap_or(self.appearance))
                 .segment(shape)
                 .disabled(item.disabled)
-                .track_focus(&synced.handles[&item.id])
+                .track_focus(&synced.handles[index])
                 .tab_stop(tab_stop == Some(index))
                 .selected(selected_state)
                 .interaction_source(item.source.as_ref().unwrap_or(&synced.source))

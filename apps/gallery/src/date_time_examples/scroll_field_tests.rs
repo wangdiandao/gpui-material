@@ -299,3 +299,33 @@ fn scroll_field_reports_animated_target_and_settles_after_retargeting(cx: &mut T
     frame(handle, cx);
     assert_eq!(wheel_selection(&state, cx), (Some(1), Some(1), false));
 }
+
+#[gpui::test]
+fn scroll_field_reuses_and_extends_precise_scroll_settle_timer(cx: &mut TestAppContext) {
+    let (handle, model) = wheel_fixture(cx, true);
+    let state = cx.update(|cx| model.read(cx).state.clone());
+    frame(handle, cx);
+
+    let touchpad = ScrollDelta::Pixels(point(px(0.), px(-20.)));
+    send_scroll(handle, touchpad, TouchPhase::Started, cx);
+    frame(handle, cx);
+    assert_eq!(wheel_selection(&state, cx), (Some(8), Some(8), true));
+
+    cx.executor()
+        .advance_clock(std::time::Duration::from_millis(70));
+    send_scroll(handle, touchpad, TouchPhase::Moved, cx);
+    frame(handle, cx);
+    assert_eq!(wheel_selection(&state, cx), (Some(0), Some(0), true));
+
+    // Past the initial 120ms mark (130ms total), but only 60ms after the second event.
+    cx.executor()
+        .advance_clock(std::time::Duration::from_millis(60));
+    frame(handle, cx);
+    assert_eq!(wheel_selection(&state, cx), (Some(0), Some(0), true));
+
+    // Past the rescheduled deadline (70ms + 120ms = 190ms; now at 200ms total).
+    cx.executor()
+        .advance_clock(std::time::Duration::from_millis(70));
+    frame(handle, cx);
+    assert_eq!(wheel_selection(&state, cx), (Some(0), Some(0), false));
+}

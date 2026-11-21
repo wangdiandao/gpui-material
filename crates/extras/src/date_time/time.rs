@@ -57,14 +57,14 @@ pub struct TimePickerLocale {
 impl Default for TimePickerLocale {
     fn default() -> Self {
         Self {
-            number: Rc::new(|value| format!("{value:02}").into()),
+            number: Rc::new(|value| super::format_two_digits(value as usize)),
             parse: Rc::new(|text| text.parse().ok()),
-            am: "AM".into(),
-            pm: "PM".into(),
-            separator: ":".into(),
-            hour: "Hour".into(),
-            minute: "Minute".into(),
-            validation_message: "Enter a valid time".into(),
+            am: SharedString::new_static("AM"),
+            pm: SharedString::new_static("PM"),
+            separator: SharedString::new_static(":"),
+            hour: SharedString::new_static("Hour"),
+            minute: SharedString::new_static("Minute"),
+            validation_message: SharedString::new_static("Enter a valid time"),
         }
     }
 }

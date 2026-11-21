@@ -612,6 +612,22 @@ fn dial_value(
     }
 }
 
+const MINUTE_MARKS: &[u32] = &[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+const TWELVE_HOUR_MARKS: &[u32] = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const TWENTY_FOUR_HOUR_MARKS: &[u32] = &[
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+];
+const MARK_IDS: [&str; 60] = [
+    "mark-0", "mark-1", "mark-2", "mark-3", "mark-4", "mark-5", "mark-6", "mark-7", "mark-8",
+    "mark-9", "mark-10", "mark-11", "mark-12", "mark-13", "mark-14", "mark-15", "mark-16",
+    "mark-17", "mark-18", "mark-19", "mark-20", "mark-21", "mark-22", "mark-23", "mark-24",
+    "mark-25", "mark-26", "mark-27", "mark-28", "mark-29", "mark-30", "mark-31", "mark-32",
+    "mark-33", "mark-34", "mark-35", "mark-36", "mark-37", "mark-38", "mark-39", "mark-40",
+    "mark-41", "mark-42", "mark-43", "mark-44", "mark-45", "mark-46", "mark-47", "mark-48",
+    "mark-49", "mark-50", "mark-51", "mark-52", "mark-53", "mark-54", "mark-55", "mark-56",
+    "mark-57", "mark-58", "mark-59",
+];
+
 fn dial(
     id: &ElementId,
     state: &Entity<TimePickerState>,
@@ -673,10 +689,10 @@ fn dial(
     let click_state = state.clone();
     let click_focus = focus.clone();
     let keyboard_focus = focus.is_focused(window) && window.last_input_was_keyboard();
-    let marks: Vec<u32> = match (segment, format) {
-        (TimePickerSegment::Minute, _) => (0..60).step_by(5).collect(),
-        (_, TimeFormat::TwelveHour) => (1..=12).collect(),
-        (_, TimeFormat::TwentyFourHour) => (0..24).collect(),
+    let marks: &[u32] = match (segment, format) {
+        (TimePickerSegment::Minute, _) => MINUTE_MARKS,
+        (_, TimeFormat::TwelveHour) => TWELVE_HOUR_MARKS,
+        (_, TimeFormat::TwentyFourHour) => TWENTY_FOUR_HOUR_MARKS,
     };
     div()
         .id((id.clone(), "dial"))
@@ -754,7 +770,7 @@ fn dial(
                 cx.stop_propagation();
             }
         })
-        .children(marks.into_iter().map(|value| {
+        .children(marks.iter().copied().map(|value| {
             let position = dial_position(value, segment, format, diameter);
             let active = value == selected;
             let label = (locale.number)(value);
@@ -766,7 +782,7 @@ fn dial(
                 });
             });
             let click = activate.clone();
-            BaseButton::new((id.clone(), format!("mark-{value}")))
+            BaseButton::new((id.clone(), MARK_IDS[value as usize]))
                 .role(Role::ListBoxOption)
                 .aria_selected(active)
                 .accessibility_label(label.clone())

@@ -3,7 +3,7 @@ use std::rc::Rc;
 use chrono::{Datelike, Days};
 use gpui::{
     AccessibleAction, AnyElement, App, ElementId, Entity, FocusHandle, Hsla,
-    InteractiveElement as _, IntoElement, ParentElement as _, Pixels, Role,
+    InteractiveElement as _, IntoElement, ParentElement as _, Pixels, Role, SharedString,
     StatefulInteractiveElement as _, Styled as _, Window, div, prelude::FluentBuilder as _, px,
 };
 use gpui_base::{
@@ -17,10 +17,15 @@ use gpui_material_theme::{ColorRole, Direction, TypeRole, TypographyEmphasis};
 
 use super::{
     DatePickerColors, DatePickerLocale, DatePickerState, DockedActions, NaiveDate,
-    state::{calendar_start, first_of_month},
+    state::{MonthCache, calendar_start, first_of_month},
 };
 
 const YEARS_PER_PAGE: i32 = 12;
+
+const DAY_LABELS: [&str; 31] = [
+    "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17",
+    "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31",
+];
 
 fn year_page(year: i32, first: i32) -> i32 {
     first + (year - first) / YEARS_PER_PAGE * YEARS_PER_PAGE
@@ -176,6 +181,7 @@ struct CalendarContext<'a> {
     id: &'a ElementId,
     state: &'a Entity<DatePickerState>,
     locale: &'a DatePickerLocale,
+    cache: &'a MonthCache,
     docked: &'a Option<DockedActions>,
     colors: DatePickerColors,
     month: NaiveDate,
@@ -251,7 +257,7 @@ fn calendar_header(ctx: &CalendarContext<'_>, model: &DatePickerState) -> impl I
         .child(
             Button::new(
                 (ctx.id.clone(), "year-toggle"),
-                format!("Choose year, {}", (ctx.locale.month)(month)),
+                format!("Choose year, {}", ctx.cache.month_label),
             )
             .variant(ButtonVariant::Text)
             .colors(ButtonColors {
@@ -259,7 +265,7 @@ fn calendar_header(ctx: &CalendarContext<'_>, model: &DatePickerState) -> impl I
                 ..ButtonColors::default()
             })
             .content(
-                Text::new((ctx.locale.month)(month))
+                Text::new(ctx.cache.month_label.clone())
                     .id("current-month")
                     .role(TypeRole::TitleSmall),
             )
@@ -373,11 +379,14 @@ fn day_cell(
     let show_focus_ring = focus && ctx.focus_cursor && window.last_input_was_keyboard();
     let (ink, selected_background) =
         day_colors(ctx.colors, ctx.tones, enabled, active, range, is_today);
-    let control = BaseButton::new((ctx.id.clone(), format!("day-{date}")))
+    let day_index = (date.day() - 1) as usize;
+    let day_id = ctx.cache.day_ids[day_index].clone();
+    let day_label = ctx.cache.day_labels[day_index].clone();
+    let control = BaseButton::new((ctx.id.clone(), day_id))
         .role(Role::ListBoxOption)
         .aria_selected(range || active)
         .aria_description(if is_today { "Today" } else { "" })
-        .accessibility_label((ctx.locale.day)(date))
+        .accessibility_label(day_label)
         .focusable(false)
         .when(focus, |button| button.aria_active_descendant())
         .disabled(!enabled)
@@ -445,7 +454,7 @@ fn day_cell(
                             .border_color(ctx.colors.today_outline.unwrap_or(ctx.tones.primary))
                     })
                     .text_color(ink)
-                    .child(date.day().to_string()),
+                    .child(SharedString::new_static(DAY_LABELS[day_index])),
             ),
         )
         .into_any_element()
@@ -482,7 +491,7 @@ fn calendar_grid(
         .id((ctx.id.clone(), "calendar-grid"))
         .test_support()
         .role(Role::ListBox)
-        .aria_label((ctx.locale.month)(ctx.month))
+        .aria_label(ctx.cache.month_label.clone())
         .track_focus(&day_focus)
         .tab_stop(true)
         .flex()
@@ -536,11 +545,13 @@ pub(super) fn calendar(
         return year_choices(id, &state, page, colors, window, cx);
     }
     let month = model.displayed_month();
+    let cache = model.month_cache(month, &locale);
     let day_focus = model.day.clone();
     let ctx = CalendarContext {
         id,
         state: &state,
         locale: &locale,
+        cache: &cache,
         docked: &docked,
         colors,
         month,

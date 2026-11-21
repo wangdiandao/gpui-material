@@ -602,6 +602,7 @@ impl RenderOnce for Toolbar {
                 docked,
                 direction,
                 footprint,
+                track_footprint: behavior.exit_direction.is_some(),
                 shape: self.shape.unwrap_or(if docked {
                     CornerShape::Radii([0.; 4])
                 } else {

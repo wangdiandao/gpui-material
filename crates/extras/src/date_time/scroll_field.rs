@@ -1,9 +1,10 @@
 use std::{cell::Cell, rc::Rc, time::Duration};
 
 use gpui::{
-    AccessibleAction, AnyElement, App, Context, Div, ElementId, Entity, FocusHandle, Hsla,
-    InteractiveElement, IntoElement, MouseButton, ParentElement, RenderOnce, Role, ScrollEvent,
-    SharedString, Stateful, StatefulInteractiveElement, Styled, Task, TouchPhase, Window,
+    AccessibleAction, AnyElement, App, BackgroundExecutor, Context, Div, ElementId, Entity,
+    FocusHandle, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement, RenderOnce,
+    Role, ScrollEvent, SharedString, Stateful, StatefulInteractiveElement, Styled, Task,
+    TouchPhase, Window,
     accesskit::{ActionData, Orientation},
     canvas, div,
     prelude::FluentBuilder as _,
@@ -26,6 +27,11 @@ const PRECISE_SCROLL_SETTLE: Duration = Duration::from_millis(120);
 // Move near a distant destination before animating the last few rows.
 const ANIMATED_ROWS: usize = 3;
 
+struct SettleTimer {
+    _task: Task<()>,
+    bump: Box<dyn Fn(&BackgroundExecutor)>,
+}
+
 /// Caller-owned position and focus for one Material scroll field.
 pub struct ScrollFieldState {
     item_count: usize,
@@ -33,7 +39,7 @@ pub struct ScrollFieldState {
     target: usize,
     motion: Option<Motion>,
     gesture_start: Option<usize>,
-    settle: Option<Task<()>>,
+    settle: Option<SettleTimer>,
     focus: FocusHandle,
 }
 
@@ -253,15 +259,49 @@ impl ScrollFieldState {
             return self.finish_gesture(false, cx);
         }
         if vertical {
-            // Some discrete touchpad updates omit a terminal phase.
-            let timer = cx.background_executor().timer(PRECISE_SCROLL_SETTLE);
-            let state = cx.weak_entity();
-            self.settle = Some(window.spawn(cx, async move |cx| {
-                timer.await;
-                let _ = cx.update(|_, cx| {
-                    let _ = state.update(cx, |state, cx| state.finish_gesture(false, cx));
+            // Some discrete touchpad updates omit a terminal phase. Reuse the
+            // active settle timer across rapid scroll updates instead of
+            // spawning and cancelling a task on every event.
+            if let Some(settle) = &self.settle {
+                (settle.bump)(cx.background_executor());
+            } else {
+                let origin = cx.background_executor().now();
+                let last_offset = Rc::new(Cell::new(Duration::ZERO));
+                let bump_offset = last_offset.clone();
+                let bump = Box::new(move |executor: &BackgroundExecutor| {
+                    bump_offset.set(executor.now().saturating_duration_since(origin));
                 });
-            }));
+                let state = cx.weak_entity();
+                let task = window.spawn(cx, async move |cx| {
+                    let mut wait = PRECISE_SCROLL_SETTLE;
+                    loop {
+                        let Ok(timer) = cx.update(|_, cx| cx.background_executor().timer(wait))
+                        else {
+                            return;
+                        };
+                        timer.await;
+                        let next_wait = cx.update(|_, cx| {
+                            let elapsed = cx
+                                .background_executor()
+                                .now()
+                                .saturating_duration_since(origin);
+                            let deadline = last_offset.get() + PRECISE_SCROLL_SETTLE;
+                            if elapsed < deadline {
+                                Some(deadline - elapsed)
+                            } else {
+                                let _ =
+                                    state.update(cx, |state, cx| state.finish_gesture(false, cx));
+                                None
+                            }
+                        });
+                        match next_wait {
+                            Ok(Some(remaining)) => wait = remaining,
+                            _ => return,
+                        }
+                    }
+                });
+                self.settle = Some(SettleTimer { _task: task, bump });
+            }
         }
         vertical
     }
@@ -440,9 +480,7 @@ impl RenderOnce for ScrollField {
         let target = state.target;
         let focus = state.focus.clone();
         let enabled = !self.disabled && count > 0;
-        let (container, content, selected_content) = self
-            .colors
-            .resolve(enabled, &current_material_theme(window, cx));
+        let (container, content, selected_content) = self.colors.resolve(enabled, &theme);
         let feedback = window
             .use_keyed_state((self.id.clone(), "scroll-field-feedback"), cx, |_, _| {
                 Rc::new(Cell::new(InteractionState::default()))
@@ -477,7 +515,7 @@ impl RenderOnce for ScrollField {
                 let selected = row == 0;
                 let visual = self.item.as_ref().map_or_else(
                     || {
-                        Text::new(format!("{index:02}"))
+                        Text::new(super::format_two_digits(index))
                             .role(if selected {
                                 TypeRole::DisplayLarge
                             } else {

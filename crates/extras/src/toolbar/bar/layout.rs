@@ -216,6 +216,7 @@ pub(super) struct StripGeometry {
     pub docked: bool,
     pub direction: Direction,
     pub footprint: Rc<Cell<Size<Pixels>>>,
+    pub track_footprint: bool,
     pub shape: CornerShape,
     pub surface: Hsla,
     pub shadow: Hsla,
@@ -305,7 +306,7 @@ impl StripGeometry {
         host.child(
             canvas(
                 move |bounds, window, _| {
-                    if self.footprint.replace(bounds.size) != bounds.size {
+                    if self.footprint.replace(bounds.size) != bounds.size && self.track_footprint {
                         window.request_animation_frame();
                     }
                 },

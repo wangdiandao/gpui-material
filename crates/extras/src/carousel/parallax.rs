@@ -256,6 +256,9 @@ impl Element for CarouselParallax {
 }
 
 fn paint_corners(bounds: Bounds<Pixels>, radii: [Pixels; 4], backdrop: Hsla, window: &mut Window) {
+    if radii.iter().all(|&r| r <= px(0.)) {
+        return;
+    }
     let mut cutouts = PathBuilder::fill();
     let corners = [
         (point(bounds.left(), bounds.top()), 1., 1.),

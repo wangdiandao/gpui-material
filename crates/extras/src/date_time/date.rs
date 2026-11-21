@@ -158,20 +158,33 @@ pub struct DatePickerLocale {
     parse: DateParser,
 }
 
+thread_local! {
+    static DEFAULT_DATE_LOCALE: DatePickerLocale = DatePickerLocale {
+        first_day: Weekday::Sun,
+        day: Rc::new(|date| date.format("%A, %B %-d, %Y").to_string().into()),
+        month: Rc::new(|date| date.format("%B %Y").to_string().into()),
+        weekday: Rc::new(|day| day.to_string().into()),
+        format: Rc::new(|date| date.format("%Y-%m-%d").to_string().into()),
+        parse: Rc::new(|text| NaiveDate::parse_from_str(text, "%Y-%m-%d").ok()),
+    };
+}
+
 impl Default for DatePickerLocale {
     fn default() -> Self {
-        Self {
-            first_day: Weekday::Sun,
-            day: Rc::new(|date| date.format("%A, %B %-d, %Y").to_string().into()),
-            month: Rc::new(|date| date.format("%B %Y").to_string().into()),
-            weekday: Rc::new(|day| day.to_string().into()),
-            format: Rc::new(|date| date.format("%Y-%m-%d").to_string().into()),
-            parse: Rc::new(|text| NaiveDate::parse_from_str(text, "%Y-%m-%d").ok()),
-        }
+        DEFAULT_DATE_LOCALE.with(Clone::clone)
     }
 }
 
 impl DatePickerLocale {
+    fn same_hooks(&self, other: &Self) -> bool {
+        self.first_day == other.first_day
+            && Rc::ptr_eq(&self.day, &other.day)
+            && Rc::ptr_eq(&self.month, &other.month)
+            && Rc::ptr_eq(&self.weekday, &other.weekday)
+            && Rc::ptr_eq(&self.format, &other.format)
+            && Rc::ptr_eq(&self.parse, &other.parse)
+    }
+
     pub fn first_day(mut self, day: Weekday) -> Self {
         self.first_day = day;
         self
@@ -461,16 +474,33 @@ fn selection_label(draft: Date, formatter: &DateFormatter) -> SharedString {
 
 impl RenderOnce for DatePicker {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        self.state.update(cx, |state, cx| {
-            state.locale = self.options.locale.clone();
-            if !state.locale_initialized {
-                state.locale_initialized = true;
-                if self.presentation == Presentation::Panel {
-                    let draft = state.calendar.read(cx).date();
-                    state.reset_input(draft, &self.options.locale, window, cx);
+        let docked = self.options.variant == DatePickerVariant::Docked
+            && self.presentation == Presentation::Triggered;
+        let (needs_locale_sync, open) = {
+            let model = self.state.read(cx);
+            let open = if self.presentation == Presentation::Panel {
+                true
+            } else if docked {
+                model.docked_open
+            } else {
+                model.dialog.read(cx).is_open()
+            };
+            let needs_locale_sync = !model.locale_initialized
+                || (open && !model.locale.same_hooks(&self.options.locale));
+            (needs_locale_sync, open)
+        };
+        if needs_locale_sync {
+            self.state.update(cx, |state, cx| {
+                state.locale = self.options.locale.clone();
+                if !state.locale_initialized {
+                    state.locale_initialized = true;
+                    if self.presentation == Presentation::Panel {
+                        let draft = state.calendar.read(cx).date();
+                        state.reset_input(draft, &self.options.locale, window, cx);
+                    }
                 }
-            }
-        });
+            });
+        }
         let width = (window.viewport_size().width - px(96.)).clamp(px(70.), px(336.));
         if self.presentation == Presentation::Panel {
             let body = self.body(width, None, true, window, cx);
@@ -486,14 +516,7 @@ impl RenderOnce for DatePicker {
                 .into_any_element();
         }
 
-        let docked = self.options.variant == DatePickerVariant::Docked
-            && self.presentation == Presentation::Triggered;
         let model = self.state.read(cx);
-        let open = if docked {
-            model.docked_open
-        } else {
-            model.dialog.read(cx).is_open()
-        };
         let scope = model.docked.clone();
         let overlay = model.dialog.clone();
         let docked_actions = DockedActions {
@@ -714,8 +737,8 @@ impl DatePicker {
             } else {
                 selection_label(value.draft(), &locale.format)
             };
-            self.state.update(cx, |state, cx| {
-                if state.anchor_value.as_ref() != Some(&formatted) {
+            if self.state.read(cx).anchor_value.as_ref() != Some(&formatted) {
+                self.state.update(cx, |state, cx| {
                     let synchronized = state.anchor.update(cx, |editor, cx| {
                         if editor.marked_text_range(window, cx).is_some() {
                             return false;
@@ -726,8 +749,8 @@ impl DatePicker {
                     if synchronized {
                         state.anchor_value = Some(formatted);
                     }
-                }
-            });
+                });
+            }
             let handle = editor.read(cx).focus_handle(cx);
             let state = self.state.clone();
             let commit = self.confirm.clone();

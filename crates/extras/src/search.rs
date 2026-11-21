@@ -168,9 +168,11 @@ pub struct SearchState {
     input: Entity<TextFieldState>,
     trigger: FocusHandle,
     scope: FocusHandle,
+    results_scope: FocusHandle,
     restore: Option<FocusHandle>,
     scroll: ListState,
     result_focus: HashMap<ElementId, FocusHandle>,
+    active_result: Option<ElementId>,
     result_layout: Option<(gpui_material_theme::Typography, gpui::Pixels, u64)>,
     query: SharedString,
     response: SearchResponse,
@@ -222,9 +224,11 @@ impl SearchState {
             input: input.clone(),
             trigger: cx.focus_handle(),
             scope: cx.focus_handle(),
+            results_scope: cx.focus_handle().tab_stop(false),
             restore: None,
             scroll: ListState::new(0, ListAlignment::Top, px(100.)),
             result_focus: HashMap::new(),
+            active_result: None,
             result_layout: None,
             query: "".into(),
             response: SearchResponse::default(),
@@ -462,6 +466,11 @@ impl SearchState {
         self.query = query.clone();
         if let Some(request) = self.response.begin(query) {
             cx.emit(SearchEvent::Request(request));
+        } else {
+            self.result_focus.clear();
+            self.active_result = None;
+            self.scroll
+                .splice_focusable(0..self.scroll.item_count(), std::iter::empty());
         }
         self.scroll.reset(0);
         cx.notify();
@@ -486,6 +495,13 @@ impl SearchState {
                 (row.id.clone(), focus)
             })
             .collect();
+        if self
+            .active_result
+            .as_ref()
+            .is_some_and(|id| !self.result_focus.contains_key(id))
+        {
+            self.active_result = None;
+        }
         self.invalidate_result_measurements();
     }
 
@@ -521,5 +537,73 @@ mod tests {
         assert!(state.begin(" ".into()).is_none());
         assert!(!state.finish(&third, SearchOutcome::Error("cleared".into())));
         assert!(matches!(state.results, Results::Idle));
+    }
+
+    #[cfg(feature = "test-support")]
+    #[gpui::test]
+    fn clearing_query_to_idle_releases_result_focus_handles(cx: &mut gpui::TestAppContext) {
+        use std::{cell::RefCell, rc::Rc};
+
+        use gpui::{IntoElement, Render, WindowOptions, div};
+        use gpui_material_foundation::MaterialRoot;
+        use gpui_material_theme::MaterialTheme;
+
+        struct Empty;
+        impl Render for Empty {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                div()
+            }
+        }
+
+        let latest = Rc::new(RefCell::new(None::<SearchRequest>));
+        let mut search_state = None;
+        let window = cx
+            .update(|cx| {
+                MaterialRoot::init(MaterialTheme::default(), cx);
+                gpui_material_components::init_components(cx);
+                MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+                    let state = cx.new(|cx| SearchState::new(window, cx));
+                    let capture = latest.clone();
+                    cx.subscribe(&state, move |_, event, _| {
+                        if let SearchEvent::Request(request) = event {
+                            capture.replace(Some(request.clone()));
+                        }
+                    })
+                    .detach();
+                    search_state = Some(state);
+                    cx.new(|_| Empty)
+                })
+                .unwrap()
+            })
+            .into();
+        let state = search_state.unwrap();
+        cx.update_window(window, |_, window, cx| {
+            state.update(cx, |state, cx| {
+                state.set_query("design", window, cx);
+            });
+        })
+        .unwrap();
+        let request = latest.borrow().clone().unwrap();
+        cx.update(|cx| {
+            state.update(cx, |state, cx| {
+                let rows = vec![
+                    SearchResult::new("row-1", "Row 1"),
+                    SearchResult::new("row-2", "Row 2"),
+                ];
+                assert!(state.complete(&request, SearchOutcome::Results(rows), cx));
+                assert_eq!(state.result_focus.len(), 2);
+                assert_eq!(state.scroll.item_count(), 2);
+            });
+        });
+        cx.update_window(window, |_, window, cx| {
+            state.update(cx, |state, cx| {
+                state.set_query("", window, cx);
+                assert!(matches!(state.response.results, Results::Idle));
+                assert!(state.result_focus.is_empty());
+                assert!(state.active_result.is_none());
+                assert_eq!(state.scroll.item_count(), 0);
+            });
+        })
+        .unwrap();
     }
 }

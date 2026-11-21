@@ -172,7 +172,7 @@ impl SearchView {
         editor_width: Option<Pixels>,
         direction: Direction,
         duration: Duration,
-    ) -> gpui::Stateful<gpui::Div> {
+    ) -> impl IntoElement + use<> {
         let close = self.state.clone();
         let field = TextField::new((self.id.clone(), "editor"), self.label.clone(), editor)
             .when_some(self.style.input_colors, TextField::colors);
@@ -213,7 +213,7 @@ impl SearchView {
         duration: Duration,
         window: &mut Window,
         cx: &mut App,
-    ) -> gpui::Stateful<gpui::Div> {
+    ) -> impl IntoElement + use<> {
         let mut results = div()
             .id((self.id.clone(), "results"))
             .test_support()

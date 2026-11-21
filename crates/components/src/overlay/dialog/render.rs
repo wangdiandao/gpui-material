@@ -109,7 +109,7 @@ fn build_actions(
 struct StructuredDialogParts {
     icon: Option<AnyElement>,
     heading: Option<gpui::Div>,
-    content: gpui::Stateful<gpui::Div>,
+    content: AnyElement,
     cancel: Option<AnyElement>,
     confirm: Option<AnyElement>,
 }
@@ -142,7 +142,7 @@ fn populate_structured_surface(
                     .child(div().flex_1().min_w_0().children(parts.heading))
                     .children(parts.confirm),
             )
-            .child(parts.content.flex_1().p(px(24.)))
+            .child(parts.content)
     } else {
         surface
             .p(px(24.))
@@ -229,8 +229,10 @@ fn build_structured_parts(
         .flex()
         .flex_col()
         .gap(px(16.))
+        .when(full_screen, |content| content.flex_1().p(px(24.)))
         .children(supporting)
-        .children(body);
+        .children(body)
+        .into_any_element();
     StructuredDialogParts {
         icon,
         heading,
@@ -241,10 +243,10 @@ fn build_structured_parts(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn render_exiting_dialog(
+fn render_exiting_dialog<E: StatefulInteractiveElement + ParentElement + IntoElement>(
     id: ElementId,
     state: &Entity<DialogState>,
-    panel: gpui::Stateful<gpui::Div>,
+    panel: E,
     backdrop: Scrim,
     viewport: Size<Pixels>,
     layer: usize,
@@ -276,9 +278,9 @@ fn render_exiting_dialog(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn render_active_dialog(
+fn render_active_dialog<E: IntoElement>(
     title: SharedString,
-    panel: gpui::Stateful<gpui::Div>,
+    panel: E,
     backdrop: Scrim,
     focus: FocusHandle,
     session: ModalSession,

@@ -297,7 +297,7 @@ fn build_header(
     open: bool,
     header_color: Option<Hsla>,
     side_color: Hsla,
-) -> gpui::Stateful<gpui::Div> {
+) -> AnyElement {
     let default_title = if bottom {
         Text::new(title)
             .id("sheet-heading")
@@ -345,6 +345,7 @@ fn build_header(
             },
         )
         .children(close)
+        .into_any_element()
 }
 
 fn build_footer(
@@ -352,7 +353,7 @@ fn build_footer(
     footer_divider: bool,
     divider_color: Option<Hsla>,
     rtl: bool,
-) -> Option<gpui::Stateful<gpui::Div>> {
+) -> Option<AnyElement> {
     footer.map(|footer| {
         div()
             .id("sheet-footer")
@@ -378,6 +379,7 @@ fn build_footer(
                     .when(rtl, Styled::justify_end)
                     .child(footer),
             )
+            .into_any_element()
     })
 }
 
@@ -390,9 +392,9 @@ fn styled_divider(divider: Divider, color_override: Option<Hsla>) -> Divider {
 
 struct SurfaceParts {
     handle: Option<AnyElement>,
-    header: gpui::Stateful<gpui::Div>,
+    header: AnyElement,
     content: AnyElement,
-    footer: Option<gpui::Stateful<gpui::Div>>,
+    footer: Option<AnyElement>,
     scroll: ScrollHandle,
 }
 
@@ -491,9 +493,9 @@ fn build_surface(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn render_modal(
+fn render_modal<E: StatefulInteractiveElement + ParentElement + IntoElement>(
     id: ElementId,
-    panel: gpui::Stateful<gpui::Div>,
+    panel: E,
     dialog: &Entity<DialogState>,
     focus: FocusHandle,
     session: Option<ModalSession>,

@@ -297,7 +297,7 @@ fn render_track(
     direction: Direction,
     state_layer: Stateful<Div>,
     decoration: Option<AnyElement>,
-) -> Stateful<Div> {
+) -> impl IntoElement + use<> {
     let handle = div()
         .absolute()
         .top_0()

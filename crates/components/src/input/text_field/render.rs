@@ -573,10 +573,7 @@ fn build_label(
     metrics: &FieldMetrics,
     focus: &FocusHandle,
     measure_cutout: Rc<Cell<Option<Bounds<Pixels>>>>,
-) -> (
-    Option<gpui::Stateful<gpui::Div>>,
-    Option<gpui::Stateful<gpui::Div>>,
-) {
+) -> (Option<AnyElement>, Option<AnyElement>) {
     let label_alignment = if config.floating >= 0.5 {
         config.minimized_alignment
     } else {
@@ -655,9 +652,9 @@ fn build_label(
             })
         });
     if config.label_above {
-        (Some(label_container), None)
+        (Some(label_container.into_any_element()), None)
     } else {
-        (None, Some(label_container))
+        (None, Some(label_container.into_any_element()))
     }
 }
 

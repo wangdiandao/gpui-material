@@ -412,8 +412,8 @@ Scaffold::new("project", content).snackbar(self.host.clone())`,
       zh: "编辑单行、多行或带掩码的文本字段。",
     },
     usage: {
-      en: "Create and retain a TextFieldState entity. Subscribe to TextFieldEvent on it to react to edits. Use TextAreaState with TextField::multiline, and a dedicated masked state with TextField::secure.",
-      zh: "创建并保留 TextFieldState 实体，通过订阅 TextFieldEvent 响应编辑。多行输入使用 TextAreaState 和 TextField::multiline，密码输入使用独立的掩码状态和 TextField::secure。",
+      en: "Create and retain a TextFieldState entity. Subscribe to TextFieldEvent on it to react to edits, and use validate or TextFieldMaskPattern on the state for filtering and structured formatting. Use TextAreaState with TextField::multiline, and a dedicated masked state with TextField::secure and TextFieldObfuscationMode.",
+      zh: "创建并保留 TextFieldState 实体，通过订阅 TextFieldEvent 响应编辑，并在状态上使用 validate 或 TextFieldMaskPattern 进行过滤和结构化格式化。多行输入使用 TextAreaState 和 TextField::multiline，密码输入使用独立的掩码状态搭配 TextField::secure 和 TextFieldObfuscationMode。",
     },
     imports: "use gpui_material::{TextField, TextFieldState, TextFieldVariant};",
     code: `// In the owning view's constructor

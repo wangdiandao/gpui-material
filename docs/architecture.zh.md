@@ -69,7 +69,7 @@ CI 和日常开发用包级命令隔离主题、组件及 Gallery。依据构建
 | 机制 | 适配与边界 |
 | --- | --- |
 | 激活与拖动 | Base 管理按钮激活与焦点，组合层保留 roving 焦点策略。Windows 捕获丢失、禁用和 Esc 汇入取消路径。固定版本的 Windows GPUI 缺少捕获丢失事件，Foundation 因此在拖动期间于 UI 线程检查 Win32 捕获所有权。 |
-| 文本和语义 | Base 持有编辑状态、剪贴板、掩码和输入处理器，GPUI 持有原生桥接、字形回退和布局。同一 shaped line 用于度量及绘制。Base 0.10.0 的 Slider 处理 Windows UI Automation RangeValue 的 SetValue 动作。Material 为每个自定义滑块提供独立的原生范围节点，将动作交给 Base SliderState 中对应的滑块。 |
+| 文本和语义 | Base 持有编辑状态、剪贴板、固定圆点（`•`）掩码、提交前 `validate`/`pattern` 过滤、结构化 `MaskPattern` 格式化以及输入处理器（上游 `longbridge/gpui-kit#4059` 已合入掩码态 `text_for_range` 输入法脱敏修复，待下个 Base 版本发布后升级启用）。Material 暴露 `TextFieldObfuscationMode`（`Hidden`/`Visible`）并重导出 `TextFieldMaskPattern`，不另建独立的仅显示偏移映射层。GPUI 持有原生桥接、字形回退和布局。同一 shaped line 用于度量及绘制。Base 0.10.0 的 Slider 处理 Windows UI Automation RangeValue 的 SetValue 动作。Material 为每个自定义滑块提供独立的原生范围节点，将动作交给 Base SliderState 中对应的滑块。 |
 | 绘制与动效 | foundation 复用 GPUI 的填充网格，为凸、凹多边形统一提供精确的路径/矩形/圆盘裁剪、EvenOdd 外部背景遮罩与形状感知命中检测。非矩形多边形表面以三层半透明填充近似同形阴影。foundation 统一提供键值化弹簧/补间通道（`animate` / `animate_with_status`）、实体可重定向过渡（`RetargetTransition`）、连续循环时钟（`LoopClock`）与边界可见性判定（`is_bounds_visible`）：动画中断保留弹簧速度，反向补间按进度比例缩短时长，减少动效立即落位，屏外/被裁剪/非活动/隐藏组件自动暂停且不请求空转帧。 |
 | 浮层与滚动 | Base Popover 和 Dialog 持有放置、遮罩和焦点范围。组合层映射逻辑对齐，管理开关、回焦与拖动取消。独占内层滚动可通过 GPUI 命中遮蔽实现。值标签订阅 Base SliderState。 |
 | 主题和日期 | 应用色彩过渡遵循目标 Slow Effects 动效规格，通过帧回调投影到 Base 全局主题且不干扰带局部覆盖的窗口。窗口和子树主题为 Material 及其 Base 控件提供完整的局部样式（包括多行编辑器滚动条与延迟退出浮层），独立 Base 控件也可使用 `current_base_theme`。日期边界和禁用行为复用 Base Calendar。 |

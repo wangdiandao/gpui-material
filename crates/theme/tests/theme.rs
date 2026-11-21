@@ -165,13 +165,24 @@ fn type_scale_preserves_metrics_and_font_preferences() {
         2.
     );
     assert_eq!(theme.typography.families(Typeface::Plain).primary, "Roboto");
+    assert_eq!(
+        theme.typography.families(Typeface::Plain).fallback,
+        [
+            "SF Pro Text",
+            "Segoe UI",
+            "Noto Sans",
+            "PingFang SC",
+            "Microsoft YaHei UI",
+            "Noto Sans CJK SC",
+        ]
+    );
     theme.typography.plain = FontFamilies {
-        primary: "Segoe UI".into(),
-        fallback: vec!["Microsoft YaHei UI".into()],
+        primary: "Inter".into(),
+        fallback: vec!["Noto Sans CJK SC".into()],
     };
     assert_eq!(
         theme.typography.families(body.typeface).fallback,
-        ["Microsoft YaHei UI"]
+        ["Noto Sans CJK SC"]
     );
     assert_eq!(
         theme.typography.families(display.typeface).primary,

@@ -35,8 +35,12 @@ pub fn move_roving_focus(
     })
 }
 
-/// Watches the active GPUI drag for loss of native Win32 capture.
-/// Keep the guard for the drag lifetime and drop it on completion or cancellation.
+/// Watches an active GPUI drag for unexpected native capture loss.
+///
+/// On Windows, this polls Win32 capture ownership on the UI thread while
+/// upstream GPUI lacks capture-loss notifications; on other platforms it is a
+/// lightweight no-op guard. Keep the guard for the drag lifetime and drop it
+/// on completion or cancellation.
 pub struct DragCapture {
     #[cfg(windows)]
     _watch: Option<gpui::Task<()>>,

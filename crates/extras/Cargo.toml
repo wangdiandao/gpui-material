@@ -52,7 +52,7 @@ date-time = [
     "dep:gpui-material-foundation",
     "dep:gpui-material-theme",
 ]
-windows-chrome = ["dep:gpui", "dep:gpui-material-foundation", "dep:gpui-material-theme", "dep:raw-window-handle", "dep:windows"]
+window-chrome = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-foundation", "dep:gpui-material-theme", "dep:raw-window-handle", "dep:windows"]
 
 [dependencies]
 chrono = { version = "0.4.45", default-features = false, optional = true }

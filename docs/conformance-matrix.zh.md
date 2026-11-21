@@ -50,13 +50,13 @@
 | [内容与反馈](#内容与反馈) | 13 | 0 | 13 | 0 |
 | [输入与浮层](#输入与浮层) | 8 | 0 | 8 | 0 |
 | [导航与自适应布局](#导航与自适应布局) | 9 | 1 | 8 | 0 |
-| [可选组件](#可选组件) | 10 | 1 | 9 | 0 |
-| **合计** | **51** | **2** | **49** | **0** |
+| [可选组件](#可选组件) | 10 | 0 | 10 | 0 |
+| **合计** | **51** | **1** | **50** | **0** |
 
 核心审计结论：
 
-- **2 个组件仍处于 `Implemented`**：`Feed`（仅在 `adaptive-layout` 中渲染并在 `desktop_tests.rs` 里做过导航点击冒烟，缺少断点列数、RTL 行序及列数变化时滚动锚点保持的专项测试）与 `TitleBar` / `CaptionButtons`（`windows-chrome`，仅 `title_bar_window_options` 有 2 个单元测试；标题栏渲染、键盘/无障碍激活、贴靠布局及关闭拦截尚缺少自动化与实窗留痕验证）。
-- **49 个组件达到 `Verified`**：均具备在 CI 中稳定运行的可复现单元测试与/或无头 GPUI 测试，覆盖已文档化变体、状态与无障碍语义。
+- **1 个组件仍处于 `Implemented`**：`Feed`（仅在 `adaptive-layout` 中渲染并在 `desktop_tests.rs` 里做过导航点击冒烟，缺少断点列数、RTL 行序及列数变化时滚动锚点保持的专项测试）。
+- **50 个组件达到 `Verified`**：均具备在 CI 中稳定运行的可复现单元测试与/或无头 GPUI 测试，覆盖已文档化变体、状态与无障碍语义。
 - **0 个组件达到 `Production Ready`**：尚无组件在仓库关联记录中完成逐项 Windows 11 x64 实窗视觉、UI Automation / 讲述人 / 微软拼音 IME 与性能基线的签收。
 
 <a id="component-matrices"></a>
@@ -147,7 +147,7 @@
 | `TimePicker` / `TimePickerDialog` / `VibrantTimePickerDialog` / `TimePickerPanel` / `TimeScroll`（`gpui-material-extras`，特性 `date-time` · 示例 `time-picker`） | `Verified` | 表盘（自动/横向/纵向）、输入与滚轮（`TimeScroll`）；12/24 小时制；标准与 Vibrant 对话框；独立面板；`TimePickerLocale`、自定义插槽与 `TimePickerStyle` | 24 小时内外环选时、键盘时分调节、无效输入保持打开并聚焦首个非法框、取消/Escape/外部点击不提交与关闭原因、无头 IME 提交前守卫确认与 Escape、RTL 下字段镜像而表盘保持顺时针、低动效 | 自动化：字段/对话框/滚轮名称、当前值、无效标记、焦点恢复。原生 UIA/讲述人与真实微软拼音未验证 | 时间解析与表盘往返单测 + 无头表盘/输入/滚轮/对话框断言；Gallery `time-picker` 示例；Windows 实窗视觉待验 | 无实窗表盘/滚轮帧基线 | [time.rs](../crates/extras/src/date_time/time.rs)、[panel.rs](../crates/extras/src/date_time/time/panel.rs)、[date_time_examples.rs](../apps/gallery/src/date_time_examples.rs)。`Production Ready` 缺口：Windows 实窗视觉、UIA/讲述人、微软拼音 IME、基线记录。 |
 | `ScrollField`（`gpui-material-extras`，特性 `date-time` · 示例 `time-picker`） | `Verified` | 独立三行循环滚轮，支持自定义 `.item_content`、`.value_description` 与 `ScrollFieldColors` | 点击、滚轮、触控板、上下键、首尾循环、动态 `set_item_count`（含 0 项）、动画重定向、禁用立即落定、低动效、`InteractionSource` | 自动化：字段名称、滚动中目标值与静止居中值描述、焦点与键盘调节。原生 UIA/讲述人未验证 | 无头选中/重定向/绘制断言；集成在 Gallery `time-picker` 示例；Windows 实窗视觉待验 | 已测滚轮落定与重定向；无实窗滚轮帧基线 | [date_time_examples.rs](../apps/gallery/src/date_time_examples.rs)。`Production Ready` 缺口：Windows 实窗视觉、UIA/讲述人播报、滚轮帧基线。 |
 | `Carousel` / `CarouselParallax`（`gpui-material-extras`，特性 `carousel` · 示例 `carousel`） | `Verified` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen；Start/Center 对齐；自定义关键线、内边距、间距、甩动；独立 `CarouselParallax`（横/纵轴、圆角/边框/底色） | 滚动/吸附/自由/自定义甩动、命令动画重定向、缩放与项重排 ID 连续、`.user_scroll_enabled(false)`、跳过禁用项、视差内子控件激活、RTL 镜像且不倒序、低动效 | 自动化：焦点显露、跳过禁用项、无障碍滚动命令、视差子控件激活。原生 UIA/讲述人未验证 | 6 种布局关键线几何单测 + 无头滚动/视差/边界断言；Gallery `carousel` 示例；Windows 实窗视觉待验 | 已测关键线与甩动落定；无实窗滚动帧基线 | [geometry.rs](../crates/extras/src/carousel/geometry.rs)、[carousel_examples.rs](../apps/gallery/src/carousel_examples.rs)、[customization_tests.rs](../apps/gallery/src/carousel_examples/customization_tests.rs)。`Production Ready` 缺口：Windows 实窗视觉、UIA/讲述人、滚动帧基线。 |
-| `TitleBar` / `CaptionButtons`（`gpui-material-extras`，特性 `windows-chrome`，仅 Windows · `cargo gallery --windows-chrome`） | `Implemented` | `title_bar_window_options`、`TitleBar`（拖拽区、实时窗口标题、`.content` 插槽）、`CaptionButtons`（最小化、最大化/还原、关闭） | 仅 `title_bar_window_options` 保留窗口参数有 2 个单元测试；标题栏渲染、活跃/非活跃色、RTL 排布、全屏隐藏、键盘/无障碍激活、Windows 贴靠布局及 `on_window_should_close` 均**缺少**自动化 UI 测试与实窗签收记录 | 实现代码已设置 `Role::Button`、标签、`tab_index(0)` 与 `AccessibleAction::Click`，但缺少自动化无障碍断言及原生 UIA/讲述人检查 | 可通过 `cargo gallery --windows-chrome`（[windows_chrome.rs](../apps/gallery/src/windows_chrome.rs)）预览；无自动化布局/绘制测试；[验收清单](verification.zh.md#windows-gallery-验收) 中的 Windows 实窗检查待执行 | 未测量 | [windows_chrome.rs](../crates/extras/src/windows_chrome.rs)、[windows_chrome.rs（Gallery）](../apps/gallery/src/windows_chrome.rs)。晋级 `Verified` 缺口：补充 `TitleBar`/`CaptionButtons` 渲染、RTL、自定义 `.content`、按钮角色/名称/键盘与无障碍动作及窗口能力显隐的无头 GPUI 测试。晋级 `Production Ready` 缺口：完成并记录 Windows 11 x64 `--windows-chrome` 实窗验收清单（拖拽、双击、贴靠布局、Block close）。 |
+| `TitleBar` / `CaptionButtons`（`gpui-material-extras`，特性 `window-chrome`，Windows / macOS / Linux · `cargo gallery --window-chrome`） | `Verified` | `title_bar_window_options`、`title_bar_window_options_with_height`、`TitleBar`（自定义高度、主题/自定义排版、显式/实时标题、`.leading`/`.content`/`.trailing` 插槽、macOS 交通灯留白、Linux CSD/SSD）、`CaptionButtons`（矢量最小化、最大化/还原、关闭） | 跨平台窗口参数单元测试 + 无头 GPUI 测试覆盖高度/排版/插槽、macOS 交通灯留白与隐藏控制按钮、Linux CSD/SSD 显隐、RTL 排布、`on_close` 及键盘/无障碍激活；原生贴靠布局与实窗拖拽/关闭签收待补 | 自动化：已无头验证 `Role::Button`、无障碍名称（`Minimize`、`Maximize`/`Restore`、`Close`）、键盘焦点与 `AccessibleAction::Click`；原生 UIA/讲述人未验证 | 可通过 `cargo gallery --window-chrome`（[window_chrome.rs](../apps/gallery/src/window_chrome.rs)）预览；Gallery/extras 含无头布局与交互测试；[验收清单](verification.zh.md#windows-gallery-验收) 中的 Windows 实窗检查待执行 | 未测量 | [window_chrome/mod.rs](../crates/extras/src/window_chrome/mod.rs)、[window_chrome.rs（Gallery）](../apps/gallery/src/window_chrome.rs)。晋级 `Production Ready` 缺口：完成并记录 Windows 11 x64 `--window-chrome` 实窗验收清单（拖拽、双击、贴靠布局、Block close）。 |
 
 <a id="maintenance-and-promotion-workflow"></a>
 

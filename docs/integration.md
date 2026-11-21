@@ -84,6 +84,8 @@ Search and dropdown virtualization require no caller migration. Result and optio
 
 The supported application entry point is the [public facade](../crates/material/src/lib.rs), including its documented `foundation` and `theme` paths. By default `gpui-material` enables `full`, which compiles all core component groups (`actions`, `selection`, `inputs`, `surfaces`, `feedback`, and `navigation`). To compile only a subset of core components, set `default-features = false` and list the required groups (for example, `features = ["actions", "inputs"]`). Enable optional families at the facade with the [feature names in the README](../README.md); each optional family activates only the core groups it uses. `date-time` exposes its API under `gpui_material::date_time`. `dynamic-color` and `serde` forward to the pure theme crate. GPUI and Base types in public signatures follow the pinned upstream versions. Gallery modules and the internal organization of the workspace crates may change.
 
+When upgrading from 0.2.0, replace the `windows-chrome` Cargo feature and `gpui_material::windows_chrome` module path with the cross-platform `window-chrome` feature and `gpui_material::window_chrome` module.
+
 When upgrading to 0.2.0, update exhaustive `ColorRole` matches to cover the nine new semantic status variants (`Info`, `OnInfo`, `InfoContainer`, `Success`, `OnSuccess`, `SuccessContainer`, `Warning`, `OnWarning`, and `WarningContainer`). The minimum supported Rust version is now `1.95.0`, and `gpui-material` keeps `full` enabled by default so existing component imports continue to build unchanged.
 
 When upgrading to 0.1.1, align direct Base imports with 0.10.0 and keep the paired GPUI packages at 0.3.12. Update exhaustive matches for `AppBarVariant::TwoRows`, `DatePickerVariant::FullScreen`, `SearchViewVariant::FullScreenContained`, and `TimePickerVariant::Scroll`. Changed keyboard and accessibility slider adjustments now emit `Release` after `Change`. Update subscribers that interpreted `Release` as pointer-only.
@@ -92,7 +94,7 @@ Applications updating the 0.0.4 facade to 0.1.0 can keep their imports, feature 
 
 ## Platform support
 
-On Windows, enable `windows-chrome` to use a [custom title bar](component.md#windows-window-chrome) in selected windows. Enable it at window creation and mount its view under the existing application root. Other targets can enable the Cargo feature in shared manifests and use their existing window setup.
+Enable `window-chrome` to use a [cross-platform custom title bar](component.md#window-chrome) in selected windows across Windows, macOS, and Linux. Configure window options with `title_bar_window_options` at window creation and mount `TitleBar` under the existing application root.
 
 | Target | Scope |
 | --- | --- |

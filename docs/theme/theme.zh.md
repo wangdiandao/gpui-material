@@ -8,7 +8,7 @@
 | --- | --- |
 | 色彩 | `ColorScheme::baseline` 使用 Compose 的浅色或深色角色。通过 `color` 取单个角色，`pair` 取前景和背景，`set_color` 覆盖单个角色。覆盖背景后由调用者检查前景对比度。容器角色提供基准层级，另可通过 `surface_at_elevation` 应用 Compose 的色调叠加公式。 |
 | 源色 | `dynamic-color` 启用 `MaterialTheme::from_seed` 和 `from_seed_with`。默认使用 Tonal Spot Spec2021，忽略输入 alpha。对比度夹取到 −1 至 1，NaN 使用 0。 |
-| 排版 | `TypeRole::style` 提供 15 个角色的 baseline 和 emphasized Token，`Typography::style` 按主题比例缩放字号、行高和字距。用 `Typography::with_text_scale` 设置比例，默认 1.0，范围为 1.0–2.0，NaN 使用 1.0。控件已有的字体缩放与主题比例相乘。Brand 和 Plain 都优先请求 Roboto，依次回退到 Segoe UI、Microsoft YaHei UI 和 Noto Sans CJK SC。 |
+| 排版 | `TypeRole::style` 提供 15 个角色的 baseline 和 emphasized Token，`Typography::style` 按主题比例缩放字号、行高和字距。用 `Typography::with_text_scale` 设置比例，默认 1.0，范围为 1.0–2.0，NaN 使用 1.0。控件已有的字体缩放与主题比例相乘。Brand 和 Plain 都优先请求 Roboto，依次回退到 SF Pro Text、Segoe UI、Noto Sans、PingFang SC、Microsoft YaHei UI 和 Noto Sans CJK SC。 |
 | 形状 | `CornerShape` 使用逻辑角顺序，按方向映射并限制相邻角总和。满圆角取短边的一半。`MaterialShape` 命名与 Compose `MaterialShapes` 对应的 35 种 Expressive 圆角多边形，`PolygonRole` 保留由 Token 提供的 Circle、Square 和 Triangle 源参数。渲染层负责规范化、轮廓插值、绘制、裁剪及命中检测。 |
 | 动效 | 默认 Standard，可选 Expressive。空间与效果各有 Fast、Default 和 Slow 弹簧。效果弹簧采用临界阻尼。减少动态效果偏好将规格解析为立即完成。固定时长和 Bézier 曲线可通过 Token 查询。 |
 | 布局 | 可用宽度的分界为 600、840、1200、1600 逻辑单位。阈值归入较大的尺寸级。逻辑起止边按 LTR 或 RTL 映射。`LayoutPolicy::scale_text` 用传入的倍率换算文字尺寸。 |

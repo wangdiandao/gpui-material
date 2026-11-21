@@ -37,7 +37,7 @@ Component-level maturity maps directly to these layers in the [component conform
 
 - Run `cargo gallery` from a checkout of the release commit on Windows 11 x64. Confirm that the window is titled GPUI Material Gallery and shows the project logo in the title bar and taskbar. Open a story, narrow the window to the compact layout, and reopen the component catalog. Confirm its `Display scale` status matches the current monitor and is exposed as a status bar through UI Automation.
 - Exercise the affected stories with the applicable Windows checks above. For input and overlays, include Microsoft Pinyin candidate positioning and commit, keyboard focus and restoration, and Narrator announcements.
-- Run `cargo gallery --windows-chrome` to open the custom title bar. Drag its title area and double-click it to maximize and restore. Confirm the title-bar button responds to clicks without moving the window. Hover over Maximize until the Windows Snap Layouts picker appears, select a layout, and confirm that the window snaps.
+- Run `cargo gallery --window-chrome` to open the custom title bar. Drag its title area and double-click it to maximize and restore. Confirm the title-bar button responds to clicks without moving the window. Hover over Maximize until the Windows Snap Layouts picker appears, select a layout, and confirm that the window snaps.
 - Turn on **Block close** in the custom title bar. Click Close and confirm the window stays open and the blocked request count increases. Turn the option off and confirm Close exits the window normally.
 - Close the last Gallery window and confirm the process exits normally. Record the commit, CI run, scenarios, and the limits of the hardware coverage in the release issue or PR.
 

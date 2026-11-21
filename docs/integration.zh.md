@@ -86,6 +86,8 @@ Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID �
 
 应用通过[公开门面](../crates/material/src/lib.rs)集成，包括已记录的 `foundation` 和 `theme` 路径。`gpui-material` 默认启用 `full`，编译全部核心组件分组（`actions`、`selection`、`inputs`、`surfaces`、`feedback`、`navigation`）。如需只编译部分核心组件，可设置 `default-features = false` 并按需列出分组（例如 `features = ["actions", "inputs"]`）。按 [README 中的特性名](../README.zh.md)启用可选组件系列，每个可选组件系列仅激活其依赖的核心分组。`date-time` 的 API 位于 `gpui_material::date_time` 下。`dynamic-color` 和 `serde` 转发到纯主题 crate。公开签名中的 GPUI 和 Base 类型遵循固定的上游版本。Gallery 模块和工作区 crate 的内部组织可能调整。
 
+从 0.2.0 升级时，请将 Cargo 特性 `windows-chrome` 与模块路径 `gpui_material::windows_chrome` 替换为跨平台的 `window-chrome` 特性与 `gpui_material::window_chrome` 模块。
+
 升级至 0.2.0 时，若对 `ColorRole` 使用穷尽匹配，需补充九个新增的语义状态变体（`Info`、`OnInfo`、`InfoContainer`、`Success`、`OnSuccess`、`SuccessContainer`、`Warning`、`OnWarning` 和 `WarningContainer`）。最低支持的 Rust 版本调整为 `1.95.0`，`gpui-material` 默认仍启用 `full`，现有组件导入可直接兼容。
 
 升级至 0.1.1 时，将直接使用的 Base 同步到 0.10.0，并将配套 GPUI 固定在 0.3.12。对 `AppBarVariant::TwoRows`、`DatePickerVariant::FullScreen`、`SearchViewVariant::FullScreenContained` 和 `TimePickerVariant::Scroll` 补充穷尽匹配分支。键盘和无障碍操作改变滑块数值时，先发出 `Change`，再发出 `Release`。原先只把 `Release` 当作指针事件的订阅方应调整逻辑。
@@ -94,7 +96,7 @@ Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID �
 
 ## 平台支持
 
-在 Windows 上启用 `windows-chrome`，即可为指定窗口使用[自绘标题栏](component.zh.md#windows-window-chrome)。在创建窗口时启用，并在现有应用根视图下挂载标题栏。其他目标可以在共享的 Cargo 清单中启用此特性，并沿用各自的窗口配置。
+启用 `window-chrome` 即可在 Windows、macOS 和 Linux 上为指定窗口使用[跨平台自绘标题栏](component.zh.md#window-chrome)。创建窗口时调用 `title_bar_window_options`，并在现有应用根视图下挂载 `TitleBar`。
 
 | 目标 | 范围 |
 | --- | --- |

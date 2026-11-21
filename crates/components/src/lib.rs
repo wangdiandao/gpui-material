@@ -140,7 +140,8 @@ mod input;
 pub use input::{
     DropdownAnchor, DropdownOption, ExposedDropdown, ExposedDropdownState, TextAreaState,
     TextField, TextFieldColorOverrides, TextFieldColors, TextFieldEvent, TextFieldLabelAlignment,
-    TextFieldLabelPosition, TextFieldLayout, TextFieldState, TextFieldVariant,
+    TextFieldLabelPosition, TextFieldLayout, TextFieldMaskPattern, TextFieldObfuscationMode,
+    TextFieldState, TextFieldVariant,
 };
 
 #[cfg(feature = "navigation")]

@@ -220,7 +220,11 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `Dialog` | 结构化基本对话框、自适应全屏任务对话框、自定义内容的模态外壳，以及按需打开的原生对话框窗口。 | [对话框](https://m3.material.io/components/dialogs/overview) |
 | `Sheet` | 标准和模态底部面板，以及在逻辑起始侧或末尾侧停靠或覆盖的侧面板。 | [底部面板](https://m3.material.io/components/bottom-sheets/overview) · [侧面板](https://m3.material.io/components/side-sheets/overview) |
 
-`TextField` 为调用方持有的 Base 编辑器提供外观。使用 `label_content`、`placeholder_content` 和 `supporting_content` 时，纯文本分别提供无障碍名称、提示和说明。首尾元素与紧邻输入值的前后缀分开。标签收起时显示前后缀。Filled 默认使用内部标签，Outlined 默认使用缺口标签。可通过 Above 将标签放在容器上方，也可设置水平对齐方式，让内部或缺口标签始终保持收起。字符计数按 Unicode 标量值统计，输入长度仍由编辑器处理。安全字段隐藏计数和无障碍值。可独立于窗口主题设置实例配色、容器形状、内容内边距和输入文字样式。`on_text_layout` 在帧结束后报告编辑器与文本的布局边界和换行后的行数。通过 `interaction_source` 共享悬停、键盘焦点和禁用状态的观测结果。Base 实体继续管理编辑、选区、校验、滚动和输入法组合。
+`TextField` 为调用方持有的 Base 编辑器提供外观。使用 `label_content`、`placeholder_content` 和 `supporting_content` 时，纯文本分别提供无障碍名称、提示和说明。首尾元素与紧邻输入值的前后缀分开。标签收起时显示前后缀，且前后缀不进入存储值。Filled 默认使用内部标签，Outlined 默认使用缺口标签。可通过 Above 将标签放在容器上方，也可设置水平对齐方式，让内部或缺口标签始终保持收起。字符计数按 `value()` 的 Unicode 标量值统计，输入长度仍由编辑器处理。可独立于窗口主题设置实例配色、容器形状、内容内边距和输入文字样式。`on_text_layout` 在帧结束后报告编辑器与文本的布局边界和换行后的行数。通过 `interaction_source` 共享悬停、键盘焦点和禁用状态的观测结果。Base 实体继续管理编辑、选区、校验、滚动和输入法组合。
+
+安全字段请使用以 `.masked(true)` 初始化的独立 `TextFieldState` 并搭配 `TextField::secure` 渲染。通过 `.obfuscation_mode(TextFieldObfuscationMode::Hidden | Visible)`（默认 `Hidden`）控制显隐，例如配合尾部切换按钮使用。`Hidden` 使用 Base 固定的圆点（`•`）遮罩，禁用复制与剪切，并隐藏无障碍值、无障碍 `SetValue` 与字符计数；`Visible` 切换为普通明文输入，与桌面和 Web 原生密码切换惯例保持一致。作为桌面适配边界，不提供自定义掩码字符及移动端短暂显露末字符的计时模式。
+
+如需在提交前拦截非法输入，使用 Base 的 `TextFieldState::validate` 或 `pattern`，覆盖键入、粘贴、输入法组合和无障碍 `SetValue`。结构化格式与数字分组使用 `TextFieldMaskPattern` 配合 `TextFieldState::mask_pattern` 和 `unmask_value()`；固定纯展示前后缀使用 `prefix` 和 `suffix`。任意内容规范化（如大小写转换）在应用的 `TextFieldEvent::Change` 或 `Blur` 处理中完成；提交后的改写会形成独立的撤销步骤，不再额外维护独立的仅显示偏移映射层。
 
 ### 公开式下拉菜单
 

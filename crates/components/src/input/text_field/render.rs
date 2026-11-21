@@ -24,7 +24,8 @@ use gpui_material_theme::{
 
 use super::{
     Editor, FieldDescription, OnTextLayout, TextField, TextFieldColorOverrides, TextFieldColors,
-    TextFieldLabelAlignment, TextFieldLabelPosition, TextFieldLayout, TextFieldVariant,
+    TextFieldLabelAlignment, TextFieldLabelPosition, TextFieldLayout, TextFieldObfuscationMode,
+    TextFieldVariant,
 };
 
 type SetValue = Box<dyn Fn(SharedString, &mut Window, &mut App)>;
@@ -315,6 +316,7 @@ fn build_layout_probe(
 fn configure_and_build_editor(
     id: &ElementId,
     editor: Editor,
+    obfuscation_mode: TextFieldObfuscationMode,
     presentation: &InputPresentation,
     align: TextAlign,
     style: InputEditorStyle,
@@ -395,18 +397,27 @@ fn configure_and_build_editor(
             }
         }
         Editor::Secure(state) => {
+            let masked = obfuscation_mode == TextFieldObfuscationMode::Hidden;
             state.update(cx, |state, cx| {
-                if !presentation.is_masked() {
-                    state.set_masked(true, window, cx);
+                if presentation.is_masked() != masked {
+                    state.set_masked(masked, window, cx);
                 }
                 state.set_text_align(align, cx);
                 configure_editor(state, style);
             });
+            let role = if masked {
+                Role::PasswordInput
+            } else {
+                Role::TextInput
+            };
+            let value = (!masked).then(|| state.read(cx).value());
+            let set_value =
+                (!readonly && !disabled && !masked).then(|| edit_handler(state.clone()));
             ConfiguredEditor {
                 element: state.into_any_element(),
-                role: Role::PasswordInput,
-                value: None,
-                set_value: None,
+                role,
+                value,
+                set_value,
             }
         }
     }
@@ -883,6 +894,7 @@ impl RenderOnce for TextField {
         let configured = configure_and_build_editor(
             &self.id,
             self.editor,
+            self.obfuscation_mode,
             &presentation,
             align,
             style,

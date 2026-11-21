@@ -40,6 +40,19 @@ pub enum TextFieldLabelAlignment {
     End,
 }
 
+/// Visibility mode for [`TextField::secure`] editors.
+///
+/// Desktop platforms treat a revealed password as ordinary plain text. `Hidden`
+/// masks the editor with Base's fixed bullet (`•`), disables copy/cut, and omits
+/// the accessible value, accessible `SetValue`, and character count. `Visible`
+/// renders and behaves as plain text.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum TextFieldObfuscationMode {
+    #[default]
+    Hidden,
+    Visible,
+}
+
 /// Optional colors for a single text field state. An unset role uses the window theme.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct TextFieldColorOverrides {
@@ -97,6 +110,7 @@ pub struct TextField {
     label: SharedString,
     editor: Editor,
     variant: TextFieldVariant,
+    obfuscation_mode: TextFieldObfuscationMode,
     label_content: Option<AnyElement>,
     label_position: Option<TextFieldLabelPosition>,
     label_minimized: bool,
@@ -166,7 +180,11 @@ impl TextField {
         Self::with_editor(id, label, Editor::Multiple(state.clone()))
     }
 
-    /// Always masks the editor and suppresses its value from accessibility.
+    /// Renders a secure password editor. Defaults to [`TextFieldObfuscationMode::Hidden`],
+    /// masking the value with `•`, blocking copy/cut, and suppressing the accessible value
+    /// and character count. Call [`Self::obfuscation_mode`] with
+    /// [`TextFieldObfuscationMode::Visible`] to reveal plain text.
+    ///
     /// Use a dedicated entity initialized with `TextFieldState::masked(true)`
     /// so the text is protected even before this field is first rendered.
     pub fn secure(
@@ -187,6 +205,7 @@ impl TextField {
             label: label.into(),
             editor,
             variant: TextFieldVariant::Filled,
+            obfuscation_mode: TextFieldObfuscationMode::Hidden,
             label_content: None,
             label_position: None,
             label_minimized: false,
@@ -217,6 +236,13 @@ impl TextField {
 
     pub fn variant(mut self, variant: TextFieldVariant) -> Self {
         self.variant = variant;
+        self
+    }
+
+    /// Sets whether a [`TextField::secure`] editor is masked (`Hidden`) or revealed (`Visible`).
+    /// Ignored for non-secure fields.
+    pub fn obfuscation_mode(mut self, mode: TextFieldObfuscationMode) -> Self {
+        self.obfuscation_mode = mode;
         self
     }
 

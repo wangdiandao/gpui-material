@@ -5,7 +5,7 @@ use gpui::{
 use gpui_base::TestSupportExt;
 use gpui_material::{
     Icon, IconName, TextAreaState, TextField, TextFieldLabelAlignment, TextFieldLabelPosition,
-    TextFieldState, TextFieldVariant,
+    TextFieldMaskPattern, TextFieldObfuscationMode, TextFieldState, TextFieldVariant,
 };
 
 use crate::story::{section, stack};
@@ -173,14 +173,23 @@ pub(crate) struct TextFieldExamples {
     email: Entity<TextFieldState>,
     notes: Entity<TextAreaState>,
     password: Entity<TextFieldState>,
+    password_visible: bool,
     account: Entity<TextFieldState>,
     disabled: Entity<TextFieldState>,
     scaled: Entity<TextFieldState>,
     amount: Entity<TextFieldState>,
+    phone: Entity<TextFieldState>,
+    code: Entity<TextFieldState>,
 }
 
 impl TextFieldExamples {
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let phone = cx.new(|cx| {
+            TextFieldState::new(window, cx)
+                .mask_pattern(TextFieldMaskPattern::new("(999) 999-9999"))
+                .placeholder("(415) 555-0199")
+        });
+        cx.observe(&phone, |_, _, cx| cx.notify()).detach();
         Self {
             name: cx.new(|cx| TextFieldState::new(window, cx).placeholder("王小明")),
             email: cx.new(|cx| TextFieldState::new(window, cx).default_value("name@")),
@@ -194,6 +203,7 @@ impl TextFieldExamples {
                     .masked(true)
                     .placeholder("Enter a sample password")
             }),
+            password_visible: false,
             account: cx.new(|cx| {
                 let mut state = TextFieldState::new(window, cx).default_value("Demo");
                 state.set_readonly(true, cx);
@@ -206,12 +216,29 @@ impl TextFieldExamples {
             }),
             scaled: cx.new(|cx| TextFieldState::new(window, cx)),
             amount: cx.new(|cx| TextFieldState::new(window, cx)),
+            phone,
+            code: cx.new(|cx| {
+                TextFieldState::new(window, cx)
+                    .placeholder("Up to 6 letters or digits")
+                    .validate(|text, _| {
+                        text.chars().count() <= 6
+                            && text.chars().all(|ch| ch.is_ascii_alphanumeric())
+                    })
+            }),
         }
     }
 }
 
 impl Render for TextFieldExamples {
-    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let owner = cx.entity().downgrade();
+        let password_visible = self.password_visible;
+        let unmasked_phone = self.phone.read(cx).unmask_value();
+        let phone_supporting = if unmasked_phone.is_empty() {
+            "US phone mask; unmasked digits appear here".to_string()
+        } else {
+            format!("Unmasked value: {unmasked_phone}")
+        };
         stack()
             .max_w(px(440.))
             .child(
@@ -234,10 +261,28 @@ impl Render for TextFieldExamples {
                     )
                     .child(
                         TextField::secure("password", "Password", &self.password)
+                            .obfuscation_mode(if password_visible {
+                                TextFieldObfuscationMode::Visible
+                            } else {
+                                TextFieldObfuscationMode::Hidden
+                            })
                             .label_always_minimized(true)
                             .placeholder_content(
                                 "Sample password",
                                 Text::new("Enter a sample password"),
+                            )
+                            .trailing(
+                                Button::new(
+                                    "password-visibility",
+                                    if password_visible { "Hide" } else { "Show" },
+                                )
+                                .variant(ButtonVariant::Text)
+                                .on_activate(move |_, cx| {
+                                    let _ = owner.update(cx, |view, cx| {
+                                        view.password_visible = !view.password_visible;
+                                        cx.notify();
+                                    });
+                                }),
                             )
                             .character_count(24),
                     ),
@@ -287,6 +332,21 @@ impl Render for TextFieldExamples {
                         .required(true)
                         .character_count(8),
                 ),
+            )
+            .child(
+                section("Formatting and validation")
+                    .child(
+                        TextField::new("phone", "Phone number", &self.phone)
+                            .variant(TextFieldVariant::Outlined)
+                            .supporting_text(phone_supporting),
+                    )
+                    .child(
+                        TextField::new("code", "Invite code", &self.code)
+                            .supporting_text(
+                                "Rejects non-alphanumeric characters and excess length",
+                            )
+                            .character_count(6),
+                    ),
             )
     }
 }

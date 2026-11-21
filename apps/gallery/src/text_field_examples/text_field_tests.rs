@@ -8,7 +8,8 @@ use gpui::{
 use gpui_base::test_support::find;
 use gpui_material::{
     InteractionSource, MaterialRoot, TextField, TextFieldColorOverrides, TextFieldColors,
-    TextFieldLayout, TextFieldState, TextFieldVariant, material_theme, set_material_theme,
+    TextFieldLayout, TextFieldMaskPattern, TextFieldState, TextFieldVariant, material_theme,
+    set_material_theme,
     theme::{CornerShape, Direction, TypeRole, TypographyEmphasis},
 };
 
@@ -615,4 +616,205 @@ fn fields_preserve_native_editing_and_secure_copy(cx: &mut TestAppContext) {
             Some("sentinel")
         );
     });
+}
+
+#[gpui::test]
+fn secure_field_toggles_obfuscation_mode_and_clipboard_policy(cx: &mut TestAppContext) {
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let entity = cx.new(|cx| TextFieldExamples::new(window, cx));
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    cx.simulate_window_resize(window.into(), size(px(560.), px(1200.)));
+    let password = cx.update(|cx| view.read(cx).password.clone());
+    let copy = if cfg!(target_os = "macos") {
+        "cmd-c"
+    } else {
+        "ctrl-c"
+    };
+    let click_toggle = |cx: &mut TestAppContext| {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let field = find(window, &[], &"password".into()).unwrap();
+            let toggle = find(window, field.path(), &"password-visibility".into())
+                .unwrap()
+                .bounds()
+                .center();
+            window.dispatch_event(
+                MouseDownEvent {
+                    button: MouseButton::Left,
+                    position: toggle,
+                    click_count: 1,
+                    ..Default::default()
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.dispatch_event(
+                MouseUpEvent {
+                    button: MouseButton::Left,
+                    position: toggle,
+                    click_count: 1,
+                    ..Default::default()
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+    };
+
+    cx.update_window(window.into(), |_, window, cx| {
+        password.update(cx, |state, cx| {
+            state.replace_all("s3cr3t!", window, cx);
+            state.focus(window, cx);
+            state.select_all(window, cx);
+        });
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let field = find(window, &[], &"password".into()).unwrap();
+        assert_eq!(field.role(), Some(Role::PasswordInput));
+        assert_eq!(field.value(), None);
+        assert_eq!(field.description(), None);
+        assert!(!password.read(cx).is_copyable());
+        cx.write_to_clipboard(ClipboardItem::new_string("sentinel".into()));
+    })
+    .unwrap();
+    cx.simulate_keystrokes(window.into(), copy);
+    cx.update(|cx| {
+        assert_eq!(
+            cx.read_from_clipboard().unwrap().text().as_deref(),
+            Some("sentinel")
+        );
+    });
+
+    click_toggle(cx);
+    cx.update_window(window.into(), |_, window, cx| {
+        let field = find(window, &[], &"password".into()).unwrap();
+        assert_eq!(field.role(), Some(Role::TextInput));
+        assert_eq!(field.value(), Some("s3cr3t!"));
+        assert_eq!(field.description(), Some("7 / 24"));
+        assert!(password.read(cx).is_copyable());
+        password.update(cx, |state, cx| {
+            state.focus(window, cx);
+            state.select_all(window, cx);
+        });
+    })
+    .unwrap();
+    cx.simulate_keystrokes(window.into(), copy);
+    cx.update(|cx| {
+        assert_eq!(
+            cx.read_from_clipboard().unwrap().text().as_deref(),
+            Some("s3cr3t!")
+        );
+    });
+
+    click_toggle(cx);
+    cx.update_window(window.into(), |_, window, cx| {
+        let field = find(window, &[], &"password".into()).unwrap();
+        assert_eq!(field.role(), Some(Role::PasswordInput));
+        assert_eq!(field.value(), None);
+        assert_eq!(field.description(), None);
+        assert!(!password.read(cx).is_copyable());
+        password.update(cx, |state, cx| {
+            state.focus(window, cx);
+            state.select_all(window, cx);
+        });
+        cx.write_to_clipboard(ClipboardItem::new_string("sentinel-2".into()));
+    })
+    .unwrap();
+    cx.simulate_keystrokes(window.into(), copy);
+    cx.update(|cx| {
+        assert_eq!(
+            cx.read_from_clipboard().unwrap().text().as_deref(),
+            Some("sentinel-2")
+        );
+    });
+}
+
+#[gpui::test]
+fn masked_pattern_and_validator_enforce_formatting_and_undo(cx: &mut TestAppContext) {
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let entity = cx.new(|cx| TextFieldExamples::new(window, cx));
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    cx.simulate_window_resize(window.into(), size(px(560.), px(1400.)));
+    let (phone, code) = cx.update(|cx| {
+        let view = view.read(cx);
+        (view.phone.clone(), view.code.clone())
+    });
+    let undo = if cfg!(target_os = "macos") {
+        "cmd-z"
+    } else {
+        "ctrl-z"
+    };
+
+    cx.update_window(window.into(), |_, window, cx| {
+        phone.update(cx, |state, cx| state.focus(window, cx));
+        window.refresh();
+        window.draw(cx).clear(cx);
+    })
+    .unwrap();
+    cx.simulate_input(window.into(), "4155550199");
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert_eq!(phone.read(cx).value().as_ref(), "(415) 555-0199");
+        assert_eq!(phone.read(cx).unmask_value().as_ref(), "4155550199");
+        let field = find(window, &[], &"phone".into()).unwrap();
+        assert_eq!(field.value(), Some("(415) 555-0199"));
+        assert_eq!(field.description(), Some("Unmasked value: 4155550199"));
+    })
+    .unwrap();
+    cx.simulate_keystrokes(window.into(), undo);
+    cx.update(|cx| {
+        assert!(phone.read(cx).unmask_value().len() < 10);
+    });
+
+    cx.update_window(window.into(), |_, window, cx| {
+        let number = cx.new(|cx| {
+            TextFieldState::new(window, cx).mask_pattern(TextFieldMaskPattern::number(Some(',')))
+        });
+        number.update(cx, |state, cx| state.replace_all("12345", window, cx));
+        assert_eq!(number.read(cx).value().as_ref(), "12,345");
+        assert_eq!(number.read(cx).unmask_value().as_ref(), "12345");
+
+        code.update(cx, |state, cx| {
+            state.replace_text_in_range(None, "AB12", window, cx);
+            assert_eq!(state.value().as_ref(), "AB12");
+            state.replace_text_in_range(None, "-", window, cx);
+            assert_eq!(state.value().as_ref(), "AB12");
+            state.replace_all("AB12345", window, cx);
+            assert_eq!(state.value().as_ref(), "AB12");
+            state.replace_all("AB1234", window, cx);
+            assert_eq!(state.value().as_ref(), "AB1234");
+        });
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let field = find(window, &[], &"code".into()).unwrap();
+        assert_eq!(field.value(), Some("AB1234"));
+        assert_eq!(
+            field.description(),
+            Some("Rejects non-alphanumeric characters and excess length. 6 / 6")
+        );
+    })
+    .unwrap();
 }

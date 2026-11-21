@@ -3,13 +3,16 @@ use gpui::{
     ScrollHandle, SharedString, StatefulInteractiveElement, Styled, Window, div, point, px,
 };
 use gpui_material::foundation::{color, isolated_scroll, window_material_theme};
-use gpui_material::theme::{ColorRole, CornerRole, CornerShape, Elevation, TypeRole};
+use gpui_material::theme::{
+    ColorRole, CornerRole, CornerShape, Elevation, MaterialShape, TypeRole,
+};
 use gpui_material::{
-    Avatar, AvatarShape, AvatarSize, Badge, Button, ButtonVariant, Card, CardBorder, CardColors,
-    CardElevations, CardVariant, ChoiceOption, ChoiceTile, CircularProgress, DisplayScrollbar,
-    DisplayScrollbarFade, DisplayScrollbarStyle, Divider, DropTarget, Icon, IconName,
-    LinearProgress, List, ListItem, ListVariant, LoadingIndicator, LoadingIndicatorShape,
-    LoadingIndicatorShapes, ProgressCap, ProgressShape, ProgressStroke, SwitchTile, Text,
+    Avatar, AvatarGroup, AvatarShape, AvatarSize, Badge, Button, ButtonVariant, Card, CardBorder,
+    CardColors, CardElevations, CardVariant, ChoiceOption, ChoiceTile, CircularProgress,
+    DisplayScrollbar, DisplayScrollbarFade, DisplayScrollbarStyle, Divider, DropTarget, EmptyState,
+    Icon, IconName, LinearProgress, List, ListItem, ListVariant, LoadingIndicator,
+    LoadingIndicatorShape, LoadingIndicatorShapes, ProgressCap, ProgressShape, ProgressStroke,
+    SwitchTile, Text,
 };
 
 use crate::story::{Story, section, stack};
@@ -26,6 +29,8 @@ mod display_scrollbar_tests;
 mod divider_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod drop_target_tests;
+#[cfg(all(test, feature = "test-support"))]
+mod empty_state_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod icon_tests;
 mod list_examples;
@@ -57,6 +62,7 @@ pub(crate) struct DisplayExamples {
     list_examples: Option<Entity<list_examples::ListExamples>>,
     wide_scroll: ScrollHandle,
     drop_status: SharedString,
+    empty_state_status: SharedString,
     auto_sync: bool,
     choice_density: SharedString,
 }
@@ -80,6 +86,7 @@ impl Default for DisplayExamples {
             list_examples: None,
             wide_scroll: ScrollHandle::new(),
             drop_status: "Drop files or click the drop zone".into(),
+            empty_state_status: "No project action triggered yet".into(),
             auto_sync: true,
             choice_density: "comfortable".into(),
         }
@@ -651,41 +658,164 @@ impl DisplayExamples {
             )
     }
 
-    fn avatar_section(&self) -> crate::story::StorySection {
-        section("Sizes, shapes, and content")
-            .description(
-                "Avatars scale typography with size and support initials, icons, images with fallbacks, and rounded shapes.",
-            )
+    fn avatar_section(&self) -> impl IntoElement {
+        stack()
             .child(
-                div()
-                    .flex()
-                    .flex_wrap()
-                    .items_center()
-                    .gap_4()
-                    .child(Avatar::initials("Ada Lovelace").size(AvatarSize::ExtraSmall))
-                    .child(Avatar::initials("Grace Hopper").size(AvatarSize::Small))
-                    .child(
-                        Avatar::initials("Alan Turing")
-                            .size(AvatarSize::Medium)
-                            .accessible_label("avatar-at", "Alan Turing"),
+                section("Sizes, shapes, and content")
+                    .description(
+                        "Avatars scale typography with size and support initials, icons, images with fallbacks, and rounded shapes.",
                     )
                     .child(
-                        Avatar::icon(Icon::new(IconName::Favorite))
-                            .size(AvatarSize::Large)
-                            .color_role(
-                                ColorRole::SecondaryContainer,
-                                ColorRole::OnSecondaryContainer,
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .items_center()
+                            .gap_4()
+                            .child(Avatar::initials("Ada Lovelace").size(AvatarSize::ExtraSmall))
+                            .child(Avatar::initials("Grace Hopper").size(AvatarSize::Small))
+                            .child(
+                                Avatar::initials("Alan Turing")
+                                    .size(AvatarSize::Medium)
+                                    .accessible_label("avatar-at", "Alan Turing"),
+                            )
+                            .child(
+                                Avatar::icon(Icon::new(IconName::Favorite))
+                                    .size(AvatarSize::Large)
+                                    .color_role(
+                                        ColorRole::SecondaryContainer,
+                                        ColorRole::OnSecondaryContainer,
+                                    ),
+                            )
+                            .child(
+                                Avatar::initials("Katherine Johnson")
+                                    .size(AvatarSize::ExtraLarge)
+                                    .shape(AvatarShape::Rounded(CornerRole::Large.shape()))
+                                    .color_role(
+                                        ColorRole::TertiaryContainer,
+                                        ColorRole::OnTertiaryContainer,
+                                    )
+                                    .border(px(2.)),
+                            ),
+                    ),
+            )
+            .child(
+                section("Avatar group")
+                    .description(
+                        "AvatarGroup overlaps members with surface-matched cutout rings, RTL mirroring, and +N overflow indicators.",
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .items_center()
+                            .gap_6()
+                            .child(
+                                AvatarGroup::new(
+                                    "gallery-team-avatars",
+                                    [
+                                        Avatar::initials("Ada Lovelace"),
+                                        Avatar::initials("Grace Hopper").color_role(
+                                            ColorRole::SecondaryContainer,
+                                            ColorRole::OnSecondaryContainer,
+                                        ),
+                                        Avatar::initials("Alan Turing").color_role(
+                                            ColorRole::TertiaryContainer,
+                                            ColorRole::OnTertiaryContainer,
+                                        ),
+                                        Avatar::initials("Katherine Johnson"),
+                                        Avatar::initials("Margaret Hamilton"),
+                                    ],
+                                )
+                                .size(AvatarSize::Medium)
+                                .max_visible(3)
+                                .ring_role(ColorRole::SurfaceContainerLow)
+                                .accessible_label("5 team members"),
+                            )
+                            .child(
+                                AvatarGroup::new(
+                                    "gallery-compact-avatars",
+                                    [
+                                        Avatar::icon(Icon::new(IconName::Favorite)),
+                                        Avatar::initials("Design").color_role(
+                                            ColorRole::SecondaryContainer,
+                                            ColorRole::OnSecondaryContainer,
+                                        ),
+                                        Avatar::initials("Engineering"),
+                                        Avatar::initials("Research"),
+                                    ],
+                                )
+                                .size(AvatarSize::Small)
+                                .overlap(px(10.))
+                                .ring_width(px(2.))
+                                .ring_role(ColorRole::SurfaceContainerLow)
+                                .max_visible(2)
+                                .accessible_label("4 contributors"),
+                            ),
+                    ),
+            )
+    }
+
+    fn empty_state_section(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let create_view = cx.entity();
+        let import_view = cx.entity();
+        stack()
+            .child(
+                section("Expressive icon backdrop and actions")
+                    .description(
+                        "EmptyState is a purely presentational M3E layout shell with a decorative shape backdrop, copy, and caller-owned actions.",
+                    )
+                    .child(
+                        EmptyState::new("gallery-empty-projects", "No projects yet")
+                            .icon(Icon::new(IconName::Inbox))
+                            .supporting(
+                                "Create a workspace project or import an existing folder to get started.",
+                            )
+                            .primary_action(
+                                Button::new("empty-create-project", "Create project").on_activate(
+                                    move |_, cx| {
+                                        create_view.update(cx, |this, cx| {
+                                            this.empty_state_status =
+                                                "Create project requested".into();
+                                            cx.notify();
+                                        });
+                                    },
+                                ),
+                            )
+                            .secondary_action(
+                                Button::new("empty-import-project", "Import folder")
+                                    .variant(ButtonVariant::Outlined)
+                                    .on_activate(move |_, cx| {
+                                        import_view.update(cx, |this, cx| {
+                                            this.empty_state_status =
+                                                "Import folder requested".into();
+                                            cx.notify();
+                                        });
+                                    }),
                             ),
                     )
                     .child(
-                        Avatar::initials("Katherine Johnson")
-                            .size(AvatarSize::ExtraLarge)
-                            .shape(AvatarShape::Rounded(CornerRole::Large.shape()))
-                            .color_role(
+                        Text::new(self.empty_state_status.clone())
+                            .id("empty-state-status")
+                            .role(TypeRole::BodySmall)
+                            .color(ColorRole::OnSurfaceVariant),
+                    ),
+            )
+            .child(
+                section("Custom shape and visual")
+                    .description(
+                        "Swap the icon backdrop to any MaterialShape or CornerShape, or supply a custom visual element.",
+                    )
+                    .child(
+                        EmptyState::new("gallery-empty-search", "No matching items")
+                            .icon(Icon::new(IconName::Search))
+                            .icon_container_shape(MaterialShape::SoftBurst)
+                            .icon_container_color_role(
                                 ColorRole::TertiaryContainer,
                                 ColorRole::OnTertiaryContainer,
                             )
-                            .border(px(2.)),
+                            .title_role(TypeRole::HeadlineSmall)
+                            .max_width(px(400.))
+                            .supporting("Try broadening your search terms or clearing active filters."),
                     ),
             )
     }
@@ -835,6 +965,10 @@ impl Render for DisplayExamples {
             .children(
                 self.shows(Story::DropTarget)
                     .then(|| self.drop_target_section(cx)),
+            )
+            .children(
+                self.shows(Story::EmptyState)
+                    .then(|| self.empty_state_section(cx)),
             )
             .children(self.shows(Story::Badge).then(|| self.badge_section()))
             .children(

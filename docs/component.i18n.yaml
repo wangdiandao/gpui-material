@@ -27,8 +27,8 @@
   en: "51a406ecd386905a"
   zh: "5e59d88142753aa0"
 /components/content-and-feedback:
-  en: "52e6978ab148ec4f"
-  zh: "2750d81c959c0a08"
+  en: "77dc837707a6d30e"
+  zh: "9206700bd5bcc6ec"
 /components/content-and-feedback/surfaces:
   en: "e0f5d2b66870d586"
   zh: "7c7c4891edaf84a4"
@@ -51,8 +51,11 @@
   en: "3b4731e1ca05ba87"
   zh: "df321083c3b7761c"
 /components/content-and-feedback/avatars:
-  en: "e3e2a6559088a201"
-  zh: "85a7febe5c74b6e7"
+  en: "22cd71489ab5bb08"
+  zh: "fb29ab92ec9eb55b"
+/components/content-and-feedback/empty-states:
+  en: "1131dd8acd261e98"
+  zh: "bbfa426819e9fc72"
 /components/content-and-feedback/swipe-to-dismiss:
   en: "9fe72312679c3039"
   zh: "0f1e8979db2e2a18"
@@ -135,8 +138,8 @@
   en: "f749e65450d351e3"
   zh: "fdbeaa7d7dfdc868"
 /components/optional-components:
-  en: "0fae2339a29ee075"
-  zh: "ab28ebcb9cd91fa4"
+  en: "2f7fb569fd397ec3"
+  zh: "ba89a3d6045fb6f8"
 /components/optional-components/window-chrome:
   en: "aaefab3fe6f6063b"
   zh: "aff96eee8fcf7ae7"
@@ -144,8 +147,8 @@
   en: "b67194606d49b75f"
   zh: "3888b8816683cb39"
 /components/optional-components/button-groups:
-  en: "6cdd2b7bf5b2a013"
-  zh: "95837a482620b6cb"
+  en: "631622327d0c2c9b"
+  zh: "08974767aacb9f6f"
 /components/optional-components/split-buttons:
   en: "925c4848924530f5"
   zh: "e9bac206204f6f05"

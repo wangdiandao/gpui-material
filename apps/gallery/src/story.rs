@@ -48,6 +48,7 @@ pub enum Story {
     Dialog,
     Divider,
     DropTarget,
+    EmptyState,
     ExposedDropdown,
     ExtendedFab,
     Fab,
@@ -100,6 +101,7 @@ impl Story {
         Self::Dialog,
         Self::Divider,
         Self::DropTarget,
+        Self::EmptyState,
         Self::ExposedDropdown,
         Self::ExtendedFab,
         Self::Fab,
@@ -152,6 +154,7 @@ impl Story {
             Self::Dialog => "dialog",
             Self::Divider => "divider",
             Self::DropTarget => "drop-target",
+            Self::EmptyState => "empty-state",
             Self::ExposedDropdown => "exposed-dropdown",
             Self::ExtendedFab => "extended-fab",
             Self::Fab => "fab",
@@ -205,6 +208,7 @@ impl Story {
             Self::Dialog => "Dialog",
             Self::Divider => "Divider",
             Self::DropTarget => "Drop target",
+            Self::EmptyState => "Empty state",
             Self::ExposedDropdown => "Exposed dropdown",
             Self::ExtendedFab => "Extended FAB",
             Self::Fab => "FAB",
@@ -271,6 +275,9 @@ impl Story {
             Self::Divider => "Separate related content with horizontal or vertical rules.",
             Self::DropTarget => {
                 "Accept external OS file drops or typed in-app drag payloads with validation feedback."
+            }
+            Self::EmptyState => {
+                "Present an expressive empty-state shell with optional icon backdrop, copy, and actions."
             }
             Self::ExposedDropdown => "Pick an option from an editable or fixed list.",
             Self::ExtendedFab => "Give a prominent action a label that can expand or collapse.",
@@ -378,6 +385,7 @@ impl Story {
             | Self::Card
             | Self::Divider
             | Self::DropTarget
+            | Self::EmptyState
             | Self::Icon
             | Self::List
             | Self::LoadingIndicator

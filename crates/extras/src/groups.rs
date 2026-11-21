@@ -335,6 +335,15 @@ impl ButtonGroup {
         }
     }
 
+    /// Creates a connected Material 3 Expressive button group.
+    pub fn connected(
+        id: impl Into<ElementId>,
+        label: impl Into<SharedString>,
+        items: impl IntoIterator<Item = ButtonGroupItem>,
+    ) -> Self {
+        Self::new(id, label, items).variant(ButtonGroupVariant::Connected)
+    }
+
     pub fn variant(mut self, variant: ButtonGroupVariant) -> Self {
         self.variant = variant;
         self
@@ -365,6 +374,38 @@ impl ButtonGroup {
         callback: impl Fn(Vec<SharedString>, &mut Window, &mut App) + 'static,
     ) -> Self {
         self.on_change = Some(Rc::new(callback));
+        self
+    }
+
+    /// Configures required single selection (`ButtonGroupSelection::SingleRequired`) and
+    /// delivers the newly selected item ID directly.
+    pub fn single_select(
+        mut self,
+        selected: impl Into<SharedString>,
+        on_select: impl Fn(SharedString, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.selection = ButtonGroupSelection::SingleRequired;
+        self.selected = vec![selected.into()];
+        self.on_change = Some(Rc::new(move |next, window, cx| {
+            if let Some(id) = next.into_iter().next() {
+                on_select(id, window, cx);
+            }
+        }));
+        self
+    }
+
+    /// Configures deselectable single selection (`ButtonGroupSelection::Single`) and
+    /// delivers the newly selected item ID, or `None` when the active option is cleared.
+    pub fn single_optional_select(
+        mut self,
+        selected: Option<SharedString>,
+        on_select: impl Fn(Option<SharedString>, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.selection = ButtonGroupSelection::Single;
+        self.selected = selected.into_iter().collect();
+        self.on_change = Some(Rc::new(move |next, window, cx| {
+            on_select(next.into_iter().next(), window, cx);
+        }));
         self
     }
 
@@ -438,5 +479,47 @@ impl ButtonGroup {
     ) -> Self {
         self.on_overflow_open_change = Some(Rc::new(on_change));
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn connected_and_single_select_shortcuts_configure_expected_fields() {
+        let required = ButtonGroup::connected(
+            "period",
+            "Period",
+            [
+                ButtonGroupItem::new("day", "Day"),
+                ButtonGroupItem::new("week", "Week"),
+            ],
+        )
+        .single_select("week", |_, _, _| {});
+        assert_eq!(required.variant, ButtonGroupVariant::Connected);
+        assert_eq!(required.selection, ButtonGroupSelection::SingleRequired);
+        assert_eq!(required.selected, vec![SharedString::from("week")]);
+        assert!(required.on_change.is_some());
+
+        let optional_selected = ButtonGroup::connected(
+            "filter",
+            "Filter",
+            [
+                ButtonGroupItem::new("open", "Open"),
+                ButtonGroupItem::new("closed", "Closed"),
+            ],
+        )
+        .single_optional_select(Some("open".into()), |_, _, _| {});
+        assert_eq!(optional_selected.variant, ButtonGroupVariant::Connected);
+        assert_eq!(optional_selected.selection, ButtonGroupSelection::Single);
+        assert_eq!(optional_selected.selected, vec![SharedString::from("open")]);
+        assert!(optional_selected.on_change.is_some());
+
+        let optional_empty = ButtonGroup::connected("filter-empty", "Filter", [])
+            .single_optional_select(None, |_, _, _| {});
+        assert_eq!(optional_empty.selection, ButtonGroupSelection::Single);
+        assert!(optional_empty.selected.is_empty());
+        assert!(optional_empty.on_change.is_some());
     }
 }

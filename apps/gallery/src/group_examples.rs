@@ -3,8 +3,8 @@ use gpui::{
     Context, FocusHandle, ParentElement, Radians, Render, SharedString, Styled, Window, div, px,
 };
 use gpui_material::{
-    ButtonGroup, ButtonGroupItem, ButtonGroupSelection, ButtonGroupVariant, ButtonShape,
-    ButtonVariant, ControlSize, Icon, IconName, MenuItem, SplitButton, Text,
+    ButtonGroup, ButtonGroupItem, ButtonShape, ButtonVariant, ControlSize, Icon, IconName,
+    MenuItem, SplitButton, Text,
 };
 
 use crate::story::{Story, section, stack};
@@ -16,7 +16,8 @@ mod split_button_tests;
 
 pub(crate) struct GroupExamples {
     story: Story,
-    selected: Vec<SharedString>,
+    selected: SharedString,
+    optional_filter: Option<SharedString>,
     message: SharedString,
     split_focus: (FocusHandle, FocusHandle),
     keep_export: bool,
@@ -27,7 +28,8 @@ impl GroupExamples {
     pub(crate) fn new(story: Story, cx: &Context<Self>) -> Self {
         Self {
             story,
-            selected: vec!["week".into()],
+            selected: "week".into(),
+            optional_filter: Some("active".into()),
             message: "No action yet".into(),
             split_focus: (cx.focus_handle(), cx.focus_handle()),
             keep_export: false,
@@ -88,7 +90,7 @@ impl Render for GroupExamples {
                     .description("Select a time period. The group keeps one option selected.")
                     .child(
                         div().max_w(px(290.)).child(
-                            ButtonGroup::new(
+                            ButtonGroup::connected(
                                 "period",
                                 "Period",
                                 [
@@ -99,7 +101,6 @@ impl Render for GroupExamples {
                                     ButtonGroupItem::new("year", "Year"),
                                 ],
                             )
-                            .variant(ButtonGroupVariant::Connected)
                             .shape(ButtonShape::Square)
                             .appearance(ButtonVariant::FilledTonal)
                             .expanded_ratio(0.2)
@@ -108,18 +109,48 @@ impl Render for GroupExamples {
                                     .size(px(24.))
                                     .rotate(Radians(if open { std::f32::consts::PI } else { 0. }))
                             })
-                            .selection(ButtonGroupSelection::SingleRequired, self.selected.clone())
-                            .on_change({
+                            .single_select(self.selected.clone(), {
                                 let view = cx.weak_entity();
                                 move |next, _, cx| {
                                     let _ = view.update(cx, |this, cx| {
-                                        this.message = format!("Period: {}", next[0]).into();
+                                        this.message = format!("Period: {next}").into();
                                         this.selected = next;
                                         cx.notify();
                                     });
                                 }
                             }),
                         ),
+                    ),
+            );
+            body = body.child(
+                section("Optional single selection")
+                    .description(
+                        "Click an active option again to clear the filter via single_optional_select.",
+                    )
+                    .child(
+                        ButtonGroup::connected(
+                            "status-filter",
+                            "Status filter",
+                            [
+                                ButtonGroupItem::new("active", "Active"),
+                                ButtonGroupItem::new("archived", "Archived"),
+                                ButtonGroupItem::new("draft", "Draft"),
+                            ],
+                        )
+                        .appearance(ButtonVariant::Outlined)
+                        .single_optional_select(self.optional_filter.clone(), {
+                            let view = cx.weak_entity();
+                            move |next, _, cx| {
+                                let _ = view.update(cx, |this, cx| {
+                                    this.message = match &next {
+                                        Some(id) => format!("Filter: {id}").into(),
+                                        None => "Filter cleared".into(),
+                                    };
+                                    this.optional_filter = next;
+                                    cx.notify();
+                                });
+                            }
+                        }),
                     ),
             );
         } else {

@@ -48,25 +48,54 @@ struct Node {
 }
 
 pub(crate) fn check() -> Result {
-    for (target, _, _) in TARGETS {
-        verify_pure(target, &[], false)?;
-        for features in [
-            &[][..],
-            &["dynamic-color"],
-            &["serde"],
-            &["dynamic-color,serde"],
-        ] {
-            verify_pure(target, features, true)?;
+    const THEME_FEATURES: [&[&str]; 4] = [
+        &[],
+        &["dynamic-color"],
+        &["serde"],
+        &["dynamic-color,serde"],
+    ];
+
+    std::thread::scope(|scope| {
+        let mut handles = Vec::new();
+        for (target, _, _) in TARGETS {
+            handles.push(
+                scope.spawn(move || {
+                    verify_pure(Some(target), &[], false).map_err(|e| e.to_string())
+                }),
+            );
         }
+        for features in THEME_FEATURES {
+            handles.push(
+                scope.spawn(move || verify_pure(None, features, true).map_err(|e| e.to_string())),
+            );
+        }
+        for (target, backend, backend_features) in TARGETS {
+            for test in [false, true] {
+                handles.push(scope.spawn(move || {
+                    verify(target, backend, backend_features, test).map_err(|e| e.to_string())
+                }));
+            }
+        }
+        handles.push(scope.spawn(|| verify_component_features().map_err(|e| e.to_string())));
+
+        for handle in handles {
+            handle.join().expect("graph verification thread panicked")?;
+        }
+        Ok::<_, String>(())
+    })?;
+
+    for (target, _, _) in TARGETS {
         println!("{target}: default and theme dependency graphs verified");
     }
-
-    for (target, backend, backend_features) in TARGETS {
+    for (target, backend, _) in TARGETS {
         for test in [false, true] {
-            verify(target, backend, backend_features, test)?;
+            println!(
+                "{target} {}: pinned GPUI/Base and {backend} verified",
+                if test { "test-support" } else { "native" }
+            );
         }
     }
-    verify_component_features()?;
+    println!("component feature-group graphs verified");
     Ok(())
 }
 
@@ -155,33 +184,44 @@ fn verify_component_features() -> Result {
         ),
     ];
 
-    for (package, features, expected) in cases {
-        let actual = inspect_components_features(package, features)?;
-        let expected = expected.map(|list| {
-            let mut sorted: Vec<String> = list.iter().map(|s| (*s).to_owned()).collect();
-            sorted.sort();
-            sorted
-        });
-        if actual != expected {
-            return Err(format!(
-                "{package} ({features:?}): expected {COMPONENTS} features {expected:?}, found {actual:?}"
-            )
-            .into());
+    std::thread::scope(|scope| {
+        let handles: Vec<_> = cases
+            .into_iter()
+            .map(|(package, features, expected)| {
+                scope.spawn(move || -> std::result::Result<(), String> {
+                    let actual =
+                        inspect_components_features(package, features).map_err(|e| e.to_string())?;
+                    let expected = expected.map(|list| {
+                        let mut sorted: Vec<String> =
+                            list.iter().map(|s| (*s).to_owned()).collect();
+                        sorted.sort();
+                        sorted
+                    });
+                    if actual != expected {
+                        return Err(format!(
+                            "{package} ({features:?}): expected {COMPONENTS} features {expected:?}, found {actual:?}"
+                        ));
+                    }
+                    Ok(())
+                })
+            })
+            .collect();
+        for handle in handles {
+            handle.join().expect("component feature thread panicked")?;
         }
-    }
-    println!("component feature-group graphs verified");
+        Ok::<_, String>(())
+    })?;
     Ok(())
 }
 
-fn verify_pure(target: &str, features: &[&str], theme_only: bool) -> Result {
+fn verify_pure(target: Option<&str>, features: &[&str], theme_only: bool) -> Result {
     const THEME: &str = "gpui-material-theme";
     const MCU: &str = "material-color-utils";
 
+    let label = target.unwrap_or(THEME);
     let mut args = vec![
         "tree",
         "--locked",
-        "--target",
-        target,
         "--edges",
         "normal,build,dev",
         "--prefix",
@@ -190,6 +230,9 @@ fn verify_pure(target: &str, features: &[&str], theme_only: bool) -> Result {
         "{p} {f}",
         "--no-default-features",
     ];
+    if let Some(target) = target {
+        args.extend(["--target", target]);
+    }
     if theme_only {
         args.extend(["--package", THEME]);
     }
@@ -204,20 +247,18 @@ fn verify_pure(target: &str, features: &[&str], theme_only: bool) -> Result {
         let mut fields = line.split_whitespace();
         let package = fields.next().unwrap_or_default();
         if package.starts_with("gpui") && package != THEME {
-            return Err(
-                format!("{target}: unexpected dependency in the pure graph: {line}").into(),
-            );
+            return Err(format!("{label}: unexpected dependency in the pure graph: {line}").into());
         }
         found_theme |= package == THEME;
         found_serde |= package == "serde";
         if package == MCU {
             found_mcu = true;
             if !line.trim_end_matches(" (*)").trim_end().ends_with("v0.1.3") {
-                return Err(format!("{target}: unexpected MCU version or features: {line}").into());
+                return Err(format!("{label}: unexpected MCU version or features: {line}").into());
             }
         }
         if theme_only && matches!(package, "image" | "rayon") {
-            return Err(format!("{target}: unexpected theme dependency: {line}").into());
+            return Err(format!("{label}: unexpected theme dependency: {line}").into());
         }
     }
     let active = features.first().copied().unwrap_or_default();
@@ -225,7 +266,7 @@ fn verify_pure(target: &str, features: &[&str], theme_only: bool) -> Result {
         || found_mcu != active.contains("dynamic-color")
         || (theme_only && found_serde != active.contains("serde"))
     {
-        return Err(format!("{target}: unexpected pure dependency graph for {features:?}").into());
+        return Err(format!("{label}: unexpected pure dependency graph for {features:?}").into());
     }
     Ok(())
 }
@@ -257,8 +298,13 @@ fn verify(target: &str, backend: &str, backend_features: &[&str], test: bool) ->
         metadata_args.extend(["--features", "gpui-material-gallery/test-support"]);
         tree_args.extend(["--features", "test-support"]);
     }
-    let metadata: Metadata = serde_json::from_str(&output("cargo", &metadata_args)?)?;
-    let tree = output("cargo", &tree_args)?;
+    let (metadata_json, tree) = std::thread::scope(|scope| {
+        let metadata = scope.spawn(|| output("cargo", &metadata_args).map_err(|e| e.to_string()));
+        let tree = output("cargo", &tree_args).map_err(|e| e.to_string());
+        let metadata = metadata.join().expect("metadata thread panicked")?;
+        Ok::<_, String>((metadata, tree?))
+    })?;
+    let metadata: Metadata = serde_json::from_str(&metadata_json)?;
     let packages: BTreeMap<_, _> = metadata
         .packages
         .iter()
@@ -326,9 +372,5 @@ fn verify(target: &str, backend: &str, backend_features: &[&str], test: bool) ->
             return Err(format!("{target}: unexpected {name} features {:?}", node.features).into());
         }
     }
-    println!(
-        "{target} {}: pinned GPUI/Base and {backend} verified",
-        if test { "test-support" } else { "native" }
-    );
     Ok(())
 }

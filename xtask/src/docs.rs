@@ -1,9 +1,9 @@
 mod i18n;
 
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     fs,
-    path::{Component, Path},
+    path::{Component, Path, PathBuf},
 };
 
 use markdown::{ParseOptions, mdast::Node, to_mdast};
@@ -12,14 +12,41 @@ use crate::{Result, output};
 
 pub(crate) use i18n::write_records;
 
+pub(super) struct ParsedDoc {
+    pub(super) text: String,
+    pub(super) tree: Node,
+    pub(super) anchors: BTreeSet<String>,
+}
+
+impl ParsedDoc {
+    pub(super) fn parse(path: &Path) -> Result<Self> {
+        let text = fs::read_to_string(path)?.replace("\r\n", "\n");
+        let tree = to_mdast(&text, &ParseOptions::gfm())
+            .map_err(|error| format!("{}: {error}", path.display()))?;
+        let mut anchors = BTreeSet::new();
+        collect_anchors(&tree, &mut anchors);
+        Ok(Self {
+            text,
+            tree,
+            anchors,
+        })
+    }
+}
+
 pub(crate) fn check() -> Result {
     let files = output("git", &["ls-files", "-z", "--", "*.md"])?;
+    let mut docs = BTreeMap::new();
+    for name in files.split_terminator('\0') {
+        let path = PathBuf::from(name);
+        let doc = ParsedDoc::parse(&path)?;
+        docs.insert(path, doc);
+    }
     let mut count = 0;
     for name in files.split_terminator('\0') {
         let path = Path::new(name);
-        let tree = parse(path)?;
-        visit_links(&tree, &mut |url| {
-            if let Err(error) = check_link(path, url) {
+        let doc = &docs[path];
+        visit_links(&doc.tree, &mut |url| {
+            if let Err(error) = check_link(path, url, &docs) {
                 return Err(format!("{name}: {url}: {error}").into());
             }
             count += 1;
@@ -27,13 +54,7 @@ pub(crate) fn check() -> Result {
         })?;
     }
     println!("Checked {count} Markdown link destinations");
-    i18n::check(&files)
-}
-
-fn parse(path: &Path) -> Result<Node> {
-    let text = fs::read_to_string(path)?;
-    to_mdast(&text, &ParseOptions::gfm())
-        .map_err(|error| format!("{}: {error}", path.display()).into())
+    i18n::check(&files, &docs)
 }
 
 fn visit_links(node: &Node, visit: &mut impl FnMut(&str) -> Result) -> Result {
@@ -49,7 +70,7 @@ fn visit_links(node: &Node, visit: &mut impl FnMut(&str) -> Result) -> Result {
     Ok(())
 }
 
-fn check_link(source: &Path, url: &str) -> Result {
+fn check_link(source: &Path, url: &str, docs: &BTreeMap<PathBuf, ParsedDoc>) -> Result {
     if url.starts_with("//") || url.split('/').next().is_some_and(|part| part.contains(':')) {
         return Ok(());
     }
@@ -75,7 +96,7 @@ fn check_link(source: &Path, url: &str) -> Result {
         }
         path
     };
-    if !path.exists() {
+    if !docs.contains_key(&path) && !path.exists() {
         return Err(format!("missing path {}", path.display()).into());
     }
     if !fragment.is_empty()
@@ -83,9 +104,13 @@ fn check_link(source: &Path, url: &str) -> Result {
             .extension()
             .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
     {
-        let mut ids = BTreeSet::new();
-        collect_anchors(&parse(&path)?, &mut ids);
-        if !ids.contains(&decode(fragment)?) {
+        let decoded = decode(fragment)?;
+        let has_anchor = if let Some(doc) = docs.get(&path) {
+            doc.anchors.contains(&decoded)
+        } else {
+            ParsedDoc::parse(&path)?.anchors.contains(&decoded)
+        };
+        if !has_anchor {
             return Err(format!("missing heading in {}", path.display()).into());
         }
     }

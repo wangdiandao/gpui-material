@@ -1,17 +1,17 @@
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     fmt::Write as _,
     fs,
     path::{Path, PathBuf},
 };
 
-use markdown::{ParseOptions, mdast::Node, to_mdast};
+use markdown::mdast::Node;
 
 use crate::{Result, output};
 
-use super::{heading_slug, unique_id};
+use super::{ParsedDoc, heading_slug, unique_id};
 
-pub(super) fn check(markdown: &str) -> Result {
+pub(super) fn check(markdown: &str, docs: &BTreeMap<PathBuf, ParsedDoc>) -> Result {
     let files = markdown.split_terminator('\0').collect::<BTreeSet<_>>();
     let records = output("git", &["ls-files", "-z", "--", "*.i18n.yaml"])?;
     let mut records = records.split_terminator('\0').collect::<BTreeSet<_>>();
@@ -33,7 +33,7 @@ pub(super) fn check(markdown: &str) -> Result {
         if !records.remove(pair.record.as_str()) {
             return Err(format!("{path} has no tracked {}", pair.record).into());
         }
-        let expected = pair.render()?;
+        let expected = pair.render(docs)?;
         let current = fs::read_to_string(&pair.record)?.replace("\r\n", "\n");
         if current != expected {
             let mut section = "/";
@@ -62,10 +62,11 @@ pub(super) fn check(markdown: &str) -> Result {
 }
 
 pub(crate) fn write_records(paths: &[&str]) -> Result {
+    let docs = BTreeMap::new();
     for path in paths {
         let normalized = path.replace('\\', "/");
         let pair = Pair::new(&normalized)?;
-        fs::write(&pair.record, pair.render()?)?;
+        fs::write(&pair.record, pair.render(&docs)?)?;
         println!("Updated {}", pair.record);
     }
     Ok(())
@@ -110,12 +111,12 @@ impl<'a> Pair<'a> {
         })
     }
 
-    fn render(&self) -> Result<String> {
+    fn render(&self, docs: &BTreeMap<PathBuf, ParsedDoc>) -> Result<String> {
         let file_name = |path: &str| PathBuf::from(path).file_name().unwrap().to_owned();
         let en_switch = format!("English | [中文]({})", file_name(&self.chinese).display());
         let zh_switch = format!("[English]({}) | 中文", file_name(self.english).display());
-        let en = read_sections(Path::new(self.english), &en_switch)?;
-        let zh = read_sections(Path::new(&self.chinese), &zh_switch)?;
+        let en = read_sections(Path::new(self.english), &en_switch, docs)?;
+        let zh = read_sections(Path::new(&self.chinese), &zh_switch, docs)?;
         if en.len() != zh.len() {
             return Err(format!(
                 "{} and {} have different heading counts",
@@ -162,11 +163,20 @@ struct Section {
     code: Vec<(Option<String>, Option<String>, String)>,
 }
 
-fn read_sections(path: &Path, switcher: &str) -> Result<Vec<Section>> {
-    let text = fs::read_to_string(path)?.replace("\r\n", "\n");
-    let tree = to_mdast(&text, &ParseOptions::gfm())
-        .map_err(|error| format!("{}: {error}", path.display()))?;
-    let blocks = tree.children().ok_or("expected Markdown document")?;
+fn read_sections(
+    path: &Path,
+    switcher: &str,
+    docs: &BTreeMap<PathBuf, ParsedDoc>,
+) -> Result<Vec<Section>> {
+    let owned;
+    let doc = if let Some(doc) = docs.get(path) {
+        doc
+    } else {
+        owned = ParsedDoc::parse(path)?;
+        &owned
+    };
+    let text = &doc.text;
+    let blocks = doc.tree.children().ok_or("expected Markdown document")?;
     let [Node::Heading(title), Node::Paragraph(navigation), ..] = blocks.as_slice() else {
         return Err(format!(
             "{} must start with a title and language switcher",

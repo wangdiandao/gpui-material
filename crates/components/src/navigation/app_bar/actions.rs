@@ -575,10 +575,13 @@ impl Element for StripLayout {
         let mut offset = px(0.);
         for item in &mut items[..shown] {
             let extent = self.axis.extent(item.preferred);
-            let cap = self.axis.size(extent, breadth);
-            let child = item
-                .inline
-                .layout_as_root(cap.map(AvailableSpace::Definite), window, cx);
+            let child = if self.axis.cross(item.preferred) > breadth {
+                let cap = self.axis.size(extent, breadth);
+                item.inline
+                    .layout_as_root(cap.map(AvailableSpace::Definite), window, cx)
+            } else {
+                item.preferred
+            };
             let origin = self.axis.origin(bounds, child, offset, self.direction);
             window.with_content_mask(Some(ContentMask { bounds }), |window| {
                 item.inline.prepaint_at(origin, window, cx)

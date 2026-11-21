@@ -148,18 +148,22 @@ impl NavigationRailState {
             let prev = (self.collapsed.value(), self.expanded.value());
             let (c, c_run) = self.collapsed.sample(now, reduced);
             let (e, e_run) = self.expanded.sample(now, reduced);
-            if !c_run && !e_run {
+            let notify = if !c_run && !e_run {
                 self.settle();
-                cx.notify();
+                true
             } else {
                 let target = WidthWeights::for_mode(self.target);
                 let dist = (c - target.collapsed)
                     .abs()
                     .max((e - target.expanded).abs());
                 self.progress = (1. - dist).clamp(0., 1.);
-                if (c, e) != prev {
-                    cx.notify();
-                }
+                (c, e) != prev
+            };
+            if notify {
+                let state = cx.weak_entity();
+                cx.defer(move |cx| {
+                    let _ = state.update(cx, |_, cx| cx.notify());
+                });
             }
         }
         WidthWeights {

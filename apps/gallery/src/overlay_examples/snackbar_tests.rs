@@ -560,3 +560,32 @@ fn snackbar_advances_after_timeout_and_accepts_undo(cx: &mut TestAppContext) {
     click(cx, "snackbar-action-region".into());
     assert_eq!(message(cx, 3usize).as_deref(), Some("Draft restored"));
 }
+
+#[gpui::test]
+fn snackbar_renders_nonzero_fallback_width_on_first_frame(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+        MaterialRoot::init(MaterialTheme::default(), cx);
+        cx.set_reduce_motion(true);
+    });
+    let (_, cx) = cx.add_window_view(|window, cx| {
+        let host = cx.new(|_| SnackbarHost::default());
+        host.update(cx, |host, cx| {
+            host.push(Snackbar::new("First frame message"), window, cx);
+        });
+        QueuePreview {
+            host: Some(host),
+            outside: cx.focus_handle(),
+        }
+    });
+    cx.update(|window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let bounds = find(window, &[], &("snackbar", 1usize).into())
+            .unwrap()
+            .bounds();
+        assert!(
+            bounds.size.width > px(0.),
+            "first-frame snackbar uses fallback width instead of 0px: {bounds:?}"
+        );
+    });
+}

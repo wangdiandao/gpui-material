@@ -249,7 +249,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 通过 `.open(open)` 和 `.on_open_change(|requested, window, cx| ...)` 控制菜单显示。由调用方处理请求并重新渲染。`.on_dismiss(...)` 报告用户发出的关闭请求。程序更新在渲染时生效，丢弃草稿时保留已提交值。上下方向键浏览选项，回车提交，Escape 在输入法组合结束后关闭。从菜单关闭时，焦点返回仍可用的触发锚点。已获取焦点的外部控件保留焦点。
 
-重新创建或调整选项顺序时保留各自的 ID。`.option_content(|option, highlighted, window, cx| ...)` 提供装饰性行内容，原始标签用于无障碍名称和筛选。可通过 `scroll_state()` 读取或移动保留的 GPUI `ListState`，或用 `set_scroll_state(&scroll, cx)` 接入调用方持有的状态。列表仅构造可见行和预加载区域，包括自定义内容。菜单默认跟随字段宽度。用 `.match_anchor_width(false)` 选用独立宽度，默认 240 px，`.popup_width(width)` 可覆盖该值。菜单宽高受窗口可用区域限制。`.appearance(MenuSurfaceStyle)` 配置菜单形状、主题角色、描边和高程。`.container_color(color)` 可覆盖容器颜色。
+重新创建或调整选项顺序时保留各自的 ID。使用 `ExposedDropdown::with_shared_options(id, label, &state, options)` 传入保留的 `Rc<[DropdownOption]>`（或任意 `Into<Rc<[DropdownOption]>>`），可在多次渲染间共享选项切片，避免逐帧收集与线性切片比对。`.option_content(|option, highlighted, window, cx| ...)` 提供装饰性行内容，原始标签用于无障碍名称和筛选。可通过 `scroll_state()` 读取或移动保留的 GPUI `ListState`，或用 `set_scroll_state(&scroll, cx)` 接入调用方持有的状态。列表仅构造可见行和预加载区域，包括自定义内容。菜单默认跟随字段宽度。用 `.match_anchor_width(false)` 选用独立宽度，默认 240 px，`.popup_width(width)` 可覆盖该值。菜单宽高受窗口可用区域限制。`.appearance(MenuSurfaceStyle)` 配置菜单形状、主题角色、描边和高程。`.container_color(color)` 可覆盖容器颜色。
 
 ### 菜单开关和菜单项内容
 

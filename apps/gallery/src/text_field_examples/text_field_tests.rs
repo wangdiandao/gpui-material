@@ -818,3 +818,71 @@ fn masked_pattern_and_validator_enforce_formatting_and_undo(cx: &mut TestAppCont
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn resting_label_reserves_trailing_inset_in_ltr_and_rtl(cx: &mut TestAppContext) {
+    use gpui_material::{Button, TextFieldLabelAlignment};
+
+    struct TrailingLabelField(Entity<TextFieldState>);
+
+    impl Render for TrailingLabelField {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            TextField::new("trailing-field", "Destination", &self.0)
+                .label_alignment(TextFieldLabelAlignment::End, TextFieldLabelAlignment::End)
+                .trailing(Button::new("trailing-btn", "Open"))
+        }
+    }
+
+    let (window, state) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut state = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let input = cx.new(|cx| TextFieldState::new(window, cx));
+            state = Some(input.clone());
+            cx.new(|_| TrailingLabelField(input))
+        })
+        .unwrap();
+        (window, state.unwrap())
+    });
+
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let field = find(window, &[], &"trailing-field".into()).unwrap();
+        let container = find(window, field.path(), &"container".into()).unwrap();
+        let label = find(window, field.path(), &"label".into()).unwrap();
+        assert!(
+            container.bounds().right() - label.bounds().right() >= px(64.),
+            "LTR resting label reserves 16px padding + 48px trailing inset: {:?}",
+            (container.bounds(), label.bounds())
+        );
+
+        let mut theme = material_theme(cx).clone();
+        theme.layout.direction = Direction::Rtl;
+        set_material_theme(theme, cx);
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let field = find(window, &[], &"trailing-field".into()).unwrap();
+        let container = find(window, field.path(), &"container".into()).unwrap();
+        let label = find(window, field.path(), &"label".into()).unwrap();
+        assert!(
+            label.bounds().left() - container.bounds().left() >= px(64.),
+            "RTL resting label reserves 16px padding + 48px trailing inset on left: {:?}",
+            (container.bounds(), label.bounds())
+        );
+
+        state.update(cx, |state, cx| state.focus(window, cx));
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let field = find(window, &[], &"trailing-field".into()).unwrap();
+        let container = find(window, field.path(), &"container".into()).unwrap();
+        let label = find(window, field.path(), &"label".into()).unwrap();
+        assert_eq!(
+            label.bounds().left() - container.bounds().left(),
+            px(16.),
+            "Floated label returns to standard horizontal padding"
+        );
+    })
+    .unwrap();
+}

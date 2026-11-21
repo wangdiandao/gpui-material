@@ -2,9 +2,9 @@ use std::{cell::Cell, rc::Rc};
 
 use gpui::{
     AccessibleAction, AnyElement, App, BorderStyle, Bounds, ContentMask, Corners, Edges, ElementId,
-    Entity, FocusHandle, Font, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    Pixels, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, TextAlign, Window,
-    canvas, div, point, prelude::FluentBuilder, px, quad,
+    FocusHandle, Font, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement, Pixels,
+    RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, TextAlign, Window, canvas,
+    div, point, prelude::FluentBuilder, px, quad,
 };
 use gpui_base::{
     ScrollbarAxis, TestSupportExt,
@@ -28,12 +28,19 @@ use super::{
     TextFieldVariant,
 };
 
-type SetValue = Box<dyn Fn(SharedString, &mut Window, &mut App)>;
-
 struct FieldAnimation {
     floating: f32,
     focus_amount: f32,
     error_amount: f32,
+}
+
+#[derive(Default)]
+struct CharacterCountCache {
+    text: SharedString,
+    limit: Option<usize>,
+    support_text: Option<SharedString>,
+    count_label: SharedString,
+    combined_support: Option<SharedString>,
 }
 
 struct FieldPalette {
@@ -62,7 +69,7 @@ struct ConfiguredEditor {
     element: AnyElement,
     role: Role,
     value: Option<SharedString>,
-    set_value: Option<SetValue>,
+    set_value: Option<Editor>,
 }
 
 fn configure_editor<M: InputModeKind>(state: &mut InputBaseState<M>, style: InputEditorStyle) {
@@ -86,16 +93,6 @@ fn interaction_state(disabled: bool, hovered: bool, focus_visible: bool) -> Inte
     state.hovered = hovered && !disabled;
     state.focus_visible = focus_visible && !disabled;
     state
-}
-
-fn edit_handler<M: InputModeKind>(state: Entity<InputBaseState<M>>) -> SetValue {
-    Box::new(move |value, window, cx| {
-        state.update(cx, |state, cx| {
-            if state.is_editable() {
-                state.replace_all(value, window, cx);
-            }
-        });
-    })
 }
 
 fn sample_animation(
@@ -339,7 +336,7 @@ fn configure_and_build_editor(
             });
             let value = (role != Role::PasswordInput).then(|| state.read(cx).value());
             let set_value = (!readonly && !disabled && role != Role::PasswordInput)
-                .then(|| edit_handler(state.clone()));
+                .then(|| Editor::Single(state.clone()));
             ConfiguredEditor {
                 element: state.into_any_element(),
                 role,
@@ -388,7 +385,7 @@ fn configure_and_build_editor(
                 })));
             });
             let value = state.read(cx).value();
-            let set_value = (!readonly && !disabled).then(|| edit_handler(state.clone()));
+            let set_value = (!readonly && !disabled).then(|| Editor::Multiple(state.clone()));
             ConfiguredEditor {
                 element: state.into_any_element(),
                 role: Role::MultilineTextInput,
@@ -412,7 +409,7 @@ fn configure_and_build_editor(
             };
             let value = (!masked).then(|| state.read(cx).value());
             let set_value =
-                (!readonly && !disabled && !masked).then(|| edit_handler(state.clone()));
+                (!readonly && !disabled && !masked).then(|| Editor::Secure(state.clone()));
             ConfiguredEditor {
                 element: state.into_any_element(),
                 role,
@@ -483,7 +480,7 @@ fn build_outline_canvas(
     filled: bool,
     outline_width: Pixels,
     outline_tint: Hsla,
-    cutout: Rc<Cell<Option<Bounds<Pixels>>>>,
+    cutout: Option<Rc<Cell<Option<Bounds<Pixels>>>>>,
 ) -> gpui::Canvas<()> {
     canvas(
         |_, _, _| (),
@@ -528,11 +525,16 @@ fn build_outline_canvas(
             );
             // The outer edge and stroke width each snap independently.
             // Account for their combined rounding when opening the notch.
-            let device_pixel = px(1. / window.scale_factor());
-            let Some(label_bounds) = cutout.get().filter(|label| {
-                label.top() < bounds.top() + outline_width + device_pixel
-                    && label.bottom() > bounds.top() - device_pixel
-            }) else {
+            let Some(label_bounds) =
+                cutout
+                    .as_ref()
+                    .and_then(|cutout| cutout.get())
+                    .filter(|label| {
+                        let device_pixel = px(1. / window.scale_factor());
+                        label.top() < bounds.top() + outline_width + device_pixel
+                            && label.bottom() > bounds.top() - device_pixel
+                    })
+            else {
                 window.paint_quad(border);
                 return;
             };
@@ -573,6 +575,7 @@ struct LabelConfig {
     disabled: bool,
     rtl: bool,
     has_leading: bool,
+    has_trailing: bool,
     floating: f32,
     expanded_alignment: TextFieldLabelAlignment,
     minimized_alignment: TextFieldLabelAlignment,
@@ -583,7 +586,7 @@ fn build_label(
     config: LabelConfig,
     metrics: &FieldMetrics,
     focus: &FocusHandle,
-    measure_cutout: Rc<Cell<Option<Bounds<Pixels>>>>,
+    measure_cutout: Option<Rc<Cell<Option<Bounds<Pixels>>>>>,
 ) -> (Option<AnyElement>, Option<AnyElement>) {
     let label_alignment = if config.floating >= 0.5 {
         config.minimized_alignment
@@ -598,6 +601,16 @@ fn build_label(
     } else {
         0.
     };
+    let trailing_inset = if config.has_trailing {
+        48. * (1. - config.floating)
+    } else {
+        0.
+    };
+    let (left_inset, right_inset) = if config.rtl {
+        (trailing_inset, leading_inset)
+    } else {
+        (leading_inset, trailing_inset)
+    };
     let label_content = config
         .label_content
         .unwrap_or_else(|| config.label.into_any_element());
@@ -611,8 +624,8 @@ fn build_label(
                 label
                     .absolute()
                     .top(px(metrics.label_top))
-                    .left(label_left + px(if config.rtl { 0. } else { leading_inset }))
-                    .right(label_right + px(if config.rtl { leading_inset } else { 0. }))
+                    .left(label_left + px(left_inset))
+                    .right(label_right + px(right_inset))
             },
         )
         .text_size(px(metrics.label_size))
@@ -645,7 +658,7 @@ fn build_label(
                 })
                 .child(label_content)
                 .children(config.required.then_some("*"))
-                .when(config.has_cutout, |label| {
+                .when_some(measure_cutout, |label, measure_cutout| {
                     label.child(
                         canvas(
                             move |bounds, _, _| measure_cutout.set(Some(bounds)),
@@ -910,15 +923,34 @@ impl RenderOnce for TextField {
                 content: None,
             })
         });
-        let count: Option<SharedString> = self
-            .character_count
-            .zip(configured.value.as_ref())
-            .map(|(limit, text)| format!("{} / {limit}", text.chars().count()).into());
-        let description = match (support.as_ref(), count.as_ref()) {
-            (Some(support), Some(count)) => Some(format!("{}. {count}", support.text).into()),
-            (Some(support), None) => Some(support.text.clone()),
-            (None, count) => count.cloned(),
-        };
+        let support_text = support.as_ref().map(|support| &support.text);
+        let (count, description) =
+            if let Some((limit, text)) = self.character_count.zip(configured.value.as_ref()) {
+                let cache = window.use_keyed_state((self.id.clone(), "char-count"), cx, |_, _| {
+                    CharacterCountCache::default()
+                });
+                cache.update(cx, |cache, _| {
+                    let text_or_limit_changed = cache.limit != Some(limit) || &cache.text != text;
+                    if text_or_limit_changed {
+                        cache.text = text.clone();
+                        cache.limit = Some(limit);
+                        cache.count_label = format!("{} / {limit}", text.chars().count()).into();
+                    }
+                    if text_or_limit_changed || cache.support_text.as_ref() != support_text {
+                        cache.support_text = support_text.cloned();
+                        cache.combined_support = Some(match support_text {
+                            Some(support) => format!("{support}. {}", cache.count_label).into(),
+                            None => cache.count_label.clone(),
+                        });
+                    }
+                    (
+                        Some(cache.count_label.clone()),
+                        cache.combined_support.clone(),
+                    )
+                })
+            } else {
+                (None, support_text.cloned())
+            };
         let placeholder_hint = self.placeholder.as_ref().map_or_else(
             || presentation.placeholder().clone(),
             |(hint, _)| hint.clone(),
@@ -931,7 +963,7 @@ impl RenderOnce for TextField {
             label_inside,
             filled,
         );
-        let cutout = Rc::new(Cell::new(None::<Bounds<Pixels>>));
+        let cutout = has_cutout.then(|| Rc::new(Cell::new(None::<Bounds<Pixels>>)));
         let outline_canvas = build_outline_canvas(
             shape,
             direction,
@@ -951,6 +983,7 @@ impl RenderOnce for TextField {
                 disabled,
                 rtl,
                 has_leading: self.leading.is_some(),
+                has_trailing: self.trailing.is_some(),
                 floating: animation.floating,
                 expanded_alignment: self.expanded_alignment,
                 minimized_alignment: self.minimized_alignment,
@@ -1020,10 +1053,10 @@ impl RenderOnce for TextField {
             )
             .when(!disabled, |field| field.track_focus(&focus).tab_stop(false))
             .when_some(configured.value, |field, value| field.aria_value(value))
-            .when_some(configured.set_value, |field, set_value| {
+            .when_some(configured.set_value, |field, editor| {
                 field.on_a11y_action(AccessibleAction::SetValue, move |data, window, cx| {
                     if let Some(gpui::accesskit::ActionData::Value(value)) = data {
-                        set_value(value.to_string().into(), window, cx);
+                        editor.replace_all(value.to_string().into(), window, cx);
                     }
                 })
             })

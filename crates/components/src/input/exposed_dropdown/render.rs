@@ -264,12 +264,6 @@ fn render_option_row(
         || choice.label.clone().into_any_element(),
         |content| content(&choice, current, window, cx),
     );
-    let state = ctx.state.clone();
-    let callback = ctx.on_select.clone();
-    let accessible = choice.clone();
-    let accessible_state = state.clone();
-    let accessible_callback = callback.clone();
-    let parent = ctx.parent;
     let ink = ctx.ink;
     let selected = ctx.selected_bg;
     let selected_ink = ctx.selected_ink;
@@ -301,19 +295,19 @@ fn render_option_row(
         .items_center()
         .child(content)
         .when(ctx.open, |row| {
-            row.on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
-                choose(
-                    &accessible_state,
-                    &accessible,
-                    &accessible_callback,
-                    window,
-                    cx,
-                );
-                cx.notify(parent);
-            })
-            .on_click(move |_, window, cx| {
+            let state = ctx.state.clone();
+            let callback = ctx.on_select.clone();
+            let parent = ctx.parent;
+            let select_row = Rc::new(move |window: &mut Window, cx: &mut App| {
                 choose(&state, &choice, &callback, window, cx);
                 cx.notify(parent);
+            });
+            let accessible_select = select_row.clone();
+            row.on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
+                accessible_select(window, cx);
+            })
+            .on_click(move |_, window, cx| {
+                select_row(window, cx);
             })
         })
         .into_any_element()
@@ -480,7 +474,18 @@ impl RenderOnce for ExposedDropdown {
             Opening::Editor
         };
         let visibility = Rc::new(self.visibility);
-        self.state.update(cx, |state, cx| {
+        let (
+            input,
+            open,
+            editable,
+            popup_focus,
+            transfer_focus,
+            secondary_focus,
+            scroll,
+            options,
+            active,
+            selected_option,
+        ) = self.state.update(cx, |state, cx| {
             state.present(
                 &visibility,
                 self.primary_enabled,
@@ -489,23 +494,34 @@ impl RenderOnce for ExposedDropdown {
                 window,
                 cx,
             );
-        });
-        let model = self.state.read(cx);
-        let input = model.input.clone();
-        let open = model.open;
-        let editable = model.editable;
-        let popup_focus = model.popup_focus.clone();
-        let transfer_focus = model.restore_focus.is_some();
-        let secondary_focus = model.secondary_focus.clone();
-        let scroll = model.scroll.clone();
-        let query = input.read(cx).value();
-        let committed = model.committed.clone();
-        let composing = input.update(cx, |input, cx| {
-            input.marked_text_range(window, cx).is_some()
-        });
-        let filter = editable && !composing && query != committed;
-        let (options, active, selected_option) = self.state.update(cx, |state, _| {
-            state.reconcile_options(self.options, filter.then_some(query))
+            let input = state.input.clone();
+            let open = state.open;
+            let editable = state.editable;
+            let popup_focus = state.popup_focus.clone();
+            let transfer_focus = state.restore_focus.is_some();
+            let secondary_focus = state.secondary_focus.clone();
+            let scroll = state.scroll.clone();
+            let (query, composing) = input.update(cx, |input, cx| {
+                (
+                    input.value(),
+                    editable && input.marked_text_range(window, cx).is_some(),
+                )
+            });
+            let filter = editable && !composing && query != state.committed;
+            let (options, active, selected_option) =
+                state.reconcile_options(&self.options, filter.then_some(query));
+            (
+                input,
+                open,
+                editable,
+                popup_focus,
+                transfer_focus,
+                secondary_focus,
+                scroll,
+                options,
+                active,
+                selected_option,
+            )
         });
         let last_visible_options = window
             .use_keyed_state((self.id.clone(), "presented-options"), cx, |_, _| {
@@ -523,7 +539,7 @@ impl RenderOnce for ExposedDropdown {
             visible.1.clone_from(&active);
             visible.2.clone_from(&selected_option);
         }
-        let theme = current_material_theme(window, cx).clone();
+        let theme = current_material_theme(window, cx);
         let ink = color(theme.colors.color(ColorRole::OnSurface));
         let selected_bg = color(theme.colors.color(ColorRole::SecondaryContainer));
         let selected_ink = color(theme.colors.color(ColorRole::OnSecondaryContainer));
@@ -671,7 +687,7 @@ impl RenderOnce for ExposedDropdown {
                     on_select: self.on_select,
                     option_content: self.option_content,
                     parent,
-                    theme,
+                    theme: (*theme).clone(),
                     ink,
                     selected_bg,
                     selected_ink,
@@ -714,33 +730,49 @@ fn dropdown_arrow(progress: f32, ink: Hsla) -> impl IntoElement {
 
 #[cfg(test)]
 mod tests {
-    use super::super::state::OptionSnapshot;
+    use super::super::state::{OptionSnapshot, contains_ignore_case};
     use super::*;
 
     #[test]
     fn option_snapshot_reuses_results_and_invalidates_labels_and_query() {
         let mut snapshot = OptionSnapshot::default();
-        let options = || {
+        let options = || -> Rc<[DropdownOption]> {
             vec![
                 DropdownOption::new("a", "Alpha"),
                 DropdownOption::new("b", "Beta"),
             ]
+            .into()
         };
-        assert!(snapshot.reconcile(options(), None));
+        let shared = options();
+        assert!(snapshot.reconcile(&shared, None));
         let unfiltered = snapshot.visible.clone();
         assert!(Rc::ptr_eq(&unfiltered, &snapshot.source));
-        assert!(!snapshot.reconcile(options(), None));
+        assert!(Rc::ptr_eq(&unfiltered, &shared));
+        assert!(!snapshot.reconcile(&shared, None));
         assert!(Rc::ptr_eq(&unfiltered, &snapshot.visible));
-        assert!(snapshot.reconcile(options(), Some("ALP".into())));
+        let cloned_equal = options();
+        assert!(!snapshot.reconcile(&cloned_equal, None));
+        assert!(Rc::ptr_eq(&snapshot.source, &cloned_equal));
+        assert!(Rc::ptr_eq(&unfiltered, &snapshot.visible));
+        assert!(snapshot.reconcile(&shared, Some("ALP".into())));
         assert_eq!(snapshot.visible.len(), 1);
         assert_eq!(snapshot.visible[0].id, ElementId::from("a"));
-        assert!(snapshot.reconcile(
-            vec![
-                DropdownOption::new("a", "Renamed"),
-                DropdownOption::new("b", "Beta")
-            ],
-            Some("ALP".into())
-        ));
+        let renamed: Rc<[DropdownOption]> = vec![
+            DropdownOption::new("a", "Renamed"),
+            DropdownOption::new("b", "Beta"),
+        ]
+        .into();
+        assert!(snapshot.reconcile(&renamed, Some("ALP".into())));
         assert!(snapshot.visible.is_empty());
+    }
+
+    #[test]
+    fn contains_ignore_case_handles_ascii_and_unicode() {
+        assert!(contains_ignore_case("Alpha Beta", "", ""));
+        assert!(contains_ignore_case("Alpha Beta", "ALP", "alp"));
+        assert!(contains_ignore_case("Alpha Beta", "beta", "beta"));
+        assert!(!contains_ignore_case("Alpha", "Alpha Beta", "alpha beta"));
+        assert!(contains_ignore_case("北京市", "北京", "北京"));
+        assert!(contains_ignore_case("Café Crème", "CAFÉ", "café"));
     }
 }

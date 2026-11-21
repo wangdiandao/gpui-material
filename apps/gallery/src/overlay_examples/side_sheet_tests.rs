@@ -604,3 +604,53 @@ fn modal_side_sheet_mirrors_and_fits_a_compact_scaled_window(cx: &mut TestAppCon
         .advance_clock(std::time::Duration::from_millis(250));
     assert_side(cx, Direction::Rtl, true);
 }
+
+#[gpui::test]
+fn expandable_sheet_drag_handle_is_not_a_keyboard_tab_stop(cx: &mut TestAppContext) {
+    struct ExpandableProbe {
+        state: Entity<DialogState>,
+        before: FocusHandle,
+    }
+
+    impl Render for ExpandableProbe {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div()
+                .size_full()
+                .child(Button::new("before-sheet", "Before").track_focus(&self.before))
+                .child(
+                    Sheet::new("expandable-sheet", &self.state, "Notes", "Sheet body")
+                        .expandable(false, |_, _, _| {}),
+                )
+        }
+    }
+
+    let (window, before) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let state = cx.new(DialogState::new);
+        let before = cx.focus_handle();
+        let handle = before.clone();
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            cx.new(|_| ExpandableProbe {
+                state,
+                before: handle,
+            })
+        })
+        .unwrap();
+        (window, before)
+    });
+    cx.update_window(window.into(), |_, window, cx| {
+        window.activate_window();
+        before.focus(window, cx);
+        window.refresh();
+        window.draw(cx).clear(cx);
+        window.focus_next(cx);
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let drag = find(window, &[], &"drag-handle".into()).unwrap();
+        let expand = find(window, &[], &"expand".into()).unwrap();
+        assert_ne!(drag.focused(), Some(true));
+        assert_eq!(expand.focused(), Some(true));
+    })
+    .unwrap();
+}

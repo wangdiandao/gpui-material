@@ -418,3 +418,60 @@ fn dropdown_custom_surface_width_and_virtual_scroll_survive_rebuilding(cx: &mut 
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn dropdown_with_shared_options_filters_case_insensitively_and_tracks_active_choice(
+    cx: &mut TestAppContext,
+) {
+    struct SharedExample {
+        state: Entity<ExposedDropdownState>,
+        options: Rc<[DropdownOption]>,
+    }
+
+    impl Render for SharedExample {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div()
+                .w(px(280.))
+                .child(ExposedDropdown::with_shared_options(
+                    "shared-dropdown",
+                    "Shared destination",
+                    &self.state,
+                    self.options.clone(),
+                ))
+        }
+    }
+
+    let options: Rc<[DropdownOption]> = vec![
+        DropdownOption::new("alpha", "Alpha Station"),
+        DropdownOption::new("beta", "Beta Harbor"),
+        DropdownOption::new("gamma", "Gamma Ridge"),
+    ]
+    .into();
+    let (handle, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let state = cx.new(|cx| ExposedDropdownState::new("", true, window, cx));
+            let entity = cx.new(|_| SharedExample {
+                state,
+                options: options.clone(),
+            });
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    draw(cx, handle);
+    cx.update_window(handle.into(), |_, window, cx| window.focus_next(cx))
+        .unwrap();
+    cx.simulate_input(handle.into(), "hArBoR");
+    draw(cx, handle);
+    cx.simulate_keystrokes(handle.into(), "down enter");
+    draw(cx, handle);
+    cx.update(|cx| {
+        let state = view.read(cx).state.read(cx);
+        assert_eq!(state.selected_option_id(), Some(&ElementId::from("beta")));
+    });
+}

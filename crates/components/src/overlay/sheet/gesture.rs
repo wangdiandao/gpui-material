@@ -41,7 +41,9 @@ pub(super) fn drag_handle(
             .color(ColorRole::OnSurfaceVariant),
     );
     let focus = window
-        .use_keyed_state((id.clone(), "drag-focus"), cx, |_, cx| cx.focus_handle())
+        .use_keyed_state((id.clone(), "drag-focus"), cx, |_, cx| {
+            cx.focus_handle().tab_stop(false)
+        })
         .read(cx)
         .clone();
     let down = gesture.clone();
@@ -73,6 +75,7 @@ pub(super) fn drag_handle(
         .id("drag-handle")
         .test_support()
         .track_focus(&focus)
+        .tab_stop(false)
         .w_full()
         .h(px(48.))
         .flex_none()

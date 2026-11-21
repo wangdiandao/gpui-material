@@ -44,15 +44,17 @@ fn sync_focus_and_scroll(
     items: &[NavigationItem],
     rail: bool,
     cx: &mut App,
-) -> (HashMap<SharedString, FocusHandle>, ScrollHandle) {
+) -> (Vec<FocusHandle>, ScrollHandle) {
     state.update(cx, |state, cx| {
         let mut previous = std::mem::take(&mut state.focus);
+        let mut handles = Vec::with_capacity(items.len());
         state.focus = items
             .iter()
             .map(|item| {
                 let handle = previous
                     .remove(&item.id)
                     .unwrap_or_else(|| cx.focus_handle());
+                handles.push(handle.clone());
                 (item.id.clone(), handle)
             })
             .collect();
@@ -61,7 +63,7 @@ fn sync_focus_and_scroll(
         } else {
             &state.horizontal_scroll
         };
-        (state.focus.clone(), scroll.clone())
+        (handles, scroll.clone())
     })
 }
 
@@ -110,12 +112,7 @@ fn update_reveal_state(
 ) -> Option<usize> {
     if tab && scrollable {
         return state.update(cx, |state, _| {
-            state.tab_reveal.choose(
-                selected,
-                focused_id,
-                items.iter().map(|item| item.id.clone()).collect(),
-                scroll,
-            )
+            state.tab_reveal.choose(selected, focused_id, items, scroll)
         });
     }
     state.update(cx, |state, _| {
@@ -200,7 +197,7 @@ struct DestinationRowContext<'a> {
     tab_content: Option<Hsla>,
     selected: Option<&'a SharedString>,
     tab_stop: Option<&'a SharedString>,
-    focus: &'a HashMap<SharedString, FocusHandle>,
+    focus: &'a [FocusHandle],
     on_select: Option<&'a Select>,
     height: Pixels,
     min_tab_width: Pixels,
@@ -246,7 +243,7 @@ fn build_destination_element(
                 (*selected_index == index).then(|| target.clone())
             }),
     };
-    let handle = &ctx.focus[&item.id];
+    let handle = &ctx.focus[index];
     let is_tab_stop = ctx.tab_stop == Some(&item.id);
     let id: ElementId = (ctx.row_id.clone(), item.id.clone()).into();
     let customize_item = ctx.tab || ctx.item_colors.is_some();
@@ -418,7 +415,7 @@ impl NavigationItems {
             .clone()
             .unwrap_or_else(|| self.row_state(window, cx));
         let mut rail_dividers = self.rail_dividers;
-        let (focus, scroll) = sync_focus_and_scroll(&state, &self.items, rail, cx);
+        let (mut focus, scroll) = sync_focus_and_scroll(&state, &self.items, rail, cx);
         let scroll = tabs
             .as_ref()
             .filter(|_| scrollable)
@@ -427,8 +424,9 @@ impl NavigationItems {
         let enabled: Vec<_> = self
             .items
             .iter()
-            .filter(|item| !item.disabled)
-            .map(|item| (item.id.clone(), focus[&item.id].clone()))
+            .zip(&focus)
+            .filter(|(item, _)| !item.disabled)
+            .map(|(item, handle)| (item.id.clone(), handle.clone()))
             .collect();
         let focused = enabled.iter().find(|(_, handle)| handle.is_focused(window));
         let selected = self.selected.as_ref();
@@ -443,6 +441,7 @@ impl NavigationItems {
         let mut items = self.items;
         if rtl && !rail {
             items.reverse();
+            focus.reverse();
         }
         let focused_id = focused.map(|(id, _)| id);
         let reveal_index = update_reveal_state(
@@ -972,7 +971,7 @@ impl ItemVisual {
             .items_center()
             .justify_center()
             .child(content)
-            .when(tab && !self.custom_indicator, |body| {
+            .when(tab && !self.custom_indicator && selection > 0., |body| {
                 body.child(
                     div()
                         .absolute()

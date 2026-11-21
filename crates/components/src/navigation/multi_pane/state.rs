@@ -136,11 +136,21 @@ impl Adaptation {
         }
         let mut expanded = 0;
         let mut reflowed = 0;
+        let mut seen = [false; 3];
+        let mut seen_count = 0;
         for role in prior
             .map(|destination| destination.role)
             .chain(PaneRole::ALL)
         {
+            if !std::mem::replace(&mut seen[role.index()], true) {
+                seen_count += 1;
+            } else {
+                continue;
+            }
             if value[role] != PanePlacement::Hidden {
+                if seen_count == 3 {
+                    break;
+                }
                 continue;
             }
             match self.strategies[role.index()] {
@@ -165,6 +175,9 @@ impl Adaptation {
                     expanded += 1;
                 }
                 _ => {}
+            }
+            if seen_count == 3 {
+                break;
             }
         }
         value
@@ -469,7 +482,10 @@ impl AdaptivePaneState {
             self.displayed = target;
         }
         if before != (self.current, self.target, self.progress) {
-            cx.notify();
+            let state = cx.weak_entity();
+            cx.defer(move |cx| {
+                let _ = state.update(cx, |_, cx| cx.notify());
+            });
         }
         DisplayedPanes {
             frames: self.displayed,
@@ -503,4 +519,40 @@ fn blend(from: Option<Bounds<Pixels>>, to: Bounds<Pixels>, fraction: f32) -> Bou
             interpolate(from.size.height, to.size.height),
         ),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn adaptation_resolve_short_circuits_duplicate_history_entries() {
+        let adaptation = Adaptation {
+            horizontal: 2,
+            vertical: 1,
+            strategies: [
+                Some(PaneAdaptStrategy::Hide),
+                Some(PaneAdaptStrategy::Hide),
+                Some(PaneAdaptStrategy::Hide),
+            ],
+        };
+        let mut history = vec![PaneDestination::new(PaneRole::Tertiary)];
+        for ix in 0..200 {
+            let role = if ix % 2 == 0 {
+                PaneRole::Primary
+            } else {
+                PaneRole::Secondary
+            };
+            history.push(PaneDestination::new(role).content_key(ix));
+        }
+        let resolved = adaptation.resolve(&history, true);
+        assert_eq!(
+            resolved,
+            PaneLayoutValue::new(
+                PanePlacement::Expanded,
+                PanePlacement::Expanded,
+                PanePlacement::Hidden,
+            )
+        );
+    }
 }

@@ -322,3 +322,150 @@ fn switch_custom_thumb_inherits_state_palette_and_stays_centered(cx: &mut TestAp
         assert!(snapshot.disabled && !snapshot.pressed);
     });
 }
+
+#[gpui::test]
+fn keyboard_switch_press_uses_the_same_thumb_feedback_as_pointer(cx: &mut TestAppContext) {
+    use super::SelectionExamples;
+    use crate::story::Story;
+
+    let (handle, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut view = None;
+        let handle = MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            let selection = cx.new(|cx| SelectionExamples::for_story(Story::Switch, cx));
+            view = Some(selection.clone());
+            selection
+        })
+        .unwrap();
+        (handle, view.unwrap())
+    });
+    cx.update_window(handle.into(), |_, window, _| window.activate_window())
+        .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle.into(), |_, window, cx| {
+        assert!(window.is_window_active());
+        draw(window, cx);
+        window.focus_next(cx);
+        window.focus_next(cx);
+        draw(window, cx);
+        assert_eq!(
+            find(window, &[], &"sync-switch".into()).unwrap().focused(),
+            Some(true)
+        );
+        let width = |window: &Window| {
+            find(
+                window,
+                &[],
+                &(ElementId::from("sync-switch"), "switch-thumb").into(),
+            )
+            .unwrap()
+            .bounds()
+            .size
+            .width
+        };
+        assert_eq!(width(window), px(16.));
+        let key = Keystroke::parse_with_os("space", cx.platform_info().os).unwrap();
+        window.dispatch_event(
+            KeyDownEvent {
+                keystroke: key.clone(),
+                is_held: false,
+                prefer_character_input: false,
+            }
+            .to_platform_input(),
+            cx,
+        );
+        draw(window, cx);
+        assert_eq!(
+            width(window),
+            px(28.),
+            "keyboard press must expand the handle like pointer press"
+        );
+        window.dispatch_event(KeyUpEvent { keystroke: key }.to_platform_input(), cx);
+        draw(window, cx);
+        assert!(view.read(cx).plain_switch);
+        assert_eq!(width(window), px(24.));
+        let key = Keystroke::parse_with_os("space", cx.platform_info().os).unwrap();
+        window.dispatch_event(
+            KeyDownEvent {
+                keystroke: key.clone(),
+                is_held: false,
+                prefer_character_input: false,
+            }
+            .to_platform_input(),
+            cx,
+        );
+        draw(window, cx);
+        assert_eq!(width(window), px(28.));
+        window.focus_prev(cx);
+        draw(window, cx);
+        assert_eq!(
+            width(window),
+            px(24.),
+            "blur cancels a key press whose release goes elsewhere"
+        );
+        window.dispatch_event(KeyUpEvent { keystroke: key }.to_platform_input(), cx);
+        draw(window, cx);
+        assert!(
+            view.read(cx).plain_switch,
+            "cancelled press must not toggle the owner"
+        );
+    })
+    .unwrap();
+}
+
+#[gpui::test]
+fn switch_interpolates_size_and_position_and_respects_reduced_motion(cx: &mut TestAppContext) {
+    use super::SelectionExamples;
+    use std::time::Duration;
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            let selection = cx.new(SelectionExamples::new);
+            view = Some(selection.clone());
+            selection
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    let sample = |cx: &mut TestAppContext| {
+        cx.update_window(window.into(), |_, window, cx| {
+            draw(window, cx);
+            let thumb = find(
+                window,
+                &[],
+                &(ElementId::from("sync-switch"), "switch-thumb").into(),
+            )
+            .unwrap()
+            .bounds();
+            (thumb.center().x, thumb.size.width)
+        })
+        .unwrap()
+    };
+    let toggle = |cx: &mut TestAppContext, checked| {
+        cx.update(|cx| {
+            view.update(cx, |selection, cx| {
+                selection.plain_switch = checked;
+                cx.notify();
+            })
+        });
+    };
+    let start = sample(cx);
+    toggle(cx, true);
+    assert_eq!(sample(cx), start);
+    cx.executor().advance_clock(Duration::from_millis(40));
+    let middle = sample(cx);
+    assert!(middle.0 > start.0);
+    assert!(middle.1 > start.1 && middle.1 < px(24.));
+    toggle(cx, false);
+    assert_eq!(sample(cx), middle);
+    cx.executor().advance_clock(Duration::from_secs(1));
+    assert_eq!(sample(cx), start);
+    cx.update(|cx| cx.set_reduce_motion(true));
+    toggle(cx, true);
+    let end = sample(cx);
+    assert_eq!(end.1, px(24.));
+    assert!(end.0 > middle.0);
+}

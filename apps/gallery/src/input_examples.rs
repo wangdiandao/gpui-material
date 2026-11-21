@@ -94,53 +94,235 @@ impl InputExamples {
             cx.notify();
         }
     }
-}
 
-struct DragPreview;
-
-impl Render for DragPreview {
-    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        Surface::new(ColorRole::PrimaryContainer)
+    fn trigger_button(
+        id: &'static str,
+        label: &'static str,
+        focus: &FocusHandle,
+        border: gpui::Hsla,
+        ring: gpui::Hsla,
+    ) -> Button {
+        Button::new(id)
+            .track_focus(focus)
+            .px_3()
+            .py_2()
             .rounded_md()
-            .p_2()
-            .child("Dragging")
+            .border_1()
+            .border_color(border)
+            .focus_visible(move |style| style.border_color(ring))
+            .accessibility_label(label)
+            .child(label)
     }
-}
 
-impl Render for InputExamples {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = window_material_theme(window, cx);
-        let tint = |role| color(theme.colors.color(role));
-        let border = tint(ColorRole::OutlineVariant);
-        let ring = tint(ColorRole::Secondary);
-        let surface = tint(ColorRole::Surface);
-        let scrim = scrim_color(theme, 0.32);
-        let anchor = logical_anchor(Anchor::TopLeft, self.direction);
-        let trigger = move |id, label: &'static str, focus: &FocusHandle| {
-            Button::new(id)
-                .track_focus(focus)
-                .px_3()
-                .py_2()
-                .rounded_md()
-                .border_1()
-                .border_color(border)
-                .focus_visible(move |style| style.border_color(ring))
-                .accessibility_label(label)
-                .child(label)
-        };
-        let popup = move || {
-            Surface::new(ColorRole::SurfaceContainerHigh)
-                .shadow_elevation(Elevation::Level2)
-                .rounded_md()
-                .p_3()
-        };
+    fn popup_surface() -> Surface {
+        Surface::new(ColorRole::SurfaceContainerHigh)
+            .shadow_elevation(Elevation::Level2)
+            .rounded_md()
+            .p_3()
+    }
+
+    fn render_roving_radio_group(
+        &self,
+        border: gpui::Hsla,
+        ring: gpui::Hsla,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let owner = cx.entity().downgrade();
+        RadioGroup::new("roving-focus")
+            .axis(Axis::Horizontal)
+            .flex()
+            .gap_2()
+            .on_key_down(cx.listener(|this, event: &gpui::KeyDownEvent, window, cx| {
+                let items = [
+                    (&this.radios[0], true),
+                    (&this.radios[1], false),
+                    (&this.radios[2], true),
+                ];
+                if let Some(ix) = move_roving_focus(
+                    &items,
+                    &event.keystroke.key,
+                    Axis::Horizontal,
+                    this.direction,
+                    window,
+                    cx,
+                ) {
+                    this.choice = ix;
+                    cx.stop_propagation();
+                    cx.notify();
+                }
+            }))
+            .children(
+                ["First", "Unavailable", "Last"]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(ix, label)| {
+                        let owner = owner.clone();
+                        Radio::new(("choice", ix))
+                            .track_focus(&self.radios[ix])
+                            .checked(self.choice == ix)
+                            .disabled(ix == 1)
+                            .tab_stop(self.choice == ix)
+                            .px_3()
+                            .py_2()
+                            .rounded_md()
+                            .border_1()
+                            .border_color(border)
+                            .focus_visible(move |style| style.border_color(ring))
+                            .accessibility_label(label)
+                            .child(label)
+                            .on_change(move |_, _, _, cx| {
+                                let _ = owner.update(cx, |this, cx| {
+                                    this.choice = ix;
+                                    cx.notify();
+                                });
+                            })
+                    }),
+            )
+    }
+
+    fn render_overlay_controls(
+        &self,
+        anchor: Anchor,
+        border: gpui::Hsla,
+        ring: gpui::Hsla,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let nested_trigger = self.nested_trigger.clone();
         let nested_open = self.nested_open;
         let owner = cx.entity().downgrade();
-        let drag_owner = owner.clone();
         let outer_owner = owner.clone();
         let inner_owner = owner.clone();
-        let nested_activation_owner = owner.clone();
+        let nested_activation_owner = owner;
+
+        div()
+            .flex()
+            .flex_wrap()
+            .gap_2()
+            .child(
+                Button::new("direction")
+                    .accessibility_label("Switch overlay direction")
+                    .px_3()
+                    .py_2()
+                    .child(if self.direction == Direction::Ltr {
+                        "Use RTL placement"
+                    } else {
+                        "Use LTR placement"
+                    })
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.direction = if this.direction == Direction::Ltr {
+                            Direction::Rtl
+                        } else {
+                            Direction::Ltr
+                        };
+                        cx.notify();
+                    })),
+            )
+            .child(
+                Popover::new("outer-popup")
+                    .anchor(anchor)
+                    .open(self.outer_open)
+                    .on_open_change(move |open, window, cx| {
+                        let _ = outer_owner.update(cx, |this, cx| {
+                            this.outer_open = *open;
+                            if !open {
+                                this.nested_open = false;
+                                this.trigger.focus(window, cx);
+                            }
+                            cx.notify();
+                        });
+                    })
+                    .trigger(
+                        Self::trigger_button(
+                            "open-popover",
+                            "Open popover",
+                            &self.trigger,
+                            border,
+                            ring,
+                        )
+                        .on_click(cx.listener(
+                            |this, event, window, cx| {
+                                if matches!(event, gpui::ClickEvent::Keyboard(_)) {
+                                    this.trigger.focus(window, cx);
+                                    this.outer_open = !this.outer_open;
+                                    cx.notify();
+                                }
+                            },
+                        )),
+                    )
+                    .content(move |_, _, _| {
+                        Self::popup_surface().child(
+                            Popover::new("inner-popup")
+                                .anchor(anchor)
+                                .open(nested_open)
+                                .on_open_change(move |open, window, cx| {
+                                    let _ = inner_owner.update(cx, |this, cx| {
+                                        this.nested_open = *open;
+                                        if !open {
+                                            this.nested_trigger.focus(window, cx);
+                                        }
+                                        cx.notify();
+                                    });
+                                })
+                                .trigger(
+                                    Self::trigger_button(
+                                        "open-nested",
+                                        "Open nested popover",
+                                        &nested_trigger,
+                                        border,
+                                        ring,
+                                    )
+                                    .on_click(
+                                        move |event, window, cx| {
+                                            if matches!(event, gpui::ClickEvent::Keyboard(_)) {
+                                                let _ = nested_activation_owner.update(
+                                                    cx,
+                                                    |this, cx| {
+                                                        this.nested_trigger.focus(window, cx);
+                                                        this.nested_open = !this.nested_open;
+                                                        cx.notify();
+                                                    },
+                                                );
+                                            }
+                                        },
+                                    ),
+                                )
+                                .content(move |_, _, _| {
+                                    Self::popup_surface().child(
+                                        div()
+                                            .id("nested-panel")
+                                            .role(Role::Status)
+                                            .aria_label("Nested popover open")
+                                            .test_support()
+                                            .child("Nested popover open"),
+                                    )
+                                }),
+                        )
+                    }),
+            )
+            .child(
+                Self::trigger_button(
+                    "open-dialog",
+                    "Open dialog",
+                    &self.dialog_trigger,
+                    border,
+                    ring,
+                )
+                .on_click(cx.listener(|this, _, window, cx| {
+                    this.dialog_open = true;
+                    this.dialog_focus.focus(window, cx);
+                    cx.notify();
+                })),
+            )
+    }
+
+    fn render_range_section(
+        &self,
+        border: gpui::Hsla,
+        ring: gpui::Hsla,
+        track_bg: gpui::Hsla,
+        thumb_bg: gpui::Hsla,
+        cx: &Context<Self>,
+    ) -> impl IntoElement {
         let position = self.range.read(cx).percentage().end;
         let label = value_label(&self.range, RangeThumb::End, cx, |value| {
             format!("{value:.0}").into()
@@ -166,7 +348,7 @@ impl Render for InputExamples {
             SliderTrack::new(&self.range)
                 .relative()
                 .h_4()
-                .bg(tint(ColorRole::SurfaceContainerHighest))
+                .bg(track_bg)
                 .rounded_full()
                 .child(SliderIndicator::new(&self.range).size_full())
                 .child(
@@ -177,9 +359,160 @@ impl Render for InputExamples {
                         .ml(px(-8.))
                         .size_4()
                         .rounded_full()
-                        .bg(tint(ColorRole::Primary)),
+                        .bg(thumb_bg),
                 ),
         );
+
+        div().flex().items_center().gap_3().child(range).child(
+            div()
+                .id("level-label")
+                .role(Role::Status)
+                .aria_label(format!("Level {label}"))
+                .test_support()
+                .child(label),
+        )
+    }
+
+    fn render_drag_source(&self, border: gpui::Hsla, cx: &mut Context<Self>) -> impl IntoElement {
+        let drag_owner = cx.entity().downgrade();
+        div()
+            .id("drag-source")
+            .role(Role::Group)
+            .aria_label("Drag sample")
+            .test_support()
+            .track_focus(&self.drag_focus)
+            .on_mouse_down(MouseButton::Left, {
+                let focus = self.drag_focus.clone();
+                move |_, window, cx| focus.focus(window, cx)
+            })
+            .px_3()
+            .py_2()
+            .border_1()
+            .border_color(border)
+            .on_drag((), move |_, _, window, cx| {
+                let _ = drag_owner.update(cx, |this, cx| {
+                    let weak = cx.entity().downgrade();
+                    this.drag = Some(DragCapture::watch(window, cx, move |_, cx| {
+                        let _ = weak.update(cx, |this, cx| {
+                            this.drag.take();
+                            this.drag_status = "Capture lost";
+                            cx.notify();
+                        });
+                    }));
+                    this.drag_status = "Dragging";
+                    cx.notify();
+                });
+                cx.new(|_| DragPreview)
+            })
+            .child("Drag sample")
+    }
+
+    fn render_dialog(
+        &self,
+        border: gpui::Hsla,
+        ring: gpui::Hsla,
+        surface: gpui::Hsla,
+        scrim: gpui::Hsla,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let owner = cx.entity().downgrade();
+        Dialog::new(cx)
+            .open(self.dialog_open)
+            .focus_handle(self.dialog_focus.clone())
+            .accessibility_label("Text and scrolling")
+            .on_open_change(move |open, _, window, cx| {
+                let _ = owner.update(cx, |this, cx| {
+                    this.dialog_open = open;
+                    if !open {
+                        this.cancel_drag(window, cx);
+                        this.dialog_trigger.focus(window, cx);
+                    }
+                    cx.notify();
+                });
+            })
+            .backdrop(div().absolute().size_full().bg(scrim))
+            .popup(
+                DialogPopup::new()
+                    .w_64()
+                    .p_4()
+                    .rounded_lg()
+                    .bg(surface)
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_3()
+                            .child("Text and scrolling")
+                            .child(
+                                Button::new("close-dialog")
+                                    .accessibility_label("Close dialog")
+                                    .px_3()
+                                    .py_2()
+                                    .rounded_md()
+                                    .border_1()
+                                    .border_color(border)
+                                    .focus_visible(move |style| style.border_color(ring))
+                                    .child("Close")
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.dialog_open = false;
+                                        this.cancel_drag(window, cx);
+                                        this.dialog_trigger.focus(window, cx);
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(
+                                div()
+                                    .border_1()
+                                    .border_color(border)
+                                    .p_2()
+                                    .child(Input::new(&self.text)),
+                            )
+                            .child(
+                                div()
+                                    .id("outer-scroll")
+                                    .test_support()
+                                    .h_32()
+                                    .overflow_y_scroll()
+                                    .track_scroll(&self.outer_scroll)
+                                    .child(
+                                        isolated_scroll("inner-scroll", &self.inner_scroll)
+                                            .test_support()
+                                            .h_20()
+                                            .children((1..=8).map(|number| {
+                                                div().p_1().child(format!("Inner row {number}"))
+                                            })),
+                                    )
+                                    .children((1..=8).map(|number| {
+                                        div().p_1().child(format!("Outer row {number}"))
+                                    })),
+                            ),
+                    ),
+            )
+    }
+}
+
+struct DragPreview;
+
+impl Render for DragPreview {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        Surface::new(ColorRole::PrimaryContainer)
+            .rounded_md()
+            .p_2()
+            .child("Dragging")
+    }
+}
+
+impl Render for InputExamples {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = window_material_theme(window, cx);
+        let tint = |role| color(theme.colors.color(role));
+        let border = tint(ColorRole::OutlineVariant);
+        let ring = tint(ColorRole::Secondary);
+        let surface = tint(ColorRole::Surface);
+        let track_bg = tint(ColorRole::SurfaceContainerHighest);
+        let thumb_bg = tint(ColorRole::Primary);
+        let scrim = scrim_color(theme, 0.32);
+        let anchor = logical_anchor(Anchor::TopLeft, self.direction);
 
         div()
             .id("foundation-input")
@@ -198,212 +531,10 @@ impl Render for InputExamples {
             .flex()
             .flex_col()
             .gap_2()
-            .child(
-                RadioGroup::new("roving-focus")
-                    .axis(Axis::Horizontal)
-                    .flex()
-                    .gap_2()
-                    .on_key_down(cx.listener(|this, event: &gpui::KeyDownEvent, window, cx| {
-                        let items = [
-                            (&this.radios[0], true),
-                            (&this.radios[1], false),
-                            (&this.radios[2], true),
-                        ];
-                        if let Some(ix) = move_roving_focus(
-                            &items,
-                            &event.keystroke.key,
-                            Axis::Horizontal,
-                            this.direction,
-                            window,
-                            cx,
-                        ) {
-                            this.choice = ix;
-                            cx.stop_propagation();
-                            cx.notify();
-                        }
-                    }))
-                    .children(
-                        ["First", "Unavailable", "Last"]
-                            .into_iter()
-                            .enumerate()
-                            .map(|(ix, label)| {
-                                let owner = owner.clone();
-                                Radio::new(("choice", ix))
-                                    .track_focus(&self.radios[ix])
-                                    .checked(self.choice == ix)
-                                    .disabled(ix == 1)
-                                    .tab_stop(self.choice == ix)
-                                    .px_3()
-                                    .py_2()
-                                    .rounded_md()
-                                    .border_1()
-                                    .border_color(border)
-                                    .focus_visible(move |style| style.border_color(ring))
-                                    .accessibility_label(label)
-                                    .child(label)
-                                    .on_change(move |_, _, _, cx| {
-                                        let _ = owner.update(cx, |this, cx| {
-                                            this.choice = ix;
-                                            cx.notify();
-                                        });
-                                    })
-                            }),
-                    ),
-            )
-            .child(
-                div()
-                    .flex()
-                    .flex_wrap()
-                    .gap_2()
-                    .child(
-                        Button::new("direction")
-                            .accessibility_label("Switch overlay direction")
-                            .px_3()
-                            .py_2()
-                            .child(if self.direction == Direction::Ltr {
-                                "Use RTL placement"
-                            } else {
-                                "Use LTR placement"
-                            })
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.direction = if this.direction == Direction::Ltr {
-                                    Direction::Rtl
-                                } else {
-                                    Direction::Ltr
-                                };
-                                cx.notify();
-                            })),
-                    )
-                    .child(
-                        Popover::new("outer-popup")
-                            .anchor(anchor)
-                            .open(self.outer_open)
-                            .on_open_change(move |open, window, cx| {
-                                let _ = outer_owner.update(cx, |this, cx| {
-                                    this.outer_open = *open;
-                                    if !open {
-                                        this.nested_open = false;
-                                        this.trigger.focus(window, cx);
-                                    }
-                                    cx.notify();
-                                });
-                            })
-                            .trigger(
-                                trigger("open-popover", "Open popover", &self.trigger).on_click(
-                                    cx.listener(|this, event, window, cx| {
-                                        if matches!(event, gpui::ClickEvent::Keyboard(_)) {
-                                            this.trigger.focus(window, cx);
-                                            this.outer_open = !this.outer_open;
-                                            cx.notify();
-                                        }
-                                    }),
-                                ),
-                            )
-                            .content(move |_, _, _| {
-                                popup().child(
-                                    Popover::new("inner-popup")
-                                        .anchor(anchor)
-                                        .open(nested_open)
-                                        .on_open_change(move |open, window, cx| {
-                                            let _ = inner_owner.update(cx, |this, cx| {
-                                                this.nested_open = *open;
-                                                if !open {
-                                                    this.nested_trigger.focus(window, cx);
-                                                }
-                                                cx.notify();
-                                            });
-                                        })
-                                        .trigger(
-                                            trigger(
-                                                "open-nested",
-                                                "Open nested popover",
-                                                &nested_trigger,
-                                            )
-                                            .on_click(
-                                                move |event, window, cx| {
-                                                    if matches!(
-                                                        event,
-                                                        gpui::ClickEvent::Keyboard(_)
-                                                    ) {
-                                                        let _ = nested_activation_owner.update(
-                                                            cx,
-                                                            |this, cx| {
-                                                                this.nested_trigger
-                                                                    .focus(window, cx);
-                                                                this.nested_open =
-                                                                    !this.nested_open;
-                                                                cx.notify();
-                                                            },
-                                                        );
-                                                    }
-                                                },
-                                            ),
-                                        )
-                                        .content(move |_, _, _| {
-                                            popup().child(
-                                                div()
-                                                    .id("nested-panel")
-                                                    .role(Role::Status)
-                                                    .aria_label("Nested popover open")
-                                                    .test_support()
-                                                    .child("Nested popover open"),
-                                            )
-                                        }),
-                                )
-                            }),
-                    )
-                    .child(
-                        trigger("open-dialog", "Open dialog", &self.dialog_trigger).on_click(
-                            cx.listener(|this, _, window, cx| {
-                                this.dialog_open = true;
-                                this.dialog_focus.focus(window, cx);
-                                cx.notify();
-                            }),
-                        ),
-                    ),
-            )
-            .child(
-                div().flex().items_center().gap_3().child(range).child(
-                    div()
-                        .id("level-label")
-                        .role(Role::Status)
-                        .aria_label(format!("Level {label}"))
-                        .test_support()
-                        .child(label),
-                ),
-            )
-            .child(
-                div()
-                    .id("drag-source")
-                    .role(Role::Group)
-                    .aria_label("Drag sample")
-                    .test_support()
-                    .track_focus(&self.drag_focus)
-                    .on_mouse_down(MouseButton::Left, {
-                        let focus = self.drag_focus.clone();
-                        move |_, window, cx| focus.focus(window, cx)
-                    })
-                    .px_3()
-                    .py_2()
-                    .border_1()
-                    .border_color(border)
-                    .on_drag((), move |_, _, window, cx| {
-                        let _ = drag_owner.update(cx, |this, cx| {
-                            let weak = cx.entity().downgrade();
-                            this.drag = Some(DragCapture::watch(window, cx, move |_, cx| {
-                                let _ = weak.update(cx, |this, cx| {
-                                    this.drag.take();
-                                    this.drag_status = "Capture lost";
-                                    cx.notify();
-                                });
-                            }));
-                            this.drag_status = "Dragging";
-                            cx.notify();
-                        });
-                        cx.new(|_| DragPreview)
-                    })
-                    .child("Drag sample"),
-            )
+            .child(self.render_roving_radio_group(border, ring, cx))
+            .child(self.render_overlay_controls(anchor, border, ring, cx))
+            .child(self.render_range_section(border, ring, track_bg, thumb_bg, cx))
+            .child(self.render_drag_source(border, cx))
             .child(
                 div()
                     .id("drag-status")
@@ -412,82 +543,7 @@ impl Render for InputExamples {
                     .test_support()
                     .child(self.drag_status),
             )
-            .child(
-                Dialog::new(cx)
-                    .open(self.dialog_open)
-                    .focus_handle(self.dialog_focus.clone())
-                    .accessibility_label("Text and scrolling")
-                    .on_open_change(move |open, _, window, cx| {
-                        let _ = owner.update(cx, |this, cx| {
-                            this.dialog_open = open;
-                            if !open {
-                                this.cancel_drag(window, cx);
-                                this.dialog_trigger.focus(window, cx);
-                            }
-                            cx.notify();
-                        });
-                    })
-                    .backdrop(div().absolute().size_full().bg(scrim))
-                    .popup(
-                        DialogPopup::new()
-                            .w_64()
-                            .p_4()
-                            .rounded_lg()
-                            .bg(surface)
-                            .child(
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .gap_3()
-                                    .child("Text and scrolling")
-                                    .child(
-                                        Button::new("close-dialog")
-                                            .accessibility_label("Close dialog")
-                                            .px_3()
-                                            .py_2()
-                                            .rounded_md()
-                                            .border_1()
-                                            .border_color(border)
-                                            .focus_visible(move |style| style.border_color(ring))
-                                            .child("Close")
-                                            .on_click(cx.listener(|this, _, window, cx| {
-                                                this.dialog_open = false;
-                                                this.cancel_drag(window, cx);
-                                                this.dialog_trigger.focus(window, cx);
-                                                cx.notify();
-                                            })),
-                                    )
-                                    .child(
-                                        div()
-                                            .border_1()
-                                            .border_color(border)
-                                            .p_2()
-                                            .child(Input::new(&self.text)),
-                                    )
-                                    .child(
-                                        div()
-                                            .id("outer-scroll")
-                                            .test_support()
-                                            .h_32()
-                                            .overflow_y_scroll()
-                                            .track_scroll(&self.outer_scroll)
-                                            .child(
-                                                isolated_scroll("inner-scroll", &self.inner_scroll)
-                                                    .test_support()
-                                                    .h_20()
-                                                    .children((1..=8).map(|number| {
-                                                        div()
-                                                            .p_1()
-                                                            .child(format!("Inner row {number}"))
-                                                    })),
-                                            )
-                                            .children((1..=8).map(|number| {
-                                                div().p_1().child(format!("Outer row {number}"))
-                                            })),
-                                    ),
-                            ),
-                    ),
-            )
+            .child(self.render_dialog(border, ring, surface, scrim, cx))
     }
 }
 

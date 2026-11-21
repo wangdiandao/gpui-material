@@ -27,6 +27,8 @@ mod dialog_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod label_tests;
 #[cfg(all(test, feature = "test-support"))]
+mod menu_tests;
+#[cfg(all(test, feature = "test-support"))]
 mod side_sheet_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod snackbar_tests;
@@ -378,375 +380,6 @@ impl Render for ModalExamples {
     }
 }
 
-#[cfg(all(test, feature = "test-support"))]
-#[gpui::test]
-fn bottom_sheet_cancels_drag_and_accepts_next_gesture(cx: &mut gpui::TestAppContext) {
-    use gpui::{
-        InputEvent as _, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, WindowOptions,
-        point,
-    };
-    use gpui_base::test_support::find;
-    use gpui_material::MaterialRoot;
-
-    let (window, view) = cx.update(|cx| {
-        crate::init_gallery(cx);
-        let mut view = None;
-        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
-            let entity = cx.new(|cx| ModalExamples::new(Story::Sheets, window, cx));
-            view = Some(entity.clone());
-            entity
-        })
-        .unwrap();
-        (window, view.unwrap())
-    });
-    let drag = |cx: &mut gpui::TestAppContext| {
-        cx.update_window(window.into(), |_, window, cx| {
-            window.refresh();
-            window.draw(cx).clear(cx);
-            let start_height = find(window, &[], &"standard".into())
-                .unwrap()
-                .bounds()
-                .size
-                .height;
-            let origin = find(window, &[], &"drag-handle".into())
-                .unwrap()
-                .bounds()
-                .center();
-            let handle = find(window, &[], &"drag-handle".into()).unwrap().bounds();
-            let expand = find(window, &[], &"expand".into()).unwrap().bounds();
-            let panel = find(window, &[], &"standard".into()).unwrap().bounds();
-            assert_eq!(handle.size.height, px(48.));
-            assert!(expand.top() >= handle.bottom());
-            assert!(
-                expand.bottom() <= panel.bottom(),
-                "collapsed sheet keeps its action visible"
-            );
-            let destination = origin - point(px(0.), px(36.));
-            window.dispatch_event(
-                MouseDownEvent {
-                    button: MouseButton::Left,
-                    position: origin,
-                    click_count: 1,
-                    ..Default::default()
-                }
-                .to_platform_input(),
-                cx,
-            );
-            window.dispatch_event(
-                MouseMoveEvent {
-                    position: destination,
-                    pressed_button: Some(MouseButton::Left),
-                    modifiers: Default::default(),
-                }
-                .to_platform_input(),
-                cx,
-            );
-            assert!(cx.has_active_drag());
-            window.dispatch_event(
-                MouseMoveEvent {
-                    position: destination,
-                    pressed_button: Some(MouseButton::Left),
-                    modifiers: Default::default(),
-                }
-                .to_platform_input(),
-                cx,
-            );
-            window.refresh();
-            window.draw(cx).clear(cx);
-            let height = find(window, &[], &"standard".into())
-                .unwrap()
-                .bounds()
-                .size
-                .height;
-            assert!(height > start_height && height < px(160.));
-            (destination, height)
-        })
-        .unwrap()
-    };
-    let release = |cx: &mut gpui::TestAppContext, position| {
-        cx.update_window(window.into(), |_, window, cx| {
-            window.dispatch_event(
-                MouseUpEvent {
-                    button: MouseButton::Left,
-                    position,
-                    click_count: 1,
-                    ..Default::default()
-                }
-                .to_platform_input(),
-                cx,
-            );
-        })
-        .unwrap();
-    };
-    let (destination, dragged_height) = drag(cx);
-    cx.simulate_keystrokes(window.into(), "escape");
-    release(cx, destination);
-    cx.update(|cx| {
-        assert!(!cx.has_active_drag());
-        assert!(!view.read(cx).expanded);
-    });
-    let height = |cx: &mut gpui::TestAppContext| {
-        cx.update_window(window.into(), |_, window, cx| {
-            window.refresh();
-            window.draw(cx).clear(cx);
-            find(window, &[], &"standard".into())
-                .unwrap()
-                .bounds()
-                .size
-                .height
-        })
-        .unwrap()
-    };
-    assert_eq!(height(cx), dragged_height);
-    cx.executor()
-        .advance_clock(std::time::Duration::from_secs(1));
-    assert_eq!(height(cx), px(120.));
-
-    let (destination, _) = drag(cx);
-    release(cx, destination);
-    cx.update(|cx| assert!(view.read(cx).expanded));
-}
-
-#[cfg(all(test, feature = "test-support"))]
-#[gpui::test]
-fn escape_closes_nested_dialogs_and_restores_each_trigger(cx: &mut gpui::TestAppContext) {
-    use gpui::WindowOptions;
-    use gpui_material::MaterialRoot;
-
-    let (window, view) = cx.update(|cx| {
-        crate::init_gallery(cx);
-        let mut view = None;
-        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
-            let entity = cx.new(|cx| ModalExamples::new(Story::Dialog, window, cx));
-            view = Some(entity.clone());
-            entity
-        })
-        .unwrap();
-        (window, view.unwrap())
-    });
-    let (first, second) = cx.update(|cx| {
-        let view = view.read(cx);
-        (view.primary.clone(), view.secondary.clone())
-    });
-    let trigger = cx
-        .update_window(window.into(), |_, window, cx| {
-            window.refresh();
-            window.draw(cx).clear(cx);
-            window.focus_next(cx);
-            let trigger = window.focused(cx).unwrap();
-            first.update(cx, |state, cx| state.open(window, cx));
-            window.refresh();
-            window.draw(cx).clear(cx);
-            second.update(cx, |state, cx| state.open(window, cx));
-            window.refresh();
-            window.draw(cx).clear(cx);
-            trigger
-        })
-        .unwrap();
-    cx.simulate_keystrokes(window.into(), "escape");
-    cx.update(|cx| {
-        assert!(first.read(cx).is_open());
-        assert!(!second.read(cx).is_open());
-    });
-    cx.update_window(window.into(), |_, window, cx| {
-        window.refresh();
-        window.draw(cx).clear(cx);
-    })
-    .unwrap();
-    cx.simulate_keystrokes(window.into(), "escape");
-    cx.update_window(window.into(), |_, window, cx| {
-        assert!(!first.read(cx).is_open());
-        assert!(trigger.is_focused(window));
-    })
-    .unwrap();
-}
-
-#[cfg(all(test, feature = "test-support"))]
-#[gpui::test]
-fn dialog_body_stays_with_the_panel_during_dismissal(cx: &mut gpui::TestAppContext) {
-    use gpui::{WindowOptions, px};
-    use gpui_base::test_support::find;
-    use gpui_material::MaterialRoot;
-    use std::time::Duration;
-
-    let (window, dialog) = cx.update(|cx| {
-        crate::init_gallery(cx);
-        let mut dialog = None;
-        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
-            cx.new(|cx| {
-                let view = ModalExamples::new(Story::Dialog, window, cx);
-                dialog = Some(view.primary.clone());
-                view
-            })
-        })
-        .unwrap();
-        (window, dialog.unwrap())
-    });
-    cx.update_window(window.into(), |_, window, cx| {
-        dialog.update(cx, |dialog, cx| dialog.open(window, cx));
-        window.refresh();
-        window.draw(cx).clear(cx);
-    })
-    .unwrap();
-    cx.executor().advance_clock(Duration::from_millis(220));
-    let body = |cx: &mut gpui::TestAppContext| {
-        cx.update_window(window.into(), |_, window, cx| {
-            window.refresh();
-            window.draw(cx).clear(cx);
-            find(window, &[], &"dialog-content".into()).map(|body| body.bounds())
-        })
-        .unwrap()
-    };
-    let opened = body(cx).unwrap();
-    cx.simulate_keystrokes(window.into(), "escape");
-    let first_exit = body(cx).unwrap();
-    assert_eq!(first_exit.size, opened.size);
-    assert!((first_exit.top() - opened.top()).abs() <= px(1.));
-    cx.executor().advance_clock(Duration::from_millis(60));
-    let exiting = body(cx).unwrap();
-    assert_eq!(opened.size, exiting.size);
-    assert!(exiting.top() > opened.top() && exiting.top() < opened.top() + px(8.));
-    cx.executor().advance_clock(Duration::from_millis(250));
-    assert!(body(cx).is_none());
-}
-
-#[cfg(all(test, feature = "test-support"))]
-#[gpui::test]
-fn bottom_sheets_center_with_the_compose_width_limit(cx: &mut gpui::TestAppContext) {
-    use gpui::{WindowOptions, size};
-    use gpui_base::test_support::find;
-    use gpui_material::MaterialRoot;
-
-    let (handle, examples) = cx.update(|cx| {
-        crate::init_gallery(cx);
-        cx.set_reduce_motion(true);
-        let mut examples = None;
-        let handle = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
-            let view = cx.new(|cx| ModalExamples::new(Story::Sheets, window, cx));
-            examples = Some(view.clone());
-            view
-        })
-        .unwrap();
-        (handle, examples.unwrap())
-    });
-    cx.simulate_window_resize(handle.into(), size(px(1024.), px(720.)));
-    cx.update_window(handle.into(), |_, window, cx| {
-        let state = examples.read(cx).primary.clone();
-        state.update(cx, |state, cx| state.open(window, cx));
-        window.refresh();
-        window.draw(cx).clear(cx);
-        for id in ["standard", "activity-sheet"] {
-            let bounds = find(window, &[], &id.into()).unwrap().bounds();
-            assert_eq!(bounds.size.width, px(640.));
-            assert_eq!(bounds.center().x, window.viewport_size().width / 2.);
-        }
-    })
-    .unwrap();
-}
-
-#[cfg(all(test, feature = "test-support"))]
-#[gpui::test]
-fn modal_side_sheet_mirrors_and_fits_a_compact_scaled_window(cx: &mut gpui::TestAppContext) {
-    use gpui::{WindowOptions, size};
-    use gpui_base::test_support::find;
-    use gpui_material::{MaterialRoot, material_theme, set_material_theme, theme::Direction};
-
-    let (window, view) = cx.update(|cx| {
-        crate::init_gallery(cx);
-        let mut view = None;
-        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
-            let entity = cx.new(|cx| ModalExamples::new(Story::Sheets, window, cx));
-            view = Some(entity.clone());
-            entity
-        })
-        .unwrap();
-        (window, view.unwrap())
-    });
-    cx.simulate_window_resize(window.into(), size(px(408.), px(420.)));
-    cx.simulate_window_scale_factor_change(window.into(), 1.5);
-    let sheet_content = |window: &gpui::Window| {
-        find(window, &[], &"details-sheet".into())
-            .and_then(|panel| find(window, panel.path(), &"sheet-content".into()))
-    };
-    let assert_side = |cx: &mut gpui::TestAppContext, side, reduced| {
-        cx.update_window(window.into(), |_, window, cx| {
-            cx.set_reduce_motion(reduced);
-            let mut theme = material_theme(cx).clone();
-            theme.layout.direction = side;
-            set_material_theme(theme, cx);
-            let state = view.read(cx).secondary.clone();
-            state.update(cx, |state, cx| state.open(window, cx));
-            window.refresh();
-            window.draw(cx).clear(cx);
-            let bounds = find(window, &[], &"details-sheet".into()).unwrap().bounds();
-            match (side, reduced) {
-                (Direction::Ltr, false) => assert!(bounds.right() > window.viewport_size().width),
-                (Direction::Rtl, false) => assert!(bounds.left() < px(0.)),
-                (Direction::Ltr, true) => assert_eq!(bounds.right(), window.viewport_size().width),
-                (Direction::Rtl, true) => assert_eq!(bounds.left(), px(0.)),
-            }
-        })
-        .unwrap();
-        cx.executor()
-            .advance_clock(std::time::Duration::from_millis(60));
-        if !reduced {
-            cx.update_window(window.into(), |_, window, cx| {
-                window.refresh();
-                window.draw(cx).clear(cx);
-                let bounds = find(window, &[], &"details-sheet".into()).unwrap().bounds();
-                match side {
-                    Direction::Ltr => assert!(
-                        bounds.left() < window.viewport_size().width
-                            && bounds.right() > window.viewport_size().width
-                    ),
-                    Direction::Rtl => assert!(bounds.right() > px(0.) && bounds.left() < px(0.)),
-                }
-            })
-            .unwrap();
-        }
-        cx.executor()
-            .advance_clock(std::time::Duration::from_millis(250));
-        cx.update_window(window.into(), |_, window, cx| {
-            window.refresh();
-            window.draw(cx).clear(cx);
-            let sheet = find(window, &[], &"details-sheet".into()).unwrap();
-            assert_eq!(sheet.role(), Some(gpui::Role::Dialog));
-            let bounds = sheet.bounds();
-            let viewport = window.viewport_size();
-            assert!(bounds.size.width > px(0.) && bounds.size.width < viewport.width);
-            assert!((bounds.bottom() - viewport.height).abs() <= px(1.));
-            match side {
-                Direction::Ltr => assert_eq!(bounds.right(), viewport.width),
-                Direction::Rtl => assert_eq!(bounds.left(), px(0.)),
-            }
-            let state = view.read(cx).secondary.clone();
-            state.update(cx, |state, cx| state.close(window, cx));
-            window.refresh();
-            window.draw(cx).clear(cx);
-            assert_eq!(sheet_content(window).is_none(), reduced);
-        })
-        .unwrap();
-        if !reduced {
-            cx.executor()
-                .advance_clock(std::time::Duration::from_millis(60));
-            cx.update_window(window.into(), |_, window, cx| {
-                window.refresh();
-                window.draw(cx).clear(cx);
-                let body = sheet_content(window).unwrap().bounds();
-                match side {
-                    Direction::Ltr => assert!(body.right() > window.viewport_size().width),
-                    Direction::Rtl => assert!(body.left() < px(0.)),
-                }
-            })
-            .unwrap();
-        }
-    };
-    assert_side(cx, Direction::Ltr, false);
-    cx.executor()
-        .advance_clock(std::time::Duration::from_millis(250));
-    assert_side(cx, Direction::Rtl, true);
-}
-
 pub(crate) struct SnackbarExamples {
     host: Entity<SnackbarHost>,
 }
@@ -833,84 +466,6 @@ impl Render for SnackbarExamples {
     }
 }
 
-#[cfg(all(test, feature = "test-support"))]
-#[gpui::test]
-fn snackbar_advances_after_timeout_and_accepts_undo(cx: &mut gpui::TestAppContext) {
-    use gpui::{ElementId, InputEvent as _, WindowOptions};
-    use gpui_base::test_support::find;
-    use gpui_material::MaterialRoot;
-    use std::time::Duration;
-
-    let window = cx.update(|cx| {
-        crate::init_gallery(cx);
-        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
-            cx.new(SnackbarExamples::new)
-        })
-        .unwrap()
-    });
-    let click = |cx: &mut gpui::TestAppContext, id: ElementId| {
-        cx.update_window(window.into(), |_, window, cx| {
-            window.refresh();
-            window.draw(cx).clear(cx);
-            let position = find(window, &[], &id).unwrap().bounds().center();
-            window.dispatch_event(
-                gpui::MouseDownEvent {
-                    button: gpui::MouseButton::Left,
-                    click_count: 1,
-                    position,
-                    ..Default::default()
-                }
-                .to_platform_input(),
-                cx,
-            );
-            window.dispatch_event(
-                gpui::MouseUpEvent {
-                    button: gpui::MouseButton::Left,
-                    click_count: 1,
-                    position,
-                    ..Default::default()
-                }
-                .to_platform_input(),
-                cx,
-            );
-        })
-        .unwrap();
-        cx.run_until_parked();
-    };
-    let message = |cx: &mut gpui::TestAppContext, id| {
-        cx.update_window(window.into(), |_, window, cx| {
-            window.refresh();
-            window.draw(cx).clear(cx);
-            find(window, &[], &("snackbar-message", id).into())
-                .and_then(|message| message.label().map(str::to_owned))
-        })
-        .unwrap()
-    };
-    click(cx, "save-region".into());
-    let snackbar_bounds = |cx: &mut gpui::TestAppContext, state, id| {
-        cx.update_window(window.into(), |_, window, cx| {
-            window.refresh();
-            window.draw(cx).clear(cx);
-            find(window, &[], &(state, id).into()).map(|surface| surface.bounds())
-        })
-        .unwrap()
-    };
-    let collapsed = snackbar_bounds(cx, "snackbar", 1usize).unwrap();
-    cx.executor().advance_clock(Duration::from_millis(250));
-    let expanded = snackbar_bounds(cx, "snackbar", 1usize).unwrap();
-    assert!(collapsed.size.width < expanded.size.width);
-    assert!(collapsed.size.height < expanded.size.height);
-    assert!((collapsed.center().x - expanded.center().x).abs() <= px(1.));
-    click(cx, "archive-region".into());
-    assert_eq!(message(cx, 1usize).as_deref(), Some("Changes saved"));
-    assert_eq!(message(cx, 2usize), None);
-    cx.executor().advance_clock(Duration::from_secs(5));
-    cx.run_until_parked();
-    assert_eq!(message(cx, 2usize).as_deref(), Some("Draft archived"));
-    click(cx, "snackbar-action-region".into());
-    assert_eq!(message(cx, 3usize).as_deref(), Some("Draft restored"));
-}
-
 pub(crate) struct MenuTooltipExamples {
     story: Story,
     trigger: FocusHandle,
@@ -943,1065 +498,291 @@ impl MenuTooltipExamples {
             output: "Sort by name".into(),
         }
     }
+
+    fn set_output(
+        cx: &Context<Self>,
+        value: &'static str,
+    ) -> impl Fn(&mut Window, &mut gpui::App) + 'static {
+        let owner = cx.entity().downgrade();
+        move |_, cx| {
+            let _ = owner.update(cx, |state, cx| {
+                state.output = value.into();
+                cx.notify();
+            });
+        }
+    }
+
+    fn command_menu_section(&self, cx: &Context<Self>) -> crate::story::StorySection {
+        let menu_owner = cx.entity().downgrade();
+        let label_owner = cx.entity().downgrade();
+        section("Command menu")
+            .description("Open Sort by to choose how the results are ordered.")
+            .child(
+                div().child(
+                    Menu::new(
+                        "options",
+                        gpui_base::Button::new("open-options")
+                            .track_focus(&self.trigger)
+                            .accessibility_label("View options")
+                            .px_3()
+                            .py_2()
+                            .rounded_sm()
+                            .border_1()
+                            .child("View options"),
+                        [
+                            MenuItem::group("display", "Display"),
+                            MenuItem::new("labels", "Show labels")
+                                .checked(self.labels)
+                                .supporting(|| "Show names next to each icon")
+                                .on_checked_change(move |checked, _, cx| {
+                                    let _ = label_owner.update(cx, |state, cx| {
+                                        state.labels = checked;
+                                        cx.notify();
+                                    });
+                                }),
+                            MenuItem::new("columns", "Configure columns").disabled(true),
+                            MenuItem::new("sort", "Sort by").submenu([
+                                MenuItem::new("name", "Name")
+                                    .selected(self.output.as_ref() == "Sort by name")
+                                    .on_activate(Self::set_output(cx, "Sort by name")),
+                                MenuItem::new("date", "Date modified")
+                                    .selected(self.output.as_ref() == "Sort by date modified")
+                                    .on_activate(Self::set_output(cx, "Sort by date modified")),
+                            ]),
+                        ],
+                    )
+                    .open(self.menu_open)
+                    .on_open_change(move |open, _, cx| {
+                        let _ = menu_owner.update(cx, |state, cx| {
+                            state.menu_open = open;
+                            cx.notify();
+                        });
+                    }),
+                ),
+            )
+    }
+
+    fn vibrant_menu_section(&self) -> crate::story::StorySection {
+        section("Vibrant menu").child(
+            div().child(
+                Menu::new(
+                    "vibrant-options",
+                    gpui_base::Button::new("open-vibrant")
+                        .px_3()
+                        .py_2()
+                        .rounded_sm()
+                        .border_1()
+                        .child("Share settings"),
+                    [MenuItem::section(
+                        "visibility",
+                        "Visibility",
+                        [
+                            MenuItem::new("view", "View")
+                                .selected(true)
+                                .leading(|| Text::new("V"))
+                                .trailing(|| Text::new("Default")),
+                            MenuItem::new("edit", "Edit").supporting(|| Text::new("Allow changes")),
+                        ],
+                    )
+                    .inactive_shape(CornerRole::Small.shape())],
+                )
+                .color(MenuColor::Vibrant)
+                .offset(px(8.)),
+            ),
+        )
+    }
+
+    fn context_menu_section(&self, cx: &Context<Self>) -> crate::story::StorySection {
+        section("Context menu")
+            .description("Right-click Roadmap to see the actions for that item.")
+            .child(
+                div().child(
+                    Menu::new(
+                        "context-actions",
+                        gpui_base::Button::new("open-context")
+                            .accessibility_label("Roadmap context actions")
+                            .px_3()
+                            .py_2()
+                            .rounded_sm()
+                            .border_1()
+                            .child("Roadmap"),
+                        [MenuItem::new("pin", "Pin roadmap")
+                            .on_activate(Self::set_output(cx, "Roadmap pinned"))],
+                    )
+                    .context(),
+                ),
+            )
+    }
+
+    fn render_menus(&self, cx: &Context<Self>) -> impl IntoElement {
+        stack()
+            .child(self.command_menu_section(cx))
+            .child(self.vibrant_menu_section())
+            .child(self.context_menu_section(cx))
+            .child(Text::new(self.output.clone()))
+    }
+
+    fn plain_tooltip_section(&self, cx: &Context<Self>) -> crate::story::StorySection {
+        section("Plain tooltip")
+            .description("Hover over Pin roadmap or focus it with the keyboard.")
+            .child(
+                div().child(
+                    Tooltip::plain(
+                        "pin-tooltip",
+                        Button::new("pin", "Pin roadmap")
+                            .track_focus(&self.trigger)
+                            .on_activate(Self::set_output(cx, "Roadmap pinned")),
+                        "Keep this roadmap at the top of the project list",
+                    )
+                    .track_focus(&self.trigger),
+                ),
+            )
+    }
+
+    fn rich_tooltip_section(&self, cx: &Context<Self>) -> crate::story::StorySection {
+        section("Rich tooltip")
+            .description("Open the tooltip and activate Show retention period.")
+            .child(
+                div().child(
+                    Tooltip::rich(
+                        "archive-tooltip",
+                        Button::new("retention", "Archive policy").track_focus(&self.rich_trigger),
+                        "Archived drafts",
+                        "Archived drafts stay available for 30 days.",
+                    )
+                    .track_focus(&self.rich_trigger)
+                    .action(
+                        "Show retention period",
+                        &self.rich_action,
+                        Self::set_output(cx, "30 days"),
+                    ),
+                ),
+            )
+    }
+
+    fn persistent_tooltip_section(&self, cx: &Context<Self>) -> crate::story::StorySection {
+        let show = self.persistent.clone();
+        let owner_show = self.persistent.clone();
+        let dismiss = self.persistent.clone();
+        section("Persistent tooltip").child(
+            div()
+                .flex()
+                .gap_3()
+                .flex_wrap()
+                .child(
+                    Tooltip::rich(
+                        "sharing-tooltip",
+                        Button::new("sharing-help", "Sharing help")
+                            .track_focus(&self.persistent_trigger)
+                            .on_activate(move |_, cx| show.update(cx, |state, cx| state.show(cx))),
+                        "Sharing settings",
+                        "Invite teammates from the Share menu.",
+                    )
+                    .persistent(&self.persistent)
+                    .track_focus(&self.persistent_trigger)
+                    .focus_target(&self.persistent_action)
+                    .focusable(true)
+                    .placement(TooltipPlacement::Below)
+                    .offset(px(12.))
+                    .caret(TooltipCaret::default())
+                    .body_content(
+                        Text::new("Invite teammates from the Share menu.")
+                            .id("sharing-tooltip-body")
+                            .wrap(),
+                    )
+                    .action_content(
+                        Button::new("dismiss-sharing-help", "Dismiss help")
+                            .variant(gpui_material::ButtonVariant::Text)
+                            .track_focus(&self.persistent_action)
+                            .on_activate(move |_, cx| {
+                                dismiss.update(cx, |state, cx| state.dismiss(cx))
+                            }),
+                    )
+                    .link(
+                        "Sharing guide",
+                        Self::set_output(cx, "Sharing guide requested"),
+                    ),
+                )
+                .child(
+                    Button::new("show-sharing-help", "Show help")
+                        .variant(gpui_material::ButtonVariant::Outlined)
+                        .on_activate(move |_, cx| {
+                            owner_show.update(cx, |state, cx| state.show(cx))
+                        }),
+                ),
+        )
+    }
+
+    fn control_labels_section(&self, cx: &Context<Self>) -> crate::story::StorySection {
+        let persistent_label_owner = cx.entity().downgrade();
+        section("Control labels")
+            .child(
+                div().flex().child(
+                    Label::new(
+                        "retained-label",
+                        Text::new("UTC").id("label-reference-value"),
+                        "Coordinated Universal Time",
+                    )
+                    .content(
+                        Text::new("Coordinated Universal Time")
+                            .id("utc-label-content")
+                            .role(gpui_material::theme::TypeRole::BodySmall),
+                    )
+                    .persistent(self.keep_label)
+                    .placement(TooltipPlacement::End)
+                    .offset(px(10.))
+                    .caret(TooltipCaret::default()),
+                ),
+            )
+            .child(
+                div().flex().child(
+                    Label::new(
+                        "measure-label",
+                        Button::new("measure", "Measure")
+                            .interaction_source(&self.label_source)
+                            .on_activate(Self::set_output(cx, "Measurement requested")),
+                        "Measurement uses local time",
+                    )
+                    .interaction_source(&self.label_source, "measure")
+                    .content(
+                        Text::new("Measurement uses local time")
+                            .id("measurement-label-content")
+                            .wrap(),
+                    ),
+                ),
+            )
+            .child(
+                Switch::new("keep-label", "Keep label visible", self.keep_label).on_change(
+                    move |keep, _, cx| {
+                        let _ = persistent_label_owner.update(cx, |view, cx| {
+                            view.keep_label = keep;
+                            cx.notify();
+                        });
+                    },
+                ),
+            )
+    }
+
+    fn render_tooltips(&self, cx: &Context<Self>) -> impl IntoElement {
+        stack()
+            .child(self.plain_tooltip_section(cx))
+            .child(self.rich_tooltip_section(cx))
+            .child(Text::new(if self.output.as_ref() == "Sort by name" {
+                SharedString::default()
+            } else {
+                self.output.clone()
+            }))
+            .child(self.persistent_tooltip_section(cx))
+            .child(self.control_labels_section(cx))
+    }
 }
 
 impl Render for MenuTooltipExamples {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let owner = cx.entity().downgrade();
-        let tooltip_owner = owner.clone();
-        let persistent_label_owner = owner.clone();
-        let update = move |value: &'static str| {
-            let owner = owner.clone();
-            move |_: &mut Window, cx: &mut gpui::App| {
-                let _ = owner.update(cx, |state, cx| {
-                    state.output = value.into();
-                    cx.notify();
-                });
-            }
-        };
-        let menu_owner = cx.entity().downgrade();
-        let label_owner = cx.entity().downgrade();
         if self.story == Story::Menu {
-            stack()
-                .child(
-                    section("Command menu")
-                        .description("Open Sort by to choose how the results are ordered.")
-                        .child(
-                            div().child(
-                                Menu::new(
-                                    "options",
-                                    gpui_base::Button::new("open-options")
-                                        .track_focus(&self.trigger)
-                                        .accessibility_label("View options")
-                                        .px_3()
-                                        .py_2()
-                                        .rounded_sm()
-                                        .border_1()
-                                        .child("View options"),
-                                    [
-                                        MenuItem::group("display", "Display"),
-                                        MenuItem::new("labels", "Show labels")
-                                            .checked(self.labels)
-                                            .supporting(|| "Show names next to each icon")
-                                            .on_checked_change(move |checked, _, cx| {
-                                                let _ = label_owner.update(cx, |state, cx| {
-                                                    state.labels = checked;
-                                                    cx.notify();
-                                                });
-                                            }),
-                                        MenuItem::new("columns", "Configure columns")
-                                            .disabled(true),
-                                        MenuItem::new("sort", "Sort by").submenu([
-                                            MenuItem::new("name", "Name")
-                                                .selected(self.output.as_ref() == "Sort by name")
-                                                .on_activate(update("Sort by name")),
-                                            MenuItem::new("date", "Date modified")
-                                                .selected(
-                                                    self.output.as_ref() == "Sort by date modified",
-                                                )
-                                                .on_activate(update("Sort by date modified")),
-                                        ]),
-                                    ],
-                                )
-                                .open(self.menu_open)
-                                .on_open_change(
-                                    move |open, _, cx| {
-                                        let _ = menu_owner.update(cx, |state, cx| {
-                                            state.menu_open = open;
-                                            cx.notify();
-                                        });
-                                    },
-                                ),
-                            ),
-                        ),
-                )
-                .child(
-                    section("Vibrant menu").child(
-                        div().child(
-                            Menu::new(
-                                "vibrant-options",
-                                gpui_base::Button::new("open-vibrant")
-                                    .px_3()
-                                    .py_2()
-                                    .rounded_sm()
-                                    .border_1()
-                                    .child("Share settings"),
-                                [MenuItem::section(
-                                    "visibility",
-                                    "Visibility",
-                                    [
-                                        MenuItem::new("view", "View")
-                                            .selected(true)
-                                            .leading(|| Text::new("V"))
-                                            .trailing(|| Text::new("Default")),
-                                        MenuItem::new("edit", "Edit")
-                                            .supporting(|| Text::new("Allow changes")),
-                                    ],
-                                )
-                                .inactive_shape(gpui_material::theme::CornerRole::Small.shape())],
-                            )
-                            .color(MenuColor::Vibrant)
-                            .offset(px(8.)),
-                        ),
-                    ),
-                )
-                .child(
-                    section("Context menu")
-                        .description("Right-click Roadmap to see the actions for that item.")
-                        .child(
-                            div().child(
-                                Menu::new(
-                                    "context-actions",
-                                    gpui_base::Button::new("open-context")
-                                        .accessibility_label("Roadmap context actions")
-                                        .px_3()
-                                        .py_2()
-                                        .rounded_sm()
-                                        .border_1()
-                                        .child("Roadmap"),
-                                    [MenuItem::new("pin", "Pin roadmap")
-                                        .on_activate(update("Roadmap pinned"))],
-                                )
-                                .context(),
-                            ),
-                        ),
-                )
-                .child(Text::new(self.output.clone()))
-                .into_any_element()
+            self.render_menus(cx).into_any_element()
         } else {
-            stack()
-                .child(
-                    section("Plain tooltip")
-                        .description("Hover over Pin roadmap or focus it with the keyboard.")
-                        .child(
-                            div().child(
-                                Tooltip::plain(
-                                    "pin-tooltip",
-                                    Button::new("pin", "Pin roadmap")
-                                        .track_focus(&self.trigger)
-                                        .on_activate(update("Roadmap pinned")),
-                                    "Keep this roadmap at the top of the project list",
-                                )
-                                .track_focus(&self.trigger),
-                            ),
-                        ),
-                )
-                .child(
-                    section("Rich tooltip")
-                        .description("Open the tooltip and activate Show retention period.")
-                        .child(
-                            div().child(
-                                Tooltip::rich(
-                                    "archive-tooltip",
-                                    Button::new("retention", "Archive policy")
-                                        .track_focus(&self.rich_trigger),
-                                    "Archived drafts",
-                                    "Archived drafts stay available for 30 days.",
-                                )
-                                .track_focus(&self.rich_trigger)
-                                .action(
-                                    "Show retention period",
-                                    &self.rich_action,
-                                    move |_, cx| {
-                                        let _ = tooltip_owner.update(cx, |state, cx| {
-                                            state.output = "30 days".into();
-                                            cx.notify();
-                                        });
-                                    },
-                                ),
-                            ),
-                        ),
-                )
-                .child(Text::new(if self.output.as_ref() == "Sort by name" {
-                    SharedString::default()
-                } else {
-                    self.output.clone()
-                }))
-                .child({
-                    let show = self.persistent.clone();
-                    let owner_show = self.persistent.clone();
-                    let dismiss = self.persistent.clone();
-                    section("Persistent tooltip").child(
-                        div()
-                            .flex()
-                            .gap_3()
-                            .flex_wrap()
-                            .child(
-                                Tooltip::rich(
-                                    "sharing-tooltip",
-                                    Button::new("sharing-help", "Sharing help")
-                                        .track_focus(&self.persistent_trigger)
-                                        .on_activate(move |_, cx| {
-                                            show.update(cx, |state, cx| state.show(cx))
-                                        }),
-                                    "Sharing settings",
-                                    "Invite teammates from the Share menu.",
-                                )
-                                .persistent(&self.persistent)
-                                .track_focus(&self.persistent_trigger)
-                                .focus_target(&self.persistent_action)
-                                .focusable(true)
-                                .placement(TooltipPlacement::Below)
-                                .offset(px(12.))
-                                .caret(TooltipCaret::default())
-                                .body_content(
-                                    Text::new("Invite teammates from the Share menu.")
-                                        .id("sharing-tooltip-body")
-                                        .wrap(),
-                                )
-                                .action_content(
-                                    Button::new("dismiss-sharing-help", "Dismiss help")
-                                        .variant(gpui_material::ButtonVariant::Text)
-                                        .track_focus(&self.persistent_action)
-                                        .on_activate(move |_, cx| {
-                                            dismiss.update(cx, |state, cx| state.dismiss(cx))
-                                        }),
-                                )
-                                .link("Sharing guide", update("Sharing guide requested")),
-                            )
-                            .child(
-                                Button::new("show-sharing-help", "Show help")
-                                    .variant(gpui_material::ButtonVariant::Outlined)
-                                    .on_activate(move |_, cx| {
-                                        owner_show.update(cx, |state, cx| state.show(cx))
-                                    }),
-                            ),
-                    )
-                })
-                .child(
-                    section("Control labels")
-                        .child(
-                            div().flex().child(
-                                Label::new(
-                                    "retained-label",
-                                    Text::new("UTC").id("label-reference-value"),
-                                    "Coordinated Universal Time",
-                                )
-                                .content(
-                                    Text::new("Coordinated Universal Time")
-                                        .id("utc-label-content")
-                                        .role(gpui_material::theme::TypeRole::BodySmall),
-                                )
-                                .persistent(self.keep_label)
-                                .placement(TooltipPlacement::End)
-                                .offset(px(10.))
-                                .caret(TooltipCaret::default()),
-                            ),
-                        )
-                        .child(
-                            div().flex().child(
-                                Label::new(
-                                    "measure-label",
-                                    Button::new("measure", "Measure")
-                                        .interaction_source(&self.label_source)
-                                        .on_activate(update("Measurement requested")),
-                                    "Measurement uses local time",
-                                )
-                                .interaction_source(&self.label_source, "measure")
-                                .content(
-                                    Text::new("Measurement uses local time")
-                                        .id("measurement-label-content")
-                                        .wrap(),
-                                ),
-                            ),
-                        )
-                        .child(
-                            Switch::new("keep-label", "Keep label visible", self.keep_label)
-                                .on_change(move |keep, _, cx| {
-                                    let _ = persistent_label_owner.update(cx, |view, cx| {
-                                        view.keep_label = keep;
-                                        cx.notify();
-                                    });
-                                }),
-                        ),
-                )
-                .into_any_element()
+            self.render_tooltips(cx).into_any_element()
         }
     }
-}
-
-#[cfg(all(test, feature = "test-support"))]
-#[gpui::test]
-fn menu_skips_disabled_items_and_restores_trigger(cx: &mut gpui::TestAppContext) {
-    use gpui::{AppContext, WindowOptions};
-    use gpui_material::MaterialRoot;
-
-    let (window, view) = cx.update(|cx| {
-        crate::init_gallery(cx);
-        let mut view = None;
-        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
-            let entity = cx.new(|cx| MenuTooltipExamples::new(Story::Menu, cx));
-            view = Some(entity.clone());
-            entity
-        })
-        .unwrap();
-        (window, view.unwrap())
-    });
-    let frame = |cx: &mut gpui::TestAppContext| {
-        cx.update_window(window.into(), |_, window, cx| {
-            window.refresh();
-            window.draw(cx).clear(cx);
-        })
-        .unwrap();
-        cx.run_until_parked();
-    };
-    frame(cx);
-    cx.update_window(window.into(), |_, window, cx| {
-        view.read(cx).trigger.clone().focus(window, cx);
-    })
-    .unwrap();
-    frame(cx);
-    cx.simulate_keystrokes(window.into(), "enter");
-    frame(cx);
-    frame(cx);
-    let bounds = |cx: &mut gpui::TestAppContext| {
-        cx.update_window(window.into(), |_, window, _| {
-            gpui_base::test_support::find(window, &[], &"menu".into())
-                .unwrap()
-                .bounds()
-        })
-        .unwrap()
-    };
-    let collapsed = bounds(cx);
-    cx.executor()
-        .advance_clock(std::time::Duration::from_millis(250));
-    frame(cx);
-    let expanded = bounds(cx);
-    assert!(collapsed.size.width < expanded.size.width);
-    assert!(collapsed.size.height < expanded.size.height);
-    assert_eq!(collapsed.top(), expanded.top());
-    cx.update_window(window.into(), |_, window, _| {
-        let row = gpui_base::test_support::find(window, &[], &"labels".into()).unwrap();
-        assert_eq!(
-            row.bounds().size.height,
-            px(48.),
-            "Compose MenuListItemContainerHeight"
-        );
-    })
-    .unwrap();
-    cx.simulate_keystrokes(window.into(), "down");
-    frame(cx);
-    cx.simulate_keystrokes(window.into(), "right");
-    frame(cx);
-    frame(cx);
-    cx.update_window(window.into(), |_, window, _| {
-        assert!(
-            gpui_base::test_support::find(window, &[], &"submenu-content".into()).is_some(),
-            "submenu opened"
-        );
-    })
-    .unwrap();
-    cx.simulate_keystrokes(window.into(), "down enter");
-    frame(cx);
-    cx.update_window(window.into(), |_, window, cx| {
-        let view = view.read(cx);
-        assert_eq!(view.output.as_ref(), "Sort by date modified");
-        assert!(view.trigger.is_focused(window));
-    })
-    .unwrap();
-}
-
-#[cfg(all(test, feature = "test-support"))]
-#[gpui::test]
-fn submenu_accepts_pointer_selection_before_dismissing_its_parent(cx: &mut gpui::TestAppContext) {
-    use gpui::{InputEvent as _, MouseButton, MouseDownEvent, MouseUpEvent, WindowOptions, point};
-    use gpui_base::test_support::find;
-    use gpui_material::MaterialRoot;
-    use std::time::Duration;
-    let submenu_exit = (gpui::ElementId::from("options"), "submenu-exit-1").into();
-
-    let (window, view) = cx.update(|cx| {
-        crate::init_gallery(cx);
-        let mut view = None;
-        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
-            let entity = cx.new(|cx| MenuTooltipExamples::new(Story::Menu, cx));
-            view = Some(entity.clone());
-            entity
-        })
-        .unwrap();
-        (window, view.unwrap())
-    });
-    let frame = |cx: &mut gpui::TestAppContext| {
-        cx.update_window(window.into(), |_, window, cx| {
-            window.refresh();
-            window.draw(cx).clear(cx);
-        })
-        .unwrap();
-        cx.run_until_parked();
-    };
-    frame(cx);
-    cx.update_window(window.into(), |_, window, cx| {
-        view.read(cx).trigger.clone().focus(window, cx);
-    })
-    .unwrap();
-    cx.simulate_keystrokes(window.into(), "enter");
-    frame(cx);
-    frame(cx);
-    cx.simulate_keystrokes(window.into(), "down right");
-    frame(cx);
-    frame(cx);
-    cx.executor().advance_clock(Duration::from_millis(250));
-    frame(cx);
-    cx.update_window(window.into(), |_, window, cx| {
-        let submenu = find(window, &[], &"submenu-content".into())
-            .unwrap()
-            .bounds();
-        let position = point(submenu.center().x, submenu.top() + px(68.));
-        window.dispatch_event(
-            MouseDownEvent {
-                button: MouseButton::Left,
-                position,
-                click_count: 1,
-                ..Default::default()
-            }
-            .to_platform_input(),
-            cx,
-        );
-        window.refresh();
-        window.draw(cx).clear(cx);
-        assert!(find(window, &[], &"submenu-content".into()).is_some());
-        window.dispatch_event(
-            MouseUpEvent {
-                button: MouseButton::Left,
-                position,
-                click_count: 1,
-                ..Default::default()
-            }
-            .to_platform_input(),
-            cx,
-        );
-    })
-    .unwrap();
-    frame(cx);
-    cx.update_window(window.into(), |_, window, cx| {
-        assert_eq!(view.read(cx).output.as_ref(), "Sort by date modified");
-        assert!(find(window, &[], &"menu".into()).is_none());
-        assert!(find(window, &[], &submenu_exit).is_some());
-    })
-    .unwrap();
-    cx.executor().advance_clock(Duration::from_millis(250));
-    frame(cx);
-    cx.update_window(window.into(), |_, window, _| {
-        assert!(find(window, &[], &submenu_exit).is_none());
-    })
-    .unwrap();
-}
-
-#[cfg(all(test, feature = "test-support"))]
-#[gpui::test]
-fn composed_menu_toggles_live_visibility_before_redraw(cx: &mut gpui::TestAppContext) {
-    use gpui::{App, WindowOptions};
-    use gpui_material::MaterialRoot;
-    use std::{cell::RefCell, rc::Rc};
-
-    type Activate = Rc<dyn Fn(&mut Window, &mut App)>;
-    struct Example {
-        activate: Rc<RefCell<Option<Activate>>>,
-        requests: Rc<RefCell<Vec<bool>>>,
-    }
-
-    impl Render for Example {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-            let activate = self.activate.clone();
-            let requests = self.requests.clone();
-            Menu::composed(
-                "menu",
-                [MenuItem::new("entry", "Entry")],
-                move |_, toggle| {
-                    *activate.borrow_mut() = Some(toggle);
-                    gpui_base::Button::new("trigger")
-                        .child("Open menu")
-                        .into_any_element()
-                },
-            )
-            .on_open_change(move |open, _, _| requests.borrow_mut().push(open))
-        }
-    }
-
-    let activate = Rc::new(RefCell::new(None::<Activate>));
-    let requests = Rc::new(RefCell::new(Vec::new()));
-    let window = cx.update(|cx| {
-        crate::init_gallery(cx);
-        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
-            cx.new(|_| Example {
-                activate: activate.clone(),
-                requests: requests.clone(),
-            })
-        })
-        .unwrap()
-    });
-    cx.update_window(window.into(), |_, window, cx| {
-        window.refresh();
-        window.draw(cx).clear(cx);
-        let toggle = activate.borrow().as_ref().unwrap().clone();
-        toggle(window, cx);
-        toggle(window, cx);
-    })
-    .unwrap();
-    assert_eq!(*requests.borrow(), [true, false]);
-}
-
-#[cfg(all(test, feature = "test-support"))]
-#[gpui::test]
-fn controlled_menu_applies_only_accepted_requests_and_keeps_nested_escape_local(
-    cx: &mut gpui::TestAppContext,
-) {
-    use gpui::{
-        InputEvent as _, MouseButton, MouseDownEvent, Role, StatefulInteractiveElement,
-        WindowOptions, point,
-    };
-    use gpui_base::test_support::find;
-    use gpui_material::MaterialRoot;
-
-    #[derive(Default)]
-    struct Example {
-        open: bool,
-        accept: bool,
-        checked: bool,
-        requests: Vec<bool>,
-        checked_requests: Vec<bool>,
-        dismissals: usize,
-    }
-
-    impl Render for Example {
-        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-            let owner = cx.entity().downgrade();
-            let dismiss = owner.clone();
-            let checked = owner.clone();
-            let toggles = MenuItem::new("controlled-check", "Show labels")
-                .checked(self.checked)
-                .content(|| "Visible check label")
-                .supporting(|| div().id("item-support").test_support().child("More detail"))
-                .on_checked_change(move |value, _, cx| {
-                    let _ = checked.update(cx, |state, cx| {
-                        state.checked_requests.push(value);
-                        state.checked = value;
-                        cx.notify();
-                    });
-                });
-            Menu::composed(
-                "controlled-menu",
-                [
-                    toggles,
-                    MenuItem::new("controlled-submenu", "Sort by")
-                        .submenu([MenuItem::new("controlled-descending", "Descending")]),
-                ],
-                |_, toggle| {
-                    gpui_base::Button::new("controlled-trigger")
-                        .child("Open menu")
-                        .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
-                            toggle(window, cx);
-                        })
-                        .into_any_element()
-                },
-            )
-            .open(self.open)
-            .on_open_change(move |value, _, cx| {
-                let _ = owner.update(cx, |state, cx| {
-                    state.requests.push(value);
-                    if state.accept {
-                        state.open = value;
-                    }
-                    cx.notify();
-                });
-            })
-            .on_dismiss(move |_, cx| {
-                let _ = dismiss.update(cx, |state, _| state.dismissals += 1);
-            })
-        }
-    }
-
-    let (window, view) = cx.update(|cx| {
-        crate::init_gallery(cx);
-        cx.set_reduce_motion(true);
-        let view = cx.new(|_| Example::default());
-        let window =
-            MaterialRoot::open_window(WindowOptions::default(), cx, |_, _| view.clone()).unwrap();
-        (window, view)
-    });
-    let window = window.into();
-    let frame = |cx: &mut gpui::TestAppContext| {
-        cx.update_window(window, |_, window, cx| {
-            window.refresh();
-            window.draw(cx).clear(cx);
-        })
-        .unwrap();
-        cx.run_until_parked();
-    };
-    let read_open = |cx: &mut gpui::TestAppContext| {
-        cx.update_window(window, |_, window, _| {
-            find(window, &[], &"menu".into()).is_some()
-        })
-        .unwrap()
-    };
-    frame(cx);
-    cx.update_window(window, |_, window, cx| window.focus_next(cx))
-        .unwrap();
-    let focus = |cx: &mut gpui::TestAppContext| {
-        cx.update_window(window, |_, window, cx| window.focused(cx))
-            .unwrap()
-    };
-    let trigger = focus(cx).expect("the trigger is focusable");
-    cx.update_window(window, |_, window, cx| {
-        let target = find(window, &[], &"controlled-trigger".into()).unwrap();
-        window.dispatch_event(
-            MouseDownEvent {
-                button: MouseButton::Left,
-                position: target.bounds().center(),
-                click_count: 1,
-                ..Default::default()
-            }
-            .to_platform_input(),
-            cx,
-        );
-    })
-    .unwrap();
-    frame(cx);
-    assert!(!read_open(cx));
-    assert_eq!(focus(cx).as_ref(), Some(&trigger));
-
-    cx.update(|cx| view.update(cx, |state, _| state.accept = true));
-    cx.simulate_keystrokes(window, "enter");
-    frame(cx);
-    frame(cx);
-    assert!(read_open(cx));
-    cx.update_window(window, |_, window, _| {
-        let row = find(window, &[], &"controlled-check".into()).unwrap();
-        assert_eq!(row.role(), Some(Role::MenuItemCheckBox));
-        assert_eq!(row.label(), Some("Show labels"));
-        assert!(find(window, &[], &"item-support".into()).is_some());
-    })
-    .unwrap();
-
-    cx.simulate_keystrokes(window, "down right");
-    frame(cx);
-    frame(cx);
-    let nested_open = |cx: &mut gpui::TestAppContext| {
-        cx.update_window(window, |_, window, _| {
-            find(window, &[], &"submenu-content".into()).is_some()
-        })
-        .unwrap()
-    };
-    assert!(nested_open(cx));
-    cx.simulate_keystrokes(window, "escape");
-    frame(cx);
-    assert!(!nested_open(cx));
-    assert!(read_open(cx));
-    cx.update(|cx| {
-        assert_eq!(view.read(cx).requests, [true, true]);
-        assert_eq!(view.read(cx).dismissals, 0);
-        view.update(cx, |state, _| state.accept = false);
-    });
-    let active_item = focus(cx).expect("closing the submenu returns focus to its row");
-    cx.simulate_keystrokes(window, "escape");
-    frame(cx);
-    assert!(read_open(cx));
-    assert_eq!(focus(cx), Some(active_item));
-
-    cx.simulate_keystrokes(window, "up enter");
-    frame(cx);
-    cx.update(|cx| {
-        let state = view.read(cx);
-        assert_eq!(state.requests, [true, true, false, false]);
-        assert_eq!(state.dismissals, 2);
-        assert_eq!(state.checked_requests, [true]);
-        view.update(cx, |state, cx| {
-            state.open = false;
-            cx.notify();
-        });
-    });
-    frame(cx);
-    assert!(!read_open(cx));
-    assert_eq!(focus(cx).as_ref(), Some(&trigger));
-    cx.update(|cx| {
-        let state = view.read(cx);
-        assert_eq!(state.requests, [true, true, false, false]);
-        assert_eq!(state.dismissals, 2);
-        view.update(cx, |state, cx| {
-            state.accept = true;
-            state.open = true;
-            cx.notify();
-        });
-    });
-    frame(cx);
-    assert!(read_open(cx));
-    cx.update_window(window, |_, window, cx| {
-        let viewport = window.viewport_size();
-        window.dispatch_event(
-            MouseDownEvent {
-                button: MouseButton::Left,
-                position: point(viewport.width - px(10.), viewport.height - px(10.)),
-                click_count: 1,
-                ..Default::default()
-            }
-            .to_platform_input(),
-            cx,
-        );
-    })
-    .unwrap();
-    frame(cx);
-    assert!(!read_open(cx));
-    assert_eq!(focus(cx).as_ref(), Some(&trigger));
-    cx.update(|cx| {
-        let state = view.read(cx);
-        assert_eq!(state.requests, [true, true, false, false, false]);
-        assert_eq!(state.dismissals, 3);
-    });
-}
-
-#[cfg(all(test, feature = "test-support"))]
-#[gpui::test]
-fn expressive_menu_paints_group_row_and_position_overrides(cx: &mut gpui::TestAppContext) {
-    use gpui::{
-        InputEvent as _, MouseButton, MouseDownEvent, MouseUpEvent, Pixels, Point, Role,
-        ScrollHandle, WindowOptions, point,
-    };
-    use gpui_base::test_support::find;
-    use gpui_material::{
-        MaterialRoot, MenuItemStyle, MenuSurfaceStyle,
-        foundation::{color, window_material_theme},
-        theme::{ColorRole, CornerRole, Elevation},
-    };
-
-    struct Example {
-        scroll: ScrollHandle,
-        position: Point<Pixels>,
-        activations: usize,
-    }
-
-    impl Render for Example {
-        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-            let owner = cx.entity().downgrade();
-            div().child(
-                Menu::new(
-                    "styled-menu",
-                    gpui_base::Button::new("styled-trigger").child("Menu"),
-                    [
-                        MenuItem::section(
-                            "project-group",
-                            "Project",
-                            [
-                                MenuItem::new("group-first", "First").on_activate(move |_, cx| {
-                                    let _ = owner.update(cx, |state, cx| {
-                                        state.activations += 1;
-                                        cx.notify();
-                                    });
-                                }),
-                                MenuItem::new("group-selected", "Selected")
-                                    .selected(true)
-                                    .appearance(MenuItemStyle {
-                                        selected_shape: Some(CornerRole::Medium.shape()),
-                                        selected_container: Some(ColorRole::PrimaryContainer),
-                                        selected_content: Some(ColorRole::OnPrimaryContainer),
-                                        ..Default::default()
-                                    }),
-                            ],
-                        )
-                        .group_appearance(MenuSurfaceStyle {
-                            shape: Some(CornerRole::ExtraLarge.shape()),
-                            container: Some(ColorRole::SecondaryContainer),
-                            border: Some((px(2.), ColorRole::Outline)),
-                            ..Default::default()
-                        }),
-                        MenuItem::section(
-                            "following-group",
-                            "More actions",
-                            (0..20usize).map(|index| {
-                                MenuItem::new(("following-item", index), format!("Action {index}"))
-                            }),
-                        ),
-                    ],
-                )
-                .color(MenuColor::Vibrant)
-                .appearance(MenuSurfaceStyle {
-                    shadow_elevation: Some(Elevation::Level4),
-                    spacing: Some(px(4.)),
-                    ..Default::default()
-                })
-                .content(|| {
-                    div()
-                        .id("menu-header")
-                        .test_support()
-                        .child("Style controls")
-                })
-                .position(self.position)
-                .track_scroll(&self.scroll)
-                .open(true),
-            )
-        }
-    }
-
-    let scroll = ScrollHandle::new();
-    let (window, view) = cx.update(|cx| {
-        crate::init_gallery(cx);
-        cx.set_reduce_motion(true);
-        let view = cx.new(|_| Example {
-            scroll: scroll.clone(),
-            position: point(px(180.), px(100.)),
-            activations: 0,
-        });
-        let window =
-            MaterialRoot::open_window(WindowOptions::default(), cx, |_, _| view.clone()).unwrap();
-        (window, view)
-    });
-    let window = window.into();
-    for _ in 0..2 {
-        cx.update_window(window, |_, window, cx| {
-            window.refresh();
-            window.draw(cx).clear(cx);
-        })
-        .unwrap();
-        cx.run_until_parked();
-    }
-    let menu_position = |cx: &mut gpui::TestAppContext| {
-        cx.update_window(window, |_, window, _| {
-            find(window, &[], &"menu".into()).unwrap().bounds().origin
-        })
-        .unwrap()
-    };
-    assert_eq!(menu_position(cx), point(px(180.), px(100.)));
-    cx.update_window(window, |_, window, cx| {
-        let group = find(window, &[], &"project-group".into()).unwrap();
-        assert_eq!(group.role(), Some(Role::Group));
-        assert_eq!(group.label(), Some("Project"));
-        assert!(find(window, &[], &"menu-header".into()).is_some());
-        let theme = window_material_theme(window, cx);
-        let tint = |role| color(theme.colors.color(role));
-        let quads = window.painted_quads();
-        assert!(
-            quads
-                .iter()
-                .any(|quad| quad.background == tint(ColorRole::TertiaryContainer).into())
-        );
-        let group_fill = quads
-            .iter()
-            .find(|quad| {
-                quad.background == tint(ColorRole::SecondaryContainer).into()
-                    && quad.corner_radii.top_left.0 == 28. * window.scale_factor()
-            })
-            .expect("styled group fill");
-        assert!(quads.iter().any(|quad| {
-            quad.bounds == group_fill.bounds
-                && quad.border_color == tint(ColorRole::Outline)
-                && quad.border_widths.top.0 == 2. * window.scale_factor()
-        }));
-        assert!(quads.iter().any(|quad| {
-            quad.background == tint(ColorRole::PrimaryContainer).into()
-                && quad.corner_radii.top_left.0 == 12. * window.scale_factor()
-        }));
-    })
-    .unwrap();
-
-    let focus = |cx: &mut gpui::TestAppContext| {
-        cx.update_window(window, |_, window, cx| window.focused(cx))
-            .unwrap()
-    };
-    let first = focus(cx).unwrap();
-    cx.simulate_keystrokes(window, "down");
-    let selected = focus(cx).unwrap();
-    assert_ne!(selected, first);
-    cx.simulate_keystrokes(window, "down up");
-    assert_eq!(focus(cx), Some(selected));
-
-    cx.update_window(window, |_, window, cx| {
-        let row = find(window, &[], &"group-first".into()).unwrap();
-        let position = row.bounds().center();
-        window.dispatch_event(
-            MouseDownEvent {
-                button: MouseButton::Left,
-                position,
-                click_count: 1,
-                ..Default::default()
-            }
-            .to_platform_input(),
-            cx,
-        );
-        window.dispatch_event(
-            MouseUpEvent {
-                button: MouseButton::Left,
-                position,
-                click_count: 1,
-                ..Default::default()
-            }
-            .to_platform_input(),
-            cx,
-        );
-        assert_eq!(view.read(cx).activations, 1);
-    })
-    .unwrap();
-
-    assert!(scroll.max_offset().y > px(60.));
-    scroll.set_offset(point(px(0.), -px(60.)));
-    cx.update_window(window, |_, window, cx| {
-        window.refresh();
-        window.draw(cx).clear(cx);
-    })
-    .unwrap();
-    assert_eq!(scroll.offset().y, -px(60.));
-    assert_eq!(menu_position(cx), point(px(180.), px(100.)));
-
-    cx.update_window(window, |_, window, cx| {
-        let viewport = window.viewport_size();
-        view.update(cx, |state, cx| {
-            state.position = point(viewport.width + px(40.), viewport.height + px(40.));
-            cx.notify();
-        });
-        window.refresh();
-        window.draw(cx).clear(cx);
-        let menu = find(window, &[], &"menu".into()).unwrap().bounds();
-        assert!(menu.right() <= viewport.width && menu.bottom() <= viewport.height);
-    })
-    .unwrap();
-}
-
-#[cfg(all(test, feature = "test-support"))]
-#[gpui::test]
-fn rich_tooltip_keeps_its_action_available_while_focused(cx: &mut gpui::TestAppContext) {
-    use gpui::{AppContext, WindowOptions};
-    use gpui_base::test_support::find;
-    use gpui_material::MaterialRoot;
-    use std::time::Duration;
-
-    let (window, view) = cx.update(|cx| {
-        crate::init_gallery(cx);
-        let mut view = None;
-        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
-            let entity = cx.new(|cx| MenuTooltipExamples::new(Story::Tooltip, cx));
-            view = Some(entity.clone());
-            entity
-        })
-        .unwrap();
-        (window, view.unwrap())
-    });
-    let frame = |cx: &mut gpui::TestAppContext| {
-        cx.update_window(window.into(), |_, window, cx| {
-            window.refresh();
-            window.draw(cx).clear(cx);
-            find(window, &[], &"tooltip".into()).is_some()
-        })
-        .unwrap()
-    };
-    assert!(!frame(cx));
-    cx.update_window(window.into(), |_, window, cx| {
-        view.read(cx).rich_trigger.clone().focus(window, cx);
-    })
-    .unwrap();
-    frame(cx);
-    cx.run_until_parked();
-    cx.executor().advance_clock(Duration::from_millis(10));
-    cx.run_until_parked();
-    assert!(frame(cx));
-    let bounds = |cx: &mut gpui::TestAppContext| {
-        cx.update_window(window.into(), |_, window, _| {
-            find(window, &[], &"tooltip".into()).unwrap().bounds()
-        })
-        .unwrap()
-    };
-    let collapsed = bounds(cx);
-    cx.simulate_keystrokes(window.into(), "tab");
-    frame(cx);
-    cx.update_window(window.into(), |_, window, cx| {
-        assert!(
-            view.read(cx).rich_action.is_focused(window),
-            "tooltip action focused"
-        );
-    })
-    .unwrap();
-    cx.executor().advance_clock(Duration::from_millis(250));
-    cx.run_until_parked();
-    assert!(frame(cx));
-    let expanded = bounds(cx);
-    assert!(collapsed.size.width < expanded.size.width);
-    assert!(collapsed.size.height < expanded.size.height);
-    assert!((collapsed.center().x - expanded.center().x).abs() <= px(1.));
-    cx.simulate_keystrokes(window.into(), "enter");
-    cx.update(|cx| assert_eq!(view.read(cx).output.as_ref(), "30 days"));
-    cx.simulate_keystrokes(window.into(), "escape");
-    assert!(!frame(cx));
-    cx.update_window(window.into(), |_, window, cx| {
-        assert!(view.read(cx).rich_trigger.is_focused(window));
-        assert!(find(window, &[], &"tooltip-exit".into()).is_some());
-        assert!(find(window, &[], &"tooltip-action".into()).is_none());
-    })
-    .unwrap();
-    cx.executor().advance_clock(Duration::from_millis(200));
-    assert!(!frame(cx));
-    cx.update_window(window.into(), |_, window, _| {
-        assert!(find(window, &[], &"tooltip-exit".into()).is_none());
-    })
-    .unwrap();
-}
-
-#[cfg(all(test, feature = "test-support"))]
-#[gpui::test]
-fn task_dialog_adapts_at_compact_breakpoint_without_losing_state(cx: &mut gpui::TestAppContext) {
-    use gpui::{WindowOptions, size};
-    use gpui_base::test_support::find;
-    use gpui_material::MaterialRoot;
-    use std::time::Duration;
-
-    let (window, state) = cx.update(|cx| {
-        crate::init_gallery(cx);
-        let mut state = None;
-        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
-            cx.new(|cx| {
-                let view = ModalExamples::new(Story::Dialog, window, cx);
-                state = Some(view.secondary.clone());
-                view
-            })
-        })
-        .unwrap();
-        (window, state.unwrap())
-    });
-    cx.simulate_window_resize(window.into(), size(px(400.), px(600.)));
-    cx.update_window(window.into(), |_, window, cx| {
-        state.update(cx, |state, cx| state.open(window, cx));
-        window.refresh();
-        window.draw(cx).clear(cx);
-    })
-    .unwrap();
-    cx.executor().advance_clock(Duration::from_millis(250));
-    cx.update_window(window.into(), |_, window, cx| {
-        window.refresh();
-        window.draw(cx).clear(cx);
-        let panel = find(window, &[], &"guidelines-dialog".into())
-            .unwrap()
-            .bounds();
-        let bar = find(window, &[], &"dialog-app-bar".into())
-            .unwrap()
-            .bounds();
-        let body = find(window, &[], &"dialog-content".into())
-            .unwrap()
-            .bounds();
-        assert_eq!(panel.size, window.viewport_size());
-        assert_eq!(bar.size.height, px(56.));
-        assert!(body.top() >= bar.bottom());
-        assert!(body.bottom() <= panel.bottom());
-    })
-    .unwrap();
-    let focus = cx
-        .update_window(window.into(), |_, window, cx| {
-            window.focus_next(cx);
-            window.focused(cx).unwrap()
-        })
-        .unwrap();
-    cx.simulate_window_resize(window.into(), size(px(800.), px(600.)));
-    cx.update_window(window.into(), |_, window, cx| {
-        window.refresh();
-        window.draw(cx).clear(cx);
-        assert!(state.read(cx).is_open());
-        assert!(
-            focus.is_focused(window),
-            "resizing preserves the keyboard focus handle"
-        );
-        assert!(find(window, &[], &"dialog-app-bar".into()).is_none());
-        let panel = find(window, &[], &"guidelines-dialog".into())
-            .unwrap()
-            .bounds();
-        assert_eq!(panel.size.width, px(560.));
-        assert!(panel.size.height < window.viewport_size().height);
-    })
-    .unwrap();
-    cx.simulate_keystrokes(window.into(), "escape");
-    cx.update(|cx| assert!(!state.read(cx).is_open()));
 }

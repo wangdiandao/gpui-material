@@ -25,6 +25,8 @@
 - 变更需要修改文档时，先完成文档修改，再开始实现。相关文档与代码可以放在同一次提交和同一个 PR 中。
 - 英文 `foo.md`、中文 `foo.zh.md` 与逐节指纹 `foo.i18n.yaml` 放在同一目录。标题下链接另一语言，正文链接优先指向同语言页面。在同一 PR 同步两页，确认内容对应后运行 `cargo xtask docs --write path/to/foo.md` 更新记录。`cargo xtask check` 核验配对、语言入口、标题层级、代码示例和指纹。GitHub Issue 和 PR 模板使用英文。[DeepSeek Harness 文档约定](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/i18n/README.md)
 - theme 保持纯 Rust，foundation 负责 GPUI/Base 适配。应用或 Base 持有业务与输入状态，Material 持有呈现和新增组合状态。优先复用现有公共接口。[架构与依赖](architecture.zh.md)
+- 遵循高内聚、低耦合的模块架构规范，以长期可维护性为首要考量。按职责边界（如公开接口、状态流转、几何与布局计算、样式解析、视图呈现与测试）组织模块和函数，而不是按机械的代码行数拆分。
+- 当单个模块混杂多个正交职责、同级依赖出现耦合，或单个 `render` / 状态流转函数同时承担状态准备、交互绑定与多段布局拼装时，拆分为职责单一的子模块或辅助函数。拆分时保持公开导出路径稳定，内部项收窄为 `pub(super)` 或 `pub(crate)`，同级子模块保持单向窄依赖；较大规模测试抽离到独立的 `#[cfg(test)]` 子模块（含 Gallery 的 `*_tests.rs`），自动生成的数据表保持整体不手拆。
 - 采用 Rust 惯用命名和稳定的语义标识。注释说明不变量、生命周期与平台差异。公开文档交代状态所有权、默认值、焦点、回调和平台支持。
 
 <a id="testing-conventions"></a>

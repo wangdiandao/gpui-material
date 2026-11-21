@@ -2,8 +2,8 @@ use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
     AccessibleAction, AnyElement, App, BorderStyle, Bounds, Corners, ElementId, Entity,
-    FocusHandle, Hsla, IntoElement, ParentElement, Pixels, StatefulInteractiveElement, Styled,
-    Window, canvas, div, prelude::FluentBuilder, px, quad,
+    FocusHandle, Hsla, IntoElement, ParentElement, Pixels, SharedString,
+    StatefulInteractiveElement, Styled, Window, canvas, div, prelude::FluentBuilder, px, quad,
 };
 use gpui_base::{Button, Toggle};
 use gpui_material_foundation::{
@@ -11,7 +11,7 @@ use gpui_material_foundation::{
     ThemeScope, animate, color, current_material_theme, elevation_shadows,
 };
 use gpui_material_theme::{
-    ColorRole, CornerRole, CornerShape, Elevation, MotionKind, MotionSpec, MotionSpeed,
+    ColorRole, CornerRole, CornerShape, Direction, Elevation, MotionKind, MotionSpec, MotionSpeed,
 };
 
 use crate::button_style::{ButtonShapes, ButtonStyle, finite_length};
@@ -94,12 +94,30 @@ pub(crate) struct SegmentShape {
 
 pub(crate) struct ActionControl {
     pub(crate) id: ElementId,
-    pub(crate) label: gpui::SharedString,
+    pub(crate) label: SharedString,
     pub(crate) focus: Option<FocusHandle>,
     pub(crate) disabled: bool,
     pub(crate) action: Action,
     pub(crate) style: ActionStyle,
     pub(crate) content: AnyElement,
+}
+
+#[derive(Clone, Copy)]
+struct ActionPalette {
+    foreground: Hsla,
+    background: Hsla,
+    outline: Hsla,
+    ring: Hsla,
+    shadow: Hsla,
+}
+
+#[derive(Clone, Copy)]
+struct ActionVisuals {
+    progress: f32,
+    selection: f32,
+    layer: f32,
+    outline_width: f32,
+    elevation: f32,
 }
 
 impl ActionControl {
@@ -206,43 +224,7 @@ impl ActionControl {
             &self.action,
             Action::Toggle { selected: true, .. }
         ));
-        let ring = color(theme.colors.color(ColorRole::Secondary));
-        let shadow = color(theme.colors.color(ColorRole::Shadow));
-        let foreground = layout
-            .appearance
-            .colors
-            .content(self.disabled, selected)
-            .unwrap_or_else(|| style.foreground(self.disabled, window, cx));
-        let background = layout
-            .appearance
-            .colors
-            .container(self.disabled, selected)
-            .unwrap_or_else(|| {
-                if self.disabled {
-                    style
-                        .disabled
-                        .background
-                        .map_or_else(Hsla::default, |(role, opacity)| {
-                            color(theme.colors.color(role)).opacity(opacity)
-                        })
-                } else {
-                    style
-                        .background_color
-                        .or_else(|| style.background.map(|role| color(theme.colors.color(role))))
-                        .unwrap_or_default()
-                }
-            });
-        let outline = layout.appearance.border.map_or_else(
-            || {
-                if self.disabled {
-                    color(theme.colors.color(style.disabled.outline.0))
-                        .opacity(style.disabled.outline.1)
-                } else {
-                    color(theme.colors.color(ColorRole::OutlineVariant))
-                }
-            },
-            |border| border.color,
-        );
+        let palette = resolve_palette(style, layout, self.disabled, selected, window, cx);
         let visual_height = px(density.visual_size(style.height) * scale);
         let visual_width = layout
             .width
@@ -253,151 +235,41 @@ impl ActionControl {
             .unwrap_or_else(|| px(density.interactive_size(style.min_width.max(1.)) * scale));
 
         let enabled = !self.disabled;
-        let interaction = {
-            let mut state = feedback.borrow_mut();
-            state.cancel_unavailable(enabled, window);
-            state.set_dragged(enabled && layout.dragged);
-            let interaction = if layout.decorative {
-                let mut interaction = InteractionState::default();
-                interaction.disabled = self.disabled;
-                interaction
-            } else {
-                state.interaction(enabled, &focus, window)
-            };
-            state.track_snapshot(interaction, &focus, tracker, cx);
-            interaction
-        };
-        let hovered = interaction.hovered;
-        let pressed = interaction.pressed;
-        let progress = animate(
-            (self.id.clone(), "press-shape"),
-            f32::from(pressed),
+        let interaction = record_interaction(
+            &feedback,
+            &focus,
+            tracker,
+            enabled,
+            layout.dragged,
+            layout.decorative,
+            window,
+            cx,
+        );
+        let visuals = animate_visuals(
+            &self.id,
+            style,
+            layout,
+            interaction,
+            selected,
+            enabled,
+            scale,
             motion,
-            window,
-            cx,
-        )
-        .clamp(0., 1.);
-        let selection = if style.selected_corner.is_some() {
-            animate(
-                (self.id.clone(), "selected-shape"),
-                f32::from(selected),
-                motion,
-                window,
-                cx,
-            )
-            .clamp(0., 1.)
-        } else {
-            0.
-        };
-        let layer = animate(
-            (self.id.clone(), "state-layer"),
-            interaction
-                .layer_with_ripple(reduced)
-                .map_or(0., |layer| layer.opacity()),
-            if enabled {
-                effects
-            } else {
-                MotionSpec::Instant
-            },
-            window,
-            cx,
-        )
-        .clamp(0., 1.);
-        let outline_width = animate(
-            (self.id.clone(), "outline-width"),
-            layout.appearance.border.map_or(style.outline, |border| {
-                f32::from(finite_length(border.width))
-            }),
             effects,
+            reduced,
             window,
             cx,
-        )
-        .max(0.);
-        let default_elevation = if !enabled {
-            0.
-        } else if hovered && !pressed {
-            style.hover_elevation.dp()
-        } else {
-            style.elevation.dp()
-        };
-        let elevation = animate(
-            (self.id.clone(), "elevation"),
-            (if interaction.dragged {
-                layout.dragged_elevation
-            } else {
-                layout.appearance.elevations.for_state(interaction)
-            })
-            .map_or(default_elevation, Elevation::dp),
-            effects,
-            window,
-            cx,
-        )
-        .max(0.)
-            * scale;
-        let mesh = feedback.clone();
-        let paint_feedback = feedback.clone();
-        let visual = canvas(
-            move |bounds, window, _| {
-                let corners =
-                    interpolated_corners(bounds, style, selection, progress, scale, layout);
-                let shape = Shape::rounded(bounds, corners, direction);
-                mesh.borrow_mut().set_shape(shape, window);
-                corners
-                    .radii(
-                        f32::from(bounds.size.width),
-                        f32::from(bounds.size.height),
-                        direction,
-                    )
-                    .map(px)
-            },
-            move |bounds, radii, window, cx| {
-                let [top_left, top_right, bottom_right, bottom_left] = radii;
-                let radii = Corners {
-                    top_left,
-                    top_right,
-                    bottom_left,
-                    bottom_right,
-                };
-                if elevation > 0. {
-                    window.paint_drop_shadows(
-                        bounds,
-                        radii,
-                        &elevation_shadows(elevation, scale, shadow),
-                    );
-                }
-                // A zero-width outline is still visible through antialiasing on some
-                // backends if its pigment is opaque.
-                if background.a > 0. || outline_width > 0. {
-                    window.paint_quad(quad(
-                        bounds,
-                        radii,
-                        background,
-                        px(outline_width),
-                        if outline_width > 0. {
-                            outline
-                        } else {
-                            gpui::transparent_black()
-                        },
-                        BorderStyle::Solid,
-                    ));
-                }
-
-                let feedback = paint_feedback.borrow();
-                if let Some(shape) = &feedback.shape {
-                    InteractionFeedback::new(interaction, foreground, ring).paint_with_opacity(
-                        shape,
-                        feedback.ripple.as_ref(),
-                        layer,
-                        cx.background_executor().now(),
-                        reduced,
-                        window,
-                    );
-                }
-            },
-        )
-        .absolute()
-        .inset_0()
-        .size_full();
+        );
+        let visual = render_visual_surface(
+            style,
+            layout,
+            direction,
+            scale,
+            palette,
+            visuals,
+            interaction,
+            reduced,
+            &feedback,
+        );
 
         // The visual may be smaller than the interactive target. GPUI and Base
         // retain a single target and semantic node as the shape changes.
@@ -416,107 +288,420 @@ impl ActionControl {
                 .min_h(target_height)
                 .min_w(target_width)
                 .max_w_full()
-                .text_color(foreground)
+                .text_color(palette.foreground)
                 .child(content)
                 .into_any_element();
         }
-        let id = self.id;
-        let label = self.label;
-        let disabled = self.disabled;
+        let width = (target_width, layout.width.is_some());
         match self.action {
-            Action::Invoke(on_activate) => {
-                let control = Button::new(id)
-                    .track_focus(&focus)
-                    .tab_stop(layout.tab_stop)
-                    .disabled(disabled)
-                    .accessibility_label(label);
-                let control = match on_activate {
-                    Some(on_activate) if enabled => {
-                        let on_activate = Rc::new(ThemeScope::bind_action(
-                            move |window, cx| on_activate(window, cx),
-                            window,
-                            cx,
-                        ));
-                        let feedback = feedback.clone();
-                        let invoke = on_activate.clone();
-                        let semantic_feedback = feedback.clone();
-                        let control = control.on_a11y_action(
-                            AccessibleAction::Click,
-                            move |_, window, cx| {
-                                if !semantic_feedback.borrow().is_dragged() {
-                                    invoke(window, cx);
-                                }
-                            },
-                        );
-                        control.when(!layout.semantic_only, |control| {
-                            control.on_click(move |event, window, cx| {
-                                cx.stop_propagation();
-                                if !feedback.borrow().blocks_activation(event) {
-                                    activate_feedback(event, &feedback, window, cx);
-                                    on_activate(window, cx);
-                                }
-                            })
-                        })
-                    }
-                    _ => control,
-                };
-                decorate(
-                    control,
-                    content,
-                    feedback,
-                    foreground,
-                    target_height,
-                    (target_width, layout.width.is_some()),
-                    enabled,
-                )
-            }
+            Action::Invoke(on_activate) => render_invoke_control(
+                self.id,
+                self.label,
+                self.disabled,
+                focus,
+                layout,
+                on_activate,
+                content,
+                feedback,
+                palette.foreground,
+                target_height,
+                width,
+                window,
+                cx,
+            ),
             Action::Toggle {
                 selected,
                 on_change,
-            } => {
-                let control = Toggle::new(id)
-                    .track_focus(&focus)
-                    .tab_stop(layout.tab_stop)
-                    .pressed(selected)
-                    .disabled(disabled)
-                    .accessibility_label(label);
-                let control = match on_change {
-                    Some(on_change) if enabled => {
-                        let feedback = feedback.clone();
-                        let toggle = on_change.clone();
-                        let semantic_feedback = feedback.clone();
-                        control
-                            .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
-                                if !semantic_feedback.borrow().is_dragged() {
-                                    toggle(!selected, window, cx);
-                                }
-                            })
-                            .on_change(move |selected, event, window, cx| {
-                                cx.stop_propagation();
-                                if !feedback.borrow().blocks_activation(event) {
-                                    activate_feedback(event, &feedback, window, cx);
-                                    on_change(selected, window, cx);
-                                }
-                            })
-                    }
-                    _ => control,
-                };
-                decorate(
-                    control,
-                    content,
-                    feedback,
-                    foreground,
-                    target_height,
-                    (target_width, layout.width.is_some()),
-                    enabled,
-                )
-            }
+            } => render_toggle_control(
+                self.id,
+                self.label,
+                self.disabled,
+                focus,
+                layout,
+                selected,
+                on_change,
+                content,
+                feedback,
+                palette.foreground,
+                target_height,
+                width,
+            ),
         }
     }
 }
 
+fn resolve_palette(
+    style: ActionStyle,
+    layout: ActionLayout,
+    disabled: bool,
+    selected: bool,
+    window: &Window,
+    cx: &App,
+) -> ActionPalette {
+    let theme = current_material_theme(window, cx);
+    let ring = color(theme.colors.color(ColorRole::Secondary));
+    let shadow = color(theme.colors.color(ColorRole::Shadow));
+    let foreground = layout
+        .appearance
+        .colors
+        .content(disabled, selected)
+        .unwrap_or_else(|| style.foreground(disabled, window, cx));
+    let background = layout
+        .appearance
+        .colors
+        .container(disabled, selected)
+        .unwrap_or_else(|| {
+            if disabled {
+                style
+                    .disabled
+                    .background
+                    .map_or_else(Hsla::default, |(role, opacity)| {
+                        color(theme.colors.color(role)).opacity(opacity)
+                    })
+            } else {
+                style
+                    .background_color
+                    .or_else(|| style.background.map(|role| color(theme.colors.color(role))))
+                    .unwrap_or_default()
+            }
+        });
+    let outline = layout.appearance.border.map_or_else(
+        || {
+            if disabled {
+                color(theme.colors.color(style.disabled.outline.0))
+                    .opacity(style.disabled.outline.1)
+            } else {
+                color(theme.colors.color(ColorRole::OutlineVariant))
+            }
+        },
+        |border| border.color,
+    );
+    ActionPalette {
+        foreground,
+        background,
+        outline,
+        ring,
+        shadow,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn record_interaction(
+    feedback: &RefCell<FeedbackState>,
+    focus: &FocusHandle,
+    tracker: Option<InteractionTracker>,
+    enabled: bool,
+    dragged: bool,
+    decorative: bool,
+    window: &Window,
+    cx: &mut App,
+) -> InteractionState {
+    let mut state = feedback.borrow_mut();
+    state.cancel_unavailable(enabled, window);
+    state.set_dragged(enabled && dragged);
+    let interaction = if decorative {
+        let mut interaction = InteractionState::default();
+        interaction.disabled = !enabled;
+        interaction
+    } else {
+        state.interaction(enabled, focus, window)
+    };
+    state.track_snapshot(interaction, focus, tracker, cx);
+    interaction
+}
+
+#[allow(clippy::too_many_arguments)]
+fn animate_visuals(
+    id: &ElementId,
+    style: ActionStyle,
+    layout: ActionLayout,
+    interaction: InteractionState,
+    selected: bool,
+    enabled: bool,
+    scale: f32,
+    motion: MotionSpec,
+    effects: MotionSpec,
+    reduced: bool,
+    window: &mut Window,
+    cx: &mut App,
+) -> ActionVisuals {
+    let hovered = interaction.hovered;
+    let pressed = interaction.pressed;
+    let progress = animate(
+        (id.clone(), "press-shape"),
+        f32::from(pressed),
+        motion,
+        window,
+        cx,
+    )
+    .clamp(0., 1.);
+    let selection = if style.selected_corner.is_some() {
+        animate(
+            (id.clone(), "selected-shape"),
+            f32::from(selected),
+            motion,
+            window,
+            cx,
+        )
+        .clamp(0., 1.)
+    } else {
+        0.
+    };
+    let layer = animate(
+        (id.clone(), "state-layer"),
+        interaction
+            .layer_with_ripple(reduced)
+            .map_or(0., |layer| layer.opacity()),
+        if enabled {
+            effects
+        } else {
+            MotionSpec::Instant
+        },
+        window,
+        cx,
+    )
+    .clamp(0., 1.);
+    let outline_width = animate(
+        (id.clone(), "outline-width"),
+        layout.appearance.border.map_or(style.outline, |border| {
+            f32::from(finite_length(border.width))
+        }),
+        effects,
+        window,
+        cx,
+    )
+    .max(0.);
+    let default_elevation = if !enabled {
+        0.
+    } else if hovered && !pressed {
+        style.hover_elevation.dp()
+    } else {
+        style.elevation.dp()
+    };
+    let elevation = animate(
+        (id.clone(), "elevation"),
+        (if interaction.dragged {
+            layout.dragged_elevation
+        } else {
+            layout.appearance.elevations.for_state(interaction)
+        })
+        .map_or(default_elevation, Elevation::dp),
+        effects,
+        window,
+        cx,
+    )
+    .max(0.)
+        * scale;
+    ActionVisuals {
+        progress,
+        selection,
+        layer,
+        outline_width,
+        elevation,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_visual_surface(
+    style: ActionStyle,
+    layout: ActionLayout,
+    direction: Direction,
+    scale: f32,
+    palette: ActionPalette,
+    visuals: ActionVisuals,
+    interaction: InteractionState,
+    reduced: bool,
+    feedback: &Rc<RefCell<FeedbackState>>,
+) -> impl IntoElement {
+    let mesh = feedback.clone();
+    let paint_feedback = feedback.clone();
+    canvas(
+        move |bounds, window, _| {
+            let corners = interpolated_corners(
+                bounds,
+                style,
+                visuals.selection,
+                visuals.progress,
+                scale,
+                layout,
+            );
+            let shape = Shape::rounded(bounds, corners, direction);
+            mesh.borrow_mut().set_shape(shape, window);
+            corners
+                .radii(
+                    f32::from(bounds.size.width),
+                    f32::from(bounds.size.height),
+                    direction,
+                )
+                .map(px)
+        },
+        move |bounds, radii, window, cx| {
+            let [top_left, top_right, bottom_right, bottom_left] = radii;
+            let radii = Corners {
+                top_left,
+                top_right,
+                bottom_left,
+                bottom_right,
+            };
+            if visuals.elevation > 0. {
+                window.paint_drop_shadows(
+                    bounds,
+                    radii,
+                    &elevation_shadows(visuals.elevation, scale, palette.shadow),
+                );
+            }
+            // A zero-width outline is still visible through antialiasing on some
+            // backends if its pigment is opaque.
+            if palette.background.a > 0. || visuals.outline_width > 0. {
+                window.paint_quad(quad(
+                    bounds,
+                    radii,
+                    palette.background,
+                    px(visuals.outline_width),
+                    if visuals.outline_width > 0. {
+                        palette.outline
+                    } else {
+                        gpui::transparent_black()
+                    },
+                    BorderStyle::Solid,
+                ));
+            }
+
+            let feedback = paint_feedback.borrow();
+            if let Some(shape) = &feedback.shape {
+                InteractionFeedback::new(interaction, palette.foreground, palette.ring)
+                    .paint_with_opacity(
+                        shape,
+                        feedback.ripple.as_ref(),
+                        visuals.layer,
+                        cx.background_executor().now(),
+                        reduced,
+                        window,
+                    );
+            }
+        },
+    )
+    .absolute()
+    .inset_0()
+    .size_full()
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_invoke_control(
+    id: ElementId,
+    label: SharedString,
+    disabled: bool,
+    focus: FocusHandle,
+    layout: ActionLayout,
+    on_activate: Option<Activate>,
+    content: impl IntoElement,
+    feedback: Rc<RefCell<FeedbackState>>,
+    foreground: Hsla,
+    target_height: Pixels,
+    width: (Pixels, bool),
+    window: &Window,
+    cx: &App,
+) -> AnyElement {
+    let enabled = !disabled;
+    let control = Button::new(id)
+        .track_focus(&focus)
+        .tab_stop(layout.tab_stop)
+        .disabled(disabled)
+        .accessibility_label(label);
+    let control = match on_activate {
+        Some(on_activate) if enabled => {
+            let on_activate = Rc::new(ThemeScope::bind_action(
+                move |window, cx| on_activate(window, cx),
+                window,
+                cx,
+            ));
+            let feedback = feedback.clone();
+            let invoke = on_activate.clone();
+            let semantic_feedback = feedback.clone();
+            let control = control.on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
+                if !semantic_feedback.borrow().is_dragged() {
+                    invoke(window, cx);
+                }
+            });
+            control.when(!layout.semantic_only, |control| {
+                control.on_click(move |event, window, cx| {
+                    cx.stop_propagation();
+                    if !feedback.borrow().blocks_activation(event) {
+                        activate_feedback(event, &feedback, window, cx);
+                        on_activate(window, cx);
+                    }
+                })
+            })
+        }
+        _ => control,
+    };
+    decorate(
+        control,
+        content,
+        feedback,
+        foreground,
+        target_height,
+        width,
+        enabled,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_toggle_control(
+    id: ElementId,
+    label: SharedString,
+    disabled: bool,
+    focus: FocusHandle,
+    layout: ActionLayout,
+    selected: bool,
+    on_change: Option<Change>,
+    content: impl IntoElement,
+    feedback: Rc<RefCell<FeedbackState>>,
+    foreground: Hsla,
+    target_height: Pixels,
+    width: (Pixels, bool),
+) -> AnyElement {
+    let enabled = !disabled;
+    let control = Toggle::new(id)
+        .track_focus(&focus)
+        .tab_stop(layout.tab_stop)
+        .pressed(selected)
+        .disabled(disabled)
+        .accessibility_label(label);
+    let control = match on_change {
+        Some(on_change) if enabled => {
+            let feedback = feedback.clone();
+            let toggle = on_change.clone();
+            let semantic_feedback = feedback.clone();
+            control
+                .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
+                    if !semantic_feedback.borrow().is_dragged() {
+                        toggle(!selected, window, cx);
+                    }
+                })
+                .on_change(move |selected, event, window, cx| {
+                    cx.stop_propagation();
+                    if !feedback.borrow().blocks_activation(event) {
+                        activate_feedback(event, &feedback, window, cx);
+                        on_change(selected, window, cx);
+                    }
+                })
+        }
+        _ => control,
+    };
+    decorate(
+        control,
+        content,
+        feedback,
+        foreground,
+        target_height,
+        width,
+        enabled,
+    )
+}
+
 fn decorate(
-    control: impl Styled + gpui::StatefulInteractiveElement + ParentElement + IntoElement,
+    control: impl Styled + StatefulInteractiveElement + ParentElement + IntoElement,
     content: impl IntoElement,
     feedback: Rc<RefCell<FeedbackState>>,
     foreground: Hsla,
@@ -548,8 +733,7 @@ pub(crate) fn interpolated_corners(
 ) -> CornerShape {
     let width = f32::from(bounds.size.width) / scale;
     let height = f32::from(bounds.size.height) / scale;
-    let radii =
-        |shape: CornerShape| shape.radii(width, height, gpui_material_theme::Direction::Ltr);
+    let radii = |shape: CornerShape| shape.radii(width, height, Direction::Ltr);
     let ButtonShapes {
         resting,
         pressed: pressed_shape,
@@ -596,7 +780,7 @@ pub(crate) fn ripple_ink(
     state: Rc<RefCell<FeedbackState>>,
     tint: Hsla,
     corners: CornerShape,
-    direction: gpui_material_theme::Direction,
+    direction: Direction,
 ) -> impl IntoElement {
     let geometry = state.clone();
     canvas(

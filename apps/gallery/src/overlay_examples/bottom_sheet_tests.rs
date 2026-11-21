@@ -576,7 +576,7 @@ fn bottom_sheet_cancels_drag_and_accepts_next_gesture(cx: &mut TestAppContext) {
     release(cx, destination);
     cx.update(|cx| {
         assert!(!cx.has_active_drag());
-        assert!(!view.read(cx).expanded);
+        assert!(!view.read(cx).sheet.as_ref().unwrap().expanded);
     });
     let height = |cx: &mut TestAppContext| {
         cx.update_window(window.into(), |_, window, cx| {
@@ -596,7 +596,7 @@ fn bottom_sheet_cancels_drag_and_accepts_next_gesture(cx: &mut TestAppContext) {
 
     let (destination, _) = drag(cx);
     release(cx, destination);
-    cx.update(|cx| assert!(view.read(cx).expanded));
+    cx.update(|cx| assert!(view.read(cx).sheet.as_ref().unwrap().expanded));
 }
 
 #[gpui::test]

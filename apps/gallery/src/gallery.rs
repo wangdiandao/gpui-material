@@ -67,10 +67,10 @@ impl Gallery {
                     _ => {}
                 },
             );
-        let stories = Story::ALL
-            .iter()
-            .filter_map(|&story| story.new_view(window, cx).map(|view| (story, view)))
-            .collect();
+        let mut stories = Vec::new();
+        if let Some(view) = initial_story.new_view(window, cx) {
+            stories.push((initial_story, view));
+        }
         let bounds = cx.observe_window_bounds(window, |this, window, cx| {
             if Self::single_pane(Self::width_class(window)) {
                 let catalog_focused = this
@@ -108,6 +108,28 @@ impl Gallery {
         self
     }
 
+    #[cfg(test)]
+    pub(crate) fn loaded_story_count(&self) -> usize {
+        self.stories.len()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn story_view_id(&self, story: Story) -> Option<gpui::EntityId> {
+        self.stories
+            .iter()
+            .find(|(entry, _)| *entry == story)
+            .map(|(_, view)| view.entity_id())
+    }
+
+    fn story_view(&mut self, story: Story, window: &mut Window, cx: &mut App) -> Option<AnyView> {
+        if let Some((_, view)) = self.stories.iter().find(|(entry, _)| *entry == story) {
+            return Some(view.clone());
+        }
+        let view = story.new_view(window, cx)?;
+        self.stories.push((story, view.clone()));
+        Some(view)
+    }
+
     fn width_class(window: &Window) -> WidthClass {
         WidthClass::from_width(window.viewport_size().width.into())
     }
@@ -141,6 +163,7 @@ impl Gallery {
         if self.current != story {
             self.current = story;
             self.content_scroll.set_offset(point(px(0.), px(0.)));
+            self.story_view(story, window, cx);
         }
         self.single_pane_catalog_open = false;
         if Self::single_pane(Self::width_class(window)) {
@@ -315,23 +338,21 @@ impl Gallery {
     }
 
     fn render_story(
-        &self,
+        &mut self,
         inset: Pixels,
         radius: Pixels,
-        window: &Window,
-        cx: &App,
-    ) -> impl IntoElement {
-        let theme = window_material_theme(window, cx);
-        let rtl = theme.layout.direction == Direction::Rtl;
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement + use<> {
         let content = match self.current {
             Story::Introduction => self.render_introduction(window, cx).into_any_element(),
-            _ => self
-                .stories
-                .iter()
-                .find(|(story, _)| *story == self.current)
-                .map(|(_, view)| view.clone().into_any_element())
-                .expect("registered story"),
+            story => self
+                .story_view(story, window, cx)
+                .expect("registered story")
+                .into_any_element(),
         };
+        let theme = window_material_theme(window, cx);
+        let rtl = theme.layout.direction == Direction::Rtl;
 
         div()
             .id((ElementId::from("gallery-story-pane"), self.current.id()))

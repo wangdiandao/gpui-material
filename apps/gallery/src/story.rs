@@ -327,6 +327,7 @@ impl Story {
         })
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn matches(self, query: &str) -> bool {
         let name = self.name().to_ascii_lowercase();
         query

@@ -13,6 +13,7 @@ name = "gpui_material_story"
 name = "gpui-material-gallery"
 path = "src/main.rs"
 required-features = ["desktop"]
+test = false
 
 [features]
 default = ["desktop"]

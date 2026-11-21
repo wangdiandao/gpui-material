@@ -1,20 +1,11 @@
-use gpui::{
-    App, AppContext, QuitMode, TitlebarOptions, Window, WindowBounds, WindowHandle, WindowOptions,
-    px, size,
-};
-use gpui_base::Root;
-use gpui_material::foundation::{
-    MaterialRoot, material_theme, set_material_theme, set_window_material_theme,
-};
+use gpui::QuitMode;
+use gpui_material::foundation::set_material_theme;
 use gpui_material::theme::{Appearance, MaterialTheme};
 
-use gpui_material_story::{Gallery, Story, init_gallery};
+use gpui_material_story::{GALLERY_TITLE, Story, init_gallery, open_gallery};
 
 #[cfg(feature = "frame-profile")]
 mod frame_profile;
-mod window_chrome;
-
-const TITLE: &str = "GPUI Material Gallery";
 
 fn main() {
     let arguments: Vec<_> = std::env::args().skip(1).collect();
@@ -58,7 +49,7 @@ fn main() {
                 Ok(())
             });
             if let Err(error) = result {
-                eprintln!("Could not open {TITLE}: {error:#}");
+                eprintln!("Could not open {GALLERY_TITLE}: {error:#}");
                 std::process::exit(1);
             }
             #[cfg(feature = "frame-profile")]
@@ -67,43 +58,3 @@ fn main() {
             }
         });
 }
-
-fn open_gallery(
-    cx: &mut App,
-    local_dark: bool,
-    initial_story: Story,
-    window_chrome: bool,
-) -> gpui::Result<WindowHandle<Root>> {
-    let options = WindowOptions {
-        titlebar: Some(TitlebarOptions {
-            title: Some(if local_dark {
-                format!("{TITLE} · Dark preview").into()
-            } else {
-                TITLE.into()
-            }),
-            ..Default::default()
-        }),
-        window_bounds: Some(WindowBounds::centered(size(px(1040.), px(744.)), cx)),
-        window_min_size: Some(size(px(320.), px(240.))),
-        ..Default::default()
-    };
-    let build_gallery = move |window: &mut Window, cx: &mut App| {
-        if local_dark {
-            let mut theme = material_theme(cx).clone();
-            theme.colors = gpui_material::theme::ColorScheme::baseline(Appearance::Dark);
-            set_window_material_theme(Some(theme), window, cx);
-        }
-        cx.new(|cx| Gallery::new(initial_story, window, cx).with_window_theme_toggle(local_dark))
-    };
-    if window_chrome {
-        let options = gpui_material::window_chrome::title_bar_window_options(options);
-        return MaterialRoot::open_window(options, cx, |window, cx| {
-            let gallery = build_gallery(window, cx);
-            cx.new(|cx| window_chrome::ChromePreview::new(gallery, window, cx))
-        });
-    }
-    MaterialRoot::open_window(options, cx, build_gallery)
-}
-
-#[cfg(all(test, feature = "test-support"))]
-mod desktop_tests;

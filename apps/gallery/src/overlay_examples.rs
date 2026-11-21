@@ -35,48 +35,64 @@ mod snackbar_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod tooltip_tests;
 
-pub(crate) struct ModalExamples {
-    story: Story,
-    primary: Entity<DialogState>,
-    secondary: Entity<DialogState>,
-    standard: Entity<DialogState>,
+struct DialogDemoState {
     custom: Entity<DialogState>,
     native: Entity<DialogState>,
+    name: Entity<TextFieldState>,
+}
+
+struct SheetDemoState {
+    standard: Entity<DialogState>,
     detached_side: Entity<DialogState>,
     standard_side: Entity<DialogState>,
     bottom_examples: Entity<bottom_sheet_examples::BottomSheetExamples>,
     standard_side_visible: bool,
     reviewing_side_details: bool,
-    name: Entity<TextFieldState>,
     expanded: bool,
+}
+
+pub(crate) struct ModalExamples {
+    story: Story,
+    primary: Entity<DialogState>,
+    secondary: Entity<DialogState>,
+    dialog: Option<DialogDemoState>,
+    sheet: Option<SheetDemoState>,
 }
 
 impl ModalExamples {
     pub(crate) fn new(story: Story, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let primary = cx.new(DialogState::new);
         let secondary = cx.new(DialogState::new);
-        let standard = cx.new(DialogState::new);
-        let custom = cx.new(DialogState::new);
-        let native = cx.new(DialogState::new);
-        let detached_side = cx.new(DialogState::new);
-        cx.observe(&detached_side, |_, _, cx| cx.notify()).detach();
-        cx.observe(&custom, |_, _, cx| cx.notify()).detach();
         cx.observe(&primary, |_, _, cx| cx.notify()).detach();
         cx.observe(&secondary, |_, _, cx| cx.notify()).detach();
+        let dialog = (story == Story::Dialog).then(|| {
+            let custom = cx.new(DialogState::new);
+            cx.observe(&custom, |_, _, cx| cx.notify()).detach();
+            DialogDemoState {
+                custom,
+                native: cx.new(DialogState::new),
+                name: cx.new(|cx| TextFieldState::new(window, cx).placeholder("名称")),
+            }
+        });
+        let sheet = (story == Story::Sheets).then(|| {
+            let detached_side = cx.new(DialogState::new);
+            cx.observe(&detached_side, |_, _, cx| cx.notify()).detach();
+            SheetDemoState {
+                standard: cx.new(DialogState::new),
+                detached_side,
+                standard_side: cx.new(DialogState::new),
+                bottom_examples: cx.new(bottom_sheet_examples::BottomSheetExamples::new),
+                standard_side_visible: true,
+                reviewing_side_details: false,
+                expanded: false,
+            }
+        });
         Self {
             story,
             primary,
             secondary,
-            standard,
-            custom,
-            native,
-            detached_side,
-            standard_side: cx.new(DialogState::new),
-            bottom_examples: cx.new(bottom_sheet_examples::BottomSheetExamples::new),
-            standard_side_visible: true,
-            reviewing_side_details: false,
-            name: cx.new(|cx| TextFieldState::new(window, cx).placeholder("名称")),
-            expanded: false,
+            dialog,
+            sheet,
         }
     }
 
@@ -88,8 +104,12 @@ impl ModalExamples {
     }
 
     fn dialogs(&self) -> impl IntoElement {
-        let editor = self.name.clone();
-        let native = self.native.clone();
+        let dialog = self
+            .dialog
+            .as_ref()
+            .expect("dialog demo state initialized for Story::Dialog");
+        let editor = dialog.name.clone();
+        let native = dialog.native.clone();
         stack()
             .child(
                 section("Rename a project")
@@ -129,7 +149,7 @@ impl ModalExamples {
                     .child(Self::trigger(
                         "review-export",
                         "Review export…",
-                        &self.custom,
+                        &dialog.custom,
                     ))
                     .child(
                         Button::new("open-native-dialog", "Open native dialog…").on_activate(
@@ -185,7 +205,7 @@ impl ModalExamples {
                     ),
             )
             .child(
-                Dialog::new("export-dialog", &self.custom, "Review export")
+                Dialog::new("export-dialog", &dialog.custom, "Review export")
                     .icon(Icon::new(IconName::Info).size(px(24.)))
                     .title_content(div().child("Review your export"))
                     .description("The export includes the project name and task history.")
@@ -212,6 +232,10 @@ impl ModalExamples {
     }
 
     fn sheets(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let sheet = self
+            .sheet
+            .as_ref()
+            .expect("sheet demo state initialized for Story::Sheets");
         let owner = cx.entity().downgrade();
         stack()
             .child(
@@ -235,14 +259,16 @@ impl ModalExamples {
             .child(
                 Sheet::new(
                     "standard",
-                    &self.standard,
+                    &sheet.standard,
                     "Project notes",
                     "The project name is used in the activity log.",
                 )
                 .extent(px(160.))
-                .expandable(self.expanded, move |expanded, _, cx| {
+                .expandable(sheet.expanded, move |expanded, _, cx| {
                     let _ = owner.update(cx, |this, cx| {
-                        this.expanded = expanded;
+                        if let Some(sheet) = &mut this.sheet {
+                            sheet.expanded = expanded;
+                        }
                         cx.notify();
                     });
                 }),
@@ -269,21 +295,21 @@ impl ModalExamples {
                 .mode(SheetMode::Modal)
                 .extent(px(360.)),
             )
-            .child(self.bottom_examples.clone())
-            .child(self.side_sheets(cx))
+            .child(sheet.bottom_examples.clone())
+            .child(self.side_sheets(sheet, cx))
     }
 
-    fn side_sheets(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn side_sheets(&self, sheet: &SheetDemoState, cx: &mut Context<Self>) -> impl IntoElement {
         let owner = cx.entity().downgrade();
         let restore = owner.clone();
         let close_standard = owner.clone();
         let back = owner.clone();
-        let detached = self.detached_side.clone();
+        let detached = sheet.detached_side.clone();
         section("Side-sheet layout and actions")
             .child(Self::trigger(
                 "filters",
                 "Project filters…",
-                &self.detached_side,
+                &sheet.detached_side,
             ))
             .child(
                 div()
@@ -294,16 +320,18 @@ impl ModalExamples {
                         Button::new("restore-inspector", "Show project inspector").on_activate(
                             move |_, cx| {
                                 let _ = restore.update(cx, |view, cx| {
-                                    view.standard_side_visible = true;
+                                    if let Some(sheet) = &mut view.sheet {
+                                        sheet.standard_side_visible = true;
+                                    }
                                     cx.notify();
                                 });
                             },
                         ),
                     ))
-                    .children(self.standard_side_visible.then(|| {
+                    .children(sheet.standard_side_visible.then(|| {
                         Sheet::new(
                             "project-inspector",
-                            &self.standard_side,
+                            &sheet.standard_side,
                             "Project inspector",
                             "Inspect the active project while its tasks stay available.",
                         )
@@ -313,7 +341,9 @@ impl ModalExamples {
                         .close_label("Close inspector")
                         .on_close(move |_, _, cx| {
                             let _ = close_standard.update(cx, |view, cx| {
-                                view.standard_side_visible = false;
+                                if let Some(sheet) = &mut view.sheet {
+                                    sheet.standard_side_visible = false;
+                                }
                                 cx.notify();
                             });
                         })
@@ -322,13 +352,15 @@ impl ModalExamples {
             .child(
                 Sheet::new(
                     "filter-sheet",
-                    &self.detached_side,
+                    &sheet.detached_side,
                     "Project filters",
                     stack()
                         .child(Button::new("filter-details", "Filter details").on_activate(
                             move |_, cx| {
                                 let _ = owner.update(cx, |view, cx| {
-                                    view.reviewing_side_details = true;
+                                    if let Some(sheet) = &mut view.sheet {
+                                        sheet.reviewing_side_details = true;
+                                    }
                                     cx.notify();
                                 });
                             },
@@ -341,7 +373,7 @@ impl ModalExamples {
                 .mode(SheetMode::Modal)
                 .placement(SheetPlacement::Detached)
                 .header_content(
-                    Text::new(if self.reviewing_side_details {
+                    Text::new(if sheet.reviewing_side_details {
                         "Filter details"
                     } else {
                         "Project filters"
@@ -351,7 +383,9 @@ impl ModalExamples {
                 )
                 .back("Back to filters", move |_, cx| {
                     let _ = back.update(cx, |view, cx| {
-                        view.reviewing_side_details = false;
+                        if let Some(sheet) = &mut view.sheet {
+                            sheet.reviewing_side_details = false;
+                        }
                         cx.notify();
                     });
                 })

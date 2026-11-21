@@ -40,6 +40,10 @@ See [versioning and releases](docs/release.md) for the release process.
 - Snapshot `Menu` exit rows lazily, short-circuit `AdaptivePaneState` history resolution once all three pane roles are assigned, replace per-frame multi-pane geometry `Vec` allocations with stack arrays, and avoid redundant root layout passes and focus map clones in `AdaptiveNavigation`, `AppBar`, `Scaffold`, and `NavigationItems`.
 - Binary-search single-line ellipsis truncation in `Text`, deduplicate `ExtendedFab` label shaping, reuse cached rounded feedback geometry and stack-allocated `elevation_shadow_pair` shadows across `Button`, `Chip`, `Card`, `ListItem`, and selection ripples, add static corner and line-count fast paths in `ListItem`, reuse active `DisplayScrollbar` fade wake timers across intermediate scroll frames, predefine `const` `Progress` easing curves, and skip redundant `SwipeToDismiss` width notifications when settled at rest.
 
+### Gallery
+
+- Lazily instantiate Gallery story views on first visit while retaining visited story state, scope `ModalExamples` entity creation to the active story (`Dialog` vs `Sheets`), exclude the desktop `Gallery` shell from `wasm32` builds, and consolidate Gallery tests into a single test binary.
+
 ## 0.2.0 - 2026-11-21
 
 Changes since [v0.1.2](https://github.com/wangdiandao/gpui-material/releases/tag/v0.1.2).

@@ -36,13 +36,16 @@ pub enum Story {
     AppBar,
     Avatar,
     Badge,
+    Banner,
     BottomAppBar,
+    Breadcrumbs,
     Button,
     ButtonGroup,
     Card,
     Carousel,
     Checkbox,
     Chip,
+    ChipGroup,
     DatePicker,
     DateRangePicker,
     Dialog,
@@ -65,6 +68,7 @@ pub enum Story {
     Radio,
     Search,
     Sheets,
+    Skeleton,
     Slider,
     Snackbar,
     SplitButton,
@@ -89,13 +93,16 @@ impl Story {
         Self::AppBar,
         Self::Avatar,
         Self::Badge,
+        Self::Banner,
         Self::BottomAppBar,
+        Self::Breadcrumbs,
         Self::Button,
         Self::ButtonGroup,
         Self::Card,
         Self::Carousel,
         Self::Checkbox,
         Self::Chip,
+        Self::ChipGroup,
         Self::DatePicker,
         Self::DateRangePicker,
         Self::Dialog,
@@ -118,6 +125,7 @@ impl Story {
         Self::Radio,
         Self::Search,
         Self::Sheets,
+        Self::Skeleton,
         Self::Slider,
         Self::Snackbar,
         Self::SplitButton,
@@ -143,12 +151,15 @@ impl Story {
             Self::AppBar => "app-bar",
             Self::Avatar => "avatar",
             Self::Badge => "badge",
+            Self::Banner => "banner",
             Self::BottomAppBar => "bottom-app-bar",
+            Self::Breadcrumbs => "breadcrumbs",
             Self::Button => "button",
             Self::Card => "card",
             Self::Carousel => "carousel",
             Self::Checkbox => "checkbox",
             Self::Chip => "chip",
+            Self::ChipGroup => "chip-group",
             Self::DatePicker => "date-picker",
             Self::DateRangePicker => "date-range-picker",
             Self::Dialog => "dialog",
@@ -171,6 +182,7 @@ impl Story {
             Self::Radio => "radio",
             Self::Search => "search",
             Self::Sheets => "sheets",
+            Self::Skeleton => "skeleton",
             Self::Slider => "slider",
             Self::Snackbar => "snackbar",
             Self::SplitButton => "split-button",
@@ -197,12 +209,15 @@ impl Story {
             Self::AppBar => "App bar",
             Self::Avatar => "Avatar",
             Self::Badge => "Badge",
+            Self::Banner => "Banner",
             Self::BottomAppBar => "Bottom app bar",
+            Self::Breadcrumbs => "Breadcrumbs",
             Self::Button => "Button",
             Self::Card => "Card",
             Self::Carousel => "Carousel",
             Self::Checkbox => "Checkbox",
             Self::Chip => "Chip",
+            Self::ChipGroup => "Chip group",
             Self::DatePicker => "Date picker",
             Self::DateRangePicker => "Date range picker",
             Self::Dialog => "Dialog",
@@ -225,6 +240,7 @@ impl Story {
             Self::Radio => "Radio group",
             Self::Search => "Search",
             Self::Sheets => "Sheet",
+            Self::Skeleton => "Skeleton",
             Self::Slider => "Slider",
             Self::Snackbar => "Snackbar",
             Self::SplitButton => "Split button",
@@ -257,8 +273,14 @@ impl Story {
             Self::AppBar => "Place navigation, titles, and commands above scrolling content.",
             Self::Avatar => "Display user or entity initials, icons, images, and fallback avatars.",
             Self::Badge => "Annotate icons with a dot, label, or count.",
+            Self::Banner => {
+                "Present in-flow Material 3 banners with semantic tones, actions, and optional dismissal."
+            }
             Self::BottomAppBar => {
                 "Dock primary actions and a floating action button along the bottom edge."
+            }
+            Self::Breadcrumbs => {
+                "Navigate hierarchical desktop paths with automatic middle-segment overflow menus."
             }
             Self::Button => {
                 "Trigger commands with Material button variants, sizes, and icon slots."
@@ -267,6 +289,9 @@ impl Story {
             Self::Carousel => "Browse a collection using six Material layouts.",
             Self::Checkbox => "Select multiple options and represent a mixed selection.",
             Self::Chip => "Offer suggestions, filter results, or represent removable inputs.",
+            Self::ChipGroup => {
+                "Coordinate controlled chip selection with roving focus and wrapping or scrolling rows."
+            }
             Self::DatePicker => "Choose an available date in a docked calendar or a dialog.",
             Self::DateRangePicker => {
                 "Choose two date endpoints on the calendar or enter them by hand."
@@ -303,6 +328,9 @@ impl Story {
             Self::Radio => "Choose one option from a group.",
             Self::Search => "Search from a docked surface or a full-screen app bar.",
             Self::Sheets => "Reveal supplementary content at the bottom or trailing edge.",
+            Self::Skeleton => {
+                "Display animated Material 3 loading placeholders with offscreen and reduced-motion discipline."
+            }
             Self::Slider => "Adjust a value or range with a pointer or keyboard.",
             Self::Snackbar => "Announce an outcome and offer a follow-up action such as Undo.",
             Self::SplitButton => "Run a primary command or choose a related action from its menu.",
@@ -360,7 +388,7 @@ impl Story {
             | Self::IconButton
             | Self::Fab
             | Self::ExtendedFab => cx.new(|_| ActionExamples::for_story(self)).into(),
-            Self::Checkbox | Self::Radio | Self::Switch | Self::Chip => {
+            Self::Checkbox | Self::Radio | Self::Switch | Self::Chip | Self::ChipGroup => {
                 cx.new(|cx| SelectionExamples::for_story(self, cx)).into()
             }
             Self::Slider => cx.new(SliderExamples::new).into(),
@@ -369,6 +397,7 @@ impl Story {
             Self::Search => cx.new(|cx| SearchExamples::new(window, cx)).into(),
             Self::AppBar
             | Self::BottomAppBar
+            | Self::Breadcrumbs
             | Self::NavigationBar
             | Self::NavigationDrawer
             | Self::NavigationRail
@@ -382,6 +411,7 @@ impl Story {
             Self::FabMenu | Self::Toolbars => cx.new(|cx| ToolbarExamples::new(self, cx)).into(),
             Self::Avatar
             | Self::Badge
+            | Self::Banner
             | Self::Card
             | Self::Divider
             | Self::DropTarget
@@ -390,6 +420,7 @@ impl Story {
             | Self::List
             | Self::LoadingIndicator
             | Self::Progress
+            | Self::Skeleton
             | Self::Text => cx.new(|_| DisplayExamples::for_story(self)).into(),
         };
         Some(view)

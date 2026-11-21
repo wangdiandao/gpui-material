@@ -1092,4 +1092,94 @@ TimePicker::new("reminder", "Reminder time", &self.picker, self.time)
 .active_step(1)
 .on_select(|index, _, _| println!("Step {index}"))`,
   },
+  {
+    slug: "banner",
+    group: "layout",
+    title: "Banner",
+    source: "crates/components/src/banner.rs",
+    api: "struct.Banner.html",
+    description: {
+      en: "Display an in-flow Material 3 banner or callout with semantic tones, actions, and optional dismissal.",
+      zh: "展示支持语义色板、操作按钮与可选关闭按钮的流式 Material 3 横幅提示。",
+    },
+    usage: {
+      en: "Keep visibility in application state and pass a stable ID and message to Banner::new. Set tone for semantic palettes, add up to two actions, and attach on_dismiss for a trailing close button.",
+      zh: "由应用持有显示状态，向 Banner::new 传入稳定 ID 与正文。通过 tone 选用语义色板，添加最多两个操作按钮，并可用 on_dismiss 附加尾部关闭按钮。",
+    },
+    imports: "use gpui_material::{Banner, Icon, IconName, SemanticTone};",
+    code: `Banner::new("sync-banner", "Workspace sync paused while offline.")
+    .title("Offline mode")
+    .tone(SemanticTone::Warning)
+    .icon(Icon::new(IconName::Info))
+    .action("Retry", |_, _| println!("Retry sync"))`,
+  },
+  {
+    slug: "chip-group",
+    group: "basic",
+    title: "ChipGroup",
+    source: "crates/components/src/chip/group.rs",
+    api: "struct.ChipGroup.html",
+    description: {
+      en: "Organize controlled filter or input chips with roving focus and wrapping or horizontal scrolling.",
+      zh: "以漫游焦点与换行或横向滚动布局组织受控筛选或输入标签组。",
+    },
+    usage: {
+      en: "Pass ChipGroupItem entries to ChipGroup::new. Choose Single, SingleRequired, or Multiple via selection + on_change, or use single_select for required single-choice groups.",
+      zh: "向 ChipGroup::new 传入 ChipGroupItem 列表。通过 selection 和 on_change 选择单选、必选单选或多选模式，或用 single_select 快速创建必选单选组。",
+    },
+    imports: "use gpui_material::{ChipGroup, ChipGroupItem, ChipGroupSelection};",
+    code: `ChipGroup::new(
+    "status-filters",
+    "Status filters",
+    [
+        ChipGroupItem::new("open", "Open"),
+        ChipGroupItem::new("review", "In review"),
+        ChipGroupItem::new("done", "Done"),
+    ],
+)
+.selection(ChipGroupSelection::Multiple, ["open".into()])
+.on_change(|selected, _, _| println!("Selected: {selected:?}"))`,
+  },
+  {
+    slug: "skeleton",
+    group: "layout",
+    title: "Skeleton",
+    source: "crates/components/src/skeleton.rs",
+    api: "struct.Skeleton.html",
+    description: {
+      en: "Render animated Material 3 loading placeholders with zero offscreen frames and reduced-motion support.",
+      zh: "渲染具备离屏零帧调度与低动效静态回退的 Material 3 骨架屏加载占位。",
+    },
+    usage: {
+      en: "Compose Skeleton::rect, text_line, circle, and shape (for MaterialShape polygons) while content loads. Placeholders pause offscreen and fall back to a static tint under reduced motion.",
+      zh: "在数据加载期间组合使用 Skeleton::rect、text_line、circle 与 shape（支持 MaterialShape 多边形）。占位在离屏时自动暂停，在低动效下保持静态填充。",
+    },
+    imports: "use gpui_material::{Skeleton, px};",
+    code: `Skeleton::text_line("headline-skeleton").width(px(220.))`,
+  },
+  {
+    slug: "breadcrumbs",
+    group: "layout",
+    title: "Breadcrumbs",
+    source: "crates/components/src/navigation/breadcrumbs.rs",
+    api: "struct.Breadcrumbs.html",
+    description: {
+      en: "Navigate hierarchical desktop paths with automatic middle-segment overflow into a Material menu.",
+      zh: "提供桌面端层级路径导航，并在空间不足时自动将中间路径折叠至 Material 菜单。",
+    },
+    usage: {
+      en: "Pass ordered BreadcrumbItem entries to Breadcrumbs::new and handle ancestor navigation in on_select. Middle segments collapse automatically when constrained by max_items or available width.",
+      zh: "向 Breadcrumbs::new 传入有序的 BreadcrumbItem 列表，在 on_select 中处理上级跳转。受 max_items 或可用宽度限制时，中间路径会自动折叠进溢出菜单。",
+    },
+    imports: "use gpui_material::{BreadcrumbItem, Breadcrumbs};",
+    code: `Breadcrumbs::new(
+    "doc-path",
+    [
+        BreadcrumbItem::new("home", "Home"),
+        BreadcrumbItem::new("projects", "Projects"),
+        BreadcrumbItem::new("q4", "Q4 Plan"),
+    ],
+)
+.on_select(|id, _, _| println!("Navigate to {id}"))`,
+  },
 ].map((guide) => ({ story: guide.slug, ...guide }));

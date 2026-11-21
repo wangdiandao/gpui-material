@@ -18,7 +18,7 @@
 | `Checkbox` | 未选中、选中、混合、错误和禁用状态，可配置实例颜色和描边并观察交互。 | [复选框](https://m3.material.io/components/checkbox/overview) |
 | `Radio`、`RadioGroup` | 互斥选择、组内键盘导航、单项颜色配置和可选的交互观察。 | [单选按钮](https://m3.material.io/components/radio-button/specs) |
 | `Switch` | 开启和关闭状态，支持可选滑块图标或自定义内容、各状态配色和共享交互观察。 | [开关](https://m3.material.io/components/switch/overview) |
-| `Chip` | Assist、Filter、Input、Suggestion，支持内容插槽和自定义外观，适用的变体支持独立选中和移除。 | [标签组件](https://m3.material.io/components/chips/overview) |
+| `Chip`、`ChipGroup` | Assist、Filter、Input、Suggestion 标签组件，支持内容插槽、自定义外观以及独立的选中与移除；受控 `ChipGroup` 集合支持 `Single`、`SingleRequired`、`Multiple` 选择模式、自动换行或横向滚动布局及漫游键盘焦点。 | [标签组件](https://m3.material.io/components/chips/overview) |
 | `Slider` | 单值、居中和范围滑块，可自定义轨道、滑柄和指示器，支持横向及可反转的纵向布局，以及连续值或步进值。 | [滑块](https://m3.material.io/components/sliders/specs) |
 
 使用 `.content(element)` 自定义显示的标签。构造器提供的无障碍名称和前后图标插槽仍然生效。内容中应避免放置独立控件，由按钮负责激活和焦点。可使用 `Button::filled`、`Button::tonal`、`Button::elevated`、`Button::outlined` 或 `Button::text` 作为 `Button::new(id, label).variant(...)` 的快捷构造器。可通过 `.tone(SemanticTone)`（亦保留 `ButtonTone` 别名）在所有变体与切换状态上快捷应用 Material 3 语义色板（`Default`、`Danger`、`Success`、`Warning`、`Info`）。可通过 `.shapes(ButtonShapes)`、`.colors(ButtonColors)`、`.border(ButtonBorder)`、`.content_padding(ButtonPadding)` 和 `.elevations(ButtonElevations)` 配置单个实例；显式传入的 `.colors` 和 `.border` 始终优先于语义色板默认值。未指定的形状、颜色和 elevation 字段沿用对应状态的尺寸、变体和语义色调默认值。`ButtonPadding` 随窗口文本方向调整。零宽度边框会移除默认描边。
@@ -77,6 +77,8 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 为各标签提供不同的 ID，再用调用方持有的 `Entity<InteractionSource>` 和 `.interaction_source(&source)` 按该 ID 观察主操作。交互源报告悬停、按下、键盘焦点、拖动和禁用反馈；选中与移除仍由调用方控制。使用 `.track_focus(&focus)` 为主操作接入调用方持有的 `FocusHandle`，例如作为相邻标签 `.on_remove(...)` 的焦点恢复目标。
 
+使用 `ChipGroup::new(id, name, items)` 与 `ChipGroupItem` 条目构建受控标签集合（`Role::ListBox`），默认采用 Material 3 8 dp 间距、RTL 镜像与单一漫游 Tab 停靠点（左右键、`Home`/`End`，自动跳过禁用项）。通过 `.selection(ChipGroupSelection, selected)`（`Single`、`SingleRequired` 或默认的 `Multiple`）与 `.on_change(|ids, window, cx| ...)` 管理选中状态，也可使用 `.single_select(selected, |id, window, cx| ...)` 作为 `SingleRequired` 的快捷写法。可通过 `.variant(ChipVariant)` 选择变体（默认 `Filter`，同样支持 `Input`），通过 `.scrollable(true)`（及可选 `.scroll_handle(&handle)`）切换为单行横向滚动而非换行布局，并通过 `.spacing(px)` 与 `.row_spacing(px)` 调整间距。每个 `ChipGroupItem` 支持 `.leading_icon`、`.avatar`、`.trailing`、`.disabled`、`.tonal`、`.elevated`、`.tone` 与 `.on_remove(label, handler)`。
+
 ### 滑块
 
 调用方持有 `SliderState` 实体，范围与步进由 Base 管理。`SliderEvent::Change` 报告数值编辑，`SliderEvent::Release` 报告指针手势结束。键盘或无障碍操作改变数值时，先发出 `Change`，再发出 `Release`。数值未变时不会发出这两个事件。使用 `Slider::range` 时传入范围值和两个无障碍名称。单值滑块使用 `.kind(SliderKind::Centered)` 从中点开始填充。`.axis(Axis::Vertical)` 默认从下往上递增。设置 `.reverse_vertical(true)` 后，布局、指针移动和上下方向键改为从上往下递增。横向布局和方向键随窗口方向调整。两种方向下，无障碍的值和边界都遵循数值顺序。
@@ -103,10 +105,12 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `SwipeToDismiss` | 横向滑动关闭，内容、背景及操作由调用方提供。 | [列表](https://m3.material.io/components/lists/guidelines) · [Compose SwipeToDismissBox](https://developer.android.com/reference/kotlin/androidx/compose/material3/SwipeToDismissBox.composable) |
 | `Divider`、`Badge`、`Avatar`、`AvatarGroup` | 横向与纵向分隔线支持逻辑内缩、粗细和单独配色。徽标支持独立或附着显示，可使用圆点、文本、计数、自定义内容和单独配色。头像支持圆形或圆角，可呈现首字母、图标、带回退内容的图片或自定义元素；`AvatarGroup` 支持重叠堆叠、表面色镂空环与 `+N` 溢出计数。 | [分隔线](https://m3.material.io/components/divider/overview) · [徽标](https://m3.material.io/components/badges/overview) |
 | `EmptyState` | 纯展示型的 Material 3 Expressive 空状态布局外壳，支持可选装饰图标或自定义视觉插槽（`MaterialShape` 或 `CornerShape` 衬底）、标题、辅助说明及居中操作槽位。 | [空状态](https://m3.material.io/foundations/content-design/overview) |
+| `Skeleton` | 基于 `SurfaceContainerHigh`/`SurfaceContainerHighest` 的 M3 脉冲骨架占位（`rect`、`text_line`、`circle` 与 `shape`），视口外零帧调度并在低动效下保持静态。 | [加载与进度](https://m3.material.io/components/progress-indicators/overview) |
 | `DisplayScrollbar` | 根据视口状态绘制任一方向的滚动位置，支持自定义尺寸、配色和淡出。 | [Compose 显示型滚动条](https://developer.android.com/reference/kotlin/androidx/compose/material3/nonInteractiveScrollbar.composable) |
 | `LinearProgress`、`CircularProgress` | 确定和不确定进度，支持可配置的直线和波浪样式。 | [进度指示器](https://m3.material.io/components/progress-indicators/overview) |
 | `LoadingIndicator` | Default 和 Contained 样式，支持确定与不确定进度、自定义形状序列和实例配色。 | [加载指示器](https://m3.material.io/components/loading-indicator/overview) |
 | `PullToRefresh` | 支持手势与无障碍操作的受控刷新，提供可配置的指示器和滚动接管状态。 | [加载指示器](https://m3.material.io/components/loading-indicator/guidelines) |
+| `Banner` | 流式 Material 3 横幅提示表面，支持 `SemanticTone` 色板、可选图标、标题、正文、1–2 个语义匹配操作或自定义操作插槽、可选关闭按钮、RTL 镜像与 `Role::Status`/`Role::Alert` 语义。 | [横幅](https://m3.material.io/components) |
 | `Snackbar`、`SnackbarHost` | 定时或持续显示的排队消息，支持自定义内容和布局、可选操作与关闭，以及完成结果。 | [消息条](https://m3.material.io/components/snackbar/specs) |
 
 ### 表面
@@ -171,6 +175,10 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 `EmptyState::new(id, title)` 提供纯展示型的 Material 3 Expressive 空状态布局外壳，不包含内置加载或重试状态机。通过 `.icon(element)` 在装饰性 `Surface` 衬底中渲染图标（默认使用 `MaterialShape::Cookie7Sided` 与 `SecondaryContainer` / `OnSecondaryContainer`），可用 `.icon_container_shape(shape)`（接收任意 `ShapePolygon`、`MaterialShape` 或 `PolygonRole`）、`.shape(CornerShape)` 和 `.icon_container_color_role(container, content)` 自定义；也可通过 `.visual(element)` 用任意自定义插画替换图标容器。通过 `.supporting(text)`（`BodyMedium` / `OnSurfaceVariant`）或 `.supporting_content(element)` 提供辅助说明，用 `.max_width(pixels)`（默认 360 dp）和 `.title_role(TypeRole)`（默认 `TitleLarge`）调整内容宽度与标题层级，并将调用方控件放入 `.primary_action(element)` 与 `.secondary_action(element)`（在居中横向行中以 12 dp 间距和 24 dp 顶边距排列，并在 RTL 下镜像）。图标容器为纯装饰元素不占焦点，标题、辅助文本及调用方按钮保持各自正常的无障碍语义与键盘焦点。
 
+### 骨架屏占位
+
+`Skeleton::rect(id, width, height)`、`Skeleton::text_line(id)`、`Skeleton::circle(id, diameter)` 与 `Skeleton::shape(id, width, height, shape)` 在无可选特性依赖的核心中渲染 Material 3 加载占位。`text_line` 默认铺满宽度、高 16 dp 并使用 `CornerRole::Small`，支持 `.width(...)`、`.height(...)`、`.role(TypeRole)` 与 `.full_width()`；`shape` 接收任意 `ShapePolygon`（包含 `MaterialShape::Cookie7Sided` 等表达性形状）。可通过 `.corner(CornerShape)` 或 `.corner_role(CornerRole)` 配置圆角，并通过 `.colors(SkeletonColors)` 覆写底色与高亮色（默认为 `SurfaceContainerHigh` 与 `SurfaceContainerHighest`）。占位默认纯装饰且不占 Tab 焦点，按需通过 `.accessible_label(label)` 暴露 `Role::Status` 语义。动效由 `foundation::LoopClock` 驱动并受 `is_bounds_visible` 门控：离屏或被裁剪时调度零帧动画，`.animated(false)` 或系统开启减少动态效果时以静态底色渲染且调度零帧动画。
+
 ### 滑动关闭
 
 为每项保留独立的 `Entity<SwipeToDismissState>`，传给 `SwipeToDismiss::new(id, &state, content)`。状态默认从初始位置开始。恢复已滑出条目时，可用 `.initial_value(value)` 指定初始锚点。通过 `.background(element)` 设置填满容器的背景，显示在移动的前景内容后面。观察状态后，可用逻辑方向 `dismiss_direction()`、带符号的逻辑像素偏移 `offset()` 或从 0 到 1 的滑出进度 `progress()` 更新背景。`current_value()` 表示最接近的锚点，`target_value()` 表示预计停留的锚点，`settled_value()` 在移动完成后更新。
@@ -206,6 +214,10 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 应用持有 `refreshing` 参数。超过阈值后释放，或激活具名刷新按钮，均只发出一次请求。按钮支持键盘与辅助技术，它的名称由 `.refresh_label(label)` 指定。在应用传入 `refreshing = true` 接受请求，或调用 `reject_refresh(cx)` 拒绝请求前，组件暂停发送后续请求。刷新期间无法再次刷新。操作完成后重新传入 `refreshing = false`。
 
 居中的 Contained 加载指示器跟随下拉进度，刷新期间切换为不确定进度。用 `.indicator(|progress, window, cx| ...)` 提供自定义装饰内容。`PullToRefreshProgress` 提供距离比例、请求等待或刷新状态、指示器偏移与动画状态。可通过保留状态读取 `distance_fraction()`、`is_animating()` 和 `is_refresh_pending()`。`snap_to(fraction, cx)`、`animate_to_threshold(cx)`、`animate_to_hidden(cx)` 与 `reset(cx)` 可以独立于应用刷新值控制呈现。减少动态效果时，指示器直接移动到目标位置，不确定进度保持为静态形状。
+
+### 横幅
+
+`Banner::new(id, message)` 渲染非阻塞的流式 Material 3 横幅提示表面（`feedback` 特性），可见性完全由调用方持有，不含内部隐藏状态。可通过 `.title(text)` 添加可选标题行，通过 `.icon(element)` 添加前置装饰图标（自动匹配色调前景色），通过 `.action(label, handler)` 与 `.secondary_action(label, handler)` 渲染最多两个匹配语义色调的 Material 文本按钮（或通过 `.actions_content(element)` 提供自定义操作区），并通过 `.on_dismiss(handler)` 附加尾侧关闭 `IconButton`（无障碍名称由 `.dismiss_label(label)` 指定，默认为 `"Dismiss"`）。`.tone(SemanticTone)` 在 `Default`（`SurfaceContainerLow` 容器、`OnSurface` 文案、`Primary` 图标、`OutlineVariant` 描边）与 `Danger`/`Success`/`Warning`/`Info` 语义色对之间切换，显式 `.colors(BannerColors)` 始终优先于 `.tone`。可通过 `.shape(CornerShape)`（默认 `CornerRole::Medium`）调整圆角，通过 `.alert(bool)` 选择 `Role::Alert` 或 `Role::Status`（`SemanticTone::Danger` 默认为 `Role::Alert`）。图标、文字对齐、操作行与关闭按钮均随 RTL 镜像。
 
 ### 消息条
 
@@ -338,6 +350,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `Tabs` | Primary、Secondary，可固定或滚动，支持前置图标、自定义内容与徽标、指示器配置和保留的滚动状态。 | [标签页](https://m3.material.io/components/tabs/overview) |
 | `NavigationBar`、`NavigationRail`、`NavigationDrawer` | 短导航栏支持等宽或居中排列、纵向或横向图标、自定义标签和徽标。导航轨道支持折叠、展开、隐藏和模态呈现。独立导航抽屉支持标准与模态模式、分组标题、分隔线和胶囊指示器。 | [导航栏](https://m3.material.io/components/navigation-bar/overview) · [导航轨道](https://m3.material.io/components/navigation-rail/overview) · [导航抽屉](https://m3.material.io/components/navigation-drawer/overview) |
 | `Stepper` | 横向与纵向多步骤进度与线性/非线性步骤导航，支持进行中、已完成、待进行、错误和禁用状态。 | [步骤条](https://m3.material.io/components) |
+| `Breadcrumbs` | 桌面端路径导航，支持调用方持有的路径段、RTL 镜像分隔符、当前页语义，以及宽度受限时将中间路径自动折叠至锚定 Material `Menu`。 | [导航](https://m3.material.io/components) |
 | `AdaptiveNavigation` | 适配导航类型与动画可见性，支持自定义插槽和样式。 | [断点](https://m3.material.io/foundations/layout/breakpoints/overview) |
 | `Scaffold` | 组合导航、应用栏、内容、可定位的悬浮操作按钮和消息条，并根据已占空间计算内容内边距。 | [Scaffold](https://m3.material.io/foundations/layout/scaffold/overview) |
 | `ListDetail`、`SupportingPane`、`Feed` | 列表、详情、辅助窗格及响应式信息流的典型布局，支持自适应三窗格容器。 | [典型布局](https://m3.material.io/foundations/layout/canonical-examples/overview) |
@@ -425,6 +438,10 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 `Stepper::new(id, steps)` 根据 `StepItem` 列表以横向（`StepperOrientation::Horizontal`，默认）或纵向（`StepperOrientation::Vertical`）展示多步骤流程。通过 `.active_step(index)` 可快捷将此前步骤标为 `Completed`、当前步骤标为 `Active`、后续步骤标为 `Upcoming`，单个步骤上显式设置的 `StepItem::status(StepStatus)` 优先。每个步骤支持 `.supporting(text)`、`.icon(element)`、`.editable(bool)`，以及纵向模式下在当前步骤下方展开的 `.content(element)`。提供 `.on_select(|index, window, cx| ...)` 启用步骤切换；线性模式允许激活已完成、进行中、错误或可编辑步骤，`.non_linear(true)` 允许激活任意非禁用步骤。步骤暴露包含标题与状态的无障碍名称，遵循 RTL 镜像，并支持漫游键盘导航（横向左右键、纵向上下键、`Home`/`End`、`Enter`/`Space`）。
 
+### 面包屑导航
+
+`Breadcrumbs::new(id, items)` 根据调用方持有的 `BreadcrumbItem`（支持 `.icon(element)`、`.disabled(bool)`）渲染桌面端路径导航（`navigation` 特性，地标 `Role::Navigation`，默认 `.accessible_label("Breadcrumb")`）。上级路径段为键盘可访问按钮，激活后通过 `.on_select(|id, window, cx| ...)` 报告对应项 ID；末尾当前段默认不可导航并暴露当前页语义。分隔符默认使用 `Icon::new(IconName::ChevronRight).size(px(16.)).mirror_in_rtl(true)`，可通过 `.separator(|| ...)` 自定义，通过 `.colors(BreadcrumbsColors)` 覆写上级、当前项、分隔符和禁用颜色。当路径段超出 `.max_items(count)` 或可用宽度受限时，中间路径段自动折叠到由省略号（`…`）按钮触发的锚定 Material `Menu` 中，同时保留首段与末尾/当前段；从菜单中选择折叠项同样触发 `.on_select`。路径段顺序与分隔符均随 RTL 镜像。
+
 ### 纵向拖动把手
 
 将 `VerticalDragHandle::new(id)` 放在两个窗格之间。用 `.sizes(DragHandleSizes)`、`.colors(DragHandleColors)` 和 `.shapes(DragHandleShapes)` 分别覆盖静止、按下和拖动状态的值。默认静止标记为 4 × 48 的胶囊，使用当前窗口主题的 Outline 角色。按下和拖动标记为 12 × 52，使用 On Surface 角色与 Medium 圆角。视觉尺寸以逻辑像素计。交互目标始终至少为 48 × 48，并能容纳所有状态中尺寸最大的标记。悬停和键盘焦点提供各自的反馈，且保留独立的交互状态。
@@ -445,16 +462,16 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ## 可选组件
 
-核心组件默认通过 `full` 全部启用。在 `gpui-material`（或 `gpui-material-components`）上关闭默认特性后，仅编译轻量核心（`Text`、`Icon`、`IconName`、`Avatar`、`AvatarGroup`、`EmptyState`、`Badge`、`Divider`、`DisplayScrollbar`、`ControlSize`、`SemanticTone`、`MaterialElementExt`、`ScaffoldInsets`、`MenuSurfaceStyle` 及 `init_components`）和所选分组：
+核心组件默认通过 `full` 全部启用。在 `gpui-material`（或 `gpui-material-components`）上关闭默认特性后，仅编译轻量核心（`Text`、`Icon`、`IconName`、`Avatar`、`AvatarGroup`、`EmptyState`、`Skeleton`、`Badge`、`Divider`、`DisplayScrollbar`、`ControlSize`、`SemanticTone`、`MaterialElementExt`、`ScaffoldInsets`、`MenuSurfaceStyle` 及 `init_components`）和所选分组：
 
 | 核心特性 | 组件 | 隐含分组 |
 | --- | --- | --- |
 | `actions` | `Button`、`ButtonTone`、`ToggleButton`、`IconButton`、`IconToggleButton`、`Fab`、`ExtendedFab` 及按钮样式 | — |
-| `selection` | `Checkbox`、`Radio`、`RadioGroup`、`Switch`、`Chip`、`Slider` | — |
+| `selection` | `Checkbox`、`Radio`、`RadioGroup`、`Switch`、`Chip`、`ChipGroup`、`Slider` | — |
 | `inputs` | `TextField`、`TextFieldState`、`TextAreaState`、`ExposedDropdown`、`ExposedDropdownState` | — |
 | `surfaces` | `Card`、`DropTarget`、`List`、`ListItem`、`SwipeToDismiss`、`VerticalDragHandle`（与 `selection` 同开提供 `SwitchTile`，与 `feedback` 同开提供 `ChoiceTile`） | `actions` |
-| `feedback` | `CircularProgress`、`LinearProgress`、`LoadingIndicator`、`PullToRefresh`、`Dialog`、`Sheet`、`BottomSheet*`、`Menu`、`Snackbar`、`SnackbarHost`、`Tooltip`、`Label` | `actions` |
-| `navigation` | `AppBar`、`AppBarRow`、`AppBarColumn`、`BottomAppBar`、`Tabs`、`NavigationBar`、`NavigationRail`、`NavigationDrawer`、`Stepper`、`AdaptiveNavigation`、`Scaffold`、`ListDetail`、`SupportingPane`、`Feed`、`AdaptivePane` | `actions`、`feedback` |
+| `feedback` | `Banner`、`CircularProgress`、`LinearProgress`、`LoadingIndicator`、`PullToRefresh`、`Dialog`、`Sheet`、`BottomSheet*`、`Menu`、`Snackbar`、`SnackbarHost`、`Tooltip`、`Label` | `actions` |
+| `navigation` | `AppBar`、`AppBarRow`、`AppBarColumn`、`BottomAppBar`、`Breadcrumbs`、`Tabs`、`NavigationBar`、`NavigationRail`、`NavigationDrawer`、`Stepper`、`AdaptiveNavigation`、`Scaffold`、`ListDetail`、`SupportingPane`、`Feed`、`AdaptivePane` | `actions`、`feedback` |
 | `full` | 启用上述全部核心组件分组（默认） | 全部核心分组 |
 
 在 `gpui-material` 依赖上启用可选组件族 feature，各组件族仅激活其依赖的核心组件分组。日期选择器、时间选择器和滚动选择字段从 `gpui_material::date_time` 导入。

@@ -377,7 +377,7 @@ fn gallery_lazy_loads_stories_and_preserves_visited_views(cx: &mut TestAppContex
         .unwrap();
         (handle, gallery.unwrap())
     });
-    cx.simulate_window_resize(handle.into(), size(px(1040.), px(744.)));
+    cx.simulate_window_resize(handle.into(), size(px(1040.), px(960.)));
 
     cx.update(|cx| {
         let g = gallery.read(cx);

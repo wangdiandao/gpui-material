@@ -3,8 +3,8 @@
   en: "0c16ec483c073c5d"
   zh: "b24fff9ed8f0b160"
 /components/actions-and-selection:
-  en: "b28478eaf8279f96"
-  zh: "d86603ef2d9b5f6f"
+  en: "6a335a7a6944189d"
+  zh: "d128daf75d06cb88"
 /components/actions-and-selection/floating-action-button:
   en: "c77a57b086907ad0"
   zh: "e5c132ba393b8843"
@@ -21,14 +21,14 @@
   en: "bff28a3dc4c03f2a"
   zh: "4af655de1cac2f40"
 /components/actions-and-selection/chips:
-  en: "c6064c73ef135e01"
-  zh: "4cd3b06d9b7465b7"
+  en: "e67854892fd1599d"
+  zh: "46c7bca712943601"
 /components/actions-and-selection/sliders:
   en: "51a406ecd386905a"
   zh: "5e59d88142753aa0"
 /components/content-and-feedback:
-  en: "70125ee7b75cc6d2"
-  zh: "01167d1656314a07"
+  en: "0dd0bf7641ffa5cc"
+  zh: "7489a46550011fff"
 /components/content-and-feedback/surfaces:
   en: "e0f5d2b66870d586"
   zh: "7c7c4891edaf84a4"
@@ -56,6 +56,9 @@
 /components/content-and-feedback/empty-states:
   en: "1131dd8acd261e98"
   zh: "bbfa426819e9fc72"
+/components/content-and-feedback/skeleton-placeholders:
+  en: "599d3e417c4949af"
+  zh: "17d587b6d08ede4c"
 /components/content-and-feedback/swipe-to-dismiss:
   en: "9fe72312679c3039"
   zh: "0f1e8979db2e2a18"
@@ -68,6 +71,9 @@
 /components/content-and-feedback/pull-to-refresh:
   en: "86d99fc9b3d5511d"
   zh: "d2d0fcf38f265a6e"
+/components/content-and-feedback/banners:
+  en: "365a31a5af2de233"
+  zh: "f572ac88da55844f"
 /components/content-and-feedback/snackbars:
   en: "38f4660591747d99"
   zh: "27b8ec86a97488af"
@@ -102,8 +108,8 @@
   en: "88d7f9f958c88e33"
   zh: "800322be47d3d24b"
 /components/navigation-and-adaptive-layout:
-  en: "723e56098f6e8e1d"
-  zh: "4590d2ca67c54ee6"
+  en: "386f9e03d343996f"
+  zh: "284fb499d4fcce3d"
 /components/navigation-and-adaptive-layout/adaptive-navigation:
   en: "5bfec344f6037300"
   zh: "6dd7c52a5068c1a3"
@@ -131,6 +137,9 @@
 /components/navigation-and-adaptive-layout/stepper:
   en: "50fb78880b3df6cd"
   zh: "cc0b46eb91da9d5c"
+/components/navigation-and-adaptive-layout/breadcrumbs:
+  en: "1d446370b60a2896"
+  zh: "7e6cd75aebafa924"
 /components/navigation-and-adaptive-layout/vertical-drag-handle:
   en: "c9ce9bd62d6df8f7"
   zh: "69452f32921b5f85"
@@ -138,8 +147,8 @@
   en: "f749e65450d351e3"
   zh: "fdbeaa7d7dfdc868"
 /components/optional-components:
-  en: "fbede2ab65388a81"
-  zh: "a6c84461774cad2e"
+  en: "8dffbeb751e59849"
+  zh: "2d18a921a0d77596"
 /components/optional-components/window-chrome:
   en: "aaefab3fe6f6063b"
   zh: "aff96eee8fcf7ae7"

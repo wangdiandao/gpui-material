@@ -4,13 +4,13 @@ use gpui::{
 };
 use gpui_material::{
     AppBar, AppBarAlignment, AppBarItem, AppBarRow, AppBarScrollBehavior, AppBarScrollState,
-    AppBarVariant, Badge, BottomAppBar, Button, ButtonVariant, DialogState, Divider, Fab, Icon,
-    IconButton, IconName, NavigationBar, NavigationBarArrangement, NavigationBarLayout,
-    NavigationDrawer, NavigationDrawerMode, NavigationItem, NavigationItemIconPosition,
-    NavigationItems, NavigationRail, NavigationRailColors, NavigationRailPadding,
-    NavigationRailShapes, NavigationRailState, RailModalOptions, RailMode, Scaffold, StepItem,
-    StepStatus, Stepper, StepperOrientation, TabIndicatorStyle, TabIndicatorWidth, TabVariant,
-    Tabs, Text,
+    AppBarVariant, Badge, BottomAppBar, BreadcrumbItem, Breadcrumbs, Button, ButtonVariant,
+    DialogState, Divider, Fab, Icon, IconButton, IconName, NavigationBar, NavigationBarArrangement,
+    NavigationBarLayout, NavigationDrawer, NavigationDrawerMode, NavigationItem,
+    NavigationItemIconPosition, NavigationItems, NavigationRail, NavigationRailColors,
+    NavigationRailPadding, NavigationRailShapes, NavigationRailState, RailModalOptions, RailMode,
+    Scaffold, StepItem, StepStatus, Stepper, StepperOrientation, TabIndicatorStyle,
+    TabIndicatorWidth, TabVariant, Tabs, Text,
     theme::{CornerRole, CornerShape, TypeRole},
 };
 
@@ -24,6 +24,9 @@ mod bar_tests;
 
 #[cfg(all(test, feature = "test-support"))]
 mod bottom_app_bar_tests;
+
+#[cfg(all(test, feature = "test-support"))]
+mod breadcrumbs_tests;
 
 #[cfg(all(test, feature = "test-support"))]
 mod drawer_tests;
@@ -59,6 +62,7 @@ pub(crate) struct NavigationExamples {
     active_step: usize,
     vertical_step: usize,
     bottom_bar_action: SharedString,
+    breadcrumb_selected: SharedString,
 }
 
 impl NavigationExamples {
@@ -76,6 +80,7 @@ impl NavigationExamples {
             active_step: 1,
             vertical_step: 0,
             bottom_bar_action: "Ready".into(),
+            breadcrumb_selected: "q4-plan".into(),
         }
     }
 
@@ -733,6 +738,62 @@ impl NavigationExamples {
             )
             .into_any_element()
     }
+    fn breadcrumbs(&self, cx: &mut Context<Self>) -> AnyElement {
+        let on_full = cx.entity();
+        let on_compact = cx.entity();
+        stack()
+            .child(
+                section("Breadcrumbs")
+                    .description("Desktop path navigation with RTL-mirrored separators and current-item semantics.")
+                    .child(
+                        Text::new(format!("Last navigated segment: {}", self.breadcrumb_selected))
+                            .muted(),
+                    )
+                    .child(
+                        Breadcrumbs::new(
+                            "gallery-breadcrumbs-full",
+                            [
+                                BreadcrumbItem::new("home", "Workspace")
+                                    .icon(Icon::new(IconName::Inbox)),
+                                BreadcrumbItem::new("projects", "Projects"),
+                                BreadcrumbItem::new("2026", "2026 Roadmap"),
+                                BreadcrumbItem::new("q4-plan", "Q4 Plan"),
+                            ],
+                        )
+                        .on_select(move |id, _, cx| {
+                            on_full.update(cx, |this, cx| {
+                                this.breadcrumb_selected = id;
+                                cx.notify();
+                            });
+                        }),
+                    ),
+            )
+            .child(
+                section("Collapsed overflow menu")
+                    .description("Middle segments collapse automatically into an anchored Material menu when max_items or available width is constrained.")
+                    .child(
+                        div().w(px(280.)).child(
+                            Breadcrumbs::new(
+                                "gallery-breadcrumbs-compact",
+                                [
+                                    BreadcrumbItem::new("root", "Home"),
+                                    BreadcrumbItem::new("org", "Engineering"),
+                                    BreadcrumbItem::new("team", "Desktop UI"),
+                                    BreadcrumbItem::new("crate", "Components"),
+                                    BreadcrumbItem::new("file", "breadcrumbs.rs"),
+                                ],
+                            )
+                            .on_select(move |id, _, cx| {
+                                on_compact.update(cx, |this, cx| {
+                                    this.breadcrumb_selected = id;
+                                    cx.notify();
+                                });
+                            }),
+                        ),
+                    ),
+            )
+            .into_any_element()
+    }
 }
 
 impl Render for NavigationExamples {
@@ -744,6 +805,7 @@ impl Render for NavigationExamples {
             Story::NavigationRail => self.rail(cx),
             Story::AppBar => self.app_bar(),
             Story::BottomAppBar => self.bottom_app_bar(cx),
+            Story::Breadcrumbs => self.breadcrumbs(cx),
             Story::NavigationDrawer => self.drawer(cx),
             Story::Stepper => self.stepper(cx),
             _ => unreachable!(),

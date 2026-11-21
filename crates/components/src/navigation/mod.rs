@@ -2,6 +2,7 @@ mod adaptive;
 mod adaptive_navigation;
 mod app_bar;
 mod bottom_app_bar;
+mod breadcrumbs;
 mod drawer;
 mod items;
 mod multi_pane;
@@ -20,6 +21,7 @@ pub use app_bar::{
     AppBarPadding, AppBarRow, AppBarScrollBehavior, AppBarScrollState, AppBarVariant,
 };
 pub use bottom_app_bar::{BottomAppBar, BottomAppBarColors, BottomAppBarPadding};
+pub use breadcrumbs::{BreadcrumbItem, Breadcrumbs, BreadcrumbsColors};
 pub use drawer::{
     NavigationDrawer, NavigationDrawerColors, NavigationDrawerEntry, NavigationDrawerMode,
     NavigationDrawerSection,

@@ -22,7 +22,7 @@ Windows 11 x64 with the MSVC toolchain is the primary supported environment. mac
 
 ## Use in an application
 
-Use Rust 1.95.0 or later with the 2024 edition. Add `gpui-material = "0.2.0"` to your dependencies. The [integration guide](docs/integration.md) lists the matching GPUI packages and shows a complete window example.
+Use Rust 1.95.0 or later with the 2024 edition. Add `gpui-material = "0.3.0"` to your dependencies. The [integration guide](docs/integration.md) lists the matching GPUI packages and shows a complete window example.
 
 Initialize `MaterialRoot` and call `gpui_material::init_components` before opening a window through `MaterialRoot::open_window`. Build views from the `gpui_material` facade and keep controlled values and command outcomes in your application.
 

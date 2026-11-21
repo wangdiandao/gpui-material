@@ -232,9 +232,10 @@ impl ProgressPaint {
         let waves = circular_wave_count(radius, self.wavelength);
         let sample = |fraction: f32, amplitude: f32| {
             let arc = (fraction - 0.25) * TAU;
+            let (sin, cos) = arc.sin_cos();
             let wave = wave_offset(amplitude, fraction * waves, self.phase);
             let radius = px(radius + wave);
-            center + point(radius * arc.cos(), radius * arc.sin())
+            center + point(radius * cos, radius * sin)
         };
         let active_sample = |fraction| sample(fraction, amplitude);
         let track_sample = |fraction| sample(fraction, 0.);

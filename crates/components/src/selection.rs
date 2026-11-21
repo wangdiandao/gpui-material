@@ -40,6 +40,16 @@ fn row(direction: Direction) -> Div {
         .when(direction == Direction::Rtl, Styled::flex_row_reverse)
 }
 
+fn selection_label(label: SharedString, disabled: bool, window: &Window, cx: &App) -> Div {
+    div()
+        .min_w_0()
+        .truncate()
+        .when(disabled, |element| {
+            element.text_color(tone(ColorRole::OnSurface, window, cx).opacity(0.38))
+        })
+        .child(label)
+}
+
 fn selection_target(
     id: SharedString,
     indicator: impl IntoElement,

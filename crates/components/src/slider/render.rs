@@ -99,7 +99,8 @@ fn resolve_palette(
     window: &Window,
     cx: &App,
 ) -> SliderPalette {
-    let scheme = current_material_theme(window, cx).colors.clone();
+    let theme = current_material_theme(window, cx);
+    let scheme = &theme.colors;
     let resolve = |role| color(scheme.color(role));
     let muted = resolve(ColorRole::OnSurface);
     let (active, inactive, active_tick, inactive_tick, thumb) = if disabled {
@@ -927,12 +928,17 @@ fn attach_pointer_handlers(
             };
             if range
                 && start == end
-                && let Some(origin) = gesture.origin.take()
+                && let Some(origin) = gesture.origin
             {
                 let bounds = drag_state.read(cx).bounds();
-                which = if geometry.fraction(bounds, event.event.position)
-                    < geometry.fraction(bounds, origin)
-                {
+                let current = geometry.fraction(bounds, event.event.position);
+                let start_pos = geometry.fraction(bounds, origin);
+                if (current - start_pos).abs() <= f32::EPSILON {
+                    cx.stop_propagation();
+                    return;
+                }
+                gesture.origin = None;
+                which = if current < start_pos {
                     RangeThumb::Start
                 } else {
                     RangeThumb::End
@@ -1091,10 +1097,12 @@ impl RenderOnce for Slider {
             .relative()
             .size_full()
             .child(track_artwork);
-        let disabled_name = self.range_end_name.as_ref().map_or_else(
-            || self.name.clone(),
-            |end| format!("{} – {end}", self.name).into(),
-        );
+        let disabled_name = self.disabled.then(|| {
+            self.range_end_name.as_ref().map_or_else(
+                || self.name.clone(),
+                |end| format!("{} – {end}", self.name).into(),
+            )
+        });
         // The indicator records these bounds for Base input. Absolute thumbs are children
         // of the same unpadded coordinate space, so percentages use those bounds as well.
         let format_value = self.format_value.as_ref();
@@ -1166,7 +1174,7 @@ impl RenderOnce for Slider {
             });
         }
         if self.disabled || inactive && active_thumb.is_some() {
-            return if self.disabled {
+            return if let Some(disabled_name) = disabled_name {
                 BaseSlider::new(&self.state)
                     .axis(self.axis)
                     .disabled(true)

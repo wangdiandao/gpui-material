@@ -1,18 +1,18 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use gpui::{
-    AccessibleAction, AnyElement, App, Div, ElementId, Entity, Hsla, InteractiveElement,
-    IntoElement, ParentElement, Pixels, RenderOnce, SharedString, Stateful,
+    AccessibleAction, AnyElement, App, Div, ElementId, Entity, FocusHandle, Hsla,
+    InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce, SharedString, Stateful,
     StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{Switch as BaseSwitch, TestSupportExt};
-use gpui_material_foundation::{InteractionSource, animate, current_material_theme};
+use gpui_material_foundation::{InteractionSource, ThemeScope, animate, current_material_theme};
 use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpec, MotionSpeed, StateLayer};
 
 use crate::action::{Change, FeedbackState, feedback_target, ripple_ink, ripple_state};
 
-use super::{focus_style, row, tone};
+use super::{focus_style, row, selection_label, tone};
 
 /// Optional pigments for one switch state. Omitted fields use the window theme.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -122,6 +122,7 @@ pub struct Switch {
     unchecked_icon: Option<AnyElement>,
     thumb_content: Option<AnyElement>,
     colors: SwitchColors,
+    focus: Option<FocusHandle>,
     interaction_source: Option<Entity<InteractionSource>>,
     on_change: Option<Change>,
     decorative: bool,
@@ -138,6 +139,7 @@ impl Switch {
             unchecked_icon: None,
             thumb_content: None,
             colors: SwitchColors::default(),
+            focus: None,
             interaction_source: None,
             on_change: None,
             decorative: false,
@@ -174,6 +176,12 @@ impl Switch {
 
     pub fn colors(mut self, colors: SwitchColors) -> Self {
         self.colors = colors;
+        self
+    }
+
+    /// Uses the caller's focus handle instead of an internal keyed handle.
+    pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
+        self.focus = Some(focus.clone());
         self
     }
 
@@ -395,10 +403,12 @@ impl RenderOnce for Switch {
                 .into_any_element();
         }
         let ripple = ripple_state(&self.id, !self.disabled, window, cx);
-        let focus = window
-            .use_keyed_state(self.id.clone(), cx, |_, cx| cx.focus_handle())
-            .read(cx)
-            .clone();
+        let focus = self.focus.take().unwrap_or_else(|| {
+            window
+                .use_keyed_state(self.id.clone(), cx, |_, cx| cx.focus_handle())
+                .read(cx)
+                .clone()
+        });
         let tracker = self
             .interaction_source
             .as_ref()
@@ -455,16 +465,29 @@ impl RenderOnce for Switch {
                     .min_h(px(48.))
                     .px_1()
                     .child(track)
-                    .child(self.label),
+                    .child(selection_label(self.label, self.disabled, window, cx)),
             );
         match self.on_change {
             Some(handler) if !self.disabled => {
+                let next = !self.checked;
+                let pending = Rc::new(Cell::new(next));
+                let pending_arg = pending.clone();
+                let handler = Rc::new(ThemeScope::bind_action(
+                    move |window, cx| handler(pending_arg.get(), window, cx),
+                    window,
+                    cx,
+                ));
                 let change = handler.clone();
+                let a11y_pending = pending.clone();
                 control
                     .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
-                        change(!self.checked, window, cx)
+                        a11y_pending.set(next);
+                        change(window, cx)
                     })
-                    .on_change(move |checked, _, window, cx| handler(checked, window, cx))
+                    .on_change(move |checked, _, window, cx| {
+                        pending.set(checked);
+                        handler(window, cx)
+                    })
                     .into_any_element()
             }
             _ => control.into_any_element(),

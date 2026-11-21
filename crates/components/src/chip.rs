@@ -106,6 +106,7 @@ pub struct Chip {
     elevations: ChipElevations,
     spacing: Pixels,
     padding: Option<ButtonPadding>,
+    focus: Option<FocusHandle>,
     interaction_source: Option<Entity<InteractionSource>>,
     on_activate: Option<Activate>,
     on_change: Option<Change>,
@@ -133,6 +134,7 @@ impl Chip {
             elevations: ChipElevations::default(),
             spacing: px(8.),
             padding: None,
+            focus: None,
             interaction_source: None,
             on_activate: None,
             on_change: None,
@@ -228,6 +230,12 @@ impl Chip {
             bottom: finite_length(padding.bottom),
             start: finite_length(padding.start),
         });
+        self
+    }
+
+    /// Attaches a caller-owned focus handle to the primary chip action.
+    pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
+        self.focus = Some(focus.clone());
         self
     }
 

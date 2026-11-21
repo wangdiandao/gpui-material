@@ -17,6 +17,7 @@ See [versioning and releases](docs/release.md) for the release process.
 ### Components
 
 - Add `ButtonTone` (`Default`, `Danger`, `Success`, `Warning`, `Info`) semantic shortcuts to `Button`, `ToggleButton`, `IconButton`, and `IconToggleButton` while preserving per-instance `ButtonColors` and `ButtonBorder` precedence.
+- Add `.track_focus(&FocusHandle)` to `Chip`, `Checkbox`, `Radio`, `Switch`, and `Card`, preserve `ThemeScope` in toggle and selection/list/card action callbacks, match disabled label opacity and single-line truncation across `Checkbox`, `Radio`, and `Switch`, clip split `Chip` primary and removal action feedback along the interior seam, and keep overlapping range `Slider` thumb selection responsive after zero-delta drag moves.
 - Add core `Avatar` display component (`initials`, `icon`, `image` with `.fallback`, `custom`, `AvatarSize`, `AvatarShape`, `AvatarColors`).
 - Add `DropTarget` (`surfaces` feature) for external OS file drops (`ExternalPaths`) and typed in-app GPUI drag payloads with validation feedback and optional click/keyboard activation.
 - Add `Stepper` (`navigation` feature) with horizontal and vertical orientations, `StepStatus`, `.active_step`, `.non_linear`, RTL mirroring, and roving keyboard navigation.
@@ -37,6 +38,7 @@ See [versioning and releases](docs/release.md) for the release process.
 - Accelerate `clipped_ripple` with precomputed 64-gon unit-circle normals and inscribed-disk / triangle-AABB fast paths.
 - Add `const fn` constructors and accessors `SymbolAxes::new`, `SymbolAxes::is_filled`, and `SymbolAxes::get_weight` in `gpui-material-design-symbols`, and cache outlined SVG bytes by `(codepoint, axes)` in `SymbolFont::svg_data` so repeated lookups and alias symbols share a single `Arc<[u8]>`.
 - Snapshot `Menu` exit rows lazily, short-circuit `AdaptivePaneState` history resolution once all three pane roles are assigned, replace per-frame multi-pane geometry `Vec` allocations with stack arrays, and avoid redundant root layout passes and focus map clones in `AdaptiveNavigation`, `AppBar`, `Scaffold`, and `NavigationItems`.
+- Binary-search single-line ellipsis truncation in `Text`, deduplicate `ExtendedFab` label shaping, reuse cached rounded feedback geometry and stack-allocated `elevation_shadow_pair` shadows across `Button`, `Chip`, `Card`, `ListItem`, and selection ripples, add static corner and line-count fast paths in `ListItem`, reuse active `DisplayScrollbar` fade wake timers across intermediate scroll frames, predefine `const` `Progress` easing curves, and skip redundant `SwipeToDismiss` width notifications when settled at rest.
 
 ## 0.2.0 - 2026-11-21
 

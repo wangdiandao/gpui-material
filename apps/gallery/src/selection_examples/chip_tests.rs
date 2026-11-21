@@ -587,3 +587,132 @@ fn controlled_selection_and_chip_removal(cx: &mut TestAppContext) {
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn track_focus_attaches_caller_handles_to_chip_checkbox_radio_switch_and_card(
+    cx: &mut TestAppContext,
+) {
+    use gpui::FocusHandle;
+    use gpui_material::{
+        Card, Checkbox, CheckboxState, Radio, Switch, ThemeScope, theme::Appearance,
+    };
+
+    struct FocusHarness {
+        chip_focus: FocusHandle,
+        checkbox_focus: FocusHandle,
+        radio_focus: FocusHandle,
+        switch_focus: FocusHandle,
+        card_focus: FocusHandle,
+        scoped_dark: Cell<Option<bool>>,
+    }
+
+    impl Render for FocusHarness {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let owner = cx.entity();
+            ThemeScope::new(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_2()
+                    .child(
+                        Chip::new("tracked-chip", "Tracked chip")
+                            .variant(ChipVariant::Filter)
+                            .track_focus(&self.chip_focus)
+                            .on_change(move |_, window, cx| {
+                                let is_dark =
+                                    gpui_material::foundation::current_material_theme(window, cx)
+                                        .colors
+                                        .appearance()
+                                        == Appearance::Dark;
+                                owner.update(cx, |this, _| this.scoped_dark.set(Some(is_dark)));
+                            }),
+                    )
+                    .child(
+                        Checkbox::new(
+                            "tracked-checkbox",
+                            "Tracked checkbox",
+                            CheckboxState::Unchecked,
+                        )
+                        .track_focus(&self.checkbox_focus),
+                    )
+                    .child(
+                        Radio::new("tracked-radio", "Tracked radio").track_focus(&self.radio_focus),
+                    )
+                    .child(
+                        Switch::new("tracked-switch", "Tracked switch", false)
+                            .track_focus(&self.switch_focus),
+                    )
+                    .child(
+                        Card::new("tracked-card")
+                            .track_focus(&self.card_focus)
+                            .on_activate("Tracked card", |_, _| {})
+                            .child("Card body"),
+                    ),
+            )
+            .theme(MaterialTheme::baseline(Appearance::Dark))
+        }
+    }
+
+    cx.update(|cx| {
+        MaterialRoot::init(MaterialTheme::baseline(Appearance::Light), cx);
+        cx.set_reduce_motion(true);
+    });
+    let (view, cx) = cx.add_window_view(|window, cx| {
+        window.activate_window();
+        FocusHarness {
+            chip_focus: cx.focus_handle(),
+            checkbox_focus: cx.focus_handle(),
+            radio_focus: cx.focus_handle(),
+            switch_focus: cx.focus_handle(),
+            card_focus: cx.focus_handle(),
+            scoped_dark: Cell::new(None),
+        }
+    });
+    draw(cx);
+
+    type FocusTarget = (&'static str, ElementId, fn(&FocusHarness) -> FocusHandle);
+    let targets: [FocusTarget; 5] = [
+        ("chip", action("tracked-chip", "activate"), |h| {
+            h.chip_focus.clone()
+        }),
+        ("checkbox", "tracked-checkbox".into(), |h| {
+            h.checkbox_focus.clone()
+        }),
+        ("radio", "tracked-radio".into(), |h| h.radio_focus.clone()),
+        ("switch", "tracked-switch".into(), |h| {
+            h.switch_focus.clone()
+        }),
+        ("card", "tracked-card".into(), |h| h.card_focus.clone()),
+    ];
+    for (name, id, get_handle) in targets {
+        cx.update(|window, cx| {
+            let handle = get_handle(view.read(cx));
+            handle.focus(window, cx);
+        });
+        draw(cx);
+        cx.update(|window, cx| {
+            let handle = get_handle(view.read(cx));
+            assert!(
+                handle.is_focused(window),
+                "{name} focus handle should be focused"
+            );
+            assert_eq!(
+                find(window, &[], &id).unwrap().focused(),
+                Some(true),
+                "{name} node should report focused"
+            );
+        });
+    }
+
+    // Verify ThemeScope::bind_action preserves the Dark subtree theme on toggle activation.
+    cx.update(|window, cx| {
+        let focus = view.read(cx).chip_focus.clone();
+        focus.focus(window, cx);
+    });
+    draw(cx);
+    press_space(cx);
+    draw(cx);
+    cx.update(|_, cx| {
+        assert_eq!(view.read(cx).scoped_dark.get(), Some(true));
+    });
+}

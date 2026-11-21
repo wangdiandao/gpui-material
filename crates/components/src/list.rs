@@ -463,28 +463,30 @@ impl RenderOnce for List {
                 .when(self.variant == ListVariant::Segmented, |list| {
                     list.gap(px(2.))
                 })
-                .children(self.items.into_iter().enumerate().map(|(ix, item)| {
-                    let (resting, selected) = match self.variant {
-                        ListVariant::Standard => {
-                            (CornerRole::None.shape(), CornerRole::None.shape())
-                        }
-                        ListVariant::Segmented => {
-                            let top = if ix == 0 { 16. } else { 4. };
-                            let bottom = if ix == last { 16. } else { 4. };
-                            (
-                                CornerShape::Radii([top, top, bottom, bottom]),
-                                CornerRole::Large.shape(),
-                            )
-                        }
-                    };
-                    item.row(
-                        resting,
-                        selected,
-                        Some((focus[ix].clone(), Some(ix) == tab_stop)),
-                        window,
-                        cx,
-                    )
-                }))
+                .children(self.items.into_iter().zip(focus).enumerate().map(
+                    |(ix, (item, focus))| {
+                        let (resting, selected) = match self.variant {
+                            ListVariant::Standard => {
+                                (CornerRole::None.shape(), CornerRole::None.shape())
+                            }
+                            ListVariant::Segmented => {
+                                let top = if ix == 0 { 16. } else { 4. };
+                                let bottom = if ix == last { 16. } else { 4. };
+                                (
+                                    CornerShape::Radii([top, top, bottom, bottom]),
+                                    CornerRole::Large.shape(),
+                                )
+                            }
+                        };
+                        item.row(
+                            resting,
+                            selected,
+                            Some((focus, Some(ix) == tab_stop)),
+                            window,
+                            cx,
+                        )
+                    },
+                ))
         })
     }
 }

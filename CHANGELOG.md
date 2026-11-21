@@ -14,6 +14,16 @@ See [versioning and releases](docs/release.md) for the release process.
 - Expand `TitleBar` and `CaptionButtons` with customizable `.height(...)`, `.title(...)`, `.title_role(...)`, `.title_font(...)`, `.title_font_family(...)`, `.title_font_size(...)`, `.leading(...)`, `.trailing(...)`, `.traffic_light_padding(...)`, `.colors(TitleBarColors)`, `.caption_colors(CaptionButtonColors)`, `.caption_button_width(...)`, `.show_caption_buttons(...)`, `.on_close(...)`, and `.platform(ChromePlatform)`, replacing hardcoded `"Segoe UI"` and `"Segoe Fluent Icons"` with Material theme typography and vector caption icons.
 - Update `FontFamilies::default()` in `gpui-material-theme` with cross-platform Latin and CJK fallbacks (`SF Pro Text`, `Segoe UI`, `Noto Sans`, `PingFang SC`, `Microsoft YaHei UI`, `Noto Sans CJK SC`) and enable `cargo gallery --window-chrome` on all desktop targets.
 
+### Components
+
+- Add `ButtonTone` (`Default`, `Danger`, `Success`, `Warning`, `Info`) semantic shortcuts to `Button`, `ToggleButton`, `IconButton`, and `IconToggleButton` while preserving per-instance `ButtonColors` and `ButtonBorder` precedence.
+- Add core `Avatar` display component (`initials`, `icon`, `image` with `.fallback`, `custom`, `AvatarSize`, `AvatarShape`, `AvatarColors`).
+- Add `DropTarget` (`surfaces` feature) for external OS file drops (`ExternalPaths`) and typed in-app GPUI drag payloads with validation feedback and optional click/keyboard activation.
+- Add `Stepper` (`navigation` feature) with horizontal and vertical orientations, `StepStatus`, `.active_step`, `.non_linear`, RTL mirroring, and roving keyboard navigation.
+- Add standalone `NavigationDrawer` (`navigation` feature) with Standard and Modal (side-sheet) modes, sections, headers, dividers, 56 dp pill indicators, and roving vertical navigation.
+- Add `BottomAppBar` (`navigation` feature) with 80 dp Material styling, action and trailing FAB slots, `Scaffold::bottom_bar` compatibility, and `AppBarScrollBehavior` / `AppBarScrollState` hide-on-scroll support.
+- Add settings convenience tiles `SwitchTile` (`surfaces` + `selection`) and `ChoiceTile` / `ChoiceOption` (`surfaces` + `feedback`) with single-stop accessibility, anchored selection menus, and focus restoration.
+
 ### Inputs
 
 - Add `TextFieldObfuscationMode` (`Hidden`, `Visible`) and `TextField::obfuscation_mode(...)` for `TextField::secure` visibility toggles, re-export `TextFieldMaskPattern` through the `inputs` feature facade, and add Gallery examples and tests covering password visibility toggling, structured mask patterns, and pre-commit validation.

@@ -46,6 +46,7 @@ pub(crate) struct ActionStyle {
     pub(crate) selected_corner: Option<CornerRole>,
     pub(crate) corner_motion: (MotionKind, MotionSpeed),
     pub(crate) outline: f32,
+    pub(crate) outline_role: ColorRole,
     pub(crate) elevation: Elevation,
     pub(crate) hover_elevation: Elevation,
 }
@@ -371,7 +372,7 @@ fn resolve_palette(
                 color(theme.colors.color(style.disabled.outline.0))
                     .opacity(style.disabled.outline.1)
             } else {
-                color(theme.colors.color(ColorRole::OutlineVariant))
+                color(theme.colors.color(style.outline_role))
             }
         },
         |border| border.color,

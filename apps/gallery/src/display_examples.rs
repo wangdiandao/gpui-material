@@ -1,18 +1,21 @@
 use gpui::{
     AppContext, Axis, Context, Entity, InteractiveElement, IntoElement, ParentElement, Render,
-    ScrollHandle, StatefulInteractiveElement, Styled, Window, div, point, px,
+    ScrollHandle, SharedString, StatefulInteractiveElement, Styled, Window, div, point, px,
 };
 use gpui_material::foundation::{color, isolated_scroll, window_material_theme};
 use gpui_material::theme::{ColorRole, CornerRole, CornerShape, Elevation, TypeRole};
 use gpui_material::{
-    Badge, Button, ButtonVariant, Card, CardBorder, CardColors, CardElevations, CardVariant,
-    CircularProgress, DisplayScrollbar, DisplayScrollbarFade, DisplayScrollbarStyle, Divider, Icon,
-    IconName, LinearProgress, List, ListItem, ListVariant, LoadingIndicator, LoadingIndicatorShape,
-    LoadingIndicatorShapes, ProgressCap, ProgressShape, ProgressStroke, Text,
+    Avatar, AvatarShape, AvatarSize, Badge, Button, ButtonVariant, Card, CardBorder, CardColors,
+    CardElevations, CardVariant, ChoiceOption, ChoiceTile, CircularProgress, DisplayScrollbar,
+    DisplayScrollbarFade, DisplayScrollbarStyle, Divider, DropTarget, Icon, IconName,
+    LinearProgress, List, ListItem, ListVariant, LoadingIndicator, LoadingIndicatorShape,
+    LoadingIndicatorShapes, ProgressCap, ProgressShape, ProgressStroke, SwitchTile, Text,
 };
 
 use crate::story::{Story, section, stack};
 
+#[cfg(all(test, feature = "test-support"))]
+mod avatar_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod badge_tests;
 #[cfg(all(test, feature = "test-support"))]
@@ -21,6 +24,8 @@ mod card_tests;
 mod display_scrollbar_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod divider_tests;
+#[cfg(all(test, feature = "test-support"))]
+mod drop_target_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod icon_tests;
 mod list_examples;
@@ -31,6 +36,8 @@ mod progress_tests;
 mod pull_to_refresh_demo;
 #[cfg(all(test, feature = "test-support"))]
 mod pull_to_refresh_tests;
+#[cfg(all(test, feature = "test-support"))]
+mod settings_tiles_tests;
 mod text_examples;
 
 pub(crate) struct DisplayExamples {
@@ -49,6 +56,9 @@ pub(crate) struct DisplayExamples {
     files_scroll: ScrollHandle,
     list_examples: Option<Entity<list_examples::ListExamples>>,
     wide_scroll: ScrollHandle,
+    drop_status: SharedString,
+    auto_sync: bool,
+    choice_density: SharedString,
 }
 
 impl Default for DisplayExamples {
@@ -69,6 +79,9 @@ impl Default for DisplayExamples {
             files_scroll: ScrollHandle::new(),
             list_examples: None,
             wide_scroll: ScrollHandle::new(),
+            drop_status: "Drop files or click the drop zone".into(),
+            auto_sync: true,
+            choice_density: "comfortable".into(),
         }
     }
 }
@@ -638,6 +651,127 @@ impl DisplayExamples {
             )
     }
 
+    fn avatar_section(&self) -> crate::story::StorySection {
+        section("Sizes, shapes, and content")
+            .description(
+                "Avatars scale typography with size and support initials, icons, images with fallbacks, and rounded shapes.",
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap_4()
+                    .child(Avatar::initials("Ada Lovelace").size(AvatarSize::ExtraSmall))
+                    .child(Avatar::initials("Grace Hopper").size(AvatarSize::Small))
+                    .child(
+                        Avatar::initials("Alan Turing")
+                            .size(AvatarSize::Medium)
+                            .accessible_label("avatar-at", "Alan Turing"),
+                    )
+                    .child(
+                        Avatar::icon(Icon::new(IconName::Favorite))
+                            .size(AvatarSize::Large)
+                            .color_role(
+                                ColorRole::SecondaryContainer,
+                                ColorRole::OnSecondaryContainer,
+                            ),
+                    )
+                    .child(
+                        Avatar::initials("Katherine Johnson")
+                            .size(AvatarSize::ExtraLarge)
+                            .shape(AvatarShape::Rounded(CornerRole::Large.shape()))
+                            .color_role(
+                                ColorRole::TertiaryContainer,
+                                ColorRole::OnTertiaryContainer,
+                            )
+                            .border(px(2.)),
+                    ),
+            )
+    }
+
+    fn drop_target_section(&self, cx: &mut Context<Self>) -> crate::story::StorySection {
+        let on_drop_view = cx.entity();
+        let on_activate_view = cx.entity();
+        section("File drop target")
+            .description("Drop external files onto the zone or activate it with click or keyboard.")
+            .child(
+                DropTarget::files("gallery-file-drop")
+                    .title("Drop files to upload")
+                    .supporting(self.drop_status.clone())
+                    .on_drop(move |paths, _, cx| {
+                        let count = paths.paths().len();
+                        on_drop_view.update(cx, |this, cx| {
+                            this.drop_status = format!("Dropped {count} file(s)").into();
+                            cx.notify();
+                        });
+                    })
+                    .on_activate(move |_, cx| {
+                        on_activate_view.update(cx, |this, cx| {
+                            this.drop_status = "Browse dialog requested".into();
+                            cx.notify();
+                        });
+                    }),
+            )
+            .child(
+                DropTarget::files("gallery-disabled-drop")
+                    .title("Uploads paused")
+                    .supporting("Disabled drop targets ignore drags and clicks.")
+                    .disabled(true),
+            )
+    }
+
+    fn settings_tiles_section(&self, cx: &mut Context<Self>) -> crate::story::StorySection {
+        let toggle_view = cx.entity();
+        let choice_view = cx.entity();
+        section("Settings tiles")
+            .description("Convenience rows for switch toggles and anchored option menus.")
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_2()
+                    .child(
+                        SwitchTile::new("tile-auto-sync", "Automatic sync", self.auto_sync)
+                            .overline("Cloud")
+                            .supporting("Keep workspace preferences synchronized across devices.")
+                            .leading(Icon::new(IconName::Notifications).size(px(24.)))
+                            .variant(ListVariant::Segmented)
+                            .on_change(move |checked, _, cx| {
+                                toggle_view.update(cx, |this, cx| {
+                                    this.auto_sync = checked;
+                                    cx.notify();
+                                });
+                            }),
+                    )
+                    .child(
+                        ChoiceTile::new(
+                            "tile-density",
+                            "Layout density",
+                            [
+                                ChoiceOption::new("compact", "Compact")
+                                    .supporting("Tighter row height for dense desktop views"),
+                                ChoiceOption::new("comfortable", "Comfortable")
+                                    .supporting("Balanced Material 3 spacing"),
+                                ChoiceOption::new("spacious", "Spacious")
+                                    .supporting("Extra breathing room between rows"),
+                            ],
+                            self.choice_density.clone(),
+                        )
+                        .overline("Appearance")
+                        .supporting("Choose the default density for tables and lists.")
+                        .leading(Icon::new(IconName::Contrast).size(px(24.)))
+                        .variant(ListVariant::Segmented)
+                        .on_select(move |id, _, cx| {
+                            choice_view.update(cx, |this, cx| {
+                                this.choice_density = id;
+                                cx.notify();
+                            });
+                        }),
+                    ),
+            )
+    }
+
     fn horizontal_scroll_section(
         &self,
         window: &Window,
@@ -696,8 +830,17 @@ impl Render for DisplayExamples {
                 self.shows(Story::Card)
                     .then(|| self.card_section(window, cx)),
             )
+            .children(self.shows(Story::Avatar).then(|| self.avatar_section()))
             .children(self.shows(Story::Divider).then(|| self.divider_section()))
+            .children(
+                self.shows(Story::DropTarget)
+                    .then(|| self.drop_target_section(cx)),
+            )
             .children(self.shows(Story::Badge).then(|| self.badge_section()))
+            .children(
+                self.shows(Story::List)
+                    .then(|| self.settings_tiles_section(cx)),
+            )
             .children((self.story == Some(Story::List)).then(|| {
                 self.list_examples
                     .get_or_insert_with(|| cx.new(list_examples::ListExamples::new))

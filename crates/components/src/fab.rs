@@ -246,6 +246,7 @@ impl FabContent {
                 gpui_material_theme::MotionSpeed::Fast,
             ),
             outline: 0.,
+            outline_role: ColorRole::OutlineVariant,
             elevation: Elevation::Level3,
             hover_elevation: Elevation::Level4,
         }

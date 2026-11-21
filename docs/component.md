@@ -12,8 +12,8 @@ The [pinned Material 3 specification](design-sources.md#material-specification) 
 
 | Component | Supported variants and behavior | Material 3 |
 | --- | --- | --- |
-| `Button`, `ToggleButton` | Elevated, Filled, Filled Tonal, and Outlined. `Button` also has a Text variant. Both support XS–XL sizes, round or square shapes, custom content and appearance, and optional interaction observation. | [Buttons](https://m3.material.io/components/buttons/overview) |
-| `IconButton`, `IconToggleButton` | Standard, Filled, Filled Tonal, and Outlined, with selectable sizes and widths, per-instance shapes, colors and stroke, and optional interaction observation. | [Icon buttons](https://m3.material.io/components/icon-buttons/overview) |
+| `Button`, `ToggleButton` | Elevated, Filled, Filled Tonal, and Outlined. `Button` also has a Text variant. Both support XS–XL sizes, round or square shapes, `ButtonTone` semantic shortcuts (`Default`, `Danger`, `Success`, `Warning`, `Info`), custom content and appearance, and optional interaction observation. | [Buttons](https://m3.material.io/components/buttons/overview) |
+| `IconButton`, `IconToggleButton` | Standard, Filled, Filled Tonal, and Outlined, with selectable sizes and widths, `ButtonTone` semantic shortcuts, per-instance shapes, colors and stroke, and optional interaction observation. | [Icon buttons](https://m3.material.io/components/icon-buttons/overview) |
 | `Fab`, `ExtendedFab` | Small, Medium, and Large sizes with per-instance appearance and controlled visibility. `ExtendedFab` supports a text label, an optional icon, and custom content. | [FAB](https://m3.material.io/components/floating-action-button/overview) · [Extended FAB](https://m3.material.io/components/extended-fab/overview) |
 | `Checkbox` | Unchecked, checked, mixed, error, and disabled states, with per-instance colors, strokes, and interaction observation. | [Checkbox](https://m3.material.io/components/checkbox/overview) |
 | `Radio`, `RadioGroup` | Mutually exclusive selection, group keyboard navigation, per-option colors, and optional interaction observation. | [Radio button](https://m3.material.io/components/radio-button/specs) |
@@ -21,7 +21,7 @@ The [pinned Material 3 specification](design-sources.md#material-specification) 
 | `Chip` | Assist, Filter, Input, and Suggestion, with content slots, custom appearance, and independent selection and removal where applicable. | [Chips](https://m3.material.io/components/chips/overview) |
 | `Slider` | Single-value, centered, and range sliders with custom tracks, handles, and indicators. Supports horizontal and reversible vertical layout, with continuous or stepped values. | [Sliders](https://m3.material.io/components/sliders/specs) |
 
-Use `.content(element)` to customize the rendered label while retaining the constructor's accessible name and any leading or trailing icon slots. Keep the content free of independent controls so the button owns activation and focus. Set `.shapes(ButtonShapes)`, `.colors(ButtonColors)`, `.border(ButtonBorder)`, `.content_padding(ButtonPadding)`, and `.elevations(ButtonElevations)` per instance. Unspecified shape, color, and elevation fields keep the size and variant defaults for that state. `ButtonPadding` follows the window's text direction. A zero-width border removes the default outline.
+Use `.content(element)` to customize the rendered label while retaining the constructor's accessible name and any leading or trailing icon slots. Keep the content free of independent controls so the button owns activation and focus. Set `.tone(ButtonTone)` to apply Material 3 semantic palettes (`Default`, `Danger`, `Success`, `Warning`, `Info`) across all variants and toggled states. Set `.shapes(ButtonShapes)`, `.colors(ButtonColors)`, `.border(ButtonBorder)`, `.content_padding(ButtonPadding)`, and `.elevations(ButtonElevations)` per instance; explicit `.colors` and `.border` overrides always take precedence over tone defaults. Unspecified shape, color, and elevation fields keep the size, variant, and tone defaults for that state. `ButtonPadding` follows the window's text direction. A zero-width border removes the default outline.
 
 Pass a decorative icon element and an accessible name to `IconButton::new` or `IconToggleButton::new`. Icon buttons default to the Small size, Uniform width, Round shape, and Standard palette. Use `.shapes(ButtonShapes)` for resting and pressed corners and for checked corners on toggles. `.colors(ButtonColors)` supplies container and icon colors for enabled, disabled, and checked states. Omitted fields use the current size and variant defaults. `.border(ButtonBorder)` replaces the default stroke. Use zero width to remove it. `IconToggleButton` renders the caller's selected value and uses `.selected_icon(element)` when selected, if supplied.
 
@@ -98,9 +98,10 @@ Retain the `SliderState` entity in the owner. Base manages the range and step gr
 | `Text`, `Icon` | Themed typography, replaceable icons, and bundled Material Symbols. | [Typography](https://m3.material.io/styles/typography/overview) · [Icons](https://m3.material.io/styles/icons/overview) |
 | `Surface` | Passive, clickable, selectable, and checked surfaces with theme content colors and elevation. | [Elevation](https://m3.material.io/styles/elevation/overview) |
 | `Card` | Elevated, Filled, and Outlined, with static and actionable forms and per-instance appearance. | [Cards](https://m3.material.io/components/cards/specs) |
-| `List`, `ListItem` | Standard and Segmented lists with custom slots, controlled row actions, and per-state appearance. | [Lists](https://m3.material.io/components/lists/overview) |
+| `List`, `ListItem`, `SwitchTile`, `ChoiceTile` | Standard and Segmented lists with custom slots, controlled row actions, per-state appearance, and settings convenience tiles for switch toggles and anchored option menus. | [Lists](https://m3.material.io/components/lists/overview) |
+| `DropTarget` | Material drag-and-drop container supporting external OS file drops (`ExternalPaths`) and typed in-app payloads, with validation feedback and optional click/keyboard activation. | [Drag and drop](https://m3.material.io/foundations/interaction/gestures) |
 | `SwipeToDismiss` | Horizontal swipes with caller-owned content, background, and action. | [Lists](https://m3.material.io/components/lists/guidelines) · [Compose SwipeToDismissBox](https://developer.android.com/reference/kotlin/androidx/compose/material3/SwipeToDismissBox.composable) |
-| `Divider`, `Badge` | Horizontal and vertical dividers with logical insets, configurable thickness, and per-divider color. Standalone and anchored badges with dot, text, count, or custom content and optional colors. | [Divider](https://m3.material.io/components/divider/overview) · [Badges](https://m3.material.io/components/badges/overview) |
+| `Divider`, `Badge`, `Avatar` | Horizontal and vertical dividers with logical insets, configurable thickness, and per-divider color. Standalone and anchored badges with dot, text, count, or custom content and optional colors. Circular or rounded avatars for initials, icons, images with fallback, or custom content. | [Divider](https://m3.material.io/components/divider/overview) · [Badges](https://m3.material.io/components/badges/overview) |
 | `DisplayScrollbar` | Paints scroll position for either axis from the viewport state, with configurable dimensions, colors, and fading. | [Compose non-interactive scrollbar](https://developer.android.com/reference/kotlin/androidx/compose/material3/nonInteractiveScrollbar.composable) |
 | `LinearProgress`, `CircularProgress` | Determinate and indeterminate progress with configurable straight and wavy styles. | [Progress indicators](https://m3.material.io/components/progress-indicators/overview) |
 | `LoadingIndicator` | Default and Contained, with determinate and indeterminate modes, custom morph sequences and instance colors. | [Loading indicator](https://m3.material.io/components/loading-indicator/overview) |
@@ -137,6 +138,16 @@ Use `.swipe_to_dismiss(&state, |swipe| ...)` to wrap a row in the existing `Swip
 
 `.shapes(ListItemShapes)` overrides logical resting, selected, pressed, focused, hovered, and dragged corners. `.colors(ListItemColors)` configures container, content, leading, trailing, overline, and supporting colors for each normal, disabled, selected, and dragged state through `ListItemStateColors`. Omitted fields keep the window defaults. `.vertical_alignment(ListItemAlignment)` chooses Auto, Start, Center, or End. Auto centers short rows and aligns taller text rows to the top. `.content_padding(ListItemPadding)` sets logical start, end, top, and bottom in pixels. The default is 16 horizontally and 10 vertically, or 12 vertically for three-line rows. `.elevations(ListItemElevations)` overrides resting and interaction shadow levels. `.dragged(bool)` reports a caller-owned drag and `.interaction_source(&source)` observes the row's hover, press, keyboard focus, drag, and disabled state.
 
+### Settings tiles
+
+`SwitchTile::new(id, label, checked)` wraps a `ListItem` with a synchronized visual trailing `Switch` (available when both `surfaces` and `selection` features are enabled). Clicking anywhere on the row or pressing Enter or Space toggles through `.on_change(...)` with a single focus stop and `Role::Switch` semantics, avoiding duplicate focus or double toggles. Use `.supporting`, `.overline`, `.leading`, `.disabled`, `.variant(ListVariant)`, `.colors(ListItemColors)`, and `.switch_colors(SwitchColors)` to customize the row and indicator independently.
+
+`ChoiceTile::new(id, label, options, selected)` wraps a `ListItem` with an anchored Material `Menu` of `ChoiceOption` items (available when both `surfaces` and `feedback` features are enabled). It shows the currently selected option's label (or `.placeholder(...)`) beside a dropdown chevron, marks the active choice in the menu, reports selections through `.on_select(...)`, and restores focus on close. Provide an optional `.menu_state(&state)` (`Entity<DialogState>`) for external control, or let the tile retain its own keyed `DialogState`.
+
+### Drop target
+
+`DropTarget::files(id)` accepts external OS file drops (`gpui::ExternalPaths`) and `DropTarget::new::<T>(id)` accepts any typed in-app GPUI drag payload `T: 'static`. Use `.title`, `.supporting`, and `.icon` for a default placeholder drop zone, or `.content(element)` to wrap custom content. `.can_drop(|payload, window, cx| ...)` validates payloads during drag-over and drop; accepted payloads highlight with the primary active palette while rejected payloads display error feedback and skip `.on_drop(...)`. Set `.on_activate(...)` to support click and keyboard activation (such as opening a file picker), `.shape(CornerShape)` for corners, `.colors(DropTargetColors)` for idle/active/invalid palettes, `.disabled(true)` to suppress drop registration and activation, and `.accessible_label(...)` for assistive technology.
+
 ### Divider
 
 `Divider::horizontal()` and `Divider::vertical()` default to one logical pixel in the window theme's `OutlineVariant` color. Use `.thickness(px(2.))` to set a different logical width or `.thickness(px(0.))` for a one-device-pixel hairline. Invalid thickness values fall back to the default. A vertical divider fills the available height of its parent.
@@ -148,6 +159,10 @@ Use `.color(ColorRole::Primary)` to resolve a role against the window theme or `
 `Badge::dot(host)`, `Badge::label(host, text)`, and `Badge::count(host, count, maximum)` anchor a mark to the host's upper trailing edge. Pass the current count and cap when rendering. Counts above the cap display the cap followed by `+`. `Badge::standalone()` renders a dot in the surrounding layout. Use `.content(id, element)` to supply a short visual element for either placement. Give each custom mark a stable ID within its parent.
 
 Container and content colors default to the window theme's `Error` and `OnError` roles. Use `.container_color(color)` and `.content_color(color)` to set either independently. Keep custom content noninteractive and let the host's accessible name describe the anchored badge. For a standalone indicator that conveys information on its own, use `.accessible_label(id, label)` to give it a name without adding a focus stop.
+
+### Avatars
+
+`Avatar::initials(text)`, `Avatar::icon(icon)`, `Avatar::image(source)`, and `Avatar::custom(content)` display user or entity identity badges in `ExtraSmall` (24 px), `Small` (32 px), `Medium` (40 px, default), `Large` (48 px), `ExtraLarge` (64 px), or `Custom(Pixels)` sizes via `.size(AvatarSize)`. Initials automatically trim, uppercase, and scale Material typography with the avatar size. Images render with `ObjectFit::Cover` clipped to `AvatarShape::Circle` (default) or `AvatarShape::Rounded(CornerShape)` and show optional `.fallback(element)` content while loading or on load failure. Configure `.color_role(container, content)` (defaults to `PrimaryContainer` / `OnPrimaryContainer`), `.colors(AvatarColors)`, `.border(width)`, and `.accessible_label(id, label)` for `Role::Image` semantics without adding a focus stop.
 
 ### Swipe to dismiss
 
@@ -312,9 +327,10 @@ Set `.shape`, `.container_role`, `.content_role`, and `.colors(SheetColors)` for
 
 | Component | Supported variants and behavior | Material 3 |
 | --- | --- | --- |
-| `AppBar`, `AppBarRow`, `AppBarColumn` | Small, Centered, Medium Flexible, Large Flexible, and customizable TwoRows top app bars with responsive action overflow. | [App bars](https://m3.material.io/components/app-bars/overview) |
+| `AppBar`, `AppBarRow`, `AppBarColumn`, `BottomAppBar` | Small, Centered, Medium Flexible, Large Flexible, and customizable TwoRows top app bars with responsive action overflow, plus an 80 dp bottom app bar with actions, embedded FAB slot, and hide-on-scroll behavior. | [App bars](https://m3.material.io/components/app-bars/overview) · [Bottom app bar](https://m3.material.io/components/bottom-app-bar/overview) |
 | `Tabs` | Fixed or scrolling Primary and Secondary tabs with leading icons, custom content and badges, configurable indication, and retained scrolling. | [Tabs](https://m3.material.io/components/tabs/overview) |
-| `NavigationBar`, `NavigationRail` | Short navigation bar with equal-weight or centered destinations, vertical or horizontal icons, and custom labels and badges. Rail with collapsed, expanded, hidden, and modal presentation. | [Navigation bar](https://m3.material.io/components/navigation-bar/overview) · [Navigation rail](https://m3.material.io/components/navigation-rail/overview) |
+| `NavigationBar`, `NavigationRail`, `NavigationDrawer` | Short navigation bar with equal-weight or centered destinations, vertical or horizontal icons, and custom labels and badges. Rail with collapsed, expanded, hidden, and modal presentation. Full-width Standard and Modal navigation drawers with sections, dividers, and pill indicators. | [Navigation bar](https://m3.material.io/components/navigation-bar/overview) · [Navigation rail](https://m3.material.io/components/navigation-rail/overview) · [Navigation drawer](https://m3.material.io/components/navigation-drawer/overview) |
+| `Stepper` | Horizontal and vertical multi-step progress and linear or non-linear step navigation with active, completed, upcoming, error, and disabled step states. | [Stepper](https://m3.material.io/components) |
 | `AdaptiveNavigation` | Adapts navigation type and animated visibility, with customizable slots and styling. | [Breakpoints](https://m3.material.io/foundations/layout/breakpoints/overview) |
 | `Scaffold` | Combines navigation, app bars, content, a positioned FAB, and snackbars. Resolves content insets from occupied space. | [Scaffold](https://m3.material.io/foundations/layout/scaffold/overview) |
 | `ListDetail`, `SupportingPane`, `Feed` | Canonical list, detail, supporting and feed layouts with an adaptive three-pane scaffold. | [Canonical layouts](https://m3.material.io/foundations/layout/canonical-examples/overview) |
@@ -390,6 +406,18 @@ Use `.header(element)`, `.fab(element)`, or `.destination_content(|mode| ...)` f
 
 Use `.modal(&dialog)` with a retained `DialogState` to overlay an expanded rail through the side-sheet session. The docked mode remains available after dismissal. `.modal_options(RailModalOptions)` configures Escape and outside dismissal, layer, placement, detached margins, and hiding a collapsed rail. `.on_dismiss_request(...)` can veto a user dismissal. `.on_modal_close(...)` receives the accepted close reason once. The modal holds focus, blocks background pointer and scroll input, and restores its entry focus while it still owns focus.
 
+### Bottom app bar
+
+`BottomAppBar::new(id)` provides an 80 dp Material 3 bottom bar (`SurfaceContainer`, `Elevation::Level2`) that mounts directly in `Scaffold::bottom_bar(...)` or standalone layouts. Add up to four leading actions with `.action(element)` or `.actions(iter)` and place an embedded floating action button at the logical trailing end with `.fab(element)`. Use `.height(pixels)`, `.padding(BottomAppBarPadding)`, `.elevation(Elevation)`, `.colors(BottomAppBarColors)`, and `.accessible_label(label)` (landmark `Role::Toolbar`) to customize geometry and appearance. Attach `.scroll_behavior(AppBarScrollBehavior, &state)` (and optional `.track_scroll(&handle)`) to reuse `AppBarScrollState` for hide-on-scroll behavior (`EnterAlways`, `ExitUntilCollapsed`, or `Pinned`). Layout and logical padding mirror in RTL.
+
+### Navigation drawer
+
+`NavigationDrawer::new(id, items)` renders a standalone Material 3 navigation drawer defaulting to 360 dp wide (configurable via `.width(pixels)`). Use `.mode(NavigationDrawerMode::Standard)` for a docked `SurfaceContainerLow` panel or `.mode(NavigationDrawerMode::Modal)` with `.modal_state(&dialog_state)` to present the drawer through a modal `Sheet` (`SheetEdge::Start`) with scrim, focus trap, Escape/outside dismissal, `.modal_properties`, `.on_dismiss_request`, `.on_closed`, and focus restoration. Organize destinations using `NavigationItems`, `.section(header, items)`, `.entries(...)`, `.divider_before(item_id)`, `.headline(text)`, `.header(element)`, and `.footer(element)`. Destinations render in a vertical scrollable list with 56 dp pill active indicators, trailing badges, single roving Tab stop (`Up`/`Down`, `Home`/`End`, `Enter`/`Space`), and RTL mirroring.
+
+### Stepper
+
+`Stepper::new(id, steps)` displays horizontal (`StepperOrientation::Horizontal`, default) or vertical (`StepperOrientation::Vertical`) multi-step workflows from `StepItem` definitions. Set `.active_step(index)` to mark steps before the index as `Completed`, at the index as `Active`, and after the index as `Upcoming` unless overridden per step with `StepItem::status(StepStatus)`. Each step supports `.supporting(text)`, `.icon(element)`, `.editable(bool)`, and vertical `.content(element)` displayed beneath the active step. Provide `.on_select(|index, window, cx| ...)` to enable step navigation; linear steppers allow activating completed, active, error, or editable steps while `.non_linear(true)` allows selecting any enabled step. Steps expose status-inclusive accessible names, mirror in RTL, and use roving keyboard focus (`Left`/`Right` in horizontal, `Up`/`Down` in vertical, `Home`/`End`, `Enter`/`Space`).
+
 ### Vertical drag handle
 
 Place `VerticalDragHandle::new(id)` on the boundary between two panes. Use `.sizes(DragHandleSizes)`, `.colors(DragHandleColors)`, and `.shapes(DragHandleShapes)` to override individual resting, pressed, and dragged values. The window theme supplies the Outline role for the 4 × 48 resting capsule and On Surface for the 12 × 52 pressed and dragged marks with Medium corners. Visual dimensions use logical pixels. The input target stays at least 48 × 48 and accommodates the largest configured mark in every state. Hover and keyboard focus add feedback while keeping their own interaction states.
@@ -410,16 +438,16 @@ Set `.fab_position(ScaffoldFabPosition)` to `Start`, `Center`, or `End` within t
 
 ## Optional components
 
-Core components are enabled by default through `full`. Disable default features on `gpui-material` (or `gpui-material-components`) to compile only the lightweight core (`Text`, `Icon`, `IconName`, `Badge`, `Divider`, `DisplayScrollbar`, `ControlSize`, `ScaffoldInsets`, `MenuSurfaceStyle`, and `init_components`) plus the groups you enable:
+Core components are enabled by default through `full`. Disable default features on `gpui-material` (or `gpui-material-components`) to compile only the lightweight core (`Text`, `Icon`, `IconName`, `Avatar`, `Badge`, `Divider`, `DisplayScrollbar`, `ControlSize`, `ScaffoldInsets`, `MenuSurfaceStyle`, and `init_components`) plus the groups you enable:
 
 | Core feature | Components | Implied groups |
 | --- | --- | --- |
-| `actions` | `Button`, `ToggleButton`, `IconButton`, `IconToggleButton`, `Fab`, `ExtendedFab`, button styles | — |
+| `actions` | `Button`, `ButtonTone`, `ToggleButton`, `IconButton`, `IconToggleButton`, `Fab`, `ExtendedFab`, button styles | — |
 | `selection` | `Checkbox`, `Radio`, `RadioGroup`, `Switch`, `Chip`, `Slider` | — |
 | `inputs` | `TextField`, `TextFieldState`, `TextAreaState`, `ExposedDropdown`, `ExposedDropdownState` | — |
-| `surfaces` | `Card`, `List`, `ListItem`, `SwipeToDismiss`, `VerticalDragHandle` | `actions` |
+| `surfaces` | `Card`, `DropTarget`, `List`, `ListItem`, `SwipeToDismiss`, `VerticalDragHandle` (plus `SwitchTile` with `selection` and `ChoiceTile` with `feedback`) | `actions` |
 | `feedback` | `CircularProgress`, `LinearProgress`, `LoadingIndicator`, `PullToRefresh`, `Dialog`, `Sheet`, `BottomSheet*`, `Menu`, `Snackbar`, `SnackbarHost`, `Tooltip`, `Label` | `actions` |
-| `navigation` | `AppBar`, `AppBarRow`, `AppBarColumn`, `Tabs`, `NavigationBar`, `NavigationRail`, `AdaptiveNavigation`, `Scaffold`, `ListDetail`, `SupportingPane`, `Feed`, `AdaptivePane` | `actions`, `feedback` |
+| `navigation` | `AppBar`, `AppBarRow`, `AppBarColumn`, `BottomAppBar`, `Tabs`, `NavigationBar`, `NavigationRail`, `NavigationDrawer`, `Stepper`, `AdaptiveNavigation`, `Scaffold`, `ListDetail`, `SupportingPane`, `Feed`, `AdaptivePane` | `actions`, `feedback` |
 | `full` | All core component groups above (default) | All core groups |
 
 Enable optional component families on the `gpui-material` dependency. Each family activates only the core component groups it uses. Import date pickers, time pickers and scroll fields from `gpui_material::date_time`.

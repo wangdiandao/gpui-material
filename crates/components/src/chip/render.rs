@@ -193,6 +193,7 @@ fn build_chip_style(
         },
         corner_motion: (MotionKind::Spatial, MotionSpeed::Fast),
         outline: 0.,
+        outline_role: ColorRole::OutlineVariant,
         elevation: if elevated {
             Elevation::Level1
         } else {

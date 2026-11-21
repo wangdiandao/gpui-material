@@ -5,7 +5,7 @@ use gpui::{
 use gpui_base::TestSupportExt;
 use gpui_material::{
     Button, ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShape, ButtonShapes,
-    ButtonVariant, ControlSize, ExtendedFab, Fab, FabAlignment, FabColor, FabSize,
+    ButtonTone, ButtonVariant, ControlSize, ExtendedFab, Fab, FabAlignment, FabColor, FabSize,
     FabVisibilityAnimation, Icon, IconButton, IconButtonVariant, IconButtonWidth, IconName,
     IconToggleButton, InteractionSource, Text, ToggleButton, ToggleButtonVariant,
     theme::{ColorRole, CornerShape, Elevation, TypeRole},
@@ -149,6 +149,44 @@ impl ActionExamples {
                     .aria_label(count.clone())
                     .test_support()
                     .child(Text::new(count).role(TypeRole::BodySmall)),
+            )
+    }
+
+    fn button_tones_section(&self) -> crate::story::StorySection {
+        let tones = [
+            ("Default", ButtonTone::Default),
+            ("Danger", ButtonTone::Danger),
+            ("Success", ButtonTone::Success),
+            ("Warning", ButtonTone::Warning),
+            ("Info", ButtonTone::Info),
+        ];
+        section("Semantic tones")
+            .description(
+                "Apply Material 3 semantic color roles across button variants with `.tone(ButtonTone)`.",
+            )
+            .child(
+                row().children(tones.into_iter().enumerate().map(|(ix, (label, tone))| {
+                    Button::new(("tone-filled", ix), label)
+                        .variant(ButtonVariant::Filled)
+                        .tone(tone)
+                        .on_activate(|_, _| {})
+                })),
+            )
+            .child(
+                row().children(tones.into_iter().enumerate().map(|(ix, (label, tone))| {
+                    Button::new(("tone-tonal", ix), label)
+                        .variant(ButtonVariant::FilledTonal)
+                        .tone(tone)
+                        .on_activate(|_, _| {})
+                })),
+            )
+            .child(
+                row().children(tones.into_iter().enumerate().map(|(ix, (label, tone))| {
+                    Button::new(("tone-outlined", ix), label)
+                        .variant(ButtonVariant::Outlined)
+                        .tone(tone)
+                        .on_activate(|_, _| {})
+                })),
             )
     }
 
@@ -584,6 +622,10 @@ impl Render for ActionExamples {
                     .then(|| self.disabled_icon_buttons_section()),
             )
             .children(interaction_sample)
+            .children(
+                self.shows(Story::Button)
+                    .then(|| self.button_tones_section()),
+            )
             .children(
                 self.shows(Story::Button)
                     .then(|| self.custom_button_section(cx)),

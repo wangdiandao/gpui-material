@@ -35,16 +35,16 @@ pub struct NavigationItemColors {
 
 /// One destination or tab with an ID unique within its collection.
 pub struct NavigationItem {
-    id: SharedString,
-    label: SharedString,
-    icon: Option<Icon>,
-    icon_position: Option<NavigationItemIconPosition>,
-    label_content: Option<AnyElement>,
-    badge: Option<Badge>,
-    indicator_padding: Option<(NavigationRailPadding, NavigationRailPadding)>,
-    colors: NavigationItemColors,
-    interaction_source: Option<Entity<InteractionSource>>,
-    disabled: bool,
+    pub(super) id: SharedString,
+    pub(super) label: SharedString,
+    pub(super) icon: Option<Icon>,
+    pub(super) icon_position: Option<NavigationItemIconPosition>,
+    pub(super) label_content: Option<AnyElement>,
+    pub(super) badge: Option<Badge>,
+    pub(super) indicator_padding: Option<(NavigationRailPadding, NavigationRailPadding)>,
+    pub(super) colors: NavigationItemColors,
+    pub(super) interaction_source: Option<Entity<InteractionSource>>,
+    pub(super) disabled: bool,
 }
 
 impl NavigationItem {
@@ -115,7 +115,7 @@ impl NavigationItem {
     }
 }
 
-type Select = Rc<dyn Fn(&SharedString, &mut Window, &mut App)>;
+pub(super) type Select = Rc<dyn Fn(&SharedString, &mut Window, &mut App)>;
 
 /// Controlled destinations. Use the same collection ID across adaptive
 /// presentations to preserve focus on the destination that currently owns it.
@@ -194,6 +194,27 @@ impl NavigationItems {
 
     pub(super) fn id(&self) -> &ElementId {
         &self.id
+    }
+
+    #[allow(clippy::type_complexity)]
+    pub(super) fn into_drawer_parts(
+        self,
+    ) -> (
+        ElementId,
+        SharedString,
+        Vec<NavigationItem>,
+        Option<SharedString>,
+        Option<Select>,
+        f32,
+    ) {
+        (
+            self.id,
+            self.label,
+            self.items,
+            self.selected,
+            self.on_select,
+            self.font_scale,
+        )
     }
 
     pub(super) fn retain_roving_stop(mut self) -> Self {

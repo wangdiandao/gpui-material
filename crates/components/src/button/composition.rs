@@ -149,7 +149,7 @@ impl RenderOnce for ButtonPart {
             Some(Segment::SplitLeading | Segment::SplitTrailing)
         );
         let palette_selection = if split { None } else { self.selected };
-        let mut style = button_appearance(self.variant, palette_selection).style(
+        let mut style = button_appearance(self.variant, palette_selection, self.common.tone).style(
             metrics,
             self.common.shape.corner(metrics.square, false),
             0.,

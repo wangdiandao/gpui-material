@@ -74,6 +74,9 @@ pub struct ListItem {
     expansion: Option<Expansion>,
     swipe: Option<RowSwipe>,
     checked: Option<bool>,
+    checked_role: Role,
+    #[cfg(feature = "feedback")]
+    menu_trigger: Option<(bool, Activate)>,
     selected: bool,
     disabled: bool,
     dragged: bool,
@@ -104,6 +107,9 @@ impl ListItem {
             expansion: None,
             swipe: None,
             checked: None,
+            checked_role: Role::CheckBox,
+            #[cfg(feature = "feedback")]
+            menu_trigger: None,
             selected: false,
             disabled: false,
             dragged: false,
@@ -277,15 +283,38 @@ impl ListItem {
         self
     }
 
+    #[cfg(feature = "selection")]
+    pub(crate) fn checked_role(mut self, role: Role) -> Self {
+        self.checked_role = role;
+        self
+    }
+
+    #[cfg(feature = "feedback")]
+    pub(crate) fn menu_trigger(mut self, open: bool, a11y_toggle: Activate) -> Self {
+        self.menu_trigger = Some((open, a11y_toggle));
+        self
+    }
+
     fn has_primary_action(&self) -> bool {
         self.activation.is_some()
             || self.checked_change.is_some()
             || self.expansion.is_some() && self.expanded_change.is_some()
     }
 
+    fn has_menu_trigger(&self) -> bool {
+        #[cfg(feature = "feedback")]
+        {
+            self.menu_trigger.is_some()
+        }
+        #[cfg(not(feature = "feedback"))]
+        {
+            false
+        }
+    }
+
     fn takes_focus(&self, cx: &App) -> bool {
         !self.disabled
-            && (self.has_primary_action() || self.long_press.is_some())
+            && (self.has_primary_action() || self.has_menu_trigger() || self.long_press.is_some())
             && self
                 .swipe
                 .as_ref()

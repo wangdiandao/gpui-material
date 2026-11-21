@@ -39,7 +39,7 @@ struct Metrics {
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct ScrollPosition {
+pub(in crate::navigation) struct ScrollPosition {
     pub target: f32,
     pub settling: bool,
     pub overlap: f32,
@@ -106,7 +106,7 @@ impl AppBarScrollState {
         self.metrics.overlapped
     }
 
-    pub(super) fn prepare(
+    pub(in crate::navigation) fn prepare(
         &mut self,
         handle_offset: Option<f32>,
         limit: f32,
@@ -180,7 +180,11 @@ impl AppBarScrollState {
         }
     }
 
-    pub(super) fn display(&mut self, position: ScrollPosition, fraction: f32) -> bool {
+    pub(in crate::navigation) fn display(
+        &mut self,
+        position: ScrollPosition,
+        fraction: f32,
+    ) -> bool {
         let next = Metrics {
             content: position.content,
             height: -position.limit * fraction,
@@ -193,7 +197,7 @@ impl AppBarScrollState {
     }
 }
 
-pub(super) fn length(value: Pixels) -> Option<f32> {
+pub(in crate::navigation) fn length(value: Pixels) -> Option<f32> {
     let value = f32::from(value);
     (value.is_finite() && value >= 0.).then_some(value)
 }

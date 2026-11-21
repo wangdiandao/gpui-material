@@ -6,6 +6,7 @@
     allow(dead_code)
 )]
 mod action;
+mod avatar;
 #[cfg_attr(not(feature = "actions"), allow(dead_code))]
 mod button_style;
 mod display;
@@ -35,6 +36,7 @@ mod menu_appearance;
 mod motion;
 mod text;
 
+pub use avatar::{Avatar, AvatarColors, AvatarShape, AvatarSize};
 pub use button_style::ControlSize;
 pub use display::{Badge, Divider};
 pub use display_scrollbar::{
@@ -55,7 +57,7 @@ mod fab;
 pub use button::composition as button_composition;
 #[cfg(feature = "actions")]
 pub use button::{
-    Button, ButtonShape, ButtonVariant, IconButton, IconButtonVariant, IconButtonWidth,
+    Button, ButtonShape, ButtonTone, ButtonVariant, IconButton, IconButtonVariant, IconButtonWidth,
     IconToggleButton, ToggleButton, ToggleButtonVariant,
 };
 #[cfg(feature = "actions")]
@@ -90,7 +92,14 @@ mod card;
 #[cfg(any(feature = "surfaces", feature = "navigation"))]
 mod drag_handle;
 #[cfg(feature = "surfaces")]
+mod drop_target;
+#[cfg(feature = "surfaces")]
 mod list;
+#[cfg(any(
+    all(feature = "surfaces", feature = "selection"),
+    all(feature = "surfaces", feature = "feedback")
+))]
+mod settings_tiles;
 #[cfg(feature = "surfaces")]
 mod swipe_to_dismiss;
 
@@ -99,10 +108,16 @@ pub use card::{Card, CardBorder, CardColors, CardElevations, CardVariant};
 #[cfg(any(feature = "surfaces", feature = "navigation"))]
 pub use drag_handle::{DragHandleColors, DragHandleShapes, DragHandleSizes, VerticalDragHandle};
 #[cfg(feature = "surfaces")]
+pub use drop_target::{DropTarget, DropTargetColors};
+#[cfg(feature = "surfaces")]
 pub use list::{
     List, ListItem, ListItemAlignment, ListItemColors, ListItemElevations, ListItemPadding,
     ListItemShapes, ListItemStateColors, ListVariant,
 };
+#[cfg(all(feature = "surfaces", feature = "selection"))]
+pub use settings_tiles::SwitchTile;
+#[cfg(all(feature = "surfaces", feature = "feedback"))]
+pub use settings_tiles::{ChoiceOption, ChoiceTile};
 #[cfg(feature = "surfaces")]
 pub use swipe_to_dismiss::{SwipeToDismiss, SwipeToDismissState, SwipeToDismissValue};
 

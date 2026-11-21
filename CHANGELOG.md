@@ -4,10 +4,18 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+## 0.2.0 - 2026-11-21
+
+Changes since [v0.1.2](https://github.com/wangdiandao/gpui-material/releases/tag/v0.1.2).
+
+### API and migration
+
+- Update exhaustive `ColorRole` matches to cover the nine new semantic status roles (`Info`, `OnInfo`, `InfoContainer`, `Success`, `OnSuccess`, `SuccessContainer`, `Warning`, `OnWarning`, and `WarningContainer`).
+- Lower the workspace minimum supported Rust version (`rust-version`) from `1.99.1` to `1.95.0` and set `default-features = false` on the workspace `gpui-material-components` dependency so Cargo versions below `1.99` can evaluate workspace inheritance.
+
 ### Dependencies
 
 - Allow downstream applications to resolve compatible versions of internal dependencies (`polymorpher`, `material-color-utils`, and `serde_json` dev-dependency) at or above the existing minimums while keeping public GPUI/Base and workspace lockstep pins exact.
-- Lower the workspace minimum supported Rust version (`rust-version`) from `1.99.1` to `1.95.0` and set `default-features = false` on the workspace `gpui-material-components` dependency so Cargo versions below `1.99` can evaluate workspace inheritance.
 
 ### Modular compilation
 
@@ -27,7 +35,7 @@ See [versioning and releases](docs/release.md) for the release process.
 
 - Add `project_base_theme` and `current_base_theme` (including Material scrollbar and resize-handle tokens), attach a local-theme-aware Material `DisplayScrollbar` renderer and complete `InputEditorStyle` diagnostics to multiline `TextField` editors, preserve window-local overrides in `ThemeScope::bind_action`, and avoid unnecessary redraws of locally overridden windows during application palette transitions.
 - Unify the animation lifecycle in `gpui-material-foundation` (`animate_with_status`, `LoopClock`, `RetargetTransition`, `is_bounds_visible`) so keyed channels use a single GPUI entity, mid-flight interruptions preserve spring velocity or shorten tween reversals proportionally, reduced motion settles immediately, and off-screen, clipped, inactive, or hidden animated components pause without scheduling frames.
-- Add `ColorScheme::from_seed_with` and `MaterialTheme::from_seed_with` supporting all seven `DynamicVariant` palettes (`TonalSpot`, `Vibrant`, `Expressive`, `Fidelity`, `Content`, `Monochrome`, `Neutral`) and `SpecVersion` (`Spec2021` and `Spec2025`), lightweight seed-based `ThemePreset` recipes, `ColorScheme::blend`, and extended `Info`, `Success`, and `Warning` semantic color roles (and their `On*` and `*Container` pairs; update exhaustive `ColorRole` matches).
+- Add `ColorScheme::from_seed_with` and `MaterialTheme::from_seed_with` supporting all seven `DynamicVariant` palettes (`TonalSpot`, `Vibrant`, `Expressive`, `Fidelity`, `Content`, `Monochrome`, `Neutral`) and `SpecVersion` (`Spec2021` and `Spec2025`), lightweight seed-based `ThemePreset` recipes, `ColorScheme::blend`, and extended `Info`, `Success`, and `Warning` semantic color roles (and their `On*` and `*Container` pairs).
 - Add `Typography::with_text_scale` (default `1.0`, clamped `1.0..=2.0`) and `Typography::style` / `scale_style`, applied across all 15 Material type roles and Base typography projection.
 - Animate application palette changes in `set_material_theme` with a retargetable Slow Effects spring that respects reduced motion, and add subtree-level `ThemeScope` and `current_material_theme` with overlay inheritance that keeps the application Base theme untouched.
 
@@ -38,6 +46,12 @@ See [versioning and releases](docs/release.md) for the release process.
 ### Windows
 
 - Add optional custom title bars with native Windows caption behavior and a Gallery demonstration.
+
+### Contributors
+
+- [@wangdiandao](https://github.com/wangdiandao)
+
+**Full Changelog** [`v0.1.2...v0.2.0`](https://github.com/wangdiandao/gpui-material/compare/v0.1.2...v0.2.0)
 
 ## 0.1.2 - 2026-11-20
 

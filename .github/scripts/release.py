@@ -565,25 +565,14 @@ def cmd_publish_crates(args: argparse.Namespace) -> None:
     validate_manifests(root, version)
 
     token = os.environ.get("CARGO_REGISTRY_TOKEN", "")
-    results: list[tuple[str, str, str]] = []
+    if not token:
+        fail("CARGO_REGISTRY_TOKEN is not set while publishing crates")
+
+    results: list[tuple[str, str]] = []
 
     for crate_name, _ in CRATES:
-        existing = crates_io_version(crate_name, version)
-        if existing is not None:
-            if existing.get("yanked"):
-                fail(f"{crate_name} {version} already exists on crates.io and is yanked")
-            print(f"{crate_name} {version} is already published on crates.io; skipping publish.")
-            action = "already published"
-            meta = wait_for_registry(crate_name, version)
-        else:
-            if not token:
-                fail(
-                    f"CARGO_REGISTRY_TOKEN is not set while attempting to publish "
-                    f"{crate_name} {version}"
-                )
-            run(["cargo", "publish", "-p", crate_name], cwd=root)
-            action = "published"
-            meta = wait_for_registry(crate_name, version)
+        run(["cargo", "publish", "-p", crate_name], cwd=root)
+        meta = wait_for_registry(crate_name, version)
 
         expected_sha = meta["checksum"]
         _, crate_bytes = http_get(
@@ -596,18 +585,18 @@ def cmd_publish_crates(args: argparse.Namespace) -> None:
                 f"checksum mismatch for {crate_name} {version}: "
                 f"downloaded {actual_sha}, registry reported {expected_sha}"
             )
-        results.append((crate_name, action, actual_sha))
-        print(f"Verified {crate_name} {version} ({action}) sha256={actual_sha}", flush=True)
+        results.append((crate_name, actual_sha))
+        print(f"Verified {crate_name} {version} sha256={actual_sha}", flush=True)
 
     rows = "\n".join(
-        f"| `{name}` | `{version}` | {action} | `{sha}` |" for name, action, sha in results
+        f"| `{name}` | `{version}` | `{sha}` |" for name, sha in results
     )
     append_summary(
         args.summary_out,
         (
             "## crates.io publication\n\n"
-            "| Crate | Version | Status | SHA-256 |\n"
-            "| --- | --- | --- | --- |\n"
+            "| Crate | Version | SHA-256 |\n"
+            "| --- | --- | --- |\n"
             f"{rows}\n"
         ),
     )

@@ -6,7 +6,7 @@
 
 ## 版本规则
 
-最新版本为 0.1.2。Material 各库与 Gallery 统一使用根清单 `[workspace.package]` 的版本。[公开门面及受支持的集成契约](integration.zh.md#api-与迁移)界定兼容范围，包括文档列出的 feature、公开签名中的上游类型，以及受支持的平台行为。
+最新版本为 0.2.0。Material 各库与 Gallery 统一使用根清单 `[workspace.package]` 的版本。[公开门面及受支持的集成契约](integration.zh.md#api-与迁移)界定兼容范围，包括文档列出的 feature、公开签名中的上游类型，以及受支持的平台行为。
 
 - 在 `1.0.0` 之前，向后兼容的修复递增 patch，向后兼容的新功能或破坏性变更递增 minor。递增 minor 时将 patch 归零。同一版本包含不同类型的变更时，采用最高的适用级别。
 - 由仓库所有者决定何时以 `1.0.0` 承诺 API 稳定。从 `1.0.0` 起遵循 [SemVer](https://semver.org/lang/zh-CN/)。公开 API 的不兼容变更递增 major，兼容的新功能和公开 API 弃用递增 minor，兼容修复递增 patch。
@@ -39,4 +39,3 @@ GitHub Release 提供版本说明及 GitHub 生成的源码归档。检出源码
 
 - 在 GitHub 仓库设置中配置 `release` 环境，开启必需审批人并限制仅允许 `main` 分支部署。
 - 在 crates.io 上为全部六个库添加 Trusted Publishing 绑定，仓库填 `wangdiandao/gpui-material`，工作流文件名填 `release.yml`，环境名填 `release`。
-- crates.io 要求 crate 已存在后才能配置 Trusted Publishing。首次发布全新 crate（例如首个 `gpui-material-design-symbols` 版本）时，先从同一已验证提交手动发布该 crate 的首个版本并随后配置 Trusted Publishing；工作流会自动识别已上架且未撤回（non-yanked）的版本、核验其校验和并跳过重复发布，保证重试与断点续跑的幂等性。

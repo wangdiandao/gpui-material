@@ -2189,7 +2189,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-material"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "gpui-material-components",
  "gpui-material-extras",
@@ -2199,7 +2199,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-material-components"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "gpui-base",
  "gpui-material-foundation",
@@ -2210,7 +2210,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-material-design-symbols"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "js-sys",
  "ttf-parser",
@@ -2220,7 +2220,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-material-extras"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "gpui-base",
@@ -2235,7 +2235,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-material-foundation"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "gpui-base",
  "gpui-material-theme",
@@ -2247,7 +2247,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-material-gallery"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "embed-resource",
  "gpui-base",
@@ -2258,7 +2258,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-material-gallery-web"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "gpui-base",
  "gpui-material",
@@ -2271,7 +2271,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-material-theme"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "material-color-utils",
  "serde",

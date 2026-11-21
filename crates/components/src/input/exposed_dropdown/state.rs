@@ -36,18 +36,22 @@ pub(super) struct OptionSnapshot {
 impl OptionSnapshot {
     pub(super) fn reconcile(
         &mut self,
-        source: Vec<DropdownOption>,
+        source: &Rc<[DropdownOption]>,
         query: Option<SharedString>,
     ) -> bool {
-        if self.source.as_ref() == source.as_slice() && self.query == query {
+        let source_unchanged =
+            Rc::ptr_eq(&self.source, source) || self.source.as_ref() == source.as_ref();
+        if !Rc::ptr_eq(&self.source, source) {
+            self.source = source.clone();
+        }
+        if source_unchanged && self.query == query {
             return false;
         }
-        self.source = source.into();
         self.visible = if let Some(query) = &query {
-            let query = query.to_lowercase();
+            let query_lower = query.to_lowercase();
             self.source
                 .iter()
-                .filter(|option| option.label.to_lowercase().contains(&query))
+                .filter(|option| contains_ignore_case(&option.label, query, &query_lower))
                 .cloned()
                 .collect()
         } else {
@@ -55,6 +59,18 @@ impl OptionSnapshot {
         };
         self.query = query;
         true
+    }
+}
+
+pub(super) fn contains_ignore_case(haystack: &str, needle_raw: &str, needle_lower: &str) -> bool {
+    if haystack.is_ascii() && needle_raw.is_ascii() {
+        needle_raw.is_empty()
+            || haystack
+                .as_bytes()
+                .windows(needle_raw.len())
+                .any(|window| window.eq_ignore_ascii_case(needle_raw.as_bytes()))
+    } else {
+        haystack.to_lowercase().contains(needle_lower)
     }
 }
 
@@ -73,6 +89,7 @@ pub struct ExposedDropdownState {
     pub(super) restore_focus: Option<FocusHandle>,
     focus_epoch: u64,
     pub(super) active: Option<ElementId>,
+    active_index: Option<usize>,
     pub(super) selected: Option<ElementId>,
     pub(super) scroll: ListState,
     presented: Rc<[DropdownOption]>,
@@ -113,6 +130,7 @@ impl ExposedDropdownState {
             }
             if input.read(cx).value() != state.committed {
                 state.active = None;
+                state.active_index = None;
                 if state.primary_enabled {
                     state.request_open(true, Some(Opening::Editor), window, cx);
                 }
@@ -133,6 +151,7 @@ impl ExposedDropdownState {
             restore_focus: None,
             focus_epoch: 0,
             active: None,
+            active_index: None,
             selected: None,
             scroll: ListState::new(0, ListAlignment::Top, px(280.)),
             presented: Rc::default(),
@@ -189,6 +208,7 @@ impl ExposedDropdownState {
 
     pub(super) fn reset_draft(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.active = None;
+        self.active_index = None;
         self.input.update(cx, |input, cx| {
             if input.value() != self.committed {
                 input.set_value(self.committed.clone(), window, cx);
@@ -249,6 +269,7 @@ impl ExposedDropdownState {
         if self.presented_open == self.open {
             if !self.open {
                 self.active = None;
+                self.active_index = None;
             }
             return;
         }
@@ -299,19 +320,21 @@ impl ExposedDropdownState {
         }
     }
 
+    fn active_position(&self, choices: &[DropdownOption]) -> Option<usize> {
+        let id = self.active.as_ref()?;
+        self.active_index
+            .filter(|&index| choices.get(index).is_some_and(|choice| &choice.id == id))
+            .or_else(|| choices.iter().position(|choice| &choice.id == id))
+    }
+
     pub(super) fn reconcile_options(
         &mut self,
-        source: Vec<DropdownOption>,
+        source: &Rc<[DropdownOption]>,
         query: Option<SharedString>,
     ) -> (Rc<[DropdownOption]>, Option<ElementId>, Option<ElementId>) {
         if self.options.reconcile(source, query) {
-            let index = self.active.as_ref().and_then(|id| {
-                self.options
-                    .visible
-                    .iter()
-                    .position(|option| &option.id == id)
-            });
-            if index.is_none() {
+            self.active_index = self.active_position(&self.options.visible);
+            if self.active_index.is_none() {
                 self.active = None;
             }
         }
@@ -331,9 +354,13 @@ impl ExposedDropdownState {
         if !Rc::ptr_eq(&self.presented, options) {
             let old_top = self.scroll.logical_scroll_top();
             let old_id = self.presented.get(old_top.item_ix).map(|option| &option.id);
-            let anchor = active
-                .or(old_id)
-                .and_then(|id| options.iter().position(|option| &option.id == id));
+            let anchor = if active.is_some() && Rc::ptr_eq(options, &self.options.visible) {
+                self.active_position(options)
+            } else {
+                active
+                    .or(old_id)
+                    .and_then(|id| options.iter().position(|option| &option.id == id))
+            };
             self.scroll.reset(options.len());
             if let Some(index) = anchor {
                 self.scroll.scroll_to(ListOffset {
@@ -356,10 +383,7 @@ impl ExposedDropdownState {
 
     pub(super) fn navigate(&mut self, backwards: bool, cx: &mut Context<Self>) {
         let choices = &self.options.visible;
-        let index = self
-            .active
-            .as_ref()
-            .and_then(|id| choices.iter().position(|choice| &choice.id == id));
+        let index = self.active_position(choices);
         let next = index.map_or_else(
             || {
                 if backwards {
@@ -378,7 +402,13 @@ impl ExposedDropdownState {
                 }
             },
         );
-        self.active = choices.get(next).map(|choice| choice.id.clone());
+        if let Some(choice) = choices.get(next) {
+            self.active = Some(choice.id.clone());
+            self.active_index = Some(next);
+        } else {
+            self.active = None;
+            self.active_index = None;
+        }
         if self.scroll.bounds_for_item(next).is_some() {
             self.scroll.scroll_to_reveal_item(next);
         } else {
@@ -392,11 +422,7 @@ impl ExposedDropdownState {
 
     pub(super) fn pending(&self) -> Option<DropdownOption> {
         let choices = &self.options.visible;
-        let index = self
-            .active
-            .as_ref()
-            .and_then(|id| choices.iter().position(|choice| &choice.id == id))
-            .unwrap_or(0);
+        let index = self.active_position(choices).unwrap_or(0);
         choices.get(index).cloned()
     }
 }

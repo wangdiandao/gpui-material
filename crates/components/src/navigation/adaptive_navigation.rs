@@ -169,12 +169,20 @@ impl AdaptiveNavigationState {
         }
         let now = cx.background_executor().now();
         let (next, running) = self.transition.sample(now, cx.reduce_motion());
-        if !running {
+        let notify = if !running {
             self.settle();
-            cx.notify();
+            true
         } else if next != self.fraction {
             self.fraction = next;
-            cx.notify();
+            true
+        } else {
+            false
+        };
+        if notify {
+            let state = cx.weak_entity();
+            cx.defer(move |cx| {
+                let _ = state.update(cx, |_, cx| cx.notify());
+            });
         }
     }
 }
@@ -395,7 +403,7 @@ impl IntoElement for SlidingSlot {
 }
 
 impl Element for SlidingSlot {
-    type RequestLayoutState = ();
+    type RequestLayoutState = Size<Pixels>;
     type PrepaintState = ();
 
     fn id(&self) -> Option<ElementId> {
@@ -412,7 +420,7 @@ impl Element for SlidingSlot {
         _: Option<&InspectorElementId>,
         window: &mut Window,
         cx: &mut App,
-    ) -> (LayoutId, ()) {
+    ) -> (LayoutId, Self::RequestLayoutState) {
         let natural =
             self.content
                 .layout_as_root(self.available.map(AvailableSpace::Definite), window, cx);
@@ -430,7 +438,7 @@ impl Element for SlidingSlot {
                 None,
                 cx,
             ),
-            (),
+            natural,
         )
     }
 
@@ -439,7 +447,7 @@ impl Element for SlidingSlot {
         _: Option<&GlobalElementId>,
         _: Option<&InspectorElementId>,
         bounds: Bounds<Pixels>,
-        _: &mut (),
+        natural: &mut Self::RequestLayoutState,
         window: &mut Window,
         cx: &mut App,
     ) {
@@ -448,9 +456,12 @@ impl Element for SlidingSlot {
         } else {
             size(bounds.size.width, self.available.height)
         };
-        let natural =
+        let natural = if cross_fit != self.available {
             self.content
-                .layout_as_root(cross_fit.map(AvailableSpace::Definite), window, cx);
+                .layout_as_root(cross_fit.map(AvailableSpace::Definite), window, cx)
+        } else {
+            *natural
+        };
         let origin: Point<Pixels> = if self.is_rail && self.direction == Direction::Ltr {
             point(bounds.right() - natural.width, bounds.top())
         } else {
@@ -466,7 +477,7 @@ impl Element for SlidingSlot {
         _: Option<&GlobalElementId>,
         _: Option<&InspectorElementId>,
         bounds: Bounds<Pixels>,
-        _: &mut (),
+        _: &mut Self::RequestLayoutState,
         _: &mut (),
         window: &mut Window,
         cx: &mut App,

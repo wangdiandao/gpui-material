@@ -23,10 +23,12 @@ See [versioning and releases](docs/release.md) for the release process.
 - Add standalone `NavigationDrawer` (`navigation` feature) with Standard and Modal (side-sheet) modes, sections, headers, dividers, 56 dp pill indicators, and roving vertical navigation.
 - Add `BottomAppBar` (`navigation` feature) with 80 dp Material styling, action and trailing FAB slots, `Scaffold::bottom_bar` compatibility, and `AppBarScrollBehavior` / `AppBarScrollState` hide-on-scroll support.
 - Add settings convenience tiles `SwitchTile` (`surfaces` + `selection`) and `ChoiceTile` / `ChoiceOption` (`surfaces` + `feedback`) with single-stop accessibility, anchored selection menus, and focus restoration.
+- Fix `Sheet::expandable` drag handle creating an unlabeled keyboard tab stop, delay `Tooltip` motion sampling until its trigger anchor is measured, prevent `SnackbarHost` first-frame zero-width layout and bound exiting queue growth under reduced motion, and defer render-time transition notifications across `NavigationRail`, `AdaptiveNavigation`, and `AdaptivePaneState`.
 
 ### Inputs
 
 - Add `TextFieldObfuscationMode` (`Hidden`, `Visible`) and `TextField::obfuscation_mode(...)` for `TextField::secure` visibility toggles, re-export `TextFieldMaskPattern` through the `inputs` feature facade, and add Gallery examples and tests covering password visibility toggling, structured mask patterns, and pre-commit validation.
+- Add `ExposedDropdown::with_shared_options` for `O(1)` `Rc<[DropdownOption]>` option sharing, accelerate dropdown filtering with zero-allocation ASCII case-insensitive matching and cached active indices, reserve trailing inset for `TextField` resting labels when `.trailing(...)` is present, and cache per-frame character counts.
 
 ### Performance, theme, foundation, and symbols
 
@@ -34,6 +36,7 @@ See [versioning and releases](docs/release.md) for the release process.
 - Cache resolved system and custom `Font` family descriptors and letter-spaced `LineLayout` runs in `gpui-material-foundation`, cache tessellated `Shape` stroke paths and transparent `Surface` rounded feedback geometry, prune finished ripples before `Escape` cancel checks, and expose `elevation_shadow_pair` for allocation-free canvas shadow painting.
 - Accelerate `clipped_ripple` with precomputed 64-gon unit-circle normals and inscribed-disk / triangle-AABB fast paths.
 - Add `const fn` constructors and accessors `SymbolAxes::new`, `SymbolAxes::is_filled`, and `SymbolAxes::get_weight` in `gpui-material-design-symbols`, and cache outlined SVG bytes by `(codepoint, axes)` in `SymbolFont::svg_data` so repeated lookups and alias symbols share a single `Arc<[u8]>`.
+- Snapshot `Menu` exit rows lazily, short-circuit `AdaptivePaneState` history resolution once all three pane roles are assigned, replace per-frame multi-pane geometry `Vec` allocations with stack arrays, and avoid redundant root layout passes and focus map clones in `AdaptiveNavigation`, `AppBar`, `Scaffold`, and `NavigationItems`.
 
 ## 0.2.0 - 2026-11-21
 

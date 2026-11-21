@@ -148,8 +148,7 @@ impl RenderOnce for Scaffold {
             }
             (_, fab) => (fab, self.snackbar, None),
         };
-        let needs_layout = self.bottom_sheet.is_some()
-            || overlay.is_some()
+        let needs_layout = overlay.is_some()
             || insets != ScaffoldInsets::default()
             || matches!(self.content, Content::Builder(_));
         let geometry = Rc::new(ScaffoldGeometry::default());

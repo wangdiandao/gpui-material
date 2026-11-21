@@ -186,9 +186,18 @@ impl TabReveal {
         &mut self,
         selected: Option<&SharedString>,
         focused: Option<&SharedString>,
-        order: Vec<SharedString>,
+        items: &[super::items::NavigationItem],
         scroll: &ScrollHandle,
     ) -> Option<usize> {
+        let order_unchanged = self.order.len() == items.len()
+            && self
+                .order
+                .iter()
+                .zip(items)
+                .all(|(existing, item)| existing == &item.id);
+        if !order_unchanged {
+            self.order = items.iter().map(|item| item.id.clone()).collect();
+        }
         let old_target = self.target.clone();
         if self.selection.as_ref() != selected {
             self.target = selected.or(focused).cloned();
@@ -199,24 +208,26 @@ impl TabReveal {
         }
         self.selection = selected.cloned();
         self.focus = focused.cloned();
-        if self.target.as_ref().is_none_or(|id| !order.contains(id)) {
+        if self
+            .target
+            .as_ref()
+            .is_none_or(|id| !self.order.contains(id))
+        {
             self.target = selected
-                .filter(|id| order.contains(id))
+                .filter(|id| self.order.contains(id))
                 .or(focused)
                 .cloned();
         }
         let index = self
             .target
             .as_ref()
-            .and_then(|id| order.iter().position(|item| item == id));
-        if self.order != order || self.target != old_target || scroll.bounds().size.width == px(0.)
-        {
+            .and_then(|id| self.order.iter().position(|item| item == id));
+        if !order_unchanged || self.target != old_target || scroll.bounds().size.width == px(0.) {
             self.geometry = None;
             if let Some(index) = index {
                 scroll.scroll_to_item(index);
             }
         }
-        self.order = order;
         index
     }
 

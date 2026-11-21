@@ -432,9 +432,10 @@ impl RenderOnce for Tooltip {
                         },
                     )
                 });
-        let (Some(motion), Some(anchor)) =
-            (OverlayMotion::sample(&self.id, open, window, cx), anchor)
-        else {
+        let Some(anchor) = anchor else {
+            return root;
+        };
+        let Some(motion) = OverlayMotion::sample(&self.id, open, window, cx) else {
             return root;
         };
         let last = geometry.placed.get();

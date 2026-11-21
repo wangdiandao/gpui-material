@@ -22,7 +22,7 @@ pub(super) struct MenuExitRow {
     label: SharedString,
     disabled: bool,
     heading: bool,
-    section: Option<(MenuSurfaceStyle, Vec<MenuExitRow>)>,
+    section: Option<(MenuSurfaceStyle, Rc<[MenuExitRow]>)>,
     selected: bool,
     submenu: bool,
     slots: ItemSlots,
@@ -77,10 +77,12 @@ pub(super) fn menu_exit(
         .color
         .palette(false, presentation.appearance.container);
     let surface = div()
-        .id(if depth == 0 {
-            ElementId::from((id.clone(), "menu-exit"))
-        } else {
-            ElementId::from((id.clone(), format!("submenu-exit-{depth}")))
+        .id(match depth {
+            0 => ElementId::from((id.clone(), "menu-exit")),
+            1 => ElementId::from((id.clone(), "submenu-exit-1")),
+            2 => ElementId::from((id.clone(), "submenu-exit-2")),
+            3 => ElementId::from((id.clone(), "submenu-exit-3")),
+            _ => ElementId::from((id.clone(), format!("submenu-exit-{depth}"))),
         })
         .test_support()
         .h(exit.size.height * motion.scale)
@@ -287,7 +289,7 @@ pub(super) fn menu_content(
     }
     let mut focus = Vec::new();
     collect_focus(&items, &mut focus, window, cx);
-    let handles = focus.clone();
+    let handles: Rc<[(FocusHandle, bool)]> = focus.into();
     if popup_focus.is_focused(window)
         && let Some((first, _)) = handles.iter().find(|(_, enabled)| *enabled)
     {
@@ -310,12 +312,15 @@ pub(super) fn menu_content(
     let palette = presentation
         .color
         .palette(false, presentation.appearance.container);
-    let mut rows = ActiveRows {
-        paint,
-        focus: focus.into_iter(),
-        close,
-        bounds,
-        preset: presentation.color,
+    let rendered_rows = {
+        let mut rows = ActiveRows {
+            paint,
+            focus: handles.iter(),
+            close,
+            bounds,
+            preset: presentation.color,
+        };
+        rows.render(items, palette, false, window, cx)
     };
     let menu = div()
         .id(if close_level.is_some() {
@@ -364,7 +369,7 @@ pub(super) fn menu_content(
                 .min_w(motion.px(112.).min(available_width))
                 .max_w(motion.px(280.).min(available_width))
                 .children(presentation.decoration.as_ref().map(|build| build()))
-                .children(rows.render(items, palette, false, window, cx)),
+                .children(rendered_rows),
         );
     super::super::text_style(menu, TypeRole::LabelLarge, motion.scale, window, cx)
         .into_any_element()
@@ -372,7 +377,7 @@ pub(super) fn menu_content(
 
 struct ActiveRows<'a> {
     paint: Paint<'a>,
-    focus: std::vec::IntoIter<(FocusHandle, bool)>,
+    focus: std::slice::Iter<'a, (FocusHandle, bool)>,
     close: Action,
     bounds: Rc<PopupBounds>,
     preset: MenuColor,
@@ -457,6 +462,7 @@ impl ActiveRows<'_> {
             .focus
             .next()
             .expect("each menu command has a focus entry");
+        let enabled = *enabled;
         let action = item.activation();
         let (role, marked) = match item.kind {
             Kind::Check(checked, _) => (Role::MenuItemCheckBox, checked),
@@ -468,7 +474,7 @@ impl ActiveRows<'_> {
             row_colors(item.style, self.paint, palette, marked, enabled);
         let row = gpui_base::Button::new(item.id.clone())
             .role(role)
-            .track_focus(&focus)
+            .track_focus(focus)
             .disabled(!enabled)
             .accessibility_label(item.label.clone())
             .flex()

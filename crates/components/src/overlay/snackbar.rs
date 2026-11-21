@@ -11,6 +11,9 @@ use gpui_base::TestSupportExt as _;
 use gpui_material_foundation::{color, current_material_theme, elevation_shadows};
 use gpui_material_theme::{ColorRole, CornerShape, Direction, Elevation, TypeRole};
 
+const MAX_WIDTH: gpui::Pixels = px(672.);
+const MAX_EXITING: usize = 4;
+
 type Action = Rc<dyn Fn(&mut Window, &mut App)>;
 type Content = Box<dyn Fn(&mut Window, &mut App) -> AnyElement>;
 type Completion = Rc<dyn Fn(SnackbarResult, &mut Window, &mut App)>;
@@ -319,7 +322,12 @@ impl SnackbarHost {
                 window.blur(cx);
             }
         }
-        self.exiting.push(entry);
+        if !cx.reduce_motion() {
+            if self.exiting.len() >= MAX_EXITING {
+                self.exiting.remove(0);
+            }
+            self.exiting.push(entry);
+        }
         self.show_next(window, cx);
         if callback.is_some() || complete.is_some() {
             window.defer(cx, move |window, cx| {
@@ -341,7 +349,12 @@ impl Render for SnackbarHost {
             .use_keyed_state("snackbar-host-width", cx, |_, _| Rc::new(Cell::new(px(0.))))
             .read(cx)
             .clone();
-        let width = host_width.get();
+        let measured_width = host_width.get();
+        let width = if measured_width > px(0.) {
+            measured_width
+        } else {
+            (window.viewport_size().width - px(32.)).clamp(px(0.), MAX_WIDTH)
+        };
         let mut root = div().relative().w_full().child(
             canvas(
                 move |bounds, window, _| {

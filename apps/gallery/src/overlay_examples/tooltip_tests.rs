@@ -604,3 +604,74 @@ fn rich_tooltip_keeps_its_action_available_while_focused(cx: &mut TestAppContext
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn tooltip_delays_entrance_motion_until_anchor_is_measured(cx: &mut TestAppContext) {
+    use gpui_material::Label;
+
+    struct OffscreenLabel {
+        offscreen: bool,
+    }
+
+    impl Render for OffscreenLabel {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().h(px(100.)).w(px(300.)).overflow_hidden().child(
+                div()
+                    .mt(if self.offscreen { px(240.) } else { px(16.) })
+                    .child(
+                        Label::new(
+                            "clipped-label",
+                            Button::new("clipped-trigger", "Anchor"),
+                            "Persistent label copy",
+                        )
+                        .persistent(true),
+                    ),
+            )
+        }
+    }
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            let entity = cx.new(|_| OffscreenLabel { offscreen: true });
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+
+    // While clipped outside the content mask, anchor is None and motion must not start.
+    cx.executor().advance_clock(Duration::from_millis(300));
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert!(find(window, &[], &"label".into()).is_none());
+    })
+    .unwrap();
+
+    // Bring the anchor into the content mask: first draw measures anchor, second starts motion at scale 0.8.
+    let initial = cx
+        .update_window(window.into(), |_, window, cx| {
+            view.update(cx, |view, cx| {
+                view.offscreen = false;
+                cx.notify();
+            });
+            window.refresh();
+            window.draw(cx).clear(cx);
+            window.refresh();
+            window.draw(cx).clear(cx);
+            find(window, &[], &"label".into()).unwrap().bounds()
+        })
+        .unwrap();
+    cx.executor().advance_clock(Duration::from_millis(250));
+    let settled = cx
+        .update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            find(window, &[], &"label".into()).unwrap().bounds()
+        })
+        .unwrap();
+    assert!(initial.size.width < settled.size.width);
+}

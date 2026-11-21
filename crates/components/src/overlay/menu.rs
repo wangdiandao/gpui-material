@@ -314,7 +314,7 @@ struct MenuPresentation {
 }
 
 struct PresentedMenu {
-    items: Vec<MenuExitRow>,
+    items: Rc<[MenuExitRow]>,
     presentation: MenuPresentation,
 }
 
@@ -548,7 +548,7 @@ impl RenderOnce for Menu {
             decoration: self.decoration,
             scroll: self.scroll.unwrap_or_else(|| bounds.scroll.clone()),
         };
-        if open {
+        if open && !cx.reduce_motion() {
             *bounds.presented.borrow_mut() = Some(PresentedMenu {
                 items: self.items.iter().map(MenuExitRow::from).collect(),
                 presentation: presentation.clone(),

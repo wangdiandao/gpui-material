@@ -52,7 +52,7 @@ pub struct ExposedDropdown {
     id: ElementId,
     label: SharedString,
     state: Entity<ExposedDropdownState>,
-    options: Vec<DropdownOption>,
+    options: Rc<[DropdownOption]>,
     primary: Option<DropdownAnchor>,
     primary_enabled: bool,
     secondary_enabled: bool,
@@ -74,11 +74,22 @@ impl ExposedDropdown {
         state: &Entity<ExposedDropdownState>,
         options: impl IntoIterator<Item = DropdownOption>,
     ) -> Self {
+        Self::with_shared_options(id, label, state, options.into_iter().collect::<Vec<_>>())
+    }
+
+    /// Uses a caller-retained option slice to avoid per-render collection and
+    /// linear slice equality comparisons.
+    pub fn with_shared_options(
+        id: impl Into<ElementId>,
+        label: impl Into<SharedString>,
+        state: &Entity<ExposedDropdownState>,
+        options: impl Into<Rc<[DropdownOption]>>,
+    ) -> Self {
         Self {
             id: id.into(),
             label: label.into(),
             state: state.clone(),
-            options: options.into_iter().collect(),
+            options: options.into(),
             primary: None,
             primary_enabled: true,
             secondary_enabled: true,

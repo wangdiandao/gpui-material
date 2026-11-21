@@ -166,11 +166,15 @@ impl GeometryInput<'_> {
         let width = length(self.viewport.width);
         let height = length(self.viewport.height);
         let bands = available_bands(width, &self.directive.excluded_widths);
-        let columns: Vec<_> = self
-            .order
-            .into_iter()
-            .filter(|role| value[*role] == PanePlacement::Expanded)
-            .collect();
+        let mut columns = [PaneRole::Primary; 3];
+        let mut column_count = 0;
+        for role in self.order {
+            if value[role] == PanePlacement::Expanded {
+                columns[column_count] = role;
+                column_count += 1;
+            }
+        }
+        let columns = &columns[..column_count];
         let mut result = LayoutGeometry::default();
         let mut start = 0;
         for (band, count) in allocate_bands(&bands, columns.len()) {
@@ -231,66 +235,66 @@ impl GeometryInput<'_> {
         }
         let gutter = gap(self.directive.horizontal_gap, band.end - band.start, count);
         let extent = band.end - band.start - gutter * (count - 1) as f32;
-        let targets: Vec<_> = roles
-            .iter()
-            .map(|role| {
-                preferred(
-                    self.measures[role.index()].preferred_width,
-                    self.directive.preferred_width,
-                )
-            })
-            .collect();
-        let minima: Vec<_> = roles
-            .iter()
-            .map(|role| length(self.measures[role.index()].minimum_width))
-            .collect();
+        let mut targets = [px(0.); 3];
+        let mut minima = [px(0.); 3];
+        for (ix, role) in roles.iter().enumerate() {
+            let measure = self.measures[role.index()];
+            targets[ix] = preferred(measure.preferred_width, self.directive.preferred_width);
+            minima[ix] = length(measure.minimum_width);
+        }
+        let targets = &targets[..count];
+        let minima = &minima[..count];
         let widths = distribute(
-            &targets,
-            &minima,
+            targets,
+            minima,
             extent,
             roles.iter().position(|role| *role == PaneRole::Primary),
         );
-        let mut boundaries = Vec::with_capacity(count + 1);
-        boundaries.push(px(0.));
+        let mut boundaries = [px(0.); 4];
         let mut wanted = px(0.);
         for i in 1..count {
             wanted += widths[i - 1];
-            let min = boundaries[i - 1] + scaled_minimum(&minima, i - 1, extent);
+            let min = boundaries[i - 1] + scaled_minimum(minima, i - 1, extent);
             let after: Pixels = (i..count)
-                .map(|ix| scaled_minimum(&minima, ix, extent))
+                .map(|ix| scaled_minimum(minima, ix, extent))
                 .sum();
             let max = (extent - after).max(min);
-            boundaries.push(
-                expansion(roles[i - 1], roles[i])
-                    .and_then(|anchor| anchor.position(extent))
-                    .unwrap_or(wanted)
-                    .clamp(min, max),
-            );
+            boundaries[i] = expansion(roles[i - 1], roles[i])
+                .and_then(|anchor| anchor.position(extent))
+                .unwrap_or(wanted)
+                .clamp(min, max);
         }
-        boundaries.push(extent);
+        boundaries[count] = extent;
         for (i, &role) in roles.iter().enumerate() {
             let origin = band.start + boundaries[i] + gutter * i as f32;
             let width = (boundaries[i + 1] - boundaries[i]).max(px(0.));
-            let mut stack = vec![role];
-            stack.extend(
-                self.order
-                    .into_iter()
-                    .filter(|child| value[*child] == PanePlacement::Reflow(role)),
-            );
+            let mut stack = [role; 3];
+            let mut stack_len = 1;
+            for child in self.order {
+                if value[child] == PanePlacement::Reflow(role) {
+                    stack[stack_len] = child;
+                    stack_len += 1;
+                }
+            }
+            let stack = &stack[..stack_len];
             let vertical_gap = gap(self.directive.vertical_gap, height, stack.len());
             let stack_space = height - vertical_gap * stack.len().saturating_sub(1) as f32;
-            let targets: Vec<_> = stack
-                .iter()
-                .map(|pane| {
-                    preferred(
-                        self.measures[pane.index()].preferred_height,
-                        self.directive.preferred_height,
-                    )
-                })
-                .collect();
-            let heights = distribute(&targets, &vec![px(0.); stack.len()], stack_space, Some(0));
+            let mut stack_targets = [px(0.); 3];
+            for (ix, pane) in stack.iter().enumerate() {
+                stack_targets[ix] = preferred(
+                    self.measures[pane.index()].preferred_height,
+                    self.directive.preferred_height,
+                );
+            }
+            let zero_minima = [px(0.); 3];
+            let heights = distribute(
+                &stack_targets[..stack.len()],
+                &zero_minima[..stack.len()],
+                stack_space,
+                Some(0),
+            );
             let mut y = px(0.);
-            for (pane, pane_height) in stack.into_iter().zip(heights) {
+            for (&pane, pane_height) in stack.iter().zip(heights) {
                 result.panes[pane.index()] = Some(inset(
                     Bounds::new(point(origin, y), size(width, pane_height)),
                     self.measures[pane.index()].margins,
@@ -303,8 +307,8 @@ impl GeometryInput<'_> {
                     end: next,
                     center: origin + width + gutter / 2.,
                     position: boundaries[i + 1],
-                    min: boundaries[i] + scaled_minimum(&minima, i, extent),
-                    max: boundaries[i + 2] - scaled_minimum(&minima, i + 1, extent),
+                    min: boundaries[i] + scaled_minimum(minima, i, extent),
+                    max: boundaries[i + 2] - scaled_minimum(minima, i + 1, extent),
                     extent,
                 });
             }
@@ -393,34 +397,46 @@ fn distribute(
     minima: &[Pixels],
     extent: Pixels,
     flexible: Option<usize>,
-) -> Vec<Pixels> {
-    let minimums: Vec<_> = (0..minima.len())
-        .map(|ix| scaled_minimum(minima, ix, extent))
-        .collect();
-    let available = (extent - minimums.iter().copied().sum::<Pixels>()).max(px(0.));
-    let extras: Vec<_> = targets
-        .iter()
-        .zip(&minimums)
-        .map(|(target, minimum)| (*target - *minimum).max(px(0.)))
-        .collect();
-    let needed: Pixels = extras.iter().copied().sum();
-    minimums
-        .into_iter()
-        .zip(extras)
-        .enumerate()
-        .map(|(ix, (minimum, extra))| {
-            let additional = if needed > available {
-                extra * (available / needed)
-            } else if flexible == Some(ix) {
-                extra + available - needed
-            } else if flexible.is_none() {
-                extra + (available - needed) / targets.len() as f32
-            } else {
-                extra
-            };
-            minimum + additional
-        })
-        .collect()
+) -> [Pixels; 3] {
+    let count = targets.len();
+    let mut minimum_sum = px(0.);
+    let minimums: [Pixels; 3] = std::array::from_fn(|ix| {
+        if ix < count {
+            let min = scaled_minimum(minima, ix, extent);
+            minimum_sum += min;
+            min
+        } else {
+            px(0.)
+        }
+    });
+    let available = (extent - minimum_sum).max(px(0.));
+    let mut needed = px(0.);
+    let extras: [Pixels; 3] = std::array::from_fn(|ix| {
+        if ix < count {
+            let extra = (targets[ix] - minimums[ix]).max(px(0.));
+            needed += extra;
+            extra
+        } else {
+            px(0.)
+        }
+    });
+    std::array::from_fn(|ix| {
+        if ix >= count {
+            return px(0.);
+        }
+        let minimum = minimums[ix];
+        let extra = extras[ix];
+        let additional = if needed > available {
+            extra * (available / needed)
+        } else if flexible == Some(ix) {
+            extra + available - needed
+        } else if flexible.is_none() {
+            extra + (available - needed) / count as f32
+        } else {
+            extra
+        };
+        minimum + additional
+    })
 }
 
 fn inset(bounds: Bounds<Pixels>, margins: PaneMargins) -> Bounds<Pixels> {

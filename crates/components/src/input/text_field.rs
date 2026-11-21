@@ -159,6 +159,25 @@ impl Editor {
             Self::Multiple(state) => snapshot(state.read(cx)),
         }
     }
+
+    fn replace_all(&self, value: SharedString, window: &mut Window, cx: &mut App) {
+        fn apply<M: InputModeKind>(
+            state: &Entity<InputBaseState<M>>,
+            value: SharedString,
+            window: &mut Window,
+            cx: &mut App,
+        ) {
+            state.update(cx, |state, cx| {
+                if state.is_editable() {
+                    state.replace_all(value, window, cx);
+                }
+            });
+        }
+        match self {
+            Self::Single(state) | Self::Secure(state) => apply(state, value, window, cx),
+            Self::Multiple(state) => apply(state, value, window, cx),
+        }
+    }
 }
 
 impl TextField {

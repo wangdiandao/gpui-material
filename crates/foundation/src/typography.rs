@@ -1,10 +1,10 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{cell::RefCell, collections::HashSet, sync::Arc};
 
 use gpui::{
     App, Font, FontFallbacks, FontWeight, Global, Hsla, ParentElement, Pixels, Point, ShapedLine,
-    SharedString, Styled, TextAlign, TextRun, Window, div, font, px,
+    SharedString, Styled, TextAlign, TextRun, Window, div, px,
 };
-use gpui_material_theme::{Direction, LayoutPolicy, TypeStyle, Typography};
+use gpui_material_theme::{Direction, FontFamilies, LayoutPolicy, TypeStyle, Typography};
 
 /// Native wrapping with Material font metrics and fallback, including explicit
 /// line breaks. GPUI owns shaping, Unicode line breaking, measurement and paint.
@@ -47,9 +47,12 @@ pub fn text_style<E: Styled>(
         })
 }
 
+type ResolvedFontEntry = (FontFamilies, SharedString, Option<FontFallbacks>);
+
 struct InstalledFonts {
     families: HashSet<String>,
     revision: u64,
+    resolved: RefCell<Vec<ResolvedFontEntry>>,
 }
 
 impl Global for InstalledFonts {}
@@ -64,7 +67,35 @@ impl InstalledFonts {
                 .map(|name| name.to_ascii_lowercase())
                 .collect(),
             revision: font_cache_revision(cx).wrapping_add(1),
+            resolved: RefCell::new(Vec::new()),
         }
+    }
+
+    fn resolve_family(&self, families: &FontFamilies) -> (SharedString, Option<FontFallbacks>) {
+        if let Some((_, family, fallbacks)) = self
+            .resolved
+            .borrow()
+            .iter()
+            .find(|(cached, _, _)| cached == families)
+        {
+            return (family.clone(), fallbacks.clone());
+        }
+        let family = std::iter::once(&families.primary)
+            .chain(&families.fallback)
+            .find(|name| {
+                name.as_str() == ".SystemUIFont"
+                    || self.families.contains(&name.to_ascii_lowercase())
+            })
+            .map_or_else(
+                || SharedString::new_static(".SystemUIFont"),
+                |name| SharedString::from(name.clone()),
+            );
+        let fallbacks = Some(FontFallbacks::from_fonts(families.fallback.clone()));
+        let mut resolved = self.resolved.borrow_mut();
+        if resolved.len() < 32 {
+            resolved.push((families.clone(), family.clone(), fallbacks.clone()));
+        }
+        (family, fallbacks)
     }
 }
 
@@ -87,25 +118,17 @@ pub fn font_cache_revision(cx: &App) -> u64 {
 /// theme. Set the theme again after registering additional fonts with GPUI.
 pub fn font_for_style(typography: &Typography, style: TypeStyle, cx: &App) -> Font {
     let families = typography.families(style.typeface);
-    let uncached;
-    let installed = match cx.try_global::<InstalledFonts>() {
-        Some(installed) => installed,
-        None => {
-            uncached = InstalledFonts::enumerate(cx);
-            &uncached
-        }
+    let (family, fallbacks) = match cx.try_global::<InstalledFonts>() {
+        Some(installed) => installed.resolve_family(families),
+        None => InstalledFonts::enumerate(cx).resolve_family(families),
     };
-    let family = std::iter::once(&families.primary)
-        .chain(&families.fallback)
-        .find(|name| {
-            name.as_str() == ".SystemUIFont"
-                || installed.families.contains(&name.to_ascii_lowercase())
-        })
-        .map_or(".SystemUIFont", String::as_str);
-    let mut font = font(family.to_owned());
-    font.weight = FontWeight(f32::from(style.weight));
-    font.fallbacks = Some(FontFallbacks::from_fonts(families.fallback.clone()));
-    font
+    Font {
+        family,
+        features: Default::default(),
+        fallbacks,
+        weight: FontWeight(f32::from(style.weight)),
+        style: Default::default(),
+    }
 }
 
 /// A single line shaped by GPUI. The same glyph layout supplies metrics and paint.
@@ -136,6 +159,14 @@ impl ShapedText {
     }
 }
 
+const TRACKED_LAYOUT_CACHE_LEN: usize = 512;
+type TrackedLayoutSlot = Option<(Arc<gpui::LineLayout>, u32, Arc<gpui::LineLayout>)>;
+
+thread_local! {
+    static TRACKED_LAYOUT_CACHE: RefCell<Vec<TrackedLayoutSlot>> =
+        RefCell::new(vec![None; TRACKED_LAYOUT_CACHE_LEN]);
+}
+
 /// Shapes one line of application-localized text. Returns `None` for multiline input.
 /// The caller supplies the current user font scale and may override font families.
 /// Tracking is applied between shaped glyph clusters in visual order.
@@ -162,26 +193,64 @@ pub fn shape_text(
     let mut line = window
         .text_system()
         .shape_line(text, px(style.size), &[run], None);
-    if style.tracking != 0. {
-        let mut layout = gpui::LineLayout {
-            font_size: line.font_size,
-            width: line.width,
-            ascent: line.ascent,
-            descent: line.descent,
-            runs: line.runs.clone(),
-            len: line.len(),
-        };
-        let mut previous_cluster = None;
-        let mut offset = px(0.);
-        for glyph in layout.runs.iter_mut().flat_map(|run| &mut run.glyphs) {
-            if previous_cluster.is_some_and(|index| index != glyph.index) {
-                offset += px(style.tracking);
-            }
-            glyph.position.x += offset;
-            previous_cluster = Some(glyph.index);
+    if style.tracking != 0. && line.len() > 1 {
+        let tracking_bits = style.tracking.to_bits();
+        let raw_ptr = Arc::as_ptr(&*line) as usize;
+        let hash =
+            (raw_ptr >> 4) ^ (raw_ptr >> 13) ^ (tracking_bits as usize).wrapping_mul(0x9e37_79b9);
+        let slot_index = hash & (TRACKED_LAYOUT_CACHE_LEN - 1);
+        let cached = TRACKED_LAYOUT_CACHE.with(|cache| {
+            let cache = cache.borrow();
+            cache[slot_index]
+                .as_ref()
+                .and_then(|(untracked, bits, tracked)| {
+                    (*bits == tracking_bits && Arc::ptr_eq(untracked, &*line))
+                        .then(|| tracked.clone())
+                })
+        });
+        if let Some(tracked) = cached {
+            *line = tracked;
+        } else {
+            let mut first_cluster = None;
+            let has_multiple_clusters =
+                line.runs
+                    .iter()
+                    .flat_map(|run| &run.glyphs)
+                    .any(|glyph| match first_cluster {
+                        None => {
+                            first_cluster = Some(glyph.index);
+                            false
+                        }
+                        Some(first) => glyph.index != first,
+                    });
+            let tracked = if has_multiple_clusters {
+                let mut layout = gpui::LineLayout {
+                    font_size: line.font_size,
+                    width: line.width,
+                    ascent: line.ascent,
+                    descent: line.descent,
+                    runs: line.runs.clone(),
+                    len: line.len(),
+                };
+                let mut previous_cluster = None;
+                let mut offset = px(0.);
+                for glyph in layout.runs.iter_mut().flat_map(|run| &mut run.glyphs) {
+                    if previous_cluster.is_some_and(|index| index != glyph.index) {
+                        offset += px(style.tracking);
+                    }
+                    glyph.position.x += offset;
+                    previous_cluster = Some(glyph.index);
+                }
+                layout.width = (layout.width + offset).max(px(0.));
+                Arc::new(layout)
+            } else {
+                (*line).clone()
+            };
+            let untracked = std::mem::replace(&mut *line, tracked.clone());
+            TRACKED_LAYOUT_CACHE.with(|cache| {
+                cache.borrow_mut()[slot_index] = Some((untracked, tracking_bits, tracked));
+            });
         }
-        layout.width = (layout.width + offset).max(px(0.));
-        *line = Arc::new(layout);
     }
     Some(ShapedText {
         line,

@@ -9,7 +9,10 @@ pub use root::{
     MaterialRoot, material_theme, project_base_theme, set_material_theme,
     set_window_material_theme, window_material_theme,
 };
-pub use surface::{Surface, SurfaceBorder, SurfaceFeedback, color, elevation_shadows, scrim_color};
+pub use surface::{
+    Surface, SurfaceBorder, SurfaceFeedback, color, elevation_shadow_pair, elevation_shadows,
+    scrim_color,
+};
 pub use theme_scope::{ThemeScope, current_base_theme, current_material_theme};
 #[doc(hidden)]
 pub use typography::font_cache_revision;

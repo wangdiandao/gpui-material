@@ -49,7 +49,7 @@ fn main() {
 
 需要完整图标目录时，在 `gpui-material` 之外添加 `gpui-material-design-symbols = "0.2.0"`。从源码集成时使用 `gpui-material-design-symbols = { path = "../gpui-material/crates/design-symbols" }`。图标目录包含固定版本的全部 4,304 个名称，包括别名。通过 `Symbol::ALL` 遍历，或通过 `Symbol::from_name("favorite")` 查找上游名称。[上游码点表和字体资源](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
 
-桌面端为 `gpui-material-design-symbols` 启用 `embed-assets`，调用 `SymbolFont::embedded` 加载 Outlined、Rounded 或 Sharp 字体。字体保留 `FILL` 和 `wght`，grade 固定为 0，光学尺寸固定为 24。`SymbolAxes::default()` 使用未填充样式和 400 字重。`.filled(true)` 选择 FILL=1，`Weight::new(550)` 可指定 100–700 范围内的任意整数值。
+桌面端为 `gpui-material-design-symbols` 启用 `embed-assets`，调用 `SymbolFont::embedded` 加载 Outlined、Rounded 或 Sharp 字体。字体保留 `FILL` 和 `wght`，grade 固定为 0，光学尺寸固定为 24。`SymbolAxes::default()`（在 `const` 上下文中可使用 `SymbolAxes::new()`）使用未填充样式和 400 字重。`.filled(true)` 选择 FILL=1，`Weight::new(550)` 可指定 100–700 范围内的任意整数值，`is_filled()` 和 `get_weight()` 可读取已配置的轴值。
 
 ```rust
 use gpui_material::Icon;

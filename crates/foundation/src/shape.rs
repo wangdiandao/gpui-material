@@ -15,7 +15,7 @@ use clip::{
     contains_fill, cross, polygon_area, rect_is_valid, segment_distance_sq,
     triangle_disjoint_from_rect,
 };
-use polygon::rounded_rect_polygon;
+use polygon::rounded_rect_cubics;
 
 pub(crate) use clip::clipped_ripple;
 pub use morph::{PolygonMorph, ShapeMorph, ShapeMorphSequence};
@@ -36,6 +36,7 @@ pub enum ShapeFit {
 pub struct Shape {
     outline: Outline,
     fill: Path<Pixels>,
+    stroke_cache: std::sync::OnceLock<(u32, Path<Pixels>)>,
 }
 
 #[derive(Clone)]
@@ -107,7 +108,7 @@ impl Shape {
     ) -> Option<Self> {
         let width = f32::from(bounds.size.width);
         let height = f32::from(bounds.size.height);
-        let cubics = rounded_rect_polygon(width, height, corners, direction)?.cubics;
+        let cubics = rounded_rect_cubics(width, height, corners, direction)?;
         Self::new(Outline {
             cubics,
             bounds,
@@ -149,7 +150,11 @@ impl Shape {
 
     fn new(outline: Outline) -> Option<Self> {
         let fill = outline.path(PathBuilder::fill())?;
-        Some(Self { outline, fill })
+        Some(Self {
+            outline,
+            fill,
+            stroke_cache: std::sync::OnceLock::new(),
+        })
     }
 
     pub fn bounds(&self) -> Bounds<Pixels> {
@@ -167,7 +172,15 @@ impl Shape {
         if !raw.is_finite() || raw <= 0. {
             return None;
         }
-        self.outline.path(PathBuilder::stroke(width))
+        let bits = raw.to_bits();
+        if let Some((cached_bits, cached_path)) = self.stroke_cache.get()
+            && *cached_bits == bits
+        {
+            return Some(cached_path.clone());
+        }
+        let path = self.outline.path(PathBuilder::stroke(width))?;
+        let _ = self.stroke_cache.set((bits, path.clone()));
+        Some(path)
     }
 
     /// Returns whether `position` lies inside this shape's tessellated fill mesh.

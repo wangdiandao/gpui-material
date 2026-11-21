@@ -150,7 +150,9 @@ impl Element for ThemeScope {
             let mut theme = self.theme.take().unwrap_or_else(|| {
                 scoped_theme(window, cx).unwrap_or_else(|| window_theme_handle(window, cx).clone())
             });
-            Rc::make_mut(&mut theme).layout.direction = direction;
+            if theme.layout.direction != direction {
+                Rc::make_mut(&mut theme).layout.direction = direction;
+            }
             self.theme = Some(theme);
         }
         let layout = with_scope(self.theme.as_ref(), window, cx, |window, cx| {

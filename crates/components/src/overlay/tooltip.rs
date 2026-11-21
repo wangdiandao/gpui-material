@@ -77,6 +77,7 @@ pub struct Tooltip {
     trigger: Option<AnyElement>,
     text: SharedString,
     title: Option<SharedString>,
+    shortcut: Option<SharedString>,
     action: Option<TooltipAction>,
     title_content: Option<AnyElement>,
     body_content: Option<AnyElement>,
@@ -107,6 +108,7 @@ impl Tooltip {
             trigger: Some(trigger.into_any_element()),
             text: text.into(),
             title: None,
+            shortcut: None,
             action: None,
             title_content: None,
             body_content: None,
@@ -138,6 +140,14 @@ impl Tooltip {
             rich: true,
             ..Self::plain(id, trigger, text)
         }
+    }
+
+    /// Appends a subtle formatted desktop shortcut hint beside plain tooltip
+    /// text or in a rich tooltip header/body while keeping the constructor's
+    /// text as the accessible description.
+    pub fn shortcut(mut self, text: impl Into<SharedString>) -> Self {
+        self.shortcut = Some(text.into());
+        self
     }
 
     /// Adds a text button to a rich tooltip.
@@ -613,24 +623,84 @@ fn tooltip_surface(
     } else {
         TypeRole::BodySmall
     };
-    style
-        .apply(div())
-        .children(title.map(|title| {
-            super::text_style(
+    let direction = current_material_theme(window, cx).layout.direction;
+    let shortcut = tooltip.shortcut.take().filter(|text| !text.is_empty());
+    let shortcut_pill = |text: SharedString| {
+        super::text_style(
+            div()
+                .id("tooltip-shortcut")
+                .test_support()
+                .flex_none()
+                .px(motion.px(4.))
+                .rounded(motion.px(4.))
+                .bg(style.content.opacity(0.12))
+                .text_color(style.content.opacity(0.78))
+                .child(text),
+            TypeRole::LabelSmall,
+            motion.scale,
+            window,
+            cx,
+        )
+    };
+    let (title_row, body_shortcut) = match (title, shortcut) {
+        (Some(title), Some(shortcut)) => (
+            Some(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .gap(motion.px(8.))
+                    .when(direction == Direction::Rtl, Styled::flex_row_reverse)
+                    .child(super::text_style(
+                        div().min_w_0().text_color(style.title).child(title),
+                        TypeRole::TitleSmall,
+                        motion.scale,
+                        window,
+                        cx,
+                    ))
+                    .child(shortcut_pill(shortcut)),
+            ),
+            None,
+        ),
+        (Some(title), None) => (
+            Some(super::text_style(
                 div().text_color(style.title).child(title),
                 TypeRole::TitleSmall,
                 motion.scale,
                 window,
                 cx,
-            )
-        }))
-        .child(super::text_style(
+            )),
+            None,
+        ),
+        (None, shortcut) => (None, shortcut),
+    };
+    let body_row = if let Some(shortcut) = body_shortcut {
+        div()
+            .flex()
+            .items_center()
+            .gap(motion.px(6.))
+            .when(direction == Direction::Rtl, Styled::flex_row_reverse)
+            .child(super::text_style(
+                div().min_w_0().text_color(style.content).child(body),
+                text_role,
+                motion.scale,
+                window,
+                cx,
+            ))
+            .child(shortcut_pill(shortcut))
+    } else {
+        super::text_style(
             div().text_color(style.content).child(body),
             text_role,
             motion.scale,
             window,
             cx,
-        ))
+        )
+    };
+    style
+        .apply(div())
+        .children(title_row)
+        .child(body_row)
         .children(action.map(|action| div().text_color(style.action).child(action)))
         .children(link)
 }

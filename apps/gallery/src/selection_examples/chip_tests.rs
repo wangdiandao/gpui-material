@@ -716,3 +716,105 @@ fn track_focus_attaches_caller_handles_to_chip_checkbox_radio_switch_and_card(
         assert_eq!(view.read(cx).scoped_dark.get(), Some(true));
     });
 }
+
+#[gpui::test]
+fn chip_shorthands_and_semantic_tones_respect_selection_disabled_and_overrides(
+    cx: &mut TestAppContext,
+) {
+    use gpui_material::SemanticTone;
+
+    struct ToneChips {
+        unselected_icon: Capture,
+        selected_icon: Capture,
+        disabled_icon: Capture,
+        overridden_icon: Capture,
+    }
+
+    impl Render for ToneChips {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div()
+                .flex()
+                .flex_col()
+                .items_start()
+                .gap_2()
+                .p_4()
+                .child(
+                    Chip::assist("shorthand-assist", "Assist")
+                        .tone(SemanticTone::Danger)
+                        .leading_icon(Slot(self.unselected_icon.clone(), 12., 12.)),
+                )
+                .child(
+                    Chip::filter("shorthand-filter", "Success filter")
+                        .selected(true)
+                        .tone(SemanticTone::Success)
+                        .leading_icon(Slot(self.selected_icon.clone(), 12., 12.)),
+                )
+                .child(
+                    Chip::input("shorthand-input", "Disabled warning")
+                        .disabled(true)
+                        .tone(SemanticTone::Warning)
+                        .leading_icon(Slot(self.disabled_icon.clone(), 12., 12.)),
+                )
+                .child(
+                    Chip::suggestion("shorthand-suggestion", "Overridden info")
+                        .tone(SemanticTone::Info)
+                        .leading_icon(Slot(self.overridden_icon.clone(), 12., 12.))
+                        .colors(ChipColors {
+                            enabled: ChipStateColors {
+                                leading: Some(rgb(0x225588).into()),
+                                border: Some(rgb(0x884422).into()),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        }),
+                )
+        }
+    }
+
+    cx.update(|cx| {
+        MaterialRoot::init(MaterialTheme::default(), cx);
+        cx.set_reduce_motion(true);
+    });
+    let (view, cx) = cx.add_window_view(|window, _| {
+        window.activate_window();
+        ToneChips {
+            unselected_icon: Capture::default(),
+            selected_icon: Capture::default(),
+            disabled_icon: Capture::default(),
+            overridden_icon: Capture::default(),
+        }
+    });
+    draw(cx);
+
+    cx.update(|window, cx| {
+        let theme = window_material_theme(window, cx);
+        let error = color(theme.colors.color(ColorRole::Error));
+        let success_container = color(theme.colors.color(ColorRole::SuccessContainer));
+        let on_success_container = color(theme.colors.color(ColorRole::OnSuccessContainer));
+        let disabled_fg = color(theme.colors.color(ColorRole::OnSurface)).opacity(0.38);
+        let state = view.read(cx);
+
+        assert_eq!(state.unselected_icon.get().unwrap().1, error);
+        assert_eq!(state.selected_icon.get().unwrap().1, on_success_container);
+        assert_eq!(state.disabled_icon.get().unwrap().1, disabled_fg);
+        assert_eq!(state.overridden_icon.get().unwrap().1, rgb(0x225588).into());
+
+        let quads = window.painted_quads();
+        assert!(
+            quads
+                .iter()
+                .any(|quad| quad.background == success_container.into()),
+            "selected Success chip must paint SuccessContainer"
+        );
+        assert!(
+            quads.iter().any(|quad| quad.border_color == error),
+            "unselected Danger chip must paint Error outline"
+        );
+        assert!(
+            quads
+                .iter()
+                .any(|quad| quad.border_color == rgb(0x884422).into()),
+            "explicit ChipColors border must override SemanticTone"
+        );
+    });
+}

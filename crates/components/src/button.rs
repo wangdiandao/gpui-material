@@ -95,16 +95,9 @@ impl ButtonShape {
 }
 
 /// Semantic palette shortcut for Material buttons and icon buttons.
+/// Backwards-compatible alias for [`crate::SemanticTone`].
 /// Per-instance [`ButtonColors`] and [`ButtonBorder`] overrides still take precedence.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub enum ButtonTone {
-    #[default]
-    Default,
-    Danger,
-    Success,
-    Warning,
-    Info,
-}
+pub type ButtonTone = crate::SemanticTone;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ButtonVariant {
@@ -430,6 +423,31 @@ impl Button {
         }
     }
 
+    /// Creates a Filled button.
+    pub fn filled(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
+        Self::new(id, label).variant(ButtonVariant::Filled)
+    }
+
+    /// Creates a Filled Tonal button.
+    pub fn tonal(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
+        Self::new(id, label).variant(ButtonVariant::FilledTonal)
+    }
+
+    /// Creates an Elevated button.
+    pub fn elevated(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
+        Self::new(id, label).variant(ButtonVariant::Elevated)
+    }
+
+    /// Creates an Outlined button.
+    pub fn outlined(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
+        Self::new(id, label).variant(ButtonVariant::Outlined)
+    }
+
+    /// Creates a Text button.
+    pub fn text(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
+        Self::new(id, label).variant(ButtonVariant::Text)
+    }
+
     common_builders!();
     appearance_builders!();
     slot_builders!();
@@ -585,6 +603,42 @@ impl IconButton {
         }
     }
 
+    /// Creates a Standard icon button.
+    pub fn standard(
+        id: impl Into<ElementId>,
+        name: impl Into<SharedString>,
+        icon: impl IntoElement,
+    ) -> Self {
+        Self::new(id, name, icon).variant(IconButtonVariant::Standard)
+    }
+
+    /// Creates a Filled icon button.
+    pub fn filled(
+        id: impl Into<ElementId>,
+        name: impl Into<SharedString>,
+        icon: impl IntoElement,
+    ) -> Self {
+        Self::new(id, name, icon).variant(IconButtonVariant::Filled)
+    }
+
+    /// Creates a Filled Tonal icon button.
+    pub fn tonal(
+        id: impl Into<ElementId>,
+        name: impl Into<SharedString>,
+        icon: impl IntoElement,
+    ) -> Self {
+        Self::new(id, name, icon).variant(IconButtonVariant::FilledTonal)
+    }
+
+    /// Creates an Outlined icon button.
+    pub fn outlined(
+        id: impl Into<ElementId>,
+        name: impl Into<SharedString>,
+        icon: impl IntoElement,
+    ) -> Self {
+        Self::new(id, name, icon).variant(IconButtonVariant::Outlined)
+    }
+
     common_builders!();
     appearance_builders!();
 
@@ -703,5 +757,51 @@ impl RenderOnce for IconToggleButton {
             window,
             cx,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn button_and_icon_button_variant_shorthands_set_expected_variants() {
+        assert_eq!(
+            Button::filled("b1", "Filled").variant,
+            ButtonVariant::Filled
+        );
+        assert_eq!(
+            Button::tonal("b2", "Tonal").variant,
+            ButtonVariant::FilledTonal
+        );
+        assert_eq!(
+            Button::elevated("b3", "Elevated").variant,
+            ButtonVariant::Elevated
+        );
+        assert_eq!(
+            Button::outlined("b4", "Outlined").variant,
+            ButtonVariant::Outlined
+        );
+        assert_eq!(Button::text("b5", "Text").variant, ButtonVariant::Text);
+
+        assert_eq!(
+            IconButton::standard("i1", "Std", div()).variant,
+            IconButtonVariant::Standard
+        );
+        assert_eq!(
+            IconButton::filled("i2", "Fill", div()).variant,
+            IconButtonVariant::Filled
+        );
+        assert_eq!(
+            IconButton::tonal("i3", "Tonal", div()).variant,
+            IconButtonVariant::FilledTonal
+        );
+        assert_eq!(
+            IconButton::outlined("i4", "Out", div()).variant,
+            IconButtonVariant::Outlined
+        );
+
+        let tone: ButtonTone = crate::SemanticTone::Danger;
+        assert_eq!(tone, ButtonTone::Danger);
     }
 }

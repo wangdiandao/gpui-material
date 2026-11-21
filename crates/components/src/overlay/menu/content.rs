@@ -5,6 +5,7 @@ use crate::menu_appearance::{
     MenuColor, MenuItemStyle, MenuSurfaceStyle, Paint, Palette, axis_padding,
 };
 use crate::motion::{OverlayMotion, ScaledOverlay, menu_pivot};
+use crate::{Divider, SemanticTone};
 use gpui::{
     Anchor, AnyElement, App, Axis, ElementId, FocusHandle, InteractiveElement, IntoElement,
     ParentElement, Role, SharedString, StatefulInteractiveElement, Styled, Window, div,
@@ -12,7 +13,7 @@ use gpui::{
 };
 use gpui_base::{Positioner, TestSupportExt};
 use gpui_material_foundation::{ThemeScope, current_material_theme, move_roving_focus};
-use gpui_material_theme::{CornerRole, CornerShape, Direction, StateLayer, TypeRole};
+use gpui_material_theme::{ColorRole, CornerRole, CornerShape, Direction, StateLayer, TypeRole};
 
 use super::{
     Action, ItemSlots, Kind, Menu, MenuItem, MenuPresentation, PopupBounds, PresentedMenu,
@@ -22,10 +23,12 @@ pub(super) struct MenuExitRow {
     label: SharedString,
     disabled: bool,
     heading: bool,
+    divider: bool,
     section: Option<(MenuSurfaceStyle, Rc<[MenuExitRow]>)>,
     selected: bool,
     submenu: bool,
     slots: ItemSlots,
+    tone: SemanticTone,
     style: MenuItemStyle,
 }
 
@@ -35,6 +38,7 @@ impl From<&MenuItem> for MenuExitRow {
             label: item.label.clone(),
             disabled: item.disabled,
             heading: matches!(item.kind, Kind::Heading),
+            divider: matches!(item.kind, Kind::Divider),
             section: match &item.kind {
                 Kind::Section { rows, style, .. } => {
                     Some((*style, rows.iter().map(Self::from).collect()))
@@ -44,6 +48,7 @@ impl From<&MenuItem> for MenuExitRow {
             selected: matches!(item.kind, Kind::Check(true, _) | Kind::Select(true, _)),
             submenu: matches!(item.kind, Kind::Submenu(_)),
             slots: item.slots.clone(),
+            tone: item.tone,
             style: item.style,
         }
     }
@@ -148,9 +153,18 @@ fn exit_rows(
                 return menu_heading(item.slots.label(item.label.clone()), paint, palette)
                     .into_any_element();
             }
+            if item.divider {
+                return menu_divider(paint).into_any_element();
+            }
             let style = row_shape(item.style, grouped, index, items.len(), item.selected);
-            let (background, ink, supporting) =
-                row_colors(item.style, paint, palette, item.selected, !item.disabled);
+            let (background, ink, supporting, shortcut) = row_colors(
+                item.style,
+                item.tone,
+                paint,
+                palette,
+                item.selected,
+                !item.disabled,
+            );
             row_layout(div().flex().items_center(), item.style, style, paint)
                 .text_color(ink)
                 .when(item.selected || item.style.container.is_some(), |row| {
@@ -161,11 +175,19 @@ fn exit_rows(
                     item.selected,
                     item.submenu,
                     paint,
-                    supporting,
+                    (supporting, shortcut),
+                    false,
                 ))
                 .into_any_element()
         })
         .collect()
+}
+
+fn menu_divider(paint: Paint<'_>) -> gpui::Div {
+    div()
+        .w_full()
+        .py(paint.motion.px(4.))
+        .child(Divider::horizontal().thickness(paint.motion.px(1.).max(px(1.))))
 }
 
 fn menu_heading(label: AnyElement, paint: Paint<'_>, palette: Palette) -> gpui::Div {
@@ -226,32 +248,65 @@ fn row_layout<E: Styled + FluentBuilder>(
     paint.shape(element, shape)
 }
 
+fn row_color_roles(
+    style: MenuItemStyle,
+    tone: SemanticTone,
+    palette: Palette,
+    marked: bool,
+    enabled: bool,
+) -> (ColorRole, ColorRole, ColorRole, ColorRole) {
+    let shortcut = if enabled {
+        ColorRole::OnSurfaceVariant
+    } else {
+        palette.ink
+    };
+    if marked {
+        let (default_bg, default_ink) = if enabled {
+            tone.roles().map_or(
+                (palette.selected, palette.selected_ink),
+                |(_, _, container, on_container)| (container, on_container),
+            )
+        } else {
+            (palette.selected, palette.selected_ink)
+        };
+        let ink = style.selected_content.unwrap_or(default_ink);
+        (
+            style.selected_container.unwrap_or(default_bg),
+            ink,
+            ink,
+            shortcut,
+        )
+    } else {
+        let default_ink = if enabled {
+            tone.role().unwrap_or(palette.ink)
+        } else {
+            palette.ink
+        };
+        (
+            style.container.unwrap_or(palette.container),
+            style.content.unwrap_or(default_ink),
+            style.supporting.unwrap_or(palette.muted),
+            shortcut,
+        )
+    }
+}
+
 fn row_colors(
     style: MenuItemStyle,
+    tone: SemanticTone,
     paint: Paint<'_>,
     palette: Palette,
     marked: bool,
     enabled: bool,
-) -> (gpui::Hsla, gpui::Hsla, gpui::Hsla) {
-    let (background, foreground, muted) = if marked {
-        let ink = style.selected_content.unwrap_or(palette.selected_ink);
-        (
-            style.selected_container.unwrap_or(palette.selected),
-            ink,
-            ink,
-        )
-    } else {
-        (
-            style.container.unwrap_or(palette.container),
-            style.content.unwrap_or(palette.ink),
-            style.supporting.unwrap_or(palette.muted),
-        )
-    };
+) -> (gpui::Hsla, gpui::Hsla, gpui::Hsla, gpui::Hsla) {
+    let (background, foreground, muted, shortcut) =
+        row_color_roles(style, tone, palette, marked, enabled);
     let factor = if enabled { 1. } else { 0.38 };
     (
         paint.color(background),
         paint.color(foreground).opacity(factor),
         paint.color(muted).opacity(factor),
+        paint.color(shortcut).opacity(factor),
     )
 }
 
@@ -277,7 +332,7 @@ pub(super) fn menu_content(
     ) {
         for item in items {
             match &item.kind {
-                Kind::Heading => {}
+                Kind::Heading | Kind::Divider => {}
                 Kind::Section { rows, .. } => collect_focus(rows, focus, window, cx),
                 _ => {
                     let handle = window
@@ -445,6 +500,12 @@ impl ActiveRows<'_> {
                         .role(Role::Label)
                         .into_any_element();
                 }
+                if matches!(item.kind, Kind::Divider) {
+                    return menu_divider(self.paint)
+                        .id(item.id)
+                        .test_support()
+                        .into_any_element();
+                }
                 let shape = row_shape(
                     item.style,
                     grouped,
@@ -470,8 +531,8 @@ impl ActiveRows<'_> {
             _ => (Role::MenuItem, false),
         };
         let submenu = matches!(item.kind, Kind::Submenu(_));
-        let (background, ink, supporting) =
-            row_colors(item.style, self.paint, palette, marked, enabled);
+        let (background, ink, supporting, shortcut) =
+            row_colors(item.style, item.tone, self.paint, palette, marked, enabled);
         let row = gpui_base::Button::new(item.id.clone())
             .role(role)
             .track_focus(focus)
@@ -525,10 +586,14 @@ impl ActiveRows<'_> {
                 })
                 .on_click(move |_, window, cx| activate(window, cx))
             })
-            .children(
-                item.slots
-                    .children(item.label, marked, submenu, self.paint, supporting),
-            );
+            .children(item.slots.children(
+                item.label,
+                marked,
+                submenu,
+                self.paint,
+                (supporting, shortcut),
+                true,
+            ));
         if let Kind::Submenu(children) = item.kind {
             Menu {
                 close_parent: Some(self.close.clone()),
@@ -542,5 +607,93 @@ impl ActiveRows<'_> {
         } else {
             row.into_any_element()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn menu_row_color_roles_honor_tone_disabled_and_explicit_style_precedence() {
+        use ColorRole::*;
+        let palette = MenuColor::Standard.palette(false, None);
+
+        // Default tone preserves standard menu palette.
+        assert_eq!(
+            row_color_roles(
+                MenuItemStyle::default(),
+                SemanticTone::Default,
+                palette,
+                false,
+                true
+            ),
+            (
+                SurfaceContainer,
+                OnSurface,
+                OnSurfaceVariant,
+                OnSurfaceVariant
+            )
+        );
+
+        // Semantic tones tint enabled foreground and selected roles.
+        for (tone, role, container, on_container) in [
+            (
+                SemanticTone::Danger,
+                Error,
+                ErrorContainer,
+                OnErrorContainer,
+            ),
+            (
+                SemanticTone::Success,
+                Success,
+                SuccessContainer,
+                OnSuccessContainer,
+            ),
+            (
+                SemanticTone::Warning,
+                Warning,
+                WarningContainer,
+                OnWarningContainer,
+            ),
+            (SemanticTone::Info, Info, InfoContainer, OnInfoContainer),
+        ] {
+            let (bg, fg, _, shortcut) =
+                row_color_roles(MenuItemStyle::default(), tone, palette, false, true);
+            assert_eq!(bg, SurfaceContainer);
+            assert_eq!(fg, role);
+            assert_eq!(shortcut, OnSurfaceVariant);
+
+            let (sel_bg, sel_fg, _, _) =
+                row_color_roles(MenuItemStyle::default(), tone, palette, true, true);
+            assert_eq!(sel_bg, container);
+            assert_eq!(sel_fg, on_container);
+        }
+
+        // Disabled appearance takes precedence over semantic tone.
+        let (_, disabled_fg, _, disabled_shortcut) = row_color_roles(
+            MenuItemStyle::default(),
+            SemanticTone::Danger,
+            palette,
+            false,
+            false,
+        );
+        assert_eq!(disabled_fg, OnSurface);
+        assert_eq!(disabled_shortcut, OnSurface);
+
+        // Explicit MenuItemStyle overrides take precedence over semantic tone.
+        let style = MenuItemStyle {
+            content: Some(Primary),
+            selected_container: Some(TertiaryContainer),
+            selected_content: Some(OnTertiaryContainer),
+            ..Default::default()
+        };
+        let (_, overridden_fg, _, _) =
+            row_color_roles(style, SemanticTone::Danger, palette, false, true);
+        assert_eq!(overridden_fg, Primary);
+        let (overridden_sel_bg, overridden_sel_fg, _, _) =
+            row_color_roles(style, SemanticTone::Danger, palette, true, true);
+        assert_eq!(overridden_sel_bg, TertiaryContainer);
+        assert_eq!(overridden_sel_fg, OnTertiaryContainer);
     }
 }

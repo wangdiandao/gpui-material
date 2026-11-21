@@ -886,3 +886,109 @@ fn resting_label_reserves_trailing_inset_in_ltr_and_rtl(cx: &mut TestAppContext)
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn text_field_filled_and_outlined_shorthands_render_expected_variants(cx: &mut TestAppContext) {
+    use gpui::{ParentElement, Styled, div};
+    use gpui_material::{
+        foundation::{color, window_material_theme},
+        theme::ColorRole,
+    };
+
+    struct ShorthandFields {
+        filled: Entity<TextFieldState>,
+        outlined: Entity<TextFieldState>,
+    }
+
+    impl Render for ShorthandFields {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div()
+                .flex()
+                .flex_col()
+                .gap_4()
+                .p_4()
+                .w(px(320.))
+                .child(TextField::filled(
+                    "shorthand-filled",
+                    "Filled",
+                    &self.filled,
+                ))
+                .child(TextField::outlined(
+                    "shorthand-outlined",
+                    "Outlined",
+                    &self.outlined,
+                ))
+        }
+    }
+
+    let (window, filled_state, outlined_state) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut filled = None;
+        let mut outlined = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let f = cx.new(|cx| TextFieldState::new(window, cx));
+            let o = cx.new(|cx| TextFieldState::new(window, cx));
+            filled = Some(f.clone());
+            outlined = Some(o.clone());
+            cx.new(|_| ShorthandFields {
+                filled: f,
+                outlined: o,
+            })
+        })
+        .unwrap();
+        (window, filled.unwrap(), outlined.unwrap())
+    });
+
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let theme = window_material_theme(window, cx);
+        let scale = window.scale_factor();
+        let filled_bg = color(theme.colors.color(ColorRole::SurfaceContainerHighest));
+        let outline_color = color(theme.colors.color(ColorRole::Outline));
+
+        let filled = find(window, &[], &"shorthand-filled".into()).unwrap();
+        let outlined = find(window, &[], &"shorthand-outlined".into()).unwrap();
+        let filled_container = find(window, filled.path(), &"container".into())
+            .unwrap()
+            .bounds()
+            .scale(scale);
+        let outlined_container = find(window, outlined.path(), &"container".into())
+            .unwrap()
+            .bounds()
+            .scale(scale);
+
+        let quads = window.painted_quads();
+        assert!(
+            quads.iter().any(|quad| {
+                quad.bounds == filled_container && quad.background == filled_bg.into()
+            }),
+            "TextField::filled must paint SurfaceContainerHighest container"
+        );
+        assert!(
+            quads.iter().any(|quad| {
+                quad.bounds == outlined_container && quad.border_color == outline_color
+            }),
+            "TextField::outlined must paint Outline border"
+        );
+
+        filled_state.update(cx, |state, cx| state.set_value("hello", window, cx));
+        outlined_state.update(cx, |state, cx| state.set_value("world", window, cx));
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert_eq!(
+            find(window, &[], &"shorthand-filled".into())
+                .unwrap()
+                .value(),
+            Some("hello")
+        );
+        assert_eq!(
+            find(window, &[], &"shorthand-outlined".into())
+                .unwrap()
+                .value(),
+            Some("world")
+        );
+    })
+    .unwrap();
+}

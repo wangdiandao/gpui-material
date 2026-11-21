@@ -11,6 +11,8 @@ use gpui_material_foundation::{
 };
 use gpui_material_theme::{CornerShape, Elevation};
 
+use crate::SemanticTone;
+
 mod render;
 mod state;
 
@@ -177,6 +179,7 @@ pub struct Dialog {
     variant: DialogVariant,
     unstructured: bool,
     confirm: Option<(SharedString, Confirm)>,
+    confirm_tone: SemanticTone,
     confirm_content: Option<ActionSlot>,
     dismiss_content: Option<ActionSlot>,
     cancel: SharedString,
@@ -212,6 +215,7 @@ impl Dialog {
             variant: DialogVariant::Basic,
             unstructured: false,
             confirm: None,
+            confirm_tone: SemanticTone::Default,
             confirm_content: None,
             dismiss_content: None,
             cancel: "Cancel".into(),
@@ -228,6 +232,18 @@ impl Dialog {
             dismiss_request: None,
             on_close: None,
         }
+    }
+
+    /// Creates a basic alert dialog with a description and no default cancel button.
+    pub fn alert(
+        id: impl Into<ElementId>,
+        state: &Entity<DialogState>,
+        title: impl Into<SharedString>,
+        description: impl Into<SharedString>,
+    ) -> Self {
+        Self::new(id, state, title)
+            .description(description)
+            .show_cancel(false)
     }
 
     /// Creates a modal shell whose body owns the structure and scrolling.
@@ -360,6 +376,24 @@ impl Dialog {
         action: impl Fn(&mut Window, &mut App) -> bool + 'static,
     ) -> Self {
         self.confirm = Some((label.into(), Rc::new(action)));
+        self
+    }
+
+    /// Sets a non-validating confirmation action that always closes the dialog after running.
+    pub fn on_confirm(
+        self,
+        label: impl Into<SharedString>,
+        action: impl Fn(&mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.confirm(label, move |window, cx| {
+            action(window, cx);
+            true
+        })
+    }
+
+    /// Applies a Material 3 semantic tone to the default confirmation button.
+    pub fn confirm_tone(mut self, tone: SemanticTone) -> Self {
+        self.confirm_tone = tone;
         self
     }
 

@@ -8,6 +8,7 @@ use gpui::{
 use gpui_material_foundation::{animate, color, current_material_theme, is_bounds_visible};
 use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpec, MotionSpeed};
 
+use crate::SemanticTone;
 use motion::{ProgressMotion, circular_indeterminate, linear_indeterminate};
 use paint::{ProgressPaint, Stroke, paint_stop, stop_bounds};
 
@@ -56,11 +57,19 @@ pub struct ProgressStop {
 
 type StopPainter = dyn Fn(ProgressStop, &mut Window, &mut App);
 
+fn progress_tone_roles(tone: SemanticTone) -> (ColorRole, ColorRole) {
+    tone.roles().map_or(
+        (ColorRole::Primary, ColorRole::SecondaryContainer),
+        |(role, _, container, _)| (role, container),
+    )
+}
+
 struct Progress {
     id: ElementId,
     name: SharedString,
     value: Option<f32>,
     shape: ProgressShape,
+    tone: SemanticTone,
     active: ProgressStroke,
     track: ProgressStroke,
     gap: f32,
@@ -78,6 +87,7 @@ impl Progress {
             name: name.into(),
             value: None,
             shape: ProgressShape::default(),
+            tone: SemanticTone::Default,
             active: ProgressStroke::default(),
             track: ProgressStroke::default(),
             gap: TRACK_GAP,
@@ -91,11 +101,9 @@ impl Progress {
 
     fn render(self, circular: bool, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = current_material_theme(window, cx);
-        let active = Stroke::resolve(self.active, color(theme.colors.color(ColorRole::Primary)));
-        let track = Stroke::resolve(
-            self.track,
-            color(theme.colors.color(ColorRole::SecondaryContainer)),
-        );
+        let (active_role, track_role) = progress_tone_roles(self.tone);
+        let active = Stroke::resolve(self.active, color(theme.colors.color(active_role)));
+        let track = Stroke::resolve(self.track, color(theme.colors.color(track_role)));
         let reduced = cx.reduce_motion();
         let window_active = window.is_window_active();
         let effects = theme.motion.spec(
@@ -351,6 +359,13 @@ macro_rules! progress_api {
                 self
             }
 
+            /// Applies a Material 3 semantic tone shortcut to the active and track strokes.
+            /// Explicit `.active_stroke` and `.track_stroke` colors still take precedence.
+            pub fn tone(mut self, tone: SemanticTone) -> Self {
+                self.0.tone = tone;
+                self
+            }
+
             pub fn active_stroke(mut self, stroke: ProgressStroke) -> Self {
                 self.0.active = stroke;
                 self
@@ -402,3 +417,33 @@ macro_rules! progress_api {
 
 progress_api!(LinearProgress, false);
 progress_api!(CircularProgress, true);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn progress_tone_roles_map_semantic_tones() {
+        use ColorRole::*;
+        assert_eq!(
+            progress_tone_roles(SemanticTone::Default),
+            (Primary, SecondaryContainer)
+        );
+        assert_eq!(
+            progress_tone_roles(SemanticTone::Danger),
+            (Error, ErrorContainer)
+        );
+        assert_eq!(
+            progress_tone_roles(SemanticTone::Success),
+            (Success, SuccessContainer)
+        );
+        assert_eq!(
+            progress_tone_roles(SemanticTone::Warning),
+            (Warning, WarningContainer)
+        );
+        assert_eq!(
+            progress_tone_roles(SemanticTone::Info),
+            (Info, InfoContainer)
+        );
+    }
+}

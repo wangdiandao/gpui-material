@@ -675,3 +675,143 @@ fn tooltip_delays_entrance_motion_until_anchor_is_measured(cx: &mut TestAppConte
         .unwrap();
     assert!(initial.size.width < settled.size.width);
 }
+
+#[gpui::test]
+fn tooltip_shortcut_and_element_ext_chaining(cx: &mut TestAppContext) {
+    use gpui_material::{MaterialElementExt, MenuItem};
+
+    struct ShortcutTooltips {
+        plain_state: Entity<TooltipState>,
+        rich_state: Entity<TooltipState>,
+        empty_state: Entity<TooltipState>,
+    }
+
+    impl Render for ShortcutTooltips {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div()
+                .flex()
+                .gap_4()
+                .p_6()
+                .child(
+                    Button::filled("chained-btn", "Search")
+                        .badge_dot()
+                        .tooltip("plain-ext-tip", "Search files")
+                        .shortcut("Ctrl+K")
+                        .persistent(&self.plain_state)
+                        .context_menu(
+                            "chained-menu",
+                            [MenuItem::new("chained-action", "Open").shortcut("Enter")],
+                        ),
+                )
+                .child(
+                    Tooltip::rich(
+                        "rich-shortcut-tip",
+                        Button::tonal("rich-shortcut-trigger", "Palette"),
+                        "Command Palette",
+                        "Run any workspace action.",
+                    )
+                    .shortcut("Shift+P")
+                    .persistent(&self.rich_state),
+                )
+                .child(
+                    Button::text("empty-shortcut-trigger", "No Shortcut")
+                        .tooltip("empty-shortcut-tip", "Just text")
+                        .shortcut("")
+                        .persistent(&self.empty_state),
+                )
+        }
+    }
+
+    let (handle, plain_state, rich_state, empty_state) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let plain = cx.new(|_| TooltipState::new());
+        let rich = cx.new(|_| TooltipState::new());
+        let empty = cx.new(|_| TooltipState::new());
+        let p = plain.clone();
+        let r = rich.clone();
+        let e = empty.clone();
+        let handle = MaterialRoot::open_window(WindowOptions::default(), cx, move |_, cx| {
+            cx.new(|_| ShortcutTooltips {
+                plain_state: p,
+                rich_state: r,
+                empty_state: e,
+            })
+        })
+        .unwrap();
+        (handle.into(), plain, rich, empty)
+    });
+    frame(handle, cx);
+
+    // Show plain tooltip with shortcut created via MaterialElementExt::tooltip.
+    cx.update(|cx| plain_state.update(cx, |state, cx| state.show(cx)));
+    frame(handle, cx);
+    cx.update_window(handle, |_, window, _| {
+        let tip = find(window, &[], &"tooltip".into()).unwrap();
+        assert_eq!(tip.role(), Some(Role::Tooltip));
+        assert!(
+            find(window, tip.path(), &"tooltip-shortcut".into()).is_some(),
+            "plain tooltip renders formatted shortcut pill"
+        );
+    })
+    .unwrap();
+    cx.update(|cx| plain_state.update(cx, |state, cx| state.dismiss(cx)));
+    frame(handle, cx);
+
+    // Show rich tooltip with title and shortcut.
+    cx.update(|cx| rich_state.update(cx, |state, cx| state.show(cx)));
+    frame(handle, cx);
+    cx.update_window(handle, |_, window, _| {
+        let tip = find(window, &[], &"tooltip".into()).unwrap();
+        assert!(
+            find(window, tip.path(), &"tooltip-shortcut".into()).is_some(),
+            "rich tooltip renders formatted shortcut pill in header"
+        );
+    })
+    .unwrap();
+    cx.update(|cx| rich_state.update(cx, |state, cx| state.dismiss(cx)));
+    frame(handle, cx);
+
+    // Empty shortcut string is ignored.
+    cx.update(|cx| empty_state.update(cx, |state, cx| state.show(cx)));
+    frame(handle, cx);
+    cx.update_window(handle, |_, window, _| {
+        let tip = find(window, &[], &"tooltip".into()).unwrap();
+        assert!(
+            find(window, tip.path(), &"tooltip-shortcut".into()).is_none(),
+            "empty shortcut must not render a shortcut pill"
+        );
+    })
+    .unwrap();
+    cx.update(|cx| empty_state.update(cx, |state, cx| state.dismiss(cx)));
+    frame(handle, cx);
+
+    // Chained .badge_dot().tooltip(...).context_menu(...) opens context menu on right click.
+    cx.update_window(handle, |_, window, cx| {
+        let trigger = find(window, &[], &"chained-btn".into()).unwrap();
+        let pos = trigger.bounds().center();
+        window.dispatch_event(
+            MouseDownEvent {
+                button: MouseButton::Right,
+                position: pos,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(
+            MouseUpEvent {
+                button: MouseButton::Right,
+                position: pos,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+    })
+    .unwrap();
+    frame(handle, cx);
+    assert!(element(handle, "chained-action", cx).is_some());
+}

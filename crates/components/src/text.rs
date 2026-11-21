@@ -106,6 +106,66 @@ impl Text {
         }
     }
 
+    pub fn display_large(value: impl Into<SharedString>) -> Self {
+        Self::new(value).role(TypeRole::DisplayLarge)
+    }
+
+    pub fn display_medium(value: impl Into<SharedString>) -> Self {
+        Self::new(value).role(TypeRole::DisplayMedium)
+    }
+
+    pub fn display_small(value: impl Into<SharedString>) -> Self {
+        Self::new(value).role(TypeRole::DisplaySmall)
+    }
+
+    pub fn headline_large(value: impl Into<SharedString>) -> Self {
+        Self::new(value).role(TypeRole::HeadlineLarge)
+    }
+
+    pub fn headline_medium(value: impl Into<SharedString>) -> Self {
+        Self::new(value).role(TypeRole::HeadlineMedium)
+    }
+
+    pub fn headline_small(value: impl Into<SharedString>) -> Self {
+        Self::new(value).role(TypeRole::HeadlineSmall)
+    }
+
+    pub fn title_large(value: impl Into<SharedString>) -> Self {
+        Self::new(value).role(TypeRole::TitleLarge)
+    }
+
+    pub fn title_medium(value: impl Into<SharedString>) -> Self {
+        Self::new(value).role(TypeRole::TitleMedium)
+    }
+
+    pub fn title_small(value: impl Into<SharedString>) -> Self {
+        Self::new(value).role(TypeRole::TitleSmall)
+    }
+
+    pub fn body_large(value: impl Into<SharedString>) -> Self {
+        Self::new(value).role(TypeRole::BodyLarge)
+    }
+
+    pub fn body_medium(value: impl Into<SharedString>) -> Self {
+        Self::new(value).role(TypeRole::BodyMedium)
+    }
+
+    pub fn body_small(value: impl Into<SharedString>) -> Self {
+        Self::new(value).role(TypeRole::BodySmall)
+    }
+
+    pub fn label_large(value: impl Into<SharedString>) -> Self {
+        Self::new(value).role(TypeRole::LabelLarge)
+    }
+
+    pub fn label_medium(value: impl Into<SharedString>) -> Self {
+        Self::new(value).role(TypeRole::LabelMedium)
+    }
+
+    pub fn label_small(value: impl Into<SharedString>) -> Self {
+        Self::new(value).role(TypeRole::LabelSmall)
+    }
+
     /// Supplies a stable ID for this label within its parent.
     pub fn id(mut self, id: impl Into<ElementId>) -> Self {
         self.id = Some(id.into());
@@ -134,6 +194,11 @@ impl Text {
     pub fn color(mut self, role: ColorRole) -> Self {
         self.color = Some(role);
         self
+    }
+
+    /// Sets the text color to [`ColorRole::OnSurfaceVariant`].
+    pub fn muted(self) -> Self {
+        self.color(ColorRole::OnSurfaceVariant)
     }
 
     pub fn truncate(mut self, max_width: gpui::Pixels) -> Self {
@@ -442,5 +507,33 @@ mod tests {
                 "expected O(log N) probes <= {max_probes}, got {probes}"
             );
         }
+    }
+
+    #[test]
+    fn text_shorthands_and_muted_set_expected_role_and_color() {
+        let cases = [
+            (Text::display_large("a"), TypeRole::DisplayLarge),
+            (Text::display_medium("a"), TypeRole::DisplayMedium),
+            (Text::display_small("a"), TypeRole::DisplaySmall),
+            (Text::headline_large("a"), TypeRole::HeadlineLarge),
+            (Text::headline_medium("a"), TypeRole::HeadlineMedium),
+            (Text::headline_small("a"), TypeRole::HeadlineSmall),
+            (Text::title_large("a"), TypeRole::TitleLarge),
+            (Text::title_medium("a"), TypeRole::TitleMedium),
+            (Text::title_small("a"), TypeRole::TitleSmall),
+            (Text::body_large("a"), TypeRole::BodyLarge),
+            (Text::body_medium("a"), TypeRole::BodyMedium),
+            (Text::body_small("a"), TypeRole::BodySmall),
+            (Text::label_large("a"), TypeRole::LabelLarge),
+            (Text::label_medium("a"), TypeRole::LabelMedium),
+            (Text::label_small("a"), TypeRole::LabelSmall),
+        ];
+        for (text, expected_role) in cases {
+            assert_eq!(text.role, expected_role);
+            assert_eq!(text.color, None);
+        }
+        let muted = Text::body_medium("hint").muted();
+        assert_eq!(muted.role, TypeRole::BodyMedium);
+        assert_eq!(muted.color, Some(ColorRole::OnSurfaceVariant));
     }
 }

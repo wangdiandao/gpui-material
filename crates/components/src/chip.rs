@@ -9,6 +9,7 @@ use gpui::{
 use gpui_material_foundation::InteractionSource;
 use gpui_material_theme::Elevation;
 
+use crate::SemanticTone;
 use crate::action::{Activate, Change};
 use crate::button_style::{
     ButtonBorder, ButtonElevations, ButtonPadding, ButtonShapes, finite_length,
@@ -95,6 +96,7 @@ pub struct Chip {
     elevated: bool,
     disabled: bool,
     tonal: bool,
+    tone: SemanticTone,
     dragged: bool,
     content: Option<AnyElement>,
     leading: Option<AnyElement>,
@@ -123,6 +125,7 @@ impl Chip {
             elevated: false,
             disabled: false,
             tonal: false,
+            tone: SemanticTone::Default,
             dragged: false,
             content: None,
             leading: None,
@@ -142,8 +145,35 @@ impl Chip {
         }
     }
 
+    /// Creates an Assist chip.
+    pub fn assist(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
+        Self::new(id, label).variant(ChipVariant::Assist)
+    }
+
+    /// Creates a Filter chip.
+    pub fn filter(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
+        Self::new(id, label).variant(ChipVariant::Filter)
+    }
+
+    /// Creates an Input chip.
+    pub fn input(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
+        Self::new(id, label).variant(ChipVariant::Input)
+    }
+
+    /// Creates a Suggestion chip.
+    pub fn suggestion(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
+        Self::new(id, label).variant(ChipVariant::Suggestion)
+    }
+
     pub fn variant(mut self, variant: ChipVariant) -> Self {
         self.variant = variant;
+        self
+    }
+
+    /// Applies a Material 3 semantic tone shortcut for enabled and selected states.
+    /// Explicit `.colors` / `.border` overrides and disabled states still take precedence.
+    pub fn tone(mut self, tone: SemanticTone) -> Self {
+        self.tone = tone;
         self
     }
 
@@ -274,5 +304,23 @@ impl Chip {
             }),
         ));
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn chip_variant_shorthands_and_tone_configure_expected_fields() {
+        assert_eq!(Chip::assist("c1", "Assist").variant, ChipVariant::Assist);
+        assert_eq!(Chip::filter("c2", "Filter").variant, ChipVariant::Filter);
+        assert_eq!(Chip::input("c3", "Input").variant, ChipVariant::Input);
+        assert_eq!(
+            Chip::suggestion("c4", "Suggest").variant,
+            ChipVariant::Suggestion
+        );
+        let toned = Chip::filter("c5", "Danger").tone(SemanticTone::Danger);
+        assert_eq!(toned.tone, SemanticTone::Danger);
     }
 }

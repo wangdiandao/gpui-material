@@ -6,6 +6,8 @@ use gpui::{
 use gpui_material_foundation::{color, current_material_theme, text_style};
 use gpui_material_theme::{ColorRole, Direction, TypeRole, TypographyEmphasis};
 
+use crate::SemanticTone;
+
 /// Decorative Material divider, with logical start and end insets.
 #[derive(IntoElement)]
 pub struct Divider {
@@ -106,6 +108,8 @@ impl RenderOnce for Divider {
 pub struct Badge {
     host: Option<AnyElement>,
     content: BadgeContent,
+    tone: SemanticTone,
+    color_roles: Option<(ColorRole, ColorRole)>,
     container_color: Option<Hsla>,
     content_color: Option<Hsla>,
     accessible_label: Option<(ElementId, SharedString)>,
@@ -117,16 +121,51 @@ enum BadgeContent {
     Custom(ElementId, AnyElement),
 }
 
+fn format_badge_count(count: usize, maximum: usize) -> SharedString {
+    if count > maximum {
+        format!("{maximum}+").into()
+    } else {
+        count.to_string().into()
+    }
+}
+
+fn resolve_badge_roles(
+    tone: SemanticTone,
+    color_roles: Option<(ColorRole, ColorRole)>,
+) -> (ColorRole, ColorRole) {
+    color_roles.unwrap_or_else(|| {
+        tone.roles().map_or(
+            (ColorRole::Error, ColorRole::OnError),
+            |(role, on_role, _, _)| (role, on_role),
+        )
+    })
+}
+
 impl Badge {
     /// A small badge that participates in the surrounding layout.
     pub fn standalone() -> Self {
         Self {
             host: None,
             content: BadgeContent::Dot,
+            tone: SemanticTone::Default,
+            color_roles: None,
             container_color: None,
             content_color: None,
             accessible_label: None,
         }
+    }
+
+    /// A standalone text badge that participates in the surrounding layout.
+    pub fn standalone_label(text: impl Into<SharedString>) -> Self {
+        Self {
+            content: BadgeContent::Text(text.into()),
+            ..Self::standalone()
+        }
+    }
+
+    /// A standalone capped numeric badge that participates in the surrounding layout.
+    pub fn standalone_count(count: usize, maximum: usize) -> Self {
+        Self::standalone_label(format_badge_count(count, maximum))
     }
 
     /// Anchors a small badge to the host's upper trailing edge.
@@ -145,14 +184,7 @@ impl Badge {
     }
 
     pub fn count(host: impl IntoElement, count: usize, maximum: usize) -> Self {
-        Self::label(
-            host,
-            if count > maximum {
-                format!("{maximum}+")
-            } else {
-                count.to_string()
-            },
-        )
+        Self::label(host, format_badge_count(count, maximum))
     }
 
     /// Uses large badge styling with caller-supplied visual content.
@@ -164,13 +196,32 @@ impl Badge {
         self
     }
 
-    /// Sets the background color, which defaults to the window theme's `Error` role.
+    /// Applies a Material 3 semantic tone shortcut.
+    ///
+    /// [`SemanticTone::Default`] and [`SemanticTone::Danger`] use `Error`/`OnError`.
+    /// Explicit [`Self::color_role`], [`Self::container_color`], and
+    /// [`Self::content_color`] overrides take precedence.
+    pub fn tone(mut self, tone: SemanticTone) -> Self {
+        self.tone = tone;
+        self
+    }
+
+    /// Resolves container and content pigments from the window theme's semantic color roles.
+    ///
+    /// Takes precedence over [`Self::tone`], and is overridden by explicit
+    /// [`Self::container_color`] and [`Self::content_color`] values.
+    pub fn color_role(mut self, container: ColorRole, content: ColorRole) -> Self {
+        self.color_roles = Some((container, content));
+        self
+    }
+
+    /// Sets the background color, overriding [`Self::color_role`] and [`Self::tone`].
     pub fn container_color(mut self, color: impl Into<Hsla>) -> Self {
         self.container_color = Some(color.into());
         self
     }
 
-    /// Sets the inherited content color, which defaults to the window theme's `OnError` role.
+    /// Sets the inherited content color, overriding [`Self::color_role`] and [`Self::tone`].
     pub fn content_color(mut self, color: impl Into<Hsla>) -> Self {
         self.content_color = Some(color.into());
         self
@@ -203,12 +254,13 @@ impl RenderOnce for Badge {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let large = !matches!(self.content, BadgeContent::Dot);
         let side = px(if large { 16. } else { 6. });
+        let (container_role, content_role) = resolve_badge_roles(self.tone, self.color_roles);
         let container_color = self
             .container_color
-            .unwrap_or_else(|| tone(ColorRole::Error, window, cx));
+            .unwrap_or_else(|| tone(container_role, window, cx));
         let content_color = self
             .content_color
-            .unwrap_or_else(|| tone(ColorRole::OnError, window, cx));
+            .unwrap_or_else(|| tone(content_role, window, cx));
         let typography = TypeRole::LabelSmall.style(TypographyEmphasis::Baseline);
         let overlap = px(if large { 12. } else { 6. });
         let mark = div()
@@ -269,4 +321,56 @@ impl RenderOnce for Badge {
 
 fn tone(role: ColorRole, window: &Window, cx: &App) -> gpui::Hsla {
     color(current_material_theme(window, cx).colors.color(role))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn badge_roles_follow_tone_and_explicit_color_role_precedence() {
+        use ColorRole::*;
+        assert_eq!(
+            resolve_badge_roles(SemanticTone::Default, None),
+            (Error, OnError)
+        );
+        assert_eq!(
+            resolve_badge_roles(SemanticTone::Danger, None),
+            (Error, OnError)
+        );
+        assert_eq!(
+            resolve_badge_roles(SemanticTone::Success, None),
+            (Success, OnSuccess)
+        );
+        assert_eq!(
+            resolve_badge_roles(SemanticTone::Warning, None),
+            (Warning, OnWarning)
+        );
+        assert_eq!(
+            resolve_badge_roles(SemanticTone::Info, None),
+            (Info, OnInfo)
+        );
+        assert_eq!(
+            resolve_badge_roles(
+                SemanticTone::Danger,
+                Some((PrimaryContainer, OnPrimaryContainer))
+            ),
+            (PrimaryContainer, OnPrimaryContainer)
+        );
+    }
+
+    #[test]
+    fn standalone_badge_constructors_format_labels_and_capped_counts() {
+        assert_eq!(format_badge_count(0, 99), SharedString::from("0"));
+        assert_eq!(format_badge_count(99, 99), SharedString::from("99"));
+        assert_eq!(format_badge_count(120, 99), SharedString::from("99+"));
+
+        let label = Badge::standalone_label("NEW");
+        assert!(label.host.is_none());
+        assert!(matches!(label.content, BadgeContent::Text(ref text) if text == "NEW"));
+
+        let count = Badge::standalone_count(150, 99);
+        assert!(count.host.is_none());
+        assert!(matches!(count.content, BadgeContent::Text(ref text) if text == "99+"));
+    }
 }

@@ -5,18 +5,18 @@ use crate::menu_appearance::Paint;
 pub use crate::menu_appearance::{MenuColor, MenuItemStyle, MenuSurfaceStyle};
 
 use crate::motion::{OverlayMotion, ScaledOverlay, menu_pivot};
-use crate::{Icon, IconName};
+use crate::{Icon, IconName, SemanticTone};
 use gpui::{
     Anchor, AnyElement, App, Bounds, ElementId, Focusable, InteractiveElement, IntoElement,
     MouseButton, ParentElement, Pixels, Point, RenderOnce, Role, ScrollHandle, SharedString,
     StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{
-    Popover, PopoverState, Positioner,
+    Popover, PopoverState, Positioner, TestSupportExt,
     actions::{Cancel, Confirm},
 };
 use gpui_material_foundation::{ThemeScope, current_material_theme, logical_anchor};
-use gpui_material_theme::{CornerShape, Direction};
+use gpui_material_theme::{CornerShape, Direction, TypeRole, TypographyEmphasis};
 
 mod content;
 
@@ -35,6 +35,7 @@ pub struct MenuItem {
     kind: Kind,
     slots: ItemSlots,
     on_checked_change: Option<Change>,
+    tone: SemanticTone,
     style: MenuItemStyle,
 }
 
@@ -43,6 +44,7 @@ enum Kind {
     Check(bool, Option<Action>),
     Select(bool, Option<Action>),
     Heading,
+    Divider,
     Section {
         rows: Vec<MenuItem>,
         style: MenuSurfaceStyle,
@@ -57,6 +59,7 @@ struct ItemSlots {
     leading: Option<ItemContent>,
     supporting: Option<ItemContent>,
     trailing: Option<ItemContent>,
+    shortcut: Option<SharedString>,
     selection_icon: Option<ItemContent>,
 }
 
@@ -73,7 +76,8 @@ impl ItemSlots {
         marked: bool,
         submenu: bool,
         paint: Paint<'_>,
-        supporting_color: gpui::Hsla,
+        (supporting_color, shortcut_color): (gpui::Hsla, gpui::Hsla),
+        active: bool,
     ) -> Vec<AnyElement> {
         let motion = paint.motion;
         let icon_size = motion.px(18.);
@@ -110,7 +114,25 @@ impl ItemSlots {
                 .into_any_element(),
             body.into_any_element(),
         ];
-        children.extend(self.trailing.as_ref().map(|trailing| trailing()));
+        if let Some(trailing) = self.trailing.as_ref() {
+            children.push(trailing());
+        } else if let Some(shortcut) = self.shortcut.as_ref().filter(|text| !text.is_empty()) {
+            let label_small = paint
+                .theme
+                .typography
+                .scale_style(TypeRole::LabelSmall.style(TypographyEmphasis::Baseline));
+            let hint = div()
+                .flex_none()
+                .text_size(motion.px(label_small.size))
+                .line_height(motion.px(label_small.line_height))
+                .text_color(shortcut_color)
+                .child(shortcut.clone());
+            children.push(if active {
+                hint.id("shortcut").test_support().into_any_element()
+            } else {
+                hint.into_any_element()
+            });
+        }
         children.extend(submenu.then(|| {
             Icon::new(IconName::ChevronRight)
                 .size(icon_size)
@@ -130,6 +152,7 @@ impl MenuItem {
             kind: Kind::Action(None),
             slots: ItemSlots::default(),
             on_checked_change: None,
+            tone: SemanticTone::Default,
             style: MenuItemStyle::default(),
         }
     }
@@ -138,6 +161,15 @@ impl MenuItem {
         Self {
             kind: Kind::Heading,
             ..Self::new(id, title)
+        }
+    }
+
+    /// Creates a non-interactive horizontal divider row inside a menu that is
+    /// skipped by keyboard navigation.
+    pub fn divider(id: impl Into<ElementId>) -> Self {
+        Self {
+            kind: Kind::Divider,
+            ..Self::new(id, "")
         }
     }
 
@@ -176,6 +208,26 @@ impl MenuItem {
     /// Configures the appearance of an action, checked or selected row.
     pub fn appearance(mut self, style: MenuItemStyle) -> Self {
         self.style = style;
+        self
+    }
+
+    /// Applies a Material 3 semantic tone to this row's foreground and selected roles.
+    /// Explicit [`MenuItemStyle`] overrides and disabled styling still take precedence.
+    pub fn tone(mut self, tone: SemanticTone) -> Self {
+        self.tone = tone;
+        self
+    }
+
+    /// Shorthand for `.tone(SemanticTone::Danger)` on destructive menu commands.
+    pub fn destructive(self) -> Self {
+        self.tone(SemanticTone::Danger)
+    }
+
+    /// Renders a desktop shortcut hint in the trailing slot using `LabelSmall`
+    /// and `OnSurfaceVariant` (or disabled color when disabled), unless an
+    /// explicit `.trailing(...)` overrides it.
+    pub fn shortcut(mut self, text: impl Into<SharedString>) -> Self {
+        self.slots.shortcut = Some(text.into());
         self
     }
 

@@ -612,3 +612,204 @@ fn expressive_menu_paints_group_row_and_position_overrides(cx: &mut TestAppConte
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn menu_item_divider_shortcut_destructive_and_context_menu_ext(cx: &mut TestAppContext) {
+    use std::cell::Cell;
+
+    use gpui::{Hsla, RenderOnce, Styled};
+    use gpui_material::{Button, MaterialElementExt, SemanticTone};
+
+    #[derive(IntoElement)]
+    struct InkProbe {
+        slot: Rc<Cell<Option<Hsla>>>,
+        label: &'static str,
+    }
+
+    impl RenderOnce for InkProbe {
+        fn render(self, window: &mut Window, _: &mut App) -> impl IntoElement {
+            self.slot.set(Some(window.text_style().color));
+            div().child(self.label)
+        }
+    }
+
+    struct ContextMenuView {
+        danger_ink: Rc<Cell<Option<Hsla>>>,
+        disabled_danger_ink: Rc<Cell<Option<Hsla>>>,
+    }
+
+    impl Render for ContextMenuView {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let danger_ink = self.danger_ink.clone();
+            let disabled_danger_ink = self.disabled_danger_ink.clone();
+            div().p_4().child(
+                Button::outlined("ctx-trigger", "Right click me").context_menu(
+                    "ext-context-menu",
+                    [
+                        MenuItem::new("save-cmd", "Save").shortcut("Ctrl+S"),
+                        MenuItem::new("custom-trailing-cmd", "Export")
+                            .shortcut("Ctrl+E")
+                            .trailing(|| div().id("custom-trailing").test_support().child("TXT")),
+                        MenuItem::divider("menu-sep"),
+                        MenuItem::new("danger-cmd", "Delete")
+                            .destructive()
+                            .content(move || InkProbe {
+                                slot: danger_ink.clone(),
+                                label: "Delete",
+                            }),
+                        MenuItem::new("disabled-danger-cmd", "Purge")
+                            .tone(SemanticTone::Danger)
+                            .disabled(true)
+                            .content(move || InkProbe {
+                                slot: disabled_danger_ink.clone(),
+                                label: "Purge",
+                            }),
+                        MenuItem::new("selected-success-cmd", "Pinned")
+                            .selected(true)
+                            .tone(SemanticTone::Success),
+                    ],
+                ),
+            )
+        }
+    }
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            let entity = cx.new(|_| ContextMenuView {
+                danger_ink: Rc::new(Cell::new(None)),
+                disabled_danger_ink: Rc::new(Cell::new(None)),
+            });
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (window, view.unwrap())
+    });
+    let window = window.into();
+    let frame = |cx: &mut TestAppContext| {
+        cx.update_window(window, |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+    };
+    frame(cx);
+
+    // Secondary click opens the context menu created via MaterialElementExt::context_menu.
+    cx.update_window(window, |_, window, cx| {
+        let trigger = find(window, &[], &"ctx-trigger".into()).unwrap();
+        let position = trigger.bounds().center();
+        window.dispatch_event(
+            MouseDownEvent {
+                button: MouseButton::Right,
+                position,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(
+            MouseUpEvent {
+                button: MouseButton::Right,
+                position,
+                click_count: 1,
+                ..Default::default()
+            }
+            .to_platform_input(),
+            cx,
+        );
+    })
+    .unwrap();
+    frame(cx);
+    frame(cx);
+
+    cx.update_window(window, |_, window, cx| {
+        let theme = window_material_theme(window, cx);
+        let error = color(theme.colors.color(ColorRole::Error));
+        let disabled_ink = color(theme.colors.color(ColorRole::OnSurface)).opacity(0.38);
+        let success_container = color(theme.colors.color(ColorRole::SuccessContainer));
+
+        assert!(find(window, &[], &"menu".into()).is_some());
+        assert!(find(window, &[], &"menu-sep".into()).is_some());
+
+        let save = find(window, &[], &"save-cmd".into()).unwrap();
+        assert!(
+            find(window, save.path(), &"shortcut".into()).is_some(),
+            "shortcut hint renders in trailing slot"
+        );
+
+        let custom = find(window, &[], &"custom-trailing-cmd".into()).unwrap();
+        assert!(find(window, custom.path(), &"custom-trailing".into()).is_some());
+        assert!(
+            find(window, custom.path(), &"shortcut".into()).is_none(),
+            "explicit trailing slot overrides shortcut hint"
+        );
+
+        assert_eq!(view.read(cx).danger_ink.get(), Some(error));
+        assert_eq!(view.read(cx).disabled_danger_ink.get(), Some(disabled_ink));
+        assert!(
+            window
+                .painted_quads()
+                .iter()
+                .any(|quad| quad.background == success_container.into()),
+            "selected Success menu item paints SuccessContainer"
+        );
+        assert_eq!(save.focused(), Some(true));
+    })
+    .unwrap();
+
+    // Down arrow moves: save-cmd -> custom-trailing-cmd -> skips divider -> danger-cmd -> skips disabled -> selected-success-cmd.
+    cx.simulate_keystrokes(window, "down");
+    frame(cx);
+    cx.update_window(window, |_, window, _| {
+        assert_eq!(
+            find(window, &[], &"custom-trailing-cmd".into())
+                .unwrap()
+                .focused(),
+            Some(true)
+        );
+    })
+    .unwrap();
+
+    cx.simulate_keystrokes(window, "down");
+    frame(cx);
+    cx.update_window(window, |_, window, _| {
+        assert_eq!(
+            find(window, &[], &"danger-cmd".into()).unwrap().focused(),
+            Some(true),
+            "keyboard navigation must skip MenuItem::divider"
+        );
+    })
+    .unwrap();
+
+    cx.simulate_keystrokes(window, "down");
+    frame(cx);
+    cx.update_window(window, |_, window, _| {
+        assert_eq!(
+            find(window, &[], &"selected-success-cmd".into())
+                .unwrap()
+                .focused(),
+            Some(true),
+            "keyboard navigation skips disabled destructive item"
+        );
+    })
+    .unwrap();
+
+    // Up arrow skips back over disabled item and divider.
+    cx.simulate_keystrokes(window, "up up");
+    frame(cx);
+    cx.update_window(window, |_, window, _| {
+        assert_eq!(
+            find(window, &[], &"custom-trailing-cmd".into())
+                .unwrap()
+                .focused(),
+            Some(true)
+        );
+    })
+    .unwrap();
+}

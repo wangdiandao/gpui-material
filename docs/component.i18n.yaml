@@ -3,8 +3,8 @@
   en: "0c16ec483c073c5d"
   zh: "b24fff9ed8f0b160"
 /components/actions-and-selection:
-  en: "06a9e74b24688423"
-  zh: "011a1baea4aa1fb3"
+  en: "b28478eaf8279f96"
+  zh: "d86603ef2d9b5f6f"
 /components/actions-and-selection/floating-action-button:
   en: "c77a57b086907ad0"
   zh: "e5c132ba393b8843"
@@ -21,20 +21,20 @@
   en: "bff28a3dc4c03f2a"
   zh: "4af655de1cac2f40"
 /components/actions-and-selection/chips:
-  en: "3d64d1d5f40cb79c"
-  zh: "34964366d26307bc"
+  en: "c6064c73ef135e01"
+  zh: "4cd3b06d9b7465b7"
 /components/actions-and-selection/sliders:
   en: "51a406ecd386905a"
   zh: "5e59d88142753aa0"
 /components/content-and-feedback:
-  en: "77dc837707a6d30e"
-  zh: "9206700bd5bcc6ec"
+  en: "70125ee7b75cc6d2"
+  zh: "01167d1656314a07"
 /components/content-and-feedback/surfaces:
   en: "e0f5d2b66870d586"
   zh: "7c7c4891edaf84a4"
 /components/content-and-feedback/cards:
-  en: "1de18d75cfbbaf4a"
-  zh: "7f7156562c3b055b"
+  en: "65d40de578d9945b"
+  zh: "df159ea64e94f3d9"
 /components/content-and-feedback/lists:
   en: "31095ee35ec859f3"
   zh: "09918936439b1d1b"
@@ -48,8 +48,8 @@
   en: "91017ca9ca1e50e9"
   zh: "552fa38bdd6c09d0"
 /components/content-and-feedback/badges:
-  en: "3b4731e1ca05ba87"
-  zh: "df321083c3b7761c"
+  en: "cc8892fc589b1141"
+  zh: "9639305e9b653de9"
 /components/content-and-feedback/avatars:
   en: "22cd71489ab5bb08"
   zh: "fb29ab92ec9eb55b"
@@ -60,8 +60,8 @@
   en: "9fe72312679c3039"
   zh: "0f1e8979db2e2a18"
 /components/content-and-feedback/progress-indicators:
-  en: "590a1189d2e904c8"
-  zh: "1209dca765dea1cd"
+  en: "c64f4ca5896d46fe"
+  zh: "4f1788b3e52fc4a8"
 /components/content-and-feedback/loading-indicator:
   en: "3e6741a661bbef25"
   zh: "47bbd8574f357e46"
@@ -69,23 +69,23 @@
   en: "86d99fc9b3d5511d"
   zh: "d2d0fcf38f265a6e"
 /components/content-and-feedback/snackbars:
-  en: "d20b089b4ae9bcd8"
-  zh: "9a0fa228e33372bc"
+  en: "38f4660591747d99"
+  zh: "27b8ec86a97488af"
 /components/content-and-feedback/display-only-scrollbar:
   en: "652d4f4f4421dc47"
   zh: "efa23e7600bab5f0"
 /components/input-and-overlays:
-  en: "b2f8c145cbabb132"
-  zh: "2d335f3df166899d"
+  en: "7fa1fce4cf6fbf3d"
+  zh: "bcdb7c7983367984"
 /components/input-and-overlays/exposed-dropdowns:
   en: "5af40c400c43abca"
   zh: "ddef8112ceaeebaf"
 /components/input-and-overlays/menu-controls-and-item-content:
-  en: "e3e914aecf69d3f3"
-  zh: "00f3613c4cab5143"
+  en: "444e469ff24a064c"
+  zh: "9c7e0edb4499101c"
 /components/input-and-overlays/tooltips:
-  en: "85950a9ab9088a76"
-  zh: "77aa4071c2d990b3"
+  en: "558de217f4287fc6"
+  zh: "b9a436997132a3be"
 /components/input-and-overlays/labels:
   en: "be925872bd81db8e"
   zh: "36108d0b259747c2"
@@ -93,8 +93,8 @@
   en: "20874df8c77ef23f"
   zh: "40a01b267fdd61eb"
 /components/input-and-overlays/dialogs:
-  en: "3249394f2e40714e"
-  zh: "33b01d2124b535f7"
+  en: "61ed75e69983a5b8"
+  zh: "8d50c280535fcaac"
 /components/input-and-overlays/bottom-sheets:
   en: "5f3e91fc4e5d7bd7"
   zh: "08ad0c6ddb32e7cc"
@@ -138,8 +138,8 @@
   en: "f749e65450d351e3"
   zh: "fdbeaa7d7dfdc868"
 /components/optional-components:
-  en: "2f7fb569fd397ec3"
-  zh: "ba89a3d6045fb6f8"
+  en: "fbede2ab65388a81"
+  zh: "a6c84461774cad2e"
 /components/optional-components/window-chrome:
   en: "aaefab3fe6f6063b"
   zh: "aff96eee8fcf7ae7"

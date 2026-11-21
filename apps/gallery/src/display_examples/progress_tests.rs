@@ -340,3 +340,93 @@ fn facade_progress_retargets_and_releases_animation_when_steady(cx: &mut TestApp
     assert_eq!(sample(cx), 0.5);
     assert!(cx.update(|cx| view.read(cx).stop.get().is_some()));
 }
+
+#[gpui::test]
+fn progress_semantic_tone_applies_stroke_roles_and_yields_to_explicit_overrides(
+    cx: &mut TestAppContext,
+) {
+    use gpui_material::{
+        SemanticTone,
+        foundation::color,
+        theme::{Appearance, ColorRole, MaterialTheme},
+    };
+
+    struct TonedProgress;
+
+    impl Render for TonedProgress {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div()
+                .w(px(160.))
+                .flex()
+                .flex_col()
+                .gap_3()
+                .p_3()
+                .child(
+                    LinearProgress::new("danger-linear", "Danger upload")
+                        .value(0.5)
+                        .tone(SemanticTone::Danger),
+                )
+                .child(
+                    CircularProgress::new("success-circular", "Success sync")
+                        .value(0.5)
+                        .tone(SemanticTone::Success),
+                )
+                .child(
+                    LinearProgress::new("override-linear", "Override upload")
+                        .value(0.5)
+                        .tone(SemanticTone::Warning)
+                        .active_stroke(ProgressStroke {
+                            color: Some(ink(0x123456)),
+                            ..Default::default()
+                        })
+                        .track_stroke(ProgressStroke {
+                            color: Some(ink(0xabcdef)),
+                            ..Default::default()
+                        }),
+                )
+        }
+    }
+
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        MaterialRoot::open_window(Default::default(), cx, |_, cx| cx.new(|_| TonedProgress))
+            .unwrap()
+    });
+
+    cx.update_window(handle.into(), |_, window, cx| {
+        let theme = MaterialTheme::baseline(Appearance::Light);
+        let error = color(theme.colors.color(ColorRole::Error));
+        let error_container = color(theme.colors.color(ColorRole::ErrorContainer));
+        let success = color(theme.colors.color(ColorRole::Success));
+        let warning = color(theme.colors.color(ColorRole::Warning));
+
+        set_window_material_theme(Some(theme), window, cx);
+        window.activate_window();
+        draw(window, cx);
+
+        let painted = window.painted_quads();
+        assert!(painted.iter().any(|quad| quad.background == error.into()));
+        assert!(
+            painted
+                .iter()
+                .any(|quad| quad.background == error_container.into())
+        );
+        assert!(painted.iter().any(|quad| quad.background == success.into()));
+        assert!(
+            painted
+                .iter()
+                .any(|quad| quad.background == ink(0x123456).into())
+        );
+        assert!(
+            painted
+                .iter()
+                .any(|quad| quad.background == ink(0xabcdef).into())
+        );
+        assert!(
+            !painted.iter().any(|quad| quad.background == warning.into()),
+            "explicit active_stroke color must override SemanticTone::Warning"
+        );
+    })
+    .unwrap();
+}

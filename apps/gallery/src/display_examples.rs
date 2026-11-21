@@ -1,18 +1,19 @@
 use gpui::{
     AppContext, Axis, Context, Entity, InteractiveElement, IntoElement, ParentElement, Render,
-    ScrollHandle, SharedString, StatefulInteractiveElement, Styled, Window, div, point, px,
+    ScrollHandle, SharedString, StatefulInteractiveElement, Styled, Window, div, point,
+    prelude::FluentBuilder, px,
 };
 use gpui_material::foundation::{color, isolated_scroll, window_material_theme};
 use gpui_material::theme::{
     ColorRole, CornerRole, CornerShape, Elevation, MaterialShape, TypeRole,
 };
 use gpui_material::{
-    Avatar, AvatarGroup, AvatarShape, AvatarSize, Badge, Button, ButtonVariant, Card, CardBorder,
-    CardColors, CardElevations, CardVariant, ChoiceOption, ChoiceTile, CircularProgress,
-    DisplayScrollbar, DisplayScrollbarFade, DisplayScrollbarStyle, Divider, DropTarget, EmptyState,
-    Icon, IconName, LinearProgress, List, ListItem, ListVariant, LoadingIndicator,
-    LoadingIndicatorShape, LoadingIndicatorShapes, ProgressCap, ProgressShape, ProgressStroke,
-    SwitchTile, Text,
+    Avatar, AvatarGroup, AvatarShape, AvatarSize, Badge, Banner, Button, ButtonVariant, Card,
+    CardBorder, CardColors, CardElevations, CardVariant, ChoiceOption, ChoiceTile,
+    CircularProgress, DisplayScrollbar, DisplayScrollbarFade, DisplayScrollbarStyle, Divider,
+    DropTarget, EmptyState, Icon, IconName, LinearProgress, List, ListItem, ListVariant,
+    LoadingIndicator, LoadingIndicatorShape, LoadingIndicatorShapes, ProgressCap, ProgressShape,
+    ProgressStroke, SemanticTone, Skeleton, SwitchTile, Text,
 };
 
 use crate::story::{Story, section, stack};
@@ -21,6 +22,8 @@ use crate::story::{Story, section, stack};
 mod avatar_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod badge_tests;
+#[cfg(all(test, feature = "test-support"))]
+mod banner_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod card_tests;
 #[cfg(all(test, feature = "test-support"))]
@@ -43,6 +46,8 @@ mod pull_to_refresh_demo;
 mod pull_to_refresh_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod settings_tiles_tests;
+#[cfg(all(test, feature = "test-support"))]
+mod skeleton_tests;
 mod text_examples;
 
 pub(crate) struct DisplayExamples {
@@ -63,6 +68,9 @@ pub(crate) struct DisplayExamples {
     wide_scroll: ScrollHandle,
     drop_status: SharedString,
     empty_state_status: SharedString,
+    banner_visible: bool,
+    banner_status: SharedString,
+    skeleton_animated: bool,
     auto_sync: bool,
     choice_density: SharedString,
 }
@@ -87,6 +95,9 @@ impl Default for DisplayExamples {
             wide_scroll: ScrollHandle::new(),
             drop_status: "Drop files or click the drop zone".into(),
             empty_state_status: "No project action triggered yet".into(),
+            banner_visible: true,
+            banner_status: "Ready".into(),
+            skeleton_animated: true,
             auto_sync: true,
             choice_density: "comfortable".into(),
         }
@@ -902,6 +913,159 @@ impl DisplayExamples {
             )
     }
 
+    fn banner_section(&self, cx: &Context<Self>) -> crate::story::StorySection {
+        let on_retry = cx.entity();
+        let on_dismiss = cx.entity();
+        let on_restore = cx.entity();
+        section("Banners")
+            .description("In-flow Material 3 banners with semantic tones, actions, and caller-owned visibility.")
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_3()
+                    .child(Text::new(self.banner_status.clone()).muted())
+                    .when(self.banner_visible, |col| {
+                        col.child(
+                            Banner::new(
+                                "gallery-banner-warning",
+                                "Workspace sync paused while offline. Pending changes remain local.",
+                            )
+                            .title("Offline mode")
+                            .tone(SemanticTone::Warning)
+                            .icon(Icon::new(IconName::Info))
+                            .action("Retry now", move |_, cx| {
+                                on_retry.update(cx, |this, cx| {
+                                    this.banner_status = "Retry requested".into();
+                                    cx.notify();
+                                });
+                            })
+                            .secondary_action("Details", |_, _| {})
+                            .on_dismiss(move |_, cx| {
+                                on_dismiss.update(cx, |this, cx| {
+                                    this.banner_visible = false;
+                                    this.banner_status = "Warning banner dismissed".into();
+                                    cx.notify();
+                                });
+                            }),
+                        )
+                    })
+                    .when(!self.banner_visible, |col| {
+                        col.child(
+                            Button::outlined("restore-banner", "Show warning banner").on_activate(
+                                move |_, cx| {
+                                    on_restore.update(cx, |this, cx| {
+                                        this.banner_visible = true;
+                                        this.banner_status = "Warning banner restored".into();
+                                        cx.notify();
+                                    });
+                                },
+                            ),
+                        )
+                    })
+                    .child(
+                        Banner::new(
+                            "gallery-banner-default",
+                            "New keyboard shortcuts are available in the workspace command palette.",
+                        )
+                        .title("Tips")
+                        .icon(Icon::new(IconName::Notifications)),
+                    )
+                    .child(
+                        Banner::new(
+                            "gallery-banner-danger",
+                            "Failed to save changes to remote storage.",
+                        )
+                        .title("Save failed")
+                        .tone(SemanticTone::Danger)
+                        .icon(Icon::new(IconName::Error))
+                        .action("Try again", |_, _| {}),
+                    )
+                    .child(
+                        Banner::new(
+                            "gallery-banner-success",
+                            "All 12 background checks completed without warnings.",
+                        )
+                        .tone(SemanticTone::Success)
+                        .icon(Icon::new(IconName::Check)),
+                    ),
+            )
+    }
+
+    fn skeleton_section(&self, cx: &Context<Self>) -> crate::story::StorySection {
+        let on_toggle = cx.entity();
+        let animated = self.skeleton_animated;
+        section("Skeleton placeholders")
+            .description(
+                "Material 3 SurfaceContainerHigh/Highest pulse placeholders with zero offscreen frames.",
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_4()
+                    .child(
+                        Button::outlined(
+                            "toggle-skeleton-animation",
+                            if animated {
+                                "Pause pulse"
+                            } else {
+                                "Resume pulse"
+                            },
+                        )
+                        .on_activate(move |_, cx| {
+                            on_toggle.update(cx, |this, cx| {
+                                this.skeleton_animated = !this.skeleton_animated;
+                                cx.notify();
+                            });
+                        }),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_3()
+                            .child(Skeleton::circle("skel-avatar", px(48.)).animated(animated))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .flex()
+                                    .flex_col()
+                                    .gap_2()
+                                    .child(
+                                        Skeleton::text_line("skel-title")
+                                            .width(px(180.))
+                                            .role(TypeRole::TitleMedium)
+                                            .animated(animated),
+                                    )
+                                    .child(
+                                        Skeleton::text_line("skel-subtitle").animated(animated),
+                                    ),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_4()
+                            .child(
+                                Skeleton::rect("skel-card", px(160.), px(72.))
+                                    .corner_role(CornerRole::Medium)
+                                    .animated(animated),
+                            )
+                            .child(
+                                Skeleton::shape(
+                                    "skel-cookie",
+                                    px(64.),
+                                    px(64.),
+                                    MaterialShape::Cookie7Sided,
+                                )
+                                .animated(animated),
+                            ),
+                    ),
+            )
+    }
+
     fn horizontal_scroll_section(
         &self,
         window: &Window,
@@ -969,6 +1133,11 @@ impl Render for DisplayExamples {
             .children(
                 self.shows(Story::EmptyState)
                     .then(|| self.empty_state_section(cx)),
+            )
+            .children(self.shows(Story::Banner).then(|| self.banner_section(cx)))
+            .children(
+                self.shows(Story::Skeleton)
+                    .then(|| self.skeleton_section(cx)),
             )
             .children(self.shows(Story::Badge).then(|| self.badge_section()))
             .children(

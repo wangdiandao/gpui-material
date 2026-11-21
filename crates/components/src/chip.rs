@@ -1,4 +1,7 @@
+mod group;
 mod render;
+
+pub use group::{ChipGroup, ChipGroupItem, ChipGroupSelection};
 
 use std::rc::Rc;
 
@@ -109,6 +112,7 @@ pub struct Chip {
     spacing: Pixels,
     padding: Option<ButtonPadding>,
     focus: Option<FocusHandle>,
+    tab_stop: bool,
     interaction_source: Option<Entity<InteractionSource>>,
     on_activate: Option<Activate>,
     on_change: Option<Change>,
@@ -138,6 +142,7 @@ impl Chip {
             spacing: px(8.),
             padding: None,
             focus: None,
+            tab_stop: true,
             interaction_source: None,
             on_activate: None,
             on_change: None,
@@ -266,6 +271,11 @@ impl Chip {
     /// Attaches a caller-owned focus handle to the primary chip action.
     pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
         self.focus = Some(focus.clone());
+        self
+    }
+
+    pub(crate) fn tab_stop(mut self, tab_stop: bool) -> Self {
+        self.tab_stop = tab_stop;
         self
     }
 

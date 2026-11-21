@@ -263,6 +263,7 @@ fn build_chip_style(
 
 fn build_chip_layout(
     split: bool,
+    tab_stop: bool,
     dragged: bool,
     shapes: ButtonShapes,
     elevations: ChipElevations,
@@ -270,7 +271,7 @@ fn build_chip_layout(
     palette: ChipPalette,
 ) -> ActionLayout {
     ActionLayout {
-        tab_stop: true,
+        tab_stop,
         dragged,
         dragged_elevation: (!split).then_some(dragged_elevation).flatten(),
         appearance: ButtonStyle {
@@ -524,6 +525,7 @@ impl RenderOnce for Chip {
         let dragged_elevation = self.elevations.dragged.or(Some(Elevation::Level4));
         let layout = build_chip_layout(
             split,
+            self.tab_stop,
             self.dragged,
             self.shapes,
             self.elevations,

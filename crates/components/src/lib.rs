@@ -36,6 +36,7 @@ mod menu_appearance;
     allow(dead_code)
 )]
 mod motion;
+mod skeleton;
 mod text;
 mod tone;
 
@@ -50,6 +51,7 @@ pub use ext::MaterialElementExt;
 pub use icon::{Icon, IconName};
 pub use insets::ScaffoldInsets;
 pub use menu_appearance::MenuSurfaceStyle;
+pub use skeleton::{Skeleton, SkeletonColors};
 pub use text::Text;
 pub use tone::SemanticTone;
 
@@ -81,7 +83,10 @@ mod selection;
 mod slider;
 
 #[cfg(feature = "selection")]
-pub use chip::{Chip, ChipColors, ChipElevations, ChipStateColors, ChipVariant};
+pub use chip::{
+    Chip, ChipColors, ChipElevations, ChipGroup, ChipGroupItem, ChipGroupSelection,
+    ChipStateColors, ChipVariant,
+};
 #[cfg(feature = "selection")]
 pub use selection::{
     Checkbox, CheckboxColors, CheckboxState, CheckboxStateColors, Radio, RadioColors, RadioGroup,
@@ -128,6 +133,8 @@ pub use settings_tiles::{ChoiceOption, ChoiceTile};
 pub use swipe_to_dismiss::{SwipeToDismiss, SwipeToDismissState, SwipeToDismissValue};
 
 #[cfg(feature = "feedback")]
+mod banner;
+#[cfg(feature = "feedback")]
 mod loading_indicator;
 #[cfg(feature = "feedback")]
 mod overlay;
@@ -136,6 +143,8 @@ mod progress;
 #[cfg(feature = "feedback")]
 mod pull_to_refresh;
 
+#[cfg(feature = "feedback")]
+pub use banner::{Banner, BannerColors};
 #[cfg(feature = "feedback")]
 pub use loading_indicator::{LoadingIndicator, LoadingIndicatorShape, LoadingIndicatorShapes};
 #[cfg(feature = "feedback")]

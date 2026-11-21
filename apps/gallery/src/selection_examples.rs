@@ -1,19 +1,21 @@
 use gpui::{
     AppContext, Axis, Context, ElementId, Entity, FocusHandle, IntoElement, ParentElement, Render,
-    StrokeOptions, Styled, Window, div, prelude::FluentBuilder, px, rgb,
+    SharedString, StrokeOptions, Styled, Window, div, prelude::FluentBuilder, px, rgb,
 };
 use gpui_material::foundation::{color, window_material_theme};
 use gpui_material::theme::{ColorRole, Direction};
 use gpui_material::{
-    Checkbox, CheckboxColors, CheckboxState, CheckboxStateColors, Chip, ChipVariant, Icon,
-    IconName, InteractionSource, Radio, RadioColors, RadioGroup, Switch, SwitchColors,
-    SwitchStateColors, Text,
+    Checkbox, CheckboxColors, CheckboxState, CheckboxStateColors, Chip, ChipGroup, ChipGroupItem,
+    ChipGroupSelection, ChipVariant, Icon, IconName, InteractionSource, Radio, RadioColors,
+    RadioGroup, SemanticTone, Switch, SwitchColors, SwitchStateColors, Text,
 };
 
 use crate::story::{Story, section};
 
 #[cfg(all(test, feature = "test-support"))]
 mod checkbox_tests;
+#[cfg(all(test, feature = "test-support"))]
+mod chip_group_tests;
 #[cfg(all(test, feature = "test-support"))]
 mod chip_tests;
 #[cfg(all(test, feature = "test-support"))]
@@ -52,6 +54,8 @@ pub(crate) struct SelectionExamples {
     restore: FocusHandle,
     styled_checkbox: CheckboxState,
     checkbox_source: Option<Entity<InteractionSource>>,
+    group_multi: Vec<SharedString>,
+    group_single: SharedString,
 }
 
 impl SelectionExamples {
@@ -72,6 +76,8 @@ impl SelectionExamples {
             restore: cx.focus_handle(),
             styled_checkbox: CheckboxState::Indeterminate,
             checkbox_source: None,
+            group_multi: vec!["open".into(), "urgent".into()],
+            group_single: "week".into(),
         }
     }
     pub(crate) fn for_story(story: Story, cx: &mut Context<Self>) -> Self {
@@ -507,6 +513,79 @@ impl Render for SelectionExamples {
             .children((self.story == Some(Story::Switch)).then(|| self.custom_switch_section(cx)))
             .children(self.shows(Story::Chip).then(|| self.chip_section(rtl, cx)))
             .children((self.story == Some(Story::Chip)).then(chip_content_examples))
+            .children(
+                self.shows(Story::ChipGroup)
+                    .then(|| self.chip_group_section(cx)),
+            )
+    }
+}
+
+impl SelectionExamples {
+    fn chip_group_section(&self, cx: &Context<Self>) -> crate::story::StorySection {
+        let on_multi = cx.entity();
+        let on_single = cx.entity();
+        let active_multi = if self.group_multi.is_empty() {
+            "None".to_string()
+        } else {
+            self.group_multi
+                .iter()
+                .map(|id| id.as_ref())
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        section("Chip group")
+            .description("Controlled chip collections with M3 8 dp spacing, roving focus, and wrapping or scrollable rows.")
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_4()
+                    .child(Text::new(format!("Multi-select filters: {active_multi}")).muted())
+                    .child(
+                        ChipGroup::new(
+                            "gallery-chip-group-multi",
+                            "Issue filters",
+                            [
+                                ChipGroupItem::new("open", "Open"),
+                                ChipGroupItem::new("review", "In review"),
+                                ChipGroupItem::new("urgent", "Urgent")
+                                    .tone(SemanticTone::Danger),
+                                ChipGroupItem::new("archived", "Archived").disabled(true),
+                            ],
+                        )
+                        .selection(ChipGroupSelection::Multiple, self.group_multi.clone())
+                        .on_change(move |selected, _, cx| {
+                            on_multi.update(cx, |this, cx| {
+                                this.group_multi = selected;
+                                cx.notify();
+                            });
+                        }),
+                    )
+                    .child(
+                        Text::new(format!("Single-select timeframe: {}", self.group_single))
+                            .muted(),
+                    )
+                    .child(
+                        ChipGroup::new(
+                            "gallery-chip-group-single",
+                            "Timeframe",
+                            [
+                                ChipGroupItem::new("day", "Today"),
+                                ChipGroupItem::new("week", "This week"),
+                                ChipGroupItem::new("month", "This month"),
+                                ChipGroupItem::new("quarter", "This quarter"),
+                                ChipGroupItem::new("year", "This year"),
+                            ],
+                        )
+                        .scrollable(true)
+                        .single_select(self.group_single.clone(), move |id, _, cx| {
+                            on_single.update(cx, |this, cx| {
+                                this.group_single = id;
+                                cx.notify();
+                            });
+                        }),
+                    ),
+            )
     }
 }
 

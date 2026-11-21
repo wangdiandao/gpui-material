@@ -4,6 +4,16 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### API and migration
+
+- **Breaking**: Rename the optional `windows-chrome` Cargo feature and `gpui_material::windows_chrome` module to `window-chrome` and `gpui_material::window_chrome` across `gpui-material-extras`, `gpui-material`, and `gpui-material-gallery`, and remove the Windows-only compilation gate.
+
+### Window chrome and cross-platform defaults
+
+- Add cross-platform `window_chrome` support covering Windows native hit testing and Snap Layouts, macOS native traffic-light centering (`title_bar_window_options_with_height`) and leading inset spacing, and Linux `Decorations::Client` / `Decorations::Server` + `WindowControls` integration.
+- Expand `TitleBar` and `CaptionButtons` with customizable `.height(...)`, `.title(...)`, `.title_role(...)`, `.title_font(...)`, `.title_font_family(...)`, `.title_font_size(...)`, `.leading(...)`, `.trailing(...)`, `.traffic_light_padding(...)`, `.colors(TitleBarColors)`, `.caption_colors(CaptionButtonColors)`, `.caption_button_width(...)`, `.show_caption_buttons(...)`, `.on_close(...)`, and `.platform(ChromePlatform)`, replacing hardcoded `"Segoe UI"` and `"Segoe Fluent Icons"` with Material theme typography and vector caption icons.
+- Update `FontFamilies::default()` in `gpui-material-theme` with cross-platform Latin and CJK fallbacks (`SF Pro Text`, `Segoe UI`, `Noto Sans`, `PingFang SC`, `Microsoft YaHei UI`, `Noto Sans CJK SC`) and enable `cargo gallery --window-chrome` on all desktop targets.
+
 ### Inputs
 
 - Add `TextFieldObfuscationMode` (`Hidden`, `Visible`) and `TextField::obfuscation_mode(...)` for `TextField::secure` visibility toggles, re-export `TextFieldMaskPattern` through the `inputs` feature facade, and add Gallery examples and tests covering password visibility toggling, structured mask patterns, and pre-commit validation.

@@ -73,7 +73,7 @@ CI 和日常开发用包级命令隔离主题、组件及 Gallery。依据构建
 | 绘制与动效 | foundation 复用 GPUI 的填充网格，为凸、凹多边形统一提供精确的路径/矩形/圆盘裁剪、EvenOdd 外部背景遮罩与形状感知命中检测。非矩形多边形表面以三层半透明填充近似同形阴影。foundation 统一提供键值化弹簧/补间通道（`animate` / `animate_with_status`）、实体可重定向过渡（`RetargetTransition`）、连续循环时钟（`LoopClock`）与边界可见性判定（`is_bounds_visible`）：动画中断保留弹簧速度，反向补间按进度比例缩短时长，减少动效立即落位，屏外/被裁剪/非活动/隐藏组件自动暂停且不请求空转帧。 |
 | 浮层与滚动 | Base Popover 和 Dialog 持有放置、遮罩和焦点范围。组合层映射逻辑对齐，管理开关、回焦与拖动取消。独占内层滚动可通过 GPUI 命中遮蔽实现。值标签订阅 Base SliderState。 |
 | 主题和日期 | 应用色彩过渡遵循目标 Slow Effects 动效规格，通过帧回调投影到 Base 全局主题且不干扰带局部覆盖的窗口。窗口和子树主题为 Material 及其 Base 控件提供完整的局部样式（包括多行编辑器滚动条与延迟退出浮层），独立 Base 控件也可使用 `current_base_theme`。日期边界和禁用行为复用 Base Calendar。 |
-| Windows 标题栏 | extras 中的可选适配负责布局、按钮绘制和无障碍控件。GPUI 和 Windows 负责命中测试、窗口移动、缩放和贴靠布局。窗口选项与关闭策略由应用管理。 |
+| 跨平台窗口标题栏 | extras 中的可选 `window-chrome` 适配负责跨平台标题栏布局、主题排版、矢量控制图标、macOS 交通灯留白、Linux CSD/SSD 控件路由与无障碍控件。GPUI 与宿主窗口系统负责原生命中测试、窗口移动、缩放、贴靠布局及交通灯绘制。窗口选项与关闭策略由应用管理。 |
 
 `Icon::new(IconName::Favorite)` 通过 GPUI 绘制内嵌的官方 Material Symbols SVG；`.filled(true)` 选择官方填充版本。具名图标继承控件图标槽的文字尺寸和前景色，使尺寸变体、禁用颜色和颜色动画保持一致。图标槽外使用 `.size(px(24.))` 明确尺寸，`.color(ColorRole::Primary)` 可显式覆盖颜色。图标默认仅作装饰，只有设置 `.label(id, name)` 才暴露独立图像语义；纯图标按钮仍由按钮提供无障碍名称。方向图标通过 `.mirror_in_rtl(true)` 显式启用 RTL 镜像，并可与 `.rotate(...)` 组合。原有 `Icon::svg` 和 `Icon::custom` 保留 24dp/OnSurfaceVariant 默认值。内嵌图标不需要应用注册资源，也不依赖字体。[资源清单](../crates/components/assets/material-symbols/manifest.toml) 固定未经修改的上游文件和哈希，并随附[许可证](../crates/components/assets/material-symbols/LICENSE)。内置组件图标不使用字符占位或自绘静态路径，选择控件的动态几何仍由所属组件负责。
 

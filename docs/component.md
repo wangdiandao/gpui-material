@@ -432,15 +432,21 @@ Enable optional component families on the `gpui-material` dependency. Each famil
 | `date-time` | `DatePicker`, `TimePicker`, `TimePickerDialog`, `VibrantTimePickerDialog`, `TimePickerPanel`, `TimeScroll`, `ScrollField` | Single dates and date ranges in Docked, Modal, Modal Input, or responsive FullScreen pickers, with standalone panel and dialog composition. Dial, text input, and wrapping scroll time pickers with 12- and 24-hour formats. Standalone scrolling selection. | [Date pickers](https://m3.material.io/components/date-pickers/overview) · [Time pickers](https://m3.material.io/components/time-pickers/overview) |
 | `carousel` | `Carousel`, `CarouselParallax` | Multi-browse, Uncontained, Uncontained Multi-aspect Ratio, Hero, Centered Hero, and Full-screen. Standalone scroll parallax for arbitrary GPUI content. | [Carousel](https://m3.material.io/components/carousel/overview) |
 
-<a id="windows-窗口标题栏"></a>
+<a id="跨平台窗口标题栏"></a>
 
-### Windows window chrome
+### Window chrome
 
-Enable the optional `windows-chrome` feature and import `TitleBar`, `CaptionButtons`, and `title_bar_window_options` from `gpui_material::windows_chrome` on Windows.
+Enable the optional `window-chrome` feature and import `TitleBar`, `CaptionButtons`, `ChromePlatform`, `TitleBarColors`, `CaptionButtonColors`, `title_bar_window_options`, and `title_bar_window_options_with_height` from `gpui_material::window_chrome` across Windows, macOS, and Linux.
 
-Pass `title_bar_window_options(options)` to `MaterialRoot::open_window` to let GPUI render into the title-bar area. The helper preserves the supplied window title, bounds, minimum size, and capability flags. Render `TitleBar::new(id)` at the top of the window view. It reads the current window title and includes a drag region and caption buttons. Use `.content(element)` for an interactive control or a group of controls that receive normal pointer and keyboard input.
+Pass `title_bar_window_options(options)` (or `title_bar_window_options_with_height(options, height)`) to `MaterialRoot::open_window` so GPUI renders into the title-bar area. The helper preserves the supplied window title, bounds, minimum size, and capability flags. On Windows and macOS it enables `appears_transparent`; on macOS it also computes a vertically centered default `traffic_light_position` when unset; on Linux it requests `WindowDecorations::Client` when `window_decorations` is unset.
 
-Use `CaptionButtons::new(id)` to place the buttons in a custom layout for a window opened with the same helper. Minimize and maximize follow the window options. The maximize button switches to Restore when the window is maximized. Fullscreen hides the caption buttons. The buttons use the Windows caption glyphs and expose names and actions to keyboard and accessibility users. Pointer actions delegate to GPUI's native window controls, including Windows Snap Layouts. Closing uses the window's GPUI close handler, so the application can reject a close request with `Window::on_window_should_close`. [Windows title bar guidance](https://learn.microsoft.com/en-us/windows/apps/design/basics/titlebar-design)
+Render `TitleBar::new(id)` at the top of the window view. By default it uses a 48 logical-pixel height, follows the window Material theme's typography (`TypeRole::TitleSmall` and resolved theme font families), reads the live window title, and includes a drag region and platform-appropriate chrome:
+
+- **Windows**: Draws crisp vector minimize, maximize/restore, and close caption buttons wired to GPUI's native `WindowControlArea` hit testing (including Windows Snap Layouts) and Win32 close/restore routing so `Window::on_window_should_close` is honored.
+- **macOS**: Reserves a configurable leading inset (default 78 logical pixels, omitted in fullscreen) for the native traffic light buttons, hides custom caption buttons by default, and delegates drag and title-bar double-click to GPUI's native window hooks.
+- **Linux**: Respects `Window::window_decorations()` (`Decorations::Client` vs `Decorations::Server`), `Window::window_controls()`, and `Window::client_inset()`, renders pointer- and keyboard-activatable vector caption buttons under client-side decorations, starts drags with `Window::start_window_move()`, and opens the window menu on secondary click when supported.
+
+Customize `TitleBar` with `.height(px(...))`, `.title(text)`, `.title_role(TypeRole)`, `.title_font(Font)`, `.title_font_family(name)`, `.title_font_size(px(...))`, `.leading(element)`, `.content(element)`, `.trailing(element)`, `.traffic_light_padding(px(...))`, `.colors(TitleBarColors)`, `.caption_colors(CaptionButtonColors)`, `.caption_button_width(px(...))`, `.show_caption_buttons(bool)`, `.on_close(handler)`, and `.platform(ChromePlatform)`. Use `CaptionButtons::new(id)` directly to place vector window control buttons in a custom layout. All caption buttons expose accessible names, keyboard activation, and `AccessibleAction::Click`. [Windows title bar guidance](https://learn.microsoft.com/en-us/windows/apps/design/basics/titlebar-design)
 
 <a id="搜索"></a>
 

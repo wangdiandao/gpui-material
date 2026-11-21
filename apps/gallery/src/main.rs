@@ -12,8 +12,7 @@ use gpui_material_story::{Gallery, Story, init_gallery};
 
 #[cfg(feature = "frame-profile")]
 mod frame_profile;
-#[cfg(windows)]
-mod windows_chrome;
+mod window_chrome;
 
 const TITLE: &str = "GPUI Material Gallery";
 
@@ -24,11 +23,7 @@ fn main() {
     let reduced_motion = arguments.iter().any(|arg| arg == "--reduce-motion");
     let dark = arguments.iter().any(|arg| arg == "--dark");
     let frame_profile = arguments.iter().any(|arg| arg == "--frame-profile");
-    let windows_chrome = arguments.iter().any(|arg| arg == "--windows-chrome");
-    if windows_chrome && !cfg!(windows) {
-        eprintln!("--windows-chrome requires Windows");
-        std::process::exit(2);
-    }
+    let window_chrome = arguments.iter().any(|arg| arg == "--window-chrome");
     if frame_profile && (two_windows || !cfg!(feature = "frame-profile")) {
         eprintln!("--frame-profile requires the frame-profile feature and a single window");
         std::process::exit(2);
@@ -56,9 +51,9 @@ fn main() {
             if reduced_motion {
                 cx.set_reduce_motion(true);
             }
-            let result = open_gallery(cx, false, initial_story, windows_chrome).and_then(|_| {
+            let result = open_gallery(cx, false, initial_story, window_chrome).and_then(|_| {
                 if two_windows {
-                    open_gallery(cx, true, initial_story, windows_chrome)?;
+                    open_gallery(cx, true, initial_story, window_chrome)?;
                 }
                 Ok(())
             });
@@ -77,7 +72,7 @@ fn open_gallery(
     cx: &mut App,
     local_dark: bool,
     initial_story: Story,
-    windows_chrome: bool,
+    window_chrome: bool,
 ) -> gpui::Result<WindowHandle<Root>> {
     let options = WindowOptions {
         titlebar: Some(TitlebarOptions {
@@ -100,17 +95,12 @@ fn open_gallery(
         }
         cx.new(|cx| Gallery::new(initial_story, window, cx).with_window_theme_toggle(local_dark))
     };
-    if windows_chrome {
-        #[cfg(windows)]
-        {
-            let options = gpui_material::windows_chrome::title_bar_window_options(options);
-            return MaterialRoot::open_window(options, cx, |window, cx| {
-                let gallery = build_gallery(window, cx);
-                cx.new(|cx| windows_chrome::ChromePreview::new(gallery, window, cx))
-            });
-        }
-        #[cfg(not(windows))]
-        unreachable!("custom title bars are only available on Windows");
+    if window_chrome {
+        let options = gpui_material::window_chrome::title_bar_window_options(options);
+        return MaterialRoot::open_window(options, cx, |window, cx| {
+            let gallery = build_gallery(window, cx);
+            cx.new(|cx| window_chrome::ChromePreview::new(gallery, window, cx))
+        });
     }
     MaterialRoot::open_window(options, cx, build_gallery)
 }

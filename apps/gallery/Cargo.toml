@@ -16,7 +16,7 @@ required-features = ["desktop"]
 
 [features]
 default = ["desktop"]
-desktop = ["dep:gpui_platform", "gpui-material/windows-chrome"]
+desktop = ["dep:gpui_platform", "gpui-material/window-chrome"]
 frame-profile = ["desktop", "gpui/profiler"]
 test-support = ["gpui/test-support", "gpui-base/test-support", "gpui_platform?/test-support"]
 

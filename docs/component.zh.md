@@ -432,15 +432,21 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `date-time` | `DatePicker`、`TimePicker`、`TimePickerDialog`、`VibrantTimePickerDialog`、`TimePickerPanel`、`TimeScroll`、`ScrollField` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input 和自适应 FullScreen。可组合独立面板或对话框。时间选择支持表盘、文本输入、循环滚动和 12、24 小时制。支持独立的滚动选择字段。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
 | `carousel` | `Carousel`、`CarouselParallax` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。 任意 GPUI 内容可使用独立滚动视差效果。 | [轮播](https://m3.material.io/components/carousel/overview) |
 
-<a id="windows-window-chrome"></a>
+<a id="window-chrome"></a>
 
-### Windows 窗口标题栏
+### 跨平台窗口标题栏
 
-启用可选特性 `windows-chrome` 后，在 Windows 上从 `gpui_material::windows_chrome` 导入 `TitleBar`、`CaptionButtons` 和 `title_bar_window_options`。
+启用可选特性 `window-chrome` 后，可在 Windows、macOS 和 Linux 上从 `gpui_material::window_chrome` 导入 `TitleBar`、`CaptionButtons`、`ChromePlatform`、`TitleBarColors`、`CaptionButtonColors`、`title_bar_window_options` 和 `title_bar_window_options_with_height`。
 
-把 `title_bar_window_options(options)` 的结果传给 `MaterialRoot::open_window`，让 GPUI 在标题栏区域内绘制。该函数保留传入的窗口标题、边界、最小尺寸和能力选项。在窗口视图顶部渲染 `TitleBar::new(id)`，即可显示当前窗口标题、拖动区和窗口控制按钮。用 `.content(element)` 放入一个交互控件或一组控件，它们会正常接收指针和键盘输入。
+把 `title_bar_window_options(options)`（或 `title_bar_window_options_with_height(options, height)`）的结果传给 `MaterialRoot::open_window`，让 GPUI 在标题栏区域内绘制。该函数保留传入的窗口标题、边界、最小尺寸和能力选项：在 Windows 和 macOS 上启用 `appears_transparent`；在 macOS 上当未指定 `traffic_light_position` 时按标题栏高度自动垂直居中计算交通灯位置；在 Linux 上当未指定 `window_decorations` 时请求 `WindowDecorations::Client`。
 
-通过同一个函数配置窗口后，可以用 `CaptionButtons::new(id)` 把窗口控制按钮放入自定义布局。最小化和最大化遵循窗口选项，最大化后按钮切换为还原，全屏时隐藏该组按钮。按钮使用 Windows 标题栏字形，并提供名称、键盘操作和无障碍操作。指针操作由 GPUI 的原生窗口控制路径处理，包括 Windows 贴靠布局。关闭请求经过 GPUI 窗口关闭处理，应用可通过 `Window::on_window_should_close` 拒绝关闭。 [Windows 标题栏指南](https://learn.microsoft.com/en-us/windows/apps/design/basics/titlebar-design)
+在窗口视图顶部渲染 `TitleBar::new(id)`。默认高度为 48 逻辑像素，沿用当前窗口 Material 主题排版（`TypeRole::TitleSmall` 及已解析的主题字体族），自动读取实时窗口标题，并提供拖动区与适配各平台的窗口装饰：
+
+- **Windows**：绘制跨平台矢量最小化、最大化/还原和关闭按钮，对接 GPUI 原生 `WindowControlArea` 命中测试（含 Windows 贴靠布局）与 Win32 关闭/还原路由，完整尊重 `Window::on_window_should_close`。
+- **macOS**：非全屏时在起始侧预留可配置的交通灯留白（默认 78 逻辑像素，全屏时自动收起），默认隐藏自定义控制按钮，并将拖动与标题栏双击交由 GPUI 原生窗口钩子处理。
+- **Linux**：尊重 `Window::window_decorations()`（`Decorations::Client` 与 `Decorations::Server`）、`Window::window_controls()` 及 `Window::client_inset()`；在客户端装饰模式下渲染支持指针与键盘激活的矢量控制按钮，通过 `Window::start_window_move()` 启动拖动，并在支持时右键呼出窗口菜单。
+
+可通过 `.height(px(...))`、`.title(text)`、`.title_role(TypeRole)`、`.title_font(Font)`、`.title_font_family(name)`、`.title_font_size(px(...))`、`.leading(element)`、`.content(element)`、`.trailing(element)`、`.traffic_light_padding(px(...))`、`.colors(TitleBarColors)`、`.caption_colors(CaptionButtonColors)`、`.caption_button_width(px(...))`、`.show_caption_buttons(bool)`、`.on_close(handler)` 和 `.platform(ChromePlatform)` 自定义 `TitleBar`。也可直接使用 `CaptionButtons::new(id)` 将矢量窗口控制按钮放入自定义布局。所有控制按钮均提供无障碍名称、键盘激活与 `AccessibleAction::Click`。 [Windows 标题栏指南](https://learn.microsoft.com/en-us/windows/apps/design/basics/titlebar-design)
 
 <a id="search"></a>
 

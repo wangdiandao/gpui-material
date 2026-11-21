@@ -33,5 +33,5 @@ pub use toolbar::{
     ToolbarPadding, ToolbarPlacement, ToolbarScrollBehavior, ToolbarScrollState,
 };
 
-#[cfg(all(windows, feature = "windows-chrome"))]
-pub mod windows_chrome;
+#[cfg(feature = "window-chrome")]
+pub mod window_chrome;

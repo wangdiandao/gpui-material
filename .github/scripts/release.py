@@ -423,10 +423,7 @@ pub fn smoke_all_features() {
     let _ = std::any::TypeId::of::<gpui_material::SearchBar>();
     let _ = std::any::TypeId::of::<gpui_material::Toolbar>();
     let _ = std::any::TypeId::of::<gpui_material::date_time::DatePicker>();
-    #[cfg(windows)]
-    {
-        let _ = std::any::TypeId::of::<gpui_material::windows_chrome::TitleBar>();
-    }
+    let _ = std::any::TypeId::of::<gpui_material::window_chrome::TitleBar>();
 }
 """,
             encoding="utf-8",

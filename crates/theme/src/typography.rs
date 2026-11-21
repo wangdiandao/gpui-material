@@ -22,9 +22,16 @@ impl Default for FontFamilies {
     fn default() -> Self {
         Self {
             primary: "Roboto".into(),
-            fallback: ["Segoe UI", "Microsoft YaHei UI", "Noto Sans CJK SC"]
-                .map(str::to_owned)
-                .into(),
+            fallback: [
+                "SF Pro Text",
+                "Segoe UI",
+                "Noto Sans",
+                "PingFang SC",
+                "Microsoft YaHei UI",
+                "Noto Sans CJK SC",
+            ]
+            .map(str::to_owned)
+            .into(),
         }
     }
 }

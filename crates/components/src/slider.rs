@@ -66,6 +66,7 @@ struct ThumbOptions {
     content: Option<AnyElement>,
     focus: Option<FocusHandle>,
     source: Option<Entity<InteractionSource>>,
+    source_key: Option<ElementId>,
 }
 
 fn thumb_index(which: RangeThumb) -> usize {
@@ -240,7 +241,22 @@ impl Slider {
         which: RangeThumb,
         source: &Entity<InteractionSource>,
     ) -> Self {
-        self.thumbs[thumb_index(which)].source = Some(source.clone());
+        let entry = &mut self.thumbs[thumb_index(which)];
+        entry.source = Some(source.clone());
+        entry.source_key = None;
+        self
+    }
+
+    #[cfg(feature = "surfaces")]
+    pub(crate) fn interaction_source_with_id(
+        mut self,
+        which: RangeThumb,
+        id: ElementId,
+        source: &Entity<InteractionSource>,
+    ) -> Self {
+        let entry = &mut self.thumbs[thumb_index(which)];
+        entry.source = Some(source.clone());
+        entry.source_key = Some(id);
         self
     }
 

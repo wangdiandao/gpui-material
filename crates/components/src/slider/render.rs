@@ -277,7 +277,15 @@ fn sync_gesture_feedback(
             .as_ref()
             .filter(|_| range || which == RangeThumb::End)
             .map(|source| {
-                InteractionSource::track(source, &thumb_id(&slider.id, which), window, cx)
+                let default_key;
+                let key = match &slider.thumbs[index].source_key {
+                    Some(id) => id,
+                    None => {
+                        default_key = thumb_id(&slider.id, which);
+                        &default_key
+                    }
+                };
+                InteractionSource::track(source, key, window, cx)
             });
         if slider.disabled || !window.is_window_active() || !range && which == RangeThumb::Start {
             feedback.hovered = false;

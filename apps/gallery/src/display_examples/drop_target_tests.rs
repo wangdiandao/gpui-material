@@ -409,3 +409,84 @@ fn drop_target_handles_files_typed_payloads_validation_activation_and_disabled(
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn disabled_drop_target_with_activation_keeps_disabled_button_role_and_tracks_focus(
+    cx: &mut TestAppContext,
+) {
+    use gpui::{FocusHandle, size};
+    use gpui_material::InteractionSource;
+
+    struct Example {
+        focus: FocusHandle,
+        source: gpui::Entity<InteractionSource>,
+    }
+
+    impl Render for Example {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div()
+                .p_4()
+                .child(
+                    DropTarget::files("enabled-tracked")
+                        .title("Enabled tracked drop")
+                        .track_focus(&self.focus)
+                        .interaction_source(&self.source)
+                        .on_activate(|_, _| {}),
+                )
+                .child(
+                    DropTarget::files("disabled-button-drop")
+                        .title("Disabled drop")
+                        .disabled(true)
+                        .on_activate(|_, _| {}),
+                )
+        }
+    }
+
+    let mut entity = None;
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+            let source = cx.new(|_| InteractionSource::default());
+            let focus = cx.focus_handle();
+            let e = cx.new(|_| Example { focus, source });
+            entity = Some(e.clone());
+            e
+        })
+        .unwrap()
+    });
+    let view = entity.unwrap();
+    cx.simulate_window_resize(handle.into(), size(px(400.), px(320.)));
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.activate_window();
+        window.refresh();
+        window.draw(cx).clear(cx);
+
+        let disabled_act = find(
+            window,
+            &[],
+            &(ElementId::from("disabled-button-drop"), "activate").into(),
+        )
+        .unwrap();
+        assert_eq!(disabled_act.role(), Some(Role::Button));
+        assert_eq!(disabled_act.disabled(), Some(true));
+
+        view.read(cx).focus.clone().focus(window, cx);
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let tracked = find(
+            window,
+            &[],
+            &(ElementId::from("enabled-tracked"), "activate").into(),
+        )
+        .unwrap();
+        assert_eq!(tracked.focused(), Some(true));
+        let wid = window.window_handle().window_id();
+        let state = view
+            .read(cx)
+            .source
+            .read(cx)
+            .state(wid, &"enabled-tracked".into());
+        assert!(state.is_some());
+    })
+    .unwrap();
+}

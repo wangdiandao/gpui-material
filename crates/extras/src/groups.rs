@@ -6,7 +6,7 @@ use gpui::{
 };
 use gpui_material_components::{
     ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShape, ButtonShapes,
-    ButtonVariant, ControlSize, IconButtonWidth,
+    ButtonVariant, ControlSize, IconButtonWidth, SemanticTone,
     button_composition::{ButtonPart, Segment},
 };
 use gpui_material_foundation::InteractionSource;
@@ -140,6 +140,7 @@ pub struct ButtonGroupItem {
     content: ItemContent,
     overflow_content: Option<Decoration>,
     appearance: Option<ButtonVariant>,
+    tone: Option<SemanticTone>,
     icon_width: IconButtonWidth,
     style: ButtonGroupItemStyle,
     weight: f32,
@@ -171,6 +172,7 @@ impl ButtonGroupItem {
             content: ItemContent::Label,
             overflow_content: None,
             appearance: None,
+            tone: None,
             icon_width: IconButtonWidth::Uniform,
             style: ButtonGroupItemStyle::default(),
             weight: 0.,
@@ -246,6 +248,12 @@ impl ButtonGroupItem {
         self
     }
 
+    /// Overrides the semantic tone for this member (both inline and in the overflow menu).
+    pub fn tone(mut self, tone: SemanticTone) -> Self {
+        self.tone = Some(tone);
+        self
+    }
+
     pub fn style(mut self, style: ButtonGroupItemStyle) -> Self {
         self.style = style;
         self
@@ -288,6 +296,7 @@ pub struct ButtonGroup {
     items: Vec<ButtonGroupItem>,
     variant: ButtonGroupVariant,
     appearance: ButtonVariant,
+    tone: SemanticTone,
     size: ControlSize,
     selection: ButtonGroupSelection,
     selected: Vec<SharedString>,
@@ -317,6 +326,7 @@ impl ButtonGroup {
             items: items.into_iter().collect(),
             variant: ButtonGroupVariant::default(),
             appearance: ButtonVariant::default(),
+            tone: SemanticTone::Default,
             size: ControlSize::default(),
             selection: ButtonGroupSelection::default(),
             selected: Vec::new(),
@@ -351,6 +361,12 @@ impl ButtonGroup {
 
     pub fn appearance(mut self, appearance: ButtonVariant) -> Self {
         self.appearance = appearance;
+        self
+    }
+
+    /// Applies a default semantic tone across members and overflow menu items unless overridden per item.
+    pub fn tone(mut self, tone: SemanticTone) -> Self {
+        self.tone = tone;
         self
     }
 

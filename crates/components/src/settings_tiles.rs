@@ -2,7 +2,11 @@
 mod switch_tile {
     use std::rc::Rc;
 
-    use gpui::{AnyElement, App, ElementId, IntoElement, RenderOnce, Role, SharedString, Window};
+    use gpui::{
+        AnyElement, App, ElementId, Entity, FocusHandle, IntoElement, RenderOnce, Role,
+        SharedString, Window,
+    };
+    use gpui_material_foundation::InteractionSource;
     use gpui_material_theme::CornerRole;
 
     use crate::{
@@ -25,6 +29,8 @@ mod switch_tile {
         variant: ListVariant,
         colors: ListItemColors,
         switch_colors: SwitchColors,
+        focus: Option<FocusHandle>,
+        source: Option<Entity<InteractionSource>>,
         on_change: Option<Change>,
     }
 
@@ -45,6 +51,8 @@ mod switch_tile {
                 variant: ListVariant::default(),
                 colors: ListItemColors::default(),
                 switch_colors: SwitchColors::default(),
+                focus: None,
+                source: None,
                 on_change: None,
             }
         }
@@ -84,6 +92,16 @@ mod switch_tile {
             self
         }
 
+        pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
+            self.focus = Some(focus.clone());
+            self
+        }
+
+        pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
+            self.source = Some(source.clone());
+            self
+        }
+
         pub fn on_change(
             mut self,
             handler: impl Fn(bool, &mut Window, &mut App) + 'static,
@@ -119,6 +137,12 @@ mod switch_tile {
             if let Some(leading) = self.leading {
                 item = item.leading(leading);
             }
+            if let Some(focus) = self.focus {
+                item = item.track_focus(&focus, true);
+            }
+            if let Some(source) = self.source {
+                item = item.interaction_source(&source);
+            }
             if let Some(on_change) = self.on_change {
                 item = item.on_checked_change(move |next, window, cx| on_change(next, window, cx));
             }
@@ -150,9 +174,10 @@ mod checkbox_tile {
     use std::rc::Rc;
 
     use gpui::{
-        AnyElement, App, ElementId, IntoElement, RenderOnce, Role, SharedString, Window,
-        accesskit::Toggled,
+        AnyElement, App, ElementId, Entity, FocusHandle, IntoElement, RenderOnce, Role,
+        SharedString, Window, accesskit::Toggled,
     };
+    use gpui_material_foundation::InteractionSource;
     use gpui_material_theme::CornerRole;
 
     use crate::{
@@ -174,12 +199,15 @@ mod checkbox_tile {
         supporting: Option<SharedString>,
         overline: Option<SharedString>,
         leading: Option<AnyElement>,
+        trailing: Option<AnyElement>,
         trailing_checkbox: bool,
         error: bool,
         disabled: bool,
         variant: ListVariant,
         colors: ListItemColors,
         checkbox_colors: CheckboxColors,
+        focus: Option<FocusHandle>,
+        source: Option<Entity<InteractionSource>>,
         on_change: Option<CheckboxTileChange>,
     }
 
@@ -196,12 +224,15 @@ mod checkbox_tile {
                 supporting: None,
                 overline: None,
                 leading: None,
+                trailing: None,
                 trailing_checkbox: true,
                 error: false,
                 disabled: false,
                 variant: ListVariant::default(),
                 colors: ListItemColors::default(),
                 checkbox_colors: CheckboxColors::default(),
+                focus: None,
+                source: None,
                 on_change: None,
             }
         }
@@ -238,6 +269,13 @@ mod checkbox_tile {
             self
         }
 
+        /// Trailing decorative content used when `.trailing_checkbox(false)` places the checkbox
+        /// in the leading slot.
+        pub fn trailing(mut self, trailing: impl IntoElement) -> Self {
+            self.trailing = Some(trailing.into_any_element());
+            self
+        }
+
         /// Places the decorative checkbox in the trailing slot (`true`, default) or leading slot (`false`).
         pub fn trailing_checkbox(mut self, trailing: bool) -> Self {
             self.trailing_checkbox = trailing;
@@ -266,6 +304,16 @@ mod checkbox_tile {
 
         pub fn checkbox_colors(mut self, colors: CheckboxColors) -> Self {
             self.checkbox_colors = colors;
+            self
+        }
+
+        pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
+            self.focus = Some(focus.clone());
+            self
+        }
+
+        pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
+            self.source = Some(source.clone());
             self
         }
 
@@ -309,6 +357,9 @@ mod checkbox_tile {
                 }
             } else {
                 item = item.leading(checkbox);
+                if let Some(trailing) = self.trailing {
+                    item = item.trailing(trailing);
+                }
             }
 
             if let Some(supporting) = self.supporting {
@@ -316,6 +367,12 @@ mod checkbox_tile {
             }
             if let Some(overline) = self.overline {
                 item = item.overline(overline);
+            }
+            if let Some(focus) = self.focus {
+                item = item.track_focus(&focus, true);
+            }
+            if let Some(source) = self.source {
+                item = item.interaction_source(&source);
             }
             if let Some(on_change) = self.on_change {
                 let next = if self.state == CheckboxState::Checked {
@@ -353,9 +410,10 @@ mod radio_tile {
     use std::rc::Rc;
 
     use gpui::{
-        AnyElement, App, ElementId, IntoElement, RenderOnce, Role, SharedString, Window,
-        accesskit::Toggled,
+        AnyElement, App, ElementId, Entity, FocusHandle, IntoElement, RenderOnce, Role,
+        SharedString, Window, accesskit::Toggled,
     };
+    use gpui_material_foundation::InteractionSource;
     use gpui_material_theme::CornerRole;
 
     use crate::{
@@ -374,11 +432,14 @@ mod radio_tile {
         supporting: Option<SharedString>,
         overline: Option<SharedString>,
         leading: Option<AnyElement>,
+        trailing: Option<AnyElement>,
         trailing_radio: bool,
         disabled: bool,
         variant: ListVariant,
         colors: ListItemColors,
         radio_colors: RadioColors,
+        focus: Option<FocusHandle>,
+        source: Option<Entity<InteractionSource>>,
         on_select: Option<Activate>,
     }
 
@@ -395,11 +456,14 @@ mod radio_tile {
                 supporting: None,
                 overline: None,
                 leading: None,
+                trailing: None,
                 trailing_radio: true,
                 disabled: false,
                 variant: ListVariant::default(),
                 colors: ListItemColors::default(),
                 radio_colors: RadioColors::default(),
+                focus: None,
+                source: None,
                 on_select: None,
             }
         }
@@ -416,6 +480,13 @@ mod radio_tile {
 
         pub fn leading(mut self, leading: impl IntoElement) -> Self {
             self.leading = Some(leading.into_any_element());
+            self
+        }
+
+        /// Trailing decorative content used when `.trailing_radio(false)` places the radio
+        /// in the leading slot.
+        pub fn trailing(mut self, trailing: impl IntoElement) -> Self {
+            self.trailing = Some(trailing.into_any_element());
             self
         }
 
@@ -442,6 +513,16 @@ mod radio_tile {
 
         pub fn radio_colors(mut self, colors: RadioColors) -> Self {
             self.radio_colors = colors;
+            self
+        }
+
+        pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
+            self.focus = Some(focus.clone());
+            self
+        }
+
+        pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
+            self.source = Some(source.clone());
             self
         }
 
@@ -477,6 +558,9 @@ mod radio_tile {
                 }
             } else {
                 item = item.leading(radio);
+                if let Some(trailing) = self.trailing {
+                    item = item.trailing(trailing);
+                }
             }
 
             if let Some(supporting) = self.supporting {
@@ -484,6 +568,12 @@ mod radio_tile {
             }
             if let Some(overline) = self.overline {
                 item = item.overline(overline);
+            }
+            if let Some(focus) = self.focus {
+                item = item.track_focus(&focus, true);
+            }
+            if let Some(source) = self.source {
+                item = item.interaction_source(&source);
             }
             if let Some(on_select) = self.on_select {
                 let already_selected = self.selected;
@@ -521,15 +611,15 @@ mod slider_tile {
     use std::rc::Rc;
 
     use gpui::{
-        AnyElement, App, ElementId, Entity, IntoElement, ParentElement, RenderOnce, SharedString,
-        Styled, Window, div,
+        AnyElement, App, ElementId, Entity, FocusHandle, IntoElement, ParentElement, RenderOnce,
+        SharedString, Styled, Window, div,
     };
-    use gpui_material_foundation::{color, current_material_theme};
+    use gpui_material_foundation::{InteractionSource, color, current_material_theme};
     use gpui_material_theme::{ColorRole, CornerRole, TypeRole};
 
     use crate::{
-        ListItem, ListItemColors, ListItemShapes, ListVariant, Slider, SliderState, SliderValue,
-        Text,
+        ListItem, ListItemColors, ListItemShapes, ListVariant, RangeThumb, Slider, SliderState,
+        SliderValue, Text,
     };
 
     type FormatValue = Rc<dyn Fn(f32) -> SharedString>;
@@ -580,6 +670,8 @@ mod slider_tile {
         disabled: bool,
         variant: ListVariant,
         colors: ListItemColors,
+        focus: Option<FocusHandle>,
+        source: Option<Entity<InteractionSource>>,
         format_value: Option<FormatValue>,
         configure_slider: Option<SliderConfig>,
     }
@@ -600,6 +692,8 @@ mod slider_tile {
                 disabled: false,
                 variant: ListVariant::default(),
                 colors: ListItemColors::default(),
+                focus: None,
+                source: None,
                 format_value: None,
                 configure_slider: None,
             }
@@ -635,6 +729,18 @@ mod slider_tile {
             self
         }
 
+        /// Binds a caller-owned focus handle to the embedded slider's primary handle.
+        pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
+            self.focus = Some(focus.clone());
+            self
+        }
+
+        /// Observes the embedded slider's primary handle under the tile's ID (and `(id, "start")` for range sliders).
+        pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
+            self.source = Some(source.clone());
+            self
+        }
+
         /// Formats the live numeric value displayed on the trailing side of the header row.
         pub fn format_value(mut self, formatter: impl Fn(f32) -> SharedString + 'static) -> Self {
             self.format_value = Some(Rc::new(formatter));
@@ -660,6 +766,20 @@ mod slider_tile {
             let mut slider =
                 Slider::new((self.id.clone(), "slider"), self.label.clone(), &self.state)
                     .disabled(self.disabled);
+            if let Some(focus) = self.focus {
+                slider = slider.track_focus(RangeThumb::End, &focus);
+            }
+            if let Some(source) = self.source {
+                slider =
+                    slider.interaction_source_with_id(RangeThumb::End, self.id.clone(), &source);
+                if current.is_range() {
+                    slider = slider.interaction_source_with_id(
+                        RangeThumb::Start,
+                        (self.id.clone(), "start").into(),
+                        &source,
+                    );
+                }
+            }
             if let Some(formatter) = self.format_value {
                 slider = slider.format_value(move |value| formatter(value));
             }
@@ -719,7 +839,7 @@ mod choice_tile {
         Anchor, AnyElement, App, ElementId, Entity, FocusHandle, IntoElement, ParentElement,
         RenderOnce, SharedString, Styled, Window, div, prelude::FluentBuilder, px,
     };
-    use gpui_material_foundation::{color, current_material_theme};
+    use gpui_material_foundation::{InteractionSource, color, current_material_theme};
     use gpui_material_theme::{ColorRole, CornerRole, CornerShape, Direction, TypeRole};
 
     use crate::{
@@ -782,6 +902,8 @@ mod choice_tile {
         disabled: bool,
         variant: ListVariant,
         colors: ListItemColors,
+        focus: Option<FocusHandle>,
+        source: Option<Entity<InteractionSource>>,
         menu_state: Option<Entity<DialogState>>,
         on_select: Option<SelectChoice>,
     }
@@ -805,6 +927,8 @@ mod choice_tile {
                 disabled: false,
                 variant: ListVariant::default(),
                 colors: ListItemColors::default(),
+                focus: None,
+                source: None,
                 menu_state: None,
                 on_select: None,
             }
@@ -845,6 +969,16 @@ mod choice_tile {
             self
         }
 
+        pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
+            self.focus = Some(focus.clone());
+            self
+        }
+
+        pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
+            self.source = Some(source.clone());
+            self
+        }
+
         /// Supplies an external `Entity<DialogState>` to observe or control popup menu visibility.
         pub fn menu_state(mut self, state: &Entity<DialogState>) -> Self {
             self.menu_state = Some(state.clone());
@@ -862,6 +996,10 @@ mod choice_tile {
 
         pub(super) fn id(&self) -> &ElementId {
             &self.id
+        }
+
+        pub(super) fn custom_focus(&self) -> Option<FocusHandle> {
+            self.focus.clone()
         }
 
         pub(super) fn takes_focus(&self) -> bool {
@@ -891,6 +1029,7 @@ mod choice_tile {
                 .map(|option| option.label.clone())
                 .or(self.placeholder)
                 .unwrap_or_default();
+            let value_description = (!current_text.is_empty()).then(|| current_text.clone());
 
             let trailing = div()
                 .flex()
@@ -913,6 +1052,7 @@ mod choice_tile {
                 ..Default::default()
             };
 
+            let source = self.source;
             let build_row = move |id: ElementId,
                                   label: SharedString,
                                   supporting: Option<SharedString>,
@@ -925,6 +1065,9 @@ mod choice_tile {
                     .colors(colors)
                     .shapes(shapes)
                     .trailing(trailing);
+                if let Some(description) = value_description {
+                    item = item.aria_description(description);
+                }
                 if let Some(supporting) = supporting {
                     item = item.supporting_text(supporting);
                 }
@@ -933,6 +1076,9 @@ mod choice_tile {
                 }
                 if let Some(leading) = leading {
                     item = item.leading(leading);
+                }
+                if let Some(source) = source {
+                    item = item.interaction_source(&source);
                 }
                 item
             };
@@ -957,15 +1103,17 @@ mod choice_tile {
             });
             let open = state.read(cx).is_open();
             let view = window.current_view();
-            let (trigger_focus, tab_stop) = focus.unwrap_or_else(|| {
-                let handle = window
-                    .use_keyed_state((self.id.clone(), "choice-tile-focus"), cx, |_, cx| {
-                        cx.focus_handle()
-                    })
-                    .read(cx)
-                    .clone();
-                (handle, true)
-            });
+            let (trigger_focus, tab_stop) = focus
+                .or_else(|| self.focus.map(|handle| (handle, true)))
+                .unwrap_or_else(|| {
+                    let handle = window
+                        .use_keyed_state((self.id.clone(), "choice-tile-focus"), cx, |_, cx| {
+                            cx.focus_handle()
+                        })
+                        .read(cx)
+                        .clone();
+                    (handle, true)
+                });
 
             let tile_id = self.id.clone();
             let selected_id = self.selected;
@@ -1155,6 +1303,14 @@ mod list_section {
             }
         }
 
+        fn custom_focus(&self) -> Option<FocusHandle> {
+            match self {
+                Self::Row(row) => row.custom_focus(),
+                #[cfg(feature = "feedback")]
+                Self::Choice(tile) => tile.custom_focus(),
+            }
+        }
+
         fn takes_focus(&self, cx: &App) -> bool {
             match self {
                 Self::Row(row) => row.takes_focus(cx),
@@ -1271,12 +1427,14 @@ mod list_section {
                 let focus: Vec<_> = prepared
                     .iter()
                     .map(|item| {
-                        window
-                            .use_keyed_state((item.id().clone(), "focus"), cx, |_, cx| {
-                                cx.focus_handle()
-                            })
-                            .read(cx)
-                            .clone()
+                        item.custom_focus().unwrap_or_else(|| {
+                            window
+                                .use_keyed_state((item.id().clone(), "focus"), cx, |_, cx| {
+                                    cx.focus_handle()
+                                })
+                                .read(cx)
+                                .clone()
+                        })
                     })
                     .collect();
                 let enabled: Vec<_> = prepared.iter().map(|item| item.takes_focus(cx)).collect();

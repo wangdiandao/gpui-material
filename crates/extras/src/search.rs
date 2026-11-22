@@ -276,6 +276,11 @@ impl SearchState {
         self.input.read(cx).focus_handle(cx)
     }
 
+    /// Returns the retained default focus handle of the search trigger.
+    pub fn trigger_focus(&self) -> &FocusHandle {
+        &self.trigger
+    }
+
     /// Opens the view and focuses its editor immediately.
     pub fn open(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.snap_to(1., window, cx);

@@ -97,7 +97,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 | 组件 | 支持的变体与行为 | Material 3 |
 | --- | --- | --- |
-| `Text`、`Icon` | 主题排版（提供全部 15 个 Material 字阶快捷构造器 `display_large`–`label_small` 及 `.muted()`）、可替换图标和随库提供的 Material Symbols。 | [排版](https://m3.material.io/styles/typography/overview) · [图标](https://m3.material.io/styles/icons/overview) |
+| `Text`、`Icon` | 主题排版（提供全部 15 个 Material 字阶快捷构造器 `display_large`–`label_small`、`.muted()`、`.align(TextAlign)`、`.max_lines(usize)` 与 `.color_override(Hsla)`）、可替换图标（支持 `.inherit_color()`、`.color_override(Hsla)`）和随库提供的 Material Symbols。 | [排版](https://m3.material.io/styles/typography/overview) · [图标](https://m3.material.io/styles/icons/overview) |
 | `Surface` | 支持静态、可点击、可选及可勾选表面，提供主题内容颜色与层级。 | [层级](https://m3.material.io/styles/elevation/overview) |
 | `Card` | Elevated、Filled、Outlined，支持静态或可操作的卡片及独立外观配置。 | [卡片](https://m3.material.io/components/cards/specs) |
 | `List`、`ListItem`、`ListSection`、`SwitchTile`、`CheckboxTile`、`RadioTile`、`SliderTile`、`ChoiceTile` | Standard 和 Segmented 列表及带标题的列表分组，支持自定义插槽、受控行操作、各状态外观，以及开关、复选框、单选框、滑块与锚定选项菜单等设置项快捷行。 | [列表](https://m3.material.io/components/lists/overview) |
@@ -125,41 +125,41 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ### 卡片
 
-通过 `Card::new(id).variant(CardVariant::Elevated)`、`Filled` 或 `Outlined`（或变体快捷构造器 `Card::elevated(id)`、`Card::filled(id)` 和 `Card::outlined(id)`）选择当前 Material 变体。静态卡片将内容分组，不占用键盘焦点。使用 `.on_activate(name, callback)` 可添加有名称的卡片操作及键盘焦点，子控件仍各自处理操作。`.disabled(true)` 禁用卡片操作，并为卡片和继承内容提供禁用颜色。
+通过 `Card::new(id).variant(CardVariant::Elevated)`、`Filled` 或 `Outlined`（或变体快捷构造器 `Card::elevated(id)`、`Card::filled(id)` 和 `Card::outlined(id)`）选择当前 Material 变体。静态卡片将内容分组（`Role::Group`）而不占用键盘焦点，支持通过 `.accessible_label(label)` 命名该分组。使用 `.on_activate(name, callback)` 可添加有名称的卡片操作及键盘焦点，子控件仍各自处理操作。`.disabled(true)` 禁用卡片操作，并为卡片和继承内容提供禁用颜色。
 
-使用 `.shape(CornerShape)` 设置容器、描边、阴影和交互反馈的形状，圆角随窗口书写方向调整。通过 `.border(CardBorder { width, color })` 自定义描边，宽度为零时移除描边。`.colors(CardColors)` 独立覆盖启用和禁用时的容器色与内容色。`.elevations(CardElevations)` 独立覆盖静止、按下、聚焦、悬停、拖动和禁用时的阴影高度。未指定的值沿用变体默认值，包括 Medium 圆角、Outlined 描边以及 Outlined 悬停时的平坦外观。禁用高度优先，其次依次为拖动、按下、键盘聚焦、悬停和静止。
+使用 `.shape(CornerShape)` 设置容器、描边、阴影和交互反馈的形状；子内容按卡片圆角裁剪并随窗口书写方向调整。可通过 `.content_padding(Edges<Pixels>)`（默认 16 dp）与 `.gap(Pixels)`（默认 8 dp）自定义内部留白与子项间距。通过 `.border(CardBorder { width, color })` 自定义描边，宽度为零时移除描边。`.colors(CardColors)` 独立覆盖启用和禁用时的容器色与内容色。`.elevations(CardElevations)` 独立覆盖静止、按下、聚焦、悬停、拖动和禁用时的阴影高度。未指定的值沿用变体默认值，包括 Medium 圆角、Outlined 描边以及 Outlined 悬停时的平坦外观。禁用高度优先，其次依次为拖动、按下、键盘聚焦、悬停和静止。
 
 调用方可根据拖动生命周期设置 `.dragged(bool)`，并在完成或取消时清除该状态。拖动会中断尚未完成的指针激活。传入 `.interaction_source(&source)` 可通过共享的 `Entity<InteractionSource>` 观察卡片。同一窗口中每张受观察的卡片需要有独立标识。可操作的卡片可通过 `.track_focus(&focus)` 接入调用方持有的 `FocusHandle`。
 
 ### 列表
 
-使用 `List::new(id).items(rows)` 创建 Standard 列表，或用 `.variant(ListVariant::Segmented)` 设置分组圆角和 2 像素行间距。为每个 `ListItem::new(id, label)` 提供稳定的 ID 和无障碍名称。`.content(element)`、`.overline_content(element)` 和 `.supporting_content(element)` 接收任意元素。行操作的无障碍名称仍来自标签。`.overline(text)` 和 `.supporting_text(text)` 使用 Material 字体样式，辅助文本会换行。`.leading(element)` 和 `.trailing(element)` 随窗口书写方向排列。内嵌控件独立接收焦点和激活。
+使用 `List::new(id).item(row)` 或 `.items(rows)` 创建 Standard 列表，或用 `.variant(ListVariant::Segmented)` 设置分组圆角和 2 像素行间距，支持在 `Role::List` 容器上通过 `.accessible_label(label)` 设置无障碍名称。为每个 `ListItem::new(id, label)` 提供稳定的 ID 和无障碍名称。`.content(element)`、`.overline_content(element)` 和 `.supporting_content(element)` 接收任意元素。行操作的无障碍名称仍来自标签。`.overline(text)` 和 `.supporting_text(text)` 使用 Material 字体样式，辅助文本会换行。`.leading(element)` 和 `.trailing(element)` 随窗口书写方向排列。内嵌控件独立接收焦点和激活。
 
-用 `.on_activate(...)` 设置行操作。`.selected(bool)` 控制选中样式和语义。`.checked(bool).on_checked_change(...)` 独立提供勾选值和请求反转值的回调。具备勾选值的行提供复选框角色。`.expanded_content(expanded, element).on_expanded_change(...)` 提供展开状态，通过激活该行请求切换。展开内容渲染在行下方，可包含独立操作的控件。各状态更新由应用负责。列表的游标式 Tab 停靠点可用上下方向键在启用的行操作间移动。`.track_focus(&focus, tab_stop)` 允许虚拟列表自行管理焦点和导航。
+用 `.on_activate(...)` 设置行操作。`.selected(bool)` 控制选中样式和语义。`.checked(bool).on_checked_change(...)` 独立提供勾选值和请求反转值的回调。具备勾选值的行提供复选框角色。`.expanded_content(expanded, element).on_expanded_change(...)` 提供展开状态，通过激活该行请求切换。展开内容渲染在行下方，可包含独立操作的控件。各状态更新由应用负责。列表的游标式 Tab 停靠点可用上下方向键在启用的行操作间移动。`.track_focus(&focus, tab_stop)` 允许虚拟列表或调用方提供自定义 `FocusHandle`，`List` 与 `ListSection` 均会保留调用方提供的句柄。
 
-用 `.on_long_press(label, callback)` 设置具名次要操作。按住行中间内容、使用 Shift+F10 或平台支持的无障碍上下文操作均可触发。提前松开、开始拖动或中断输入都会取消长按。`.long_press_button(id)` 在逻辑尾部添加使用相同名称和回调的可见按钮，适用于缺少次要上下文操作的平台。长按完成后会消费对应的行点击。
+用 `.on_long_press(label, callback)` 设置具名次要操作。按住行中间内容、桌面端右键点击（`MouseButton::Right`）、`Shift+F10`、`contextmenu` 键或平台支持的无障碍上下文操作均可触发。提前松开、开始拖动或中断输入都会取消长按。`.long_press_button(id)` 在逻辑尾部添加使用相同名称和回调的可见按钮，适用于缺少次要上下文操作的平台。长按完成后会消费对应的行点击。
 
 用 `.swipe_to_dismiss(&state, |swipe| ...)` 将现有的 `SwipeToDismiss` 与行组合，使用其保留状态及配置方法。调用方处理关闭结果，并按下文提供具名且可用键盘操作的命令。纵向滚动仍可用。已滑动关闭的行离开焦点遍历，直到重置或移除。
 
-`.shapes(ListItemShapes)` 覆盖静止、选中、按下、聚焦、悬停和拖动状态的逻辑圆角。`.colors(ListItemColors)` 通过 `ListItemStateColors` 分别配置普通、禁用、选中和拖动状态下的容器、主体、前置、尾部、上方标签及辅助内容颜色。省略的字段沿用窗口默认值。`.vertical_alignment(ListItemAlignment)` 可选 Auto、Start、Center 或 End。Auto 将较矮的行内容居中，将较高文本行的内容置顶。`.content_padding(ListItemPadding)` 以像素指定逻辑起始侧、尾侧、顶部和底部的内边距。默认水平 16 像素、垂直 10 像素，三行内容的垂直内边距为 12 像素。`.elevations(ListItemElevations)` 覆盖静止及交互状态的阴影高程。`.dragged(bool)` 提供由调用方管理的拖动状态，`.interaction_source(&source)` 可观察行的悬停、按下、键盘焦点、拖动和禁用状态。
+`.shapes(ListItemShapes)` 覆盖静止、选中、按下、聚焦、悬停和拖动状态的逻辑圆角。`.tone(SemanticTone)` 使用 Material 3 语义色板着色启用与选中态的标签、前置与尾部角色，同时保留禁用样式与显式 `.colors(ListItemColors)` 覆写优先级。`.colors(ListItemColors)` 通过 `ListItemStateColors` 分别配置普通、禁用、选中和拖动状态下的容器、主体、前置、尾部、上方标签及辅助内容颜色。省略的字段沿用窗口默认值。`.vertical_alignment(ListItemAlignment)` 可选 Auto、Start、Center 或 End。Auto 将较矮的行内容居中，将较高文本行的内容置顶。`.content_padding(ListItemPadding)` 以像素指定逻辑起始侧、尾侧、顶部和底部的内边距。默认水平 16 像素、垂直 10 像素，三行内容的垂直内边距为 12 像素。`.elevations(ListItemElevations)` 覆盖静止及交互状态的阴影高程。`.dragged(bool)` 提供由调用方管理的拖动状态，`.interaction_source(&source)` 可观察行的悬停、按下、键盘焦点、拖动和禁用状态。
 
 ### 设置项快捷行与列表分组
 
-`SwitchTile::new(id, label, checked)` 将 `ListItem` 与状态同步的尾部视觉 `Switch` 组合（同时启用 `surfaces` 与 `selection` 特性时可用）。点击整行任意区域或按 Enter / Space 均通过 `.on_change(...)` 单次切换，仅占一个焦点停靠点并暴露 `Role::Switch` 语义，避免双重焦点或重复切换。可通过 `.supporting`、`.overline`、`.leading`、`.disabled`、`.variant(ListVariant)`、`.colors(ListItemColors)` 和 `.switch_colors(SwitchColors)` 独立配置行和开关外观。
+`SwitchTile::new(id, label, checked)` 将 `ListItem` 与状态同步的尾部视觉 `Switch` 组合（同时启用 `surfaces` 与 `selection` 特性时可用）。点击整行任意区域或按 Enter / Space 均通过 `.on_change(...)` 单次切换，仅占一个焦点停靠点并暴露 `Role::Switch` 语义，避免双重焦点或重复切换。可通过 `.supporting`、`.overline`、`.leading`、`.disabled`、`.variant(ListVariant)`、`.colors(ListItemColors)`、`.switch_colors(SwitchColors)`、`.track_focus(&focus)` 和 `.interaction_source(&source)` 独立配置行和开关外观及状态观察。
 
-`CheckboxTile::new(id, label, state)`（或 `CheckboxTile::bool(id, label, checked)`）将 `ListItem` 与状态同步的装饰性 `Checkbox` 组合（需要 `surfaces` + `selection`）。点击整行或按 Enter / Space 通过 `.on_change(...)` 请求下一个 `CheckboxState`（`Unchecked` 或 `Indeterminate` → `Checked`；`Checked` → `Unchecked`），仅占一个焦点停靠点并暴露 `Role::CheckBox` 语义。支持 `.supporting`、`.overline`、`.leading`、`.trailing_checkbox(bool)`（默认置于尾侧，传 `false` 置于前侧）、`.error(bool)`、`.disabled(bool)`、`.variant(ListVariant)`、`.colors(ListItemColors)` 与 `.checkbox_colors(CheckboxColors)`。
+`CheckboxTile::new(id, label, state)`（或 `CheckboxTile::bool(id, label, checked)`）将 `ListItem` 与状态同步的装饰性 `Checkbox` 组合（需要 `surfaces` + `selection`）。点击整行或按 Enter / Space 通过 `.on_change(...)` 请求下一个 `CheckboxState`（`Unchecked` 或 `Indeterminate` → `Checked`；`Checked` → `Unchecked`），仅占一个焦点停靠点并暴露 `Role::CheckBox` 语义。支持 `.supporting`、`.overline`、`.leading`、`.trailing(element)`（当 `.trailing_checkbox(false)` 将复选框置于前侧时显示）、`.trailing_checkbox(bool)`（默认置于尾侧）、`.error(bool)`、`.disabled(bool)`、`.variant(ListVariant)`、`.colors(ListItemColors)`、`.checkbox_colors(CheckboxColors)`、`.track_focus(&focus)` 与 `.interaction_source(&source)`。
 
-`RadioTile::new(id, label, selected)` 将 `ListItem` 与状态同步的装饰性 `Radio` 组合（需要 `surfaces` + `selection`）。点击未选中的整行或按 Enter / Space 触发 `.on_select(...)`，仅占一个焦点停靠点并暴露 `Role::RadioButton` 语义。支持 `.supporting`、`.overline`、`.leading`、`.trailing_radio(bool)`、`.disabled(bool)`、`.variant(ListVariant)`、`.colors(ListItemColors)` 与 `.radio_colors(RadioColors)`。
+`RadioTile::new(id, label, selected)` 将 `ListItem` 与状态同步的装饰性 `Radio` 组合（需要 `surfaces` + `selection`）。点击未选中的整行或按 Enter / Space 触发 `.on_select(...)`，仅占一个焦点停靠点并暴露 `Role::RadioButton` 语义。支持 `.supporting`、`.overline`、`.leading`、`.trailing(element)`（当 `.trailing_radio(false)` 将单选框置于前侧时显示）、`.trailing_radio(bool)`、`.disabled(bool)`、`.variant(ListVariant)`、`.colors(ListItemColors)`、`.radio_colors(RadioColors)`、`.track_focus(&focus)` 与 `.interaction_source(&source)`。
 
-`SliderTile::new(id, label, &state)` 将 `ListItem` 行头（支持 `.overline`、`.leading`、`.supporting` 及尾侧通过 `.format_value(...)` 实时格式化的当前值）与绑定到调用方 `Entity<SliderState>` 的内嵌 `Slider` 组合（需要 `surfaces` + `selection`）。支持 `.disabled(bool)`、`.variant(ListVariant)`、`.colors(ListItemColors)` 与 `.slider(|slider| ...)` 配置闭包，无需重复暴露全部滑块方法。
+`SliderTile::new(id, label, &state)` 将 `ListItem` 行头（支持 `.overline`、`.leading`、`.supporting` 及尾侧通过 `.format_value(...)` 实时格式化的当前值）与绑定到调用方 `Entity<SliderState>` 的内嵌 `Slider` 组合（需要 `surfaces` + `selection`）。支持 `.disabled(bool)`、`.variant(ListVariant)`、`.colors(ListItemColors)`、`.track_focus(&focus)`、`.interaction_source(&source)` 与 `.slider(|slider| ...)` 配置闭包，无需重复暴露全部滑块方法。
 
-`ChoiceTile::new(id, label, options, selected)` 将 `ListItem` 与由 `ChoiceOption` 构成的锚定 Material `Menu` 组合（同时启用 `surfaces` 与 `feedback` 特性时可用）。行尾显示当前选中项的标签（或 `.placeholder(...)`）与下拉箭头，菜单中以勾选标记标识当前选项，选中后通过 `.on_select(...)` 报告选项 ID 并在关闭时恢复焦点。可传入外部 `.menu_state(&state)`（`Entity<DialogState>`）进行受控管理，或由组件保留内部的键控 `DialogState`。
+`ChoiceTile::new(id, label, options, selected)` 将 `ListItem` 与由 `ChoiceOption` 构成的锚定 Material `Menu` 组合（同时启用 `surfaces` 与 `feedback` 特性时可用）。行尾显示当前选中项的标签（或 `.placeholder(...)`）与下拉箭头，并通过行的无障碍描述向辅助技术暴露该当前值；菜单中以勾选标记标识当前选项，选中后通过 `.on_select(...)` 报告选项 ID 并在关闭时恢复焦点。可传入外部 `.menu_state(&state)`（`Entity<DialogState>`）进行受控管理，或由组件保留内部的键控 `DialogState`，并支持 `.track_focus(&focus)` 与 `.interaction_source(&source)`。
 
-`ListSection::new(id)`（或 `ListSection::segmented(id)`，需要 `surfaces`）在可选的 `.title(...)` 分组标题（`LabelMedium` 与逻辑水平缩进）下通过 `.item(...)` / `.items(...)`（`ListSectionItem`）混排任意 `ListItem`、`SwitchTile`、`CheckboxTile`、`RadioTile`、`SliderTile` 和 `ChoiceTile`。在 `ListVariant::Segmented` 模式下应用 Material 3 Expressive 分组圆角几何（首项 `[16, 16, 4, 4]`、中间项 `[4, 4, 4, 4]`、末项 `[4, 4, 16, 16]`、单项 `[16, 16, 16, 16]` 及 2 dp 间距），并在交互行之间接入统一的纵向漫游焦点（`Up`/`Down`/`Home`/`End`，跳过禁用行），同时保留 `SliderTile` 内嵌滑块的原生键盘调节。
+`ListSection::new(id)`（或 `ListSection::segmented(id)`，需要 `surfaces`）在可选的 `.title(...)` 分组标题（`LabelMedium` 与逻辑水平缩进）下通过 `.item(...)` / `.items(...)`（`ListSectionItem`）混排任意 `ListItem`、`SwitchTile`、`CheckboxTile`、`RadioTile`、`SliderTile` 和 `ChoiceTile`。在 `ListVariant::Segmented` 模式下应用 Material 3 Expressive 分组圆角几何（首项 `[16, 16, 4, 4]`、中间项 `[4, 4, 4, 4]`、末项 `[4, 4, 16, 16]`、单项 `[16, 16, 16, 16]` 及 2 dp 间距），并在交互行之间接入统一的纵向漫游焦点（`Up`/`Down`/`Home`/`End`，跳过禁用行，并保留调用方提供的 `.track_focus(...)` 句柄），同时保留 `SliderTile` 内嵌滑块的原生键盘调节。
 
 ### 拖放目标
 
-`DropTarget::files(id)` 接收外部系统文件拖放（`gpui::ExternalPaths`），`DropTarget::new::<T>(id)` 接收任意应用内 GPUI 类型化拖拽负载 `T: 'static`。可通过 `.title`、`.supporting` 和 `.icon` 呈现默认占位拖放区，或通过 `.content(element)` 包裹自定义内容。`.can_drop(|payload, window, cx| ...)` 在悬停和释放时校验负载；通过校验的负载使用主色高亮，被拒绝的负载显示错误反馈且不触发 `.on_drop(...)`。设置 `.on_activate(...)` 可支持点击和键盘激活（例如打开文件选择框），`.shape(CornerShape)` 设置圆角，`.colors(DropTargetColors)` 覆盖静止/有效/无效配色，`.disabled(true)` 禁用拖放注册和激活，`.accessible_label(...)` 提供无障碍名称。
+`DropTarget::files(id)` 接收外部系统文件拖放（`gpui::ExternalPaths`），`DropTarget::new::<T>(id)` 接收任意应用内 GPUI 类型化拖拽负载 `T: 'static`。可通过 `.title`、`.supporting` 和 `.icon` 呈现默认占位拖放区，或通过 `.content(element)` 包裹自定义内容。`.can_drop(|payload, window, cx| ...)` 在悬停和释放时校验负载；通过校验的负载使用主色高亮，被拒绝的负载显示错误反馈且不触发 `.on_drop(...)`。设置 `.on_activate(...)` 可支持点击和键盘激活（在同时设置 `.disabled(true)` 时保持禁用态的 `Role::Button`），`.shape(CornerShape)` 按实际布局边界解析圆角，`.colors(DropTargetColors)` 覆盖静止/有效/无效配色，`.disabled(true)` 禁用拖放注册和激活，`.track_focus(&focus)` 与 `.interaction_source(&source)` 接入焦点与状态观察，`.accessible_label(...)` 提供无障碍名称。
 
 ### 分隔线
 
@@ -169,7 +169,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ### 徽标
 
-`Badge::dot(host)`、`Badge::label(host, text)` 和 `Badge::count(host, count, maximum)` 将徽标附着在宿主的右上角，RTL 布局下则附着在左上角。渲染时传入当前计数和上限。计数超过上限时，显示上限并追加 `+`。`Badge::standalone()`、`Badge::standalone_label(text)` 和 `Badge::standalone_count(count, maximum)` 在当前布局中独立绘制圆点、文本或上限计数徽标。两种放置方式均可通过 `.content(id, element)` 提供简短的自定义视觉元素。请为同一父容器中的自定义徽标提供稳定标识。任意 `IntoElement` 也可通过 `MaterialElementExt` 以后缀链式方式附加徽标（`.badge_dot()`、`.badge_label(text)`、`.badge_count(count, maximum)`）。
+`Badge::dot(host)`、`Badge::label(host, text)` 和 `Badge::count(host, count, maximum)` 将徽标附着在宿主的右上角，RTL 布局下则附着在左上角。渲染时传入当前计数和上限。计数超过上限时，显示上限并追加 `+`。`Badge::standalone()`、`Badge::standalone_label(text)` 和 `Badge::standalone_count(count, maximum)` 在当前布局中独立绘制圆点、文本或上限计数徽标。可通过 `.visible(false)` 隐藏徽标（附着模式仅渲染宿主，独立模式不渲染内容）、`.offset(Point<Pixels>)` 微调附着偏移，以及 `.content(id, element)` 为两种放置方式提供简短的自定义视觉元素。请为同一父容器中的自定义徽标提供稳定标识。任意 `IntoElement` 也可通过 `MaterialElementExt` 以后缀链式方式附加徽标（`.badge_dot()`、`.badge_label(text)`、`.badge_count(count, maximum)`）。
 
 徽标容器和内容默认使用窗口主题的 `Error` 和 `OnError` 颜色角色。可使用 `.tone(SemanticTone)` 应用 Material 语义状态配色（`Default` 与 `Danger` 使用 `Error`/`OnError`；`Success`、`Warning`、`Info` 使用对应语义色对），或通过 `.color_role(container, content)` 指定主题颜色角色。显式 `.container_color(color)` 与 `.content_color(color)` 优先于 `.color_role(...)`，而 `.color_role(...)` 优先于 `.tone(...)`。自定义内容应为非交互元素，附着徽标的信息由宿主的无障碍名称提供。独立传达信息的徽标可使用 `.accessible_label(id, label)` 提供无障碍名称，无需增加键盘焦点。
 
@@ -376,7 +376,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ### 自适应多窗格布局
 
-每个布局用 `AdaptivePaneState::new(PaneDestination::new(role))` 创建并保留一个 `Entity<AdaptivePaneState>`。自定义布局使用 `AdaptivePaneLayout::new(id, size, &state)`，典型顺序使用 `ListDetail::adaptive(...)` 和 `SupportingPane::adaptive(...)`。传入可用视口的逻辑尺寸，并为各窗格提供稳定 ID。用 `.pane(PaneRole, AdaptivePane)` 注册窗格，额外窗格使用 `Tertiary`。业务状态、焦点句柄和滚动句柄由调用方保留。现有 List Detail、Supporting Pane 和 Feed 构造器沿用原行为。
+每个布局用 `AdaptivePaneState::new(PaneDestination::new(role))` 创建并保留一个 `Entity<AdaptivePaneState>`。自定义布局使用 `AdaptivePaneLayout::new(id, size, &state)`，典型顺序使用 `ListDetail::adaptive(...)` 和 `SupportingPane::adaptive(...)`。传入可用视口的逻辑尺寸，并为各窗格提供稳定 ID。用 `.pane(PaneRole, AdaptivePane)` 注册窗格，额外窗格使用 `Tertiary`。业务状态、焦点句柄和滚动句柄由调用方保留。现有 `ListDetail`、`SupportingPane` 和 `Feed` 构造器沿用原行为；`Feed` 暴露 `Role::List` 并支持 `.accessible_label(label)`，按 `WidthClass` 断点排布 1、2、3 或 4 列并在列数变更时保持 `ScrollHandle` 滚动锚点。
 
 `PaneLayoutDirective::for_size(size)` 在紧凑和中等宽度下横向显示一个窗格，在展开宽度下最多显示两个，在大型宽度下最多显示三个。单列视口足够高时，还允许第二个纵向分区。用 `.directive(directive)` 指定横纵分区数上限、间距、默认首选宽高及逻辑宽度排除区间。`AdaptivePane` 可覆盖首选宽高、最小宽度和逻辑 `PaneMargins`。布局约束在可用视口内，RTL 下镜像逻辑排列，并将窗格内容裁剪到自身边界。
 
@@ -496,7 +496,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ### 跨平台窗口标题栏
 
-启用可选特性 `window-chrome` 后，可在 Windows、macOS 和 Linux 上从 `gpui_material::window_chrome` 导入 `TitleBar`、`CaptionButtons`、`ChromePlatform`、`TitleBarColors`、`CaptionButtonColors`、`title_bar_window_options` 和 `title_bar_window_options_with_height`。
+启用可选特性 `window-chrome` 后，可在 Windows、macOS 和 Linux 上从 `gpui_material::window_chrome` 导入 `TitleBar`、`CaptionButtons`、`CaptionButtonLabels`、`ChromePlatform`、`TitleBarColors`、`CaptionButtonColors`、`title_bar_window_options` 和 `title_bar_window_options_with_height`。
 
 把 `title_bar_window_options(options)`（或 `title_bar_window_options_with_height(options, height)`）的结果传给 `MaterialRoot::open_window`，让 GPUI 在标题栏区域内绘制。该函数保留传入的窗口标题、边界、最小尺寸和能力选项：在 Windows 和 macOS 上启用 `appears_transparent`；在 macOS 上当未指定 `traffic_light_position` 时按标题栏高度自动垂直居中计算交通灯位置；在 Linux 上当未指定 `window_decorations` 时请求 `WindowDecorations::Client`。
 
@@ -506,19 +506,19 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 - **macOS**：非全屏时在起始侧预留可配置的交通灯留白（默认 78 逻辑像素，全屏时自动收起），默认隐藏自定义控制按钮，并将拖动与标题栏双击交由 GPUI 原生窗口钩子处理。
 - **Linux**：尊重 `Window::window_decorations()`（`Decorations::Client` 与 `Decorations::Server`）、`Window::window_controls()` 及 `Window::client_inset()`；在客户端装饰模式下渲染支持指针与键盘激活的矢量控制按钮，通过 `Window::start_window_move()` 启动拖动，并在支持时右键呼出窗口菜单。
 
-可通过 `.height(px(...))`、`.title(text)`、`.title_role(TypeRole)`、`.title_font(Font)`、`.title_font_family(name)`、`.title_font_size(px(...))`、`.leading(element)`、`.content(element)`、`.trailing(element)`、`.traffic_light_padding(px(...))`、`.colors(TitleBarColors)`、`.caption_colors(CaptionButtonColors)`、`.caption_button_width(px(...))`、`.show_caption_buttons(bool)`、`.on_close(handler)` 和 `.platform(ChromePlatform)` 自定义 `TitleBar`。也可直接使用 `CaptionButtons::new(id)` 将矢量窗口控制按钮放入自定义布局。所有控制按钮均提供无障碍名称、键盘激活与 `AccessibleAction::Click`。 [Windows 标题栏指南](https://learn.microsoft.com/en-us/windows/apps/design/basics/titlebar-design)
+可通过 `.height(px(...))`、`.title(text)`、`.title_role(TypeRole)`、`.title_font(Font)`、`.title_font_family(name)`、`.title_font_size(px(...))`、`.leading(element)`、`.content(element)`、`.trailing(element)`、`.traffic_light_padding(px(...))`、`.colors(TitleBarColors)`、`.caption_colors(CaptionButtonColors)`、`.caption_labels(CaptionButtonLabels)`、`.caption_button_width(px(...))`、`.show_caption_buttons(bool)`、`.on_close(handler)` 和 `.platform(ChromePlatform)` 自定义 `TitleBar`。也可直接使用 `CaptionButtons::new(id)` 配合 `.labels(CaptionButtonLabels)` 在自定义布局中放置本地化矢量窗口控制按钮。所有控制按钮均提供无障碍名称、键盘激活与 `AccessibleAction::Click`。 [Windows 标题栏指南](https://learn.microsoft.com/en-us/windows/apps/design/basics/titlebar-design)
 
 <a id="search"></a>
 
 ### 搜索
 
-启用 `search` feature，并为每个搜索入口保留一个 `Entity<SearchState>`。可将 `SearchBar::new(id, label, &state)` 直接放在布局中，或放入 `AppBar::search(...)`。默认使用 Docked。全窗口编辑器使用 `SearchViewVariant::FullScreen`，带内嵌编辑器的全窗口视图使用 `FullScreenContained`。`.widths(collapsed, focused)` 以逻辑像素设置触发器和聚焦编辑器宽度。未覆盖时触发器根据内容确定宽度。`.trigger_content(element)` 替换触发器的可见标签。`.leading(element)`、`.trailing(element)` 可在触发器两侧添加独立控件或头像。
+启用 `search` feature，并为每个搜索入口保留一个 `Entity<SearchState>`。可将 `SearchBar::new(id, label, &state)` 直接放在布局中，或放入 `AppBar::search(...)`。默认使用 Docked。全窗口编辑器使用 `SearchViewVariant::FullScreen`，带内嵌编辑器的全窗口视图使用 `FullScreenContained`。`.widths(collapsed, focused)` 以逻辑像素设置触发器和聚焦编辑器宽度。未覆盖时触发器根据内容确定宽度。`.trigger_content(element)` 替换触发器的可见标签。`.leading(element)`、`.trailing(element)` 可在触发器两侧添加独立控件或头像。可通过 `SearchBar::track_focus(&focus)` 绑定调用方持有的触发器句柄，或调用 `SearchState::trigger_focus()` 读取保留的默认触发器焦点句柄。
 
 `.expanded_view(|view| ...)` 配置也可单独组合的 `SearchView`。`.input(|field| ...)` 提供保留编辑器的 `TextField`，可配置前后操作、自定义提示、前后缀、配色和交互源。返回的元素应包含该字段，以保留编辑、焦点、输入法和搜索提供方。用 `SearchState::with_editor(...)` 接入调用方持有的 `TextFieldState`，也可用 `editor()` 获取默认实体。
 
 `.docked_size(width, height)` 默认使用 440 × 424 逻辑像素，尺寸受视口约束。`.result_gap(px(...))` 设置 Docked 编辑器和结果表面之间的间距。`.popup_options(SearchPopupOptions)` 配置停靠弹出层的逻辑锚点、触发器下方的间距、关闭行为和可选遮罩。`.window_options(SearchWindowOptions)` 为全窗口模式配置逻辑内边距、关闭行为和遮罩。这些选项配置编辑器所在 GPUI 窗口的弹出层或覆盖层。`.style(SearchStyle)` 分别覆盖触发器、容器、内容、分隔线、输入、形状和高程。省略的选项沿用窗口默认值。
 
-提供方的请求包含版本。通过 `complete(&request, outcome, cx)` 返回结果，由状态筛选有效请求。搜索分别发出提交或选择事件，应用管理导航。用 `SearchResult` 的 `.group(label)` 和 `.icon(IconName)` 为连续分组添加标题和前置图标。`.result_row(|row, result, window, cx| ...)` 自定义可见的 Material 行。生成的列表保持虚拟化，并按稳定 ID 在完整模型中导航。用 `scroll_state()` 访问当前视口，或用 `set_scroll_state(&scroll, cx)` 接入保留的 GPUI `ListState`。`.filters(element)` 在提供方结果上方添加内容。用 `.result_content(|state, window, cx| ...)` 自行渲染结果区域，用 `results()` 读取已接受的结果，用 `select_result(...)` 选择自定义结果。
+提供方的请求包含版本。通过 `complete(&request, outcome, cx)` 返回结果，由状态筛选有效请求。搜索分别发出提交或选择事件，应用管理导航。用 `SearchResult` 的 `.group(label)` 和 `.icon(IconName)` 为连续分组添加标题和前置图标。`.result_row(|row, result, window, cx| ...)` 自定义可见的 Material 行。生成的列表保持虚拟化，并按稳定 ID 在完整模型中导航（支持 `Up`/`Down`/`Home`/`End`，以及在搜索输入框中按 `Down` 直接聚焦首个可见结果）。用 `scroll_state()` 访问当前视口，或用 `set_scroll_state(&scroll, cx)` 接入保留的 GPUI `ListState`。`.filters(element)` 在提供方结果上方添加内容。用 `.result_content(|state, window, cx| ...)` 自行渲染结果区域，用 `results()` 读取已接受的结果，用 `select_result(...)` 选择自定义结果。
 
 `open`、`close` 立即到达目标。用 `animate_to(SearchValue, duration, window, cx)` 或 `snap_to(fraction, window, cx)` 控制过渡。`progress()`、`current_value()`、`target_value()`、`is_animating()` 返回呈现和请求状态。用 `.motion(SearchMotion)` 让触发和关闭采用动画。减少动态效果时直接应用目标。关闭后恢复入口焦点。Escape 优先处理输入法组合输入。
 
@@ -526,7 +526,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ### 按钮组
 
-`ButtonGroup::new(id, name, items)` 使用稳定的成员标识，并提供一个 Tab 焦点。左右方向键移动焦点，保留选中状态。导航会跳过禁用成员，视觉顺序和方向键随窗口书写方向调整。使用 `ButtonGroup::connected(id, name, items)` 或 `.variant(ButtonGroupVariant::Connected)` 连接相邻成员。Standard 和 Connected 默认间距分别为 12 和 2 个逻辑像素。可通过 `.spacing(width)` 覆盖间距，使用 `.alignment(ButtonGroupAlignment)` 设置逻辑横向排列，使用 `.vertical_alignment(ButtonGroupVerticalAlignment)` 设置纵向对齐，默认 Top。成员可以单独设置纵向对齐。
+`ButtonGroup::new(id, name, items)` 使用稳定的成员标识，并提供一个 Tab 焦点。左右方向键移动焦点，保留选中状态。导航会跳过禁用成员，视觉顺序和方向键随窗口书写方向调整。使用 `ButtonGroup::connected(id, name, items)` 或 `.variant(ButtonGroupVariant::Connected)` 连接相邻成员。Standard 和 Connected 默认间距分别为 12 和 2 个逻辑像素。可通过 `.spacing(width)` 覆盖间距，使用 `.alignment(ButtonGroupAlignment)` 设置逻辑横向排列，使用 `.vertical_alignment(ButtonGroupVerticalAlignment)` 设置纵向对齐，默认 Top。成员可以单独设置纵向对齐。可在 `ButtonGroup` 或单个 `ButtonGroupItem` 上设置 `.tone(SemanticTone)`，同步应用到可见按钮与溢出 `MenuItem`。
 
 `ButtonGroupItem::new(id, name)` 在启用组选择时使用 `.selection(mode, selected_ids)` 和 `.on_change(...)`。针对常见的单选场景，`.single_select(selected, |id, window, cx| ...)` 配置 `ButtonGroupSelection::SingleRequired` 并直接传入新选中的 `SharedString`，`.single_optional_select(selected, |id, window, cx| ...)` 则配置可取消选中的 `ButtonGroupSelection::Single` 并传入 `Option<SharedString>`。Single 和 Multiple 允许取消选中，Required 模式会保留最后一个选中项。应用处理请求并提供当前选择。`.action(callback)` 在任一组内建立独立命令，`.toggle(selected, callback)` 建立单独受控的切换控件。`.on_activate(...)` 为 Actions 模式下的成员提供命令。
 
@@ -542,7 +542,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 尾段默认打开指定的菜单，菜单关闭时焦点返回触发按钮。通过 `.on_trailing_activate(callback)` 设置独立命令，或通过 `.trailing_toggle(selected, callback)` 设置受控切换。尾段命令与切换按最后一次设置生效，并取代构造器提供的菜单。激活切换时请求下一状态，选中值仍由调用方持有。`.disabled(true)` 禁用前段命令，`.trailing_disabled(true)` 单独禁用尾段。菜单为空时，默认菜单触发按钮禁用。两段在 RTL 中镜像，键盘先访问前段再访问尾段。
 
-Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供基础外观。`.spacing(width)` 设置段间距，默认 2 dp。用 `.leading_style(SplitButtonSegmentStyle)` 和 `.trailing_style(SplitButtonSegmentStyle)` 单独配置每段。可通过 `ButtonShapes` 设置静止、按下、选中时的逻辑圆角，通过 `ButtonColors` 设置各状态配色，用 `ButtonBorder` 设置描边、`ButtonElevations` 设置阴影及 `ButtonPadding` 设置逻辑内边距。省略的字段沿用该段默认值。已选中的尾段切换和已打开的菜单使用选中外观，菜单触发器保留按钮语义。选中外观默认增大尾段内侧圆角。未设置选中颜色时沿用启用配色，禁用配色优先。减少动效时立即应用目标形状。
+Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供基础外观。`.tone(SemanticTone)`、`.leading_tone(SemanticTone)` 与 `.trailing_tone(SemanticTone)` 为整组或各分段独立应用语义色板。`.spacing(width)` 设置段间距，默认 2 dp。用 `.leading_style(SplitButtonSegmentStyle)` 和 `.trailing_style(SplitButtonSegmentStyle)` 单独配置每段。可通过 `ButtonShapes` 设置静止、按下、选中时的逻辑圆角，通过 `ButtonColors` 设置各状态配色，用 `ButtonBorder` 设置描边、`ButtonElevations` 设置阴影及 `ButtonPadding` 设置逻辑内边距。省略的字段沿用该段默认值。已选中的尾段切换和已打开的菜单使用选中外观，菜单触发器保留按钮语义。选中外观默认增大尾段内侧圆角。未设置选中颜色时沿用启用配色，禁用配色优先。减少动效时立即应用目标形状。
 
 使用 `.leading_interaction_source(&source)` 和 `.trailing_interaction_source(&source)` 传入调用方持有的交互源，可分别用 `ElementId::from((id, "primary"))` 和 `ElementId::from((id, "secondary"))` 读取快照。同一个实体可以观察两个标识。更换交互源时，对应段的快照会从原交互源清除。
 
@@ -560,7 +560,7 @@ Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供
 
 ### 工具栏
 
-`Toolbar::new(id, name, actions)` 默认创建采用 Standard 配色的横向悬浮工具栏。`.content(element)` 在生成的操作项前插入任意内容，包括可编辑文本框。`.leading_content(element)` 和 `.trailing_content(element)` 在该区域前后加入插槽。插槽默认随 `.expanded(expanded)` 与内容滚动展开或收起。可通过 `.leading_expanded(bool)` 或 `.trailing_expanded(bool)` 单独设置。拥有焦点的插槽保留至其中的控件失去焦点。嵌入控件管理自身的键盘和输入行为。生成的操作项继续支持方向键导航，收起的次要操作移入有名称的溢出菜单。
+`Toolbar::new(id, name, actions)` 默认创建采用 Standard 配色的横向悬浮工具栏。通过 `ToolbarAction::new(id, label, IconName)` 或 `ToolbarAction::with_icon(id, label, || ...)`（自定义图标）构造操作项，行内按钮与收起的溢出 `MenuItem` 均会渲染对应图标。`.content(element)` 在生成的操作项前插入任意内容，包括可编辑文本框。`.leading_content(element)` 和 `.trailing_content(element)` 在该区域前后加入插槽。插槽默认随 `.expanded(expanded)` 与内容滚动展开或收起。可通过 `.leading_expanded(bool)` 或 `.trailing_expanded(bool)` 单独设置。拥有焦点的插槽保留至其中的控件失去焦点。嵌入控件管理自身的键盘和输入行为。生成的操作项继续支持方向键导航，收起的次要操作移入有名称的溢出菜单。
 
 通过 `.placement(ToolbarPlacement::Docked)` 使用停靠工具栏。横向停靠栏有空余空间时，可用 `.arrangement(ToolbarArrangement)` 按逻辑 Start、Center、End、SpaceBetween、SpaceAround 或 SpaceEvenly 排列。`.spacing(pixels)` 设置最小间距，默认 4 dp。`.expanded_height(pixels)` 设置横向停靠栏展开时的固定高度。省略设置时沿用现有布局。横向顺序和逻辑内边距在 RTL 中镜像，纵向插槽保持从上到下的顺序。为工具栏提供有界的主轴尺寸，以便空间缩小时滚动到获得焦点的控件。
 
@@ -572,7 +572,7 @@ Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供
 
 ### 日期选择器
 
-每个选择器保留一个 `Entity<DatePickerState>`。`DatePicker::new(id, label, &state, value)` 提供打开控件。应用持有已提交的 `DateSelection`，每次打开时用当前值初始化草稿。停靠式选择器在选择完整后立即提交，模态选择器在验证并确认后提交。`DatePickerVariant::FullScreen` 在紧凑窗口中填满内容区，在较宽窗口中使用基本对话框。`ModalInput` 打开时使用保留的文本编辑器。
+每个选择器保留一个 `Entity<DatePickerState>`。`DatePicker::new(id, label, &state, value)` 提供打开控件（支持 `.disabled(true)` 禁用触发控件，并通过 `DatePickerState::trigger_focus()` 读取默认触发器焦点句柄）。应用持有已提交的 `DateSelection`，每次打开时用当前值初始化草稿。停靠式选择器在选择完整后立即提交，模态选择器在验证并确认后提交。`DatePickerVariant::FullScreen` 在紧凑窗口中填满内容区，在较宽窗口中使用基本对话框。`ModalInput` 打开时使用保留的文本编辑器。
 
 用 `DatePicker::panel(id, label, &state)` 将日历或编辑器嵌入其他布局，初始草稿与模式由保留状态控制。`DatePicker::dialog(id, label, &state, value)` 为调用方的触发控件提供模态对话框。用 `state.open(value, variant, &locale, window, cx)` 打开，用 `close(window, cx)` 主动关闭。`.focus_target(&focus)` 为内置打开控件指定初始焦点，默认聚焦日历或首个编辑器。调用方控制打开操作时，也可在打开后设置焦点。
 
@@ -584,7 +584,7 @@ Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供
 
 ### 时间选择器
 
-`TimePicker::new(id, label, &state, value)` 提供打开标准对话框的触发按钮，每次打开都用应用已提交的值创建精确到分钟的草稿。默认使用表盘、24 小时制和自动布局。通过 `.variant(TimePickerVariant::Input)` 或 `.variant(TimePickerVariant::Scroll)` 设置初始模式，使用 `.format(TimeFormat::TwelveHour)` 启用上午和下午选择，使用 `.on_confirm(...)` 将确认的草稿应用到程序状态中。表盘支持自动、横向和纵向布局。两种窗口方向下表盘都按顺时针排列，字段顺序按窗口方向镜像。
+`TimePicker::new(id, label, &state, value)` 提供打开标准对话框的触发按钮，每次打开都用应用已提交的值创建精确到分钟的草稿。默认使用表盘、24 小时制和自动布局。通过 `.variant(TimePickerVariant::Input)` 或 `.variant(TimePickerVariant::Scroll)` 设置初始模式，使用 `.format(TimeFormat::TwelveHour)` 启用上午和下午选择，支持 `.disabled(bool)`、`.show_mode_toggle(bool)`、`.colors(DialogColors)`、`.properties(DialogProperties)`、`.on_dismiss_request(...)`、`.on_close(...)` 和 `.on_confirm(...)` 配置对话框并将确认的草稿应用到程序状态中；通过 `TimePickerState::trigger_focus()` 读取触发器焦点句柄。表盘支持自动、横向和纵向布局。两种窗口方向下表盘都按顺时针排列，字段顺序按窗口方向镜像。
 
 每个选择器通过 `cx.new(|cx| TimePickerState::new(window, cx))` 创建一个 `Entity<TimePickerState>`。独立挂载时，`TimePickerPanel::new(id, &state)` 使用状态中的模式，`TimePickerPanel::dial(id, &state)` 和 `TimePickerPanel::input(id, &state)` 分别固定显示表盘和输入面板，`TimeScroll::new(id, &state)` 显示两个鲜明配色的滚动字段。每个状态只挂载一个面板。用 `.layout(...)` 设置表盘布局，或用 `.mode_toggle_content(...)` 在独立输入或滚动字段旁放置切换控件。小时和分钟各自循环。每个字段有独立的无障碍名称、当前值、焦点和方向键操作。滚轮归位后将选中的值写入草稿。启用减少动效时立即归位。
 

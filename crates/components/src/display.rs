@@ -1,8 +1,9 @@
 use gpui::{
-    AnyElement, App, Axis, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement,
-    RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Window, div,
+    AnyElement, App, Axis, ElementId, Empty, Hsla, InteractiveElement, IntoElement, ParentElement,
+    Pixels, Point, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Window, div,
     prelude::FluentBuilder, px,
 };
+use gpui_base::TestSupportExt;
 use gpui_material_foundation::{color, current_material_theme, text_style};
 use gpui_material_theme::{ColorRole, Direction, TypeRole, TypographyEmphasis};
 
@@ -113,6 +114,8 @@ pub struct Badge {
     container_color: Option<Hsla>,
     content_color: Option<Hsla>,
     accessible_label: Option<(ElementId, SharedString)>,
+    visible: bool,
+    offset: Point<Pixels>,
 }
 
 enum BadgeContent {
@@ -152,6 +155,8 @@ impl Badge {
             container_color: None,
             content_color: None,
             accessible_label: None,
+            visible: true,
+            offset: Point::default(),
         }
     }
 
@@ -227,6 +232,20 @@ impl Badge {
         self
     }
 
+    /// Controls whether the badge mark is rendered. When `false`, anchored badges render only
+    /// their host and standalone badges render empty. Defaults to `true`.
+    pub fn visible(mut self, visible: bool) -> Self {
+        self.visible = visible;
+        self
+    }
+
+    /// Shifts an anchored badge from its default upper-trailing anchor (`x` follows logical
+    /// direction; `y` shifts downward).
+    pub fn offset(mut self, offset: Point<Pixels>) -> Self {
+        self.offset = offset;
+        self
+    }
+
     /// Names a badge for assistive technology without adding a focus stop.
     /// Anchored badges normally use their host's accessible name instead.
     pub fn accessible_label(
@@ -240,6 +259,9 @@ impl Badge {
 
     #[cfg(feature = "navigation")]
     pub(crate) fn take_accessible_label(&mut self) -> Option<SharedString> {
+        if !self.visible {
+            return None;
+        }
         self.accessible_label.take().map(|(_, label)| label)
     }
 
@@ -252,6 +274,9 @@ impl Badge {
 
 impl RenderOnce for Badge {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        if !self.visible {
+            return self.host.unwrap_or_else(|| Empty.into_any_element());
+        }
         let large = !matches!(self.content, BadgeContent::Dot);
         let side = px(if large { 16. } else { 6. });
         let (container_role, content_role) = resolve_badge_roles(self.tone, self.color_roles);
@@ -263,6 +288,16 @@ impl RenderOnce for Badge {
             .unwrap_or_else(|| tone(content_role, window, cx));
         let typography = TypeRole::LabelSmall.style(TypographyEmphasis::Baseline);
         let overlap = px(if large { 12. } else { 6. });
+        let dx = if f32::from(self.offset.x).is_finite() {
+            self.offset.x
+        } else {
+            px(0.)
+        };
+        let dy = if f32::from(self.offset.y).is_finite() {
+            self.offset.y
+        } else {
+            px(0.)
+        };
         let mark = div()
             .min_w(side)
             .rounded_full()
@@ -270,11 +305,11 @@ impl RenderOnce for Badge {
             .when(self.host.is_some(), |badge| {
                 badge
                     .absolute()
-                    .top(if large { px(-2.) } else { px(0.) })
+                    .top(if large { px(-2.) } else { px(0.) } + dy)
                     .when_else(
                         current_material_theme(window, cx).layout.direction == Direction::Rtl,
-                        |badge| badge.right(gpui::relative(1.)).mr(-overlap),
-                        |badge| badge.left(gpui::relative(1.)).ml(-overlap),
+                        |badge| badge.right(gpui::relative(1.)).mr(-overlap + dx),
+                        |badge| badge.left(gpui::relative(1.)).ml(-overlap + dx),
                     )
             })
             .bg(container_color)
@@ -284,7 +319,7 @@ impl RenderOnce for Badge {
             .justify_center();
         let mark = match self.content {
             BadgeContent::Dot => mark.h(side).w(side),
-            BadgeContent::Text(text) => mark.h(side).child(crate::text::single_line(
+            BadgeContent::Text(text) => mark.min_h(side).child(crate::text::single_line(
                 text,
                 typography,
                 1.,
@@ -305,6 +340,7 @@ impl RenderOnce for Badge {
         };
         let mark = if let Some((id, label)) = self.accessible_label {
             mark.id(id)
+                .test_support()
                 .role(Role::Label)
                 .aria_label(label)
                 .into_any_element()
@@ -312,9 +348,9 @@ impl RenderOnce for Badge {
             mark.into_any_element()
         };
         if let Some(host) = self.host {
-            div().relative().child(host).child(mark)
+            div().relative().child(host).child(mark).into_any_element()
         } else {
-            div().flex().items_center().child(mark)
+            div().flex().items_center().child(mark).into_any_element()
         }
     }
 }

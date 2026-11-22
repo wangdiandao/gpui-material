@@ -318,6 +318,11 @@ impl TimePickerState {
         self.dialog.read(cx).is_open()
     }
 
+    /// Returns the retained focus handle of the built-in picker trigger.
+    pub fn trigger_focus(&self) -> &FocusHandle {
+        &self.trigger
+    }
+
     /// Replaces the editable draft and cancels outstanding wheel motion.
     pub fn set_value(&mut self, value: NaiveTime, window: &mut Window, cx: &mut Context<Self>) {
         let next = NaiveTime::from_hms_opt(value.hour(), value.minute(), 0).unwrap();

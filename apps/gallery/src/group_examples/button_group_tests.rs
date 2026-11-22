@@ -625,3 +625,111 @@ fn connected_single_select_and_optional_select_shortcuts_update_selection(cx: &m
         );
     });
 }
+
+#[gpui::test]
+fn button_group_and_item_tone_applies_to_visible_and_overflow_items(cx: &mut TestAppContext) {
+    use gpui_material::{
+        ButtonVariant, SemanticTone,
+        foundation::{color, window_material_theme},
+        theme::ColorRole,
+    };
+
+    struct TonedGroup {
+        width: Pixels,
+    }
+
+    impl Render for TonedGroup {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
+            div().w(self.width).child(
+                ButtonGroup::new(
+                    "toned-group",
+                    "Toned actions",
+                    [
+                        ButtonGroupItem::new("warn", "Warn").action(|_, _| {}),
+                        ButtonGroupItem::new("delete", "Delete")
+                            .tone(SemanticTone::Danger)
+                            .action(|_, _| {}),
+                    ],
+                )
+                .appearance(ButtonVariant::Filled)
+                .tone(SemanticTone::Warning)
+                .overflow_label("More toned"),
+            )
+        }
+    }
+
+    let (handle, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let view = cx.new(|_| TonedGroup { width: px(320.) });
+        let handle =
+            MaterialRoot::open_window(WindowOptions::default(), cx, |_, _| view.clone()).unwrap();
+        (handle.into(), view)
+    });
+    cx.simulate_window_resize(handle, size(px(360.), px(260.)));
+    draw(cx, handle);
+
+    cx.update_window(handle, |_, window, cx| {
+        let theme = window_material_theme(window, cx);
+        let scale = window.scale_factor();
+        let warn_bg = color(theme.colors.color(ColorRole::Warning));
+        let danger_bg = color(theme.colors.color(ColorRole::Error));
+
+        let warn_bounds = find(
+            window,
+            &[],
+            &ElementId::from((ElementId::from("toned-group"), SharedString::from("warn"))),
+        )
+        .unwrap()
+        .bounds()
+        .scale(scale);
+        let delete_bounds = find(
+            window,
+            &[],
+            &ElementId::from((ElementId::from("toned-group"), SharedString::from("delete"))),
+        )
+        .unwrap()
+        .bounds()
+        .scale(scale);
+        let quads = window.painted_quads();
+        assert!(quads.iter().any(|quad| {
+            warn_bounds.contains(&quad.bounds.center())
+                && quad.background.as_solid() == Some(warn_bg)
+        }));
+        assert!(quads.iter().any(|quad| {
+            delete_bounds.contains(&quad.bounds.center())
+                && quad.background.as_solid() == Some(danger_bg)
+        }));
+    })
+    .unwrap();
+
+    // Narrow to collapse into overflow and open overflow menu cleanly.
+    cx.update(|cx| {
+        view.update(cx, |this, cx| {
+            this.width = px(110.);
+            cx.notify();
+        });
+    });
+    draw(cx, handle);
+    let overflow_pt = cx
+        .update_window(handle, |_, window, _| {
+            find(
+                window,
+                &[],
+                &ElementId::from((
+                    ElementId::from("toned-group"),
+                    SharedString::from("overflow"),
+                )),
+            )
+            .unwrap()
+            .bounds()
+            .center()
+        })
+        .unwrap();
+    click_at(cx, handle, overflow_pt);
+    cx.update_window(handle, |_, window, _| {
+        assert!(menu_row(window, "Warn").is_some());
+        assert!(menu_row(window, "Delete").is_some());
+    })
+    .unwrap();
+}

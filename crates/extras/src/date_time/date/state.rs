@@ -239,6 +239,11 @@ impl DatePickerState {
         self
     }
 
+    /// Returns the retained focus handle of the built-in picker trigger.
+    pub fn trigger_focus(&self) -> &FocusHandle {
+        &self.trigger
+    }
+
     pub fn is_open(&self, cx: &App) -> bool {
         self.docked_open || self.dialog.read(cx).is_open()
     }

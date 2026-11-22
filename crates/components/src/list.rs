@@ -9,7 +9,7 @@ use gpui_base::TestSupportExt;
 use gpui_material_foundation::{InteractionSource, current_material_theme, move_roving_focus};
 use gpui_material_theme::{CornerRole, CornerShape};
 
-use crate::{SwipeToDismiss, SwipeToDismissState, action::Activate};
+use crate::{SemanticTone, SwipeToDismiss, SwipeToDismissState, action::Activate};
 
 mod long_press;
 mod render;
@@ -78,12 +78,14 @@ pub struct ListItem {
     checked_selects_row: bool,
     invalid: bool,
     footer: Option<AnyElement>,
+    aria_description: Option<SharedString>,
     #[cfg(feature = "feedback")]
     menu_trigger: Option<(bool, Activate)>,
     selected: bool,
     disabled: bool,
     dragged: bool,
     focus: Option<(FocusHandle, bool)>,
+    tone: SemanticTone,
     shapes: ListItemShapes,
     colors: ListItemColors,
     elevations: ListItemElevations,
@@ -114,12 +116,14 @@ impl ListItem {
             checked_selects_row: true,
             invalid: false,
             footer: None,
+            aria_description: None,
             #[cfg(feature = "feedback")]
             menu_trigger: None,
             selected: false,
             disabled: false,
             dragged: false,
             focus: None,
+            tone: SemanticTone::Default,
             shapes: ListItemShapes::default(),
             colors: ListItemColors::default(),
             elevations: ListItemElevations::default(),
@@ -207,7 +211,8 @@ impl ListItem {
         self
     }
 
-    /// Names the secondary command invoked by a pointer hold or Shift+F10.
+    /// Names the secondary command invoked by a pointer hold, secondary click,
+    /// `Shift+F10`, or `ContextMenu` key.
     pub fn on_long_press(
         mut self,
         label: impl Into<SharedString>,
@@ -252,6 +257,13 @@ impl ListItem {
 
     pub fn shapes(mut self, shapes: ListItemShapes) -> Self {
         self.shapes = shapes;
+        self
+    }
+
+    /// Applies a Material 3 semantic tone to label, leading, and trailing roles
+    /// while preserving disabled appearance and explicit [`ListItemColors`] precedence.
+    pub fn tone(mut self, tone: SemanticTone) -> Self {
+        self.tone = tone;
         self
     }
 
@@ -327,6 +339,16 @@ impl ListItem {
     pub(crate) fn menu_trigger(mut self, open: bool, a11y_toggle: Activate) -> Self {
         self.menu_trigger = Some((open, a11y_toggle));
         self
+    }
+
+    #[cfg(feature = "feedback")]
+    pub(crate) fn aria_description(mut self, description: impl Into<SharedString>) -> Self {
+        self.aria_description = Some(description.into());
+        self
+    }
+
+    pub(crate) fn custom_focus(&self) -> Option<FocusHandle> {
+        self.focus.as_ref().map(|(focus, _)| focus.clone())
     }
 
     pub(crate) fn id(&self) -> &ElementId {
@@ -421,6 +443,7 @@ pub struct List {
     id: ElementId,
     items: Vec<ListItem>,
     variant: ListVariant,
+    accessible_label: Option<SharedString>,
 }
 
 impl List {
@@ -429,11 +452,24 @@ impl List {
             id: id.into(),
             items: Vec::new(),
             variant: ListVariant::default(),
+            accessible_label: None,
         }
     }
 
     pub fn variant(mut self, variant: ListVariant) -> Self {
         self.variant = variant;
+        self
+    }
+
+    /// Names the list container (`Role::List`) for assistive technology.
+    pub fn accessible_label(mut self, label: impl Into<SharedString>) -> Self {
+        self.accessible_label = Some(label.into());
+        self
+    }
+
+    /// Appends a single [`ListItem`] row.
+    pub fn item(mut self, item: ListItem) -> Self {
+        self.items.push(item);
         self
     }
 
@@ -452,10 +488,14 @@ impl RenderOnce for List {
                 .items
                 .iter()
                 .map(|item| {
-                    window
-                        .use_keyed_state((item.id.clone(), "focus"), cx, |_, cx| cx.focus_handle())
-                        .read(cx)
-                        .clone()
+                    item.custom_focus().unwrap_or_else(|| {
+                        window
+                            .use_keyed_state((item.id.clone(), "focus"), cx, |_, cx| {
+                                cx.focus_handle()
+                            })
+                            .read(cx)
+                            .clone()
+                    })
                 })
                 .collect();
             let enabled: Vec<_> = self.items.iter().map(|item| item.takes_focus(cx)).collect();
@@ -474,6 +514,7 @@ impl RenderOnce for List {
             div()
                 .id(self.id)
                 .role(Role::List)
+                .when_some(self.accessible_label, |list, label| list.aria_label(label))
                 .test_support()
                 .flex()
                 .flex_col()

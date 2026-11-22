@@ -440,3 +440,52 @@ fn disabled_card_supplies_content_color_without_fading_custom_children(cx: &mut 
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn static_card_supports_accessible_label_padding_gap_and_clipping(cx: &mut TestAppContext) {
+    use gpui::{Edges, WindowOptions, size};
+    use gpui_base::TestSupportExt as _;
+
+    struct Example;
+    impl Render for Example {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().p_4().child(
+                Card::outlined("static-summary")
+                    .accessible_label("Summary card")
+                    .content_padding(Edges::all(px(12.)))
+                    .gap(px(20.))
+                    .child(div().id("card-slot-a").test_support().w(px(60.)).h(px(18.)))
+                    .child(div().id("card-slot-b").test_support().w(px(80.)).h(px(22.))),
+            )
+        }
+    }
+
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| cx.new(|_| Example))
+            .unwrap()
+    });
+    cx.simulate_window_resize(handle.into(), size(px(320.), px(240.)));
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.activate_window();
+        window.refresh();
+        window.draw(cx).clear(cx);
+        window.focus_next(cx);
+        window.refresh();
+        window.draw(cx).clear(cx);
+
+        let card = find(window, &[], &"static-summary".into()).unwrap();
+        assert_eq!(card.role(), Some(Role::Group));
+        assert_eq!(card.label(), Some("Summary card"));
+        assert_ne!(card.focused(), Some(true));
+
+        let a = find(window, &[], &"card-slot-a".into()).unwrap().bounds();
+        let b = find(window, &[], &"card-slot-b".into()).unwrap().bounds();
+        // Default 1 px card border adds 1 px inset around the 12 px content_padding.
+        assert_eq!((a.left() - card.bounds().left()).round(), px(13.));
+        assert_eq!((a.top() - card.bounds().top()).round(), px(13.));
+        assert_eq!((b.top() - a.bottom()).round(), px(20.));
+        assert_eq!((card.bounds().bottom() - b.bottom()).round(), px(13.));
+    })
+    .unwrap();
+}

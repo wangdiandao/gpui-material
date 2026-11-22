@@ -503,3 +503,131 @@ fn time_dialog_reports_only_accepted_user_closes(cx: &mut TestAppContext) {
         [DialogCloseReason::Escape, DialogCloseReason::Cancel]
     );
 }
+
+#[gpui::test]
+fn time_picker_exposes_trigger_focus_disabled_and_dialog_options(cx: &mut TestAppContext) {
+    use gpui_material::{DialogColors, DialogProperties, date_time::TimePicker};
+
+    struct TriggeredTime {
+        enabled_state: Entity<TimePickerState>,
+        disabled_state: Entity<TimePickerState>,
+        allow_close: Rc<Cell<bool>>,
+        dismiss_requests: Rc<RefCell<Vec<DialogCloseReason>>>,
+        closes: Rc<RefCell<Vec<DialogCloseReason>>>,
+    }
+
+    impl Render for TriggeredTime {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let allow = self.allow_close.clone();
+            let req = self.dismiss_requests.clone();
+            let closes = self.closes.clone();
+            div()
+                .p_4()
+                .flex()
+                .flex_col()
+                .gap_3()
+                .child(
+                    TimePicker::new(
+                        "enabled-tp",
+                        "Alarm time",
+                        &self.enabled_state,
+                        NaiveTime::from_hms_opt(9, 15, 0).unwrap(),
+                    )
+                    .show_mode_toggle(false)
+                    .colors(DialogColors::default())
+                    .properties(DialogProperties {
+                        dismiss_on_outside_click: false,
+                        ..DialogProperties::default()
+                    })
+                    .on_dismiss_request(move |reason, _, _| {
+                        req.borrow_mut().push(reason);
+                        allow.get()
+                    })
+                    .on_close(move |reason, _, _| closes.borrow_mut().push(reason)),
+                )
+                .child(
+                    TimePicker::new(
+                        "disabled-tp",
+                        "Disabled time",
+                        &self.disabled_state,
+                        NaiveTime::MIN,
+                    )
+                    .disabled(true),
+                )
+        }
+    }
+
+    let allow = Rc::new(Cell::new(false));
+    let dismiss_requests = Rc::new(RefCell::new(Vec::new()));
+    let closes = Rc::new(RefCell::new(Vec::new()));
+    let (mut enabled_state, mut disabled_state) = (None, None);
+    let window = cx
+        .update(|cx| {
+            crate::init_gallery(cx);
+            cx.set_reduce_motion(true);
+            MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+                let es = cx.new(|cx| TimePickerState::new(window, cx));
+                let ds = cx.new(|cx| TimePickerState::new(window, cx));
+                enabled_state = Some(es.clone());
+                disabled_state = Some(ds.clone());
+                cx.new(|cx| {
+                    cx.observe(&es, |_, _, cx| cx.notify()).detach();
+                    TriggeredTime {
+                        enabled_state: es,
+                        disabled_state: ds,
+                        allow_close: allow.clone(),
+                        dismiss_requests: dismiss_requests.clone(),
+                        closes: closes.clone(),
+                    }
+                })
+            })
+            .unwrap()
+        })
+        .into();
+    let enabled_state = enabled_state.unwrap();
+    let disabled_state = disabled_state.unwrap();
+    frame(window, cx);
+
+    // Disabled TimePicker ignores click and marks trigger disabled.
+    assert_eq!(
+        element(window, part("disabled-tp", "open"), cx).disabled(),
+        Some(true)
+    );
+    click(window, part("disabled-tp", "open"), cx);
+    cx.update(|cx| assert!(!disabled_state.read(cx).is_open(cx)));
+
+    // Enabled trigger focus handle matches the open button and opens dialog without mode toggle.
+    cx.update_window(window, |_, window, cx| {
+        enabled_state
+            .read(cx)
+            .trigger_focus()
+            .clone()
+            .focus(window, cx);
+    })
+    .unwrap();
+    frame(window, cx);
+    assert_eq!(
+        element(window, part("enabled-tp", "open"), cx).focused(),
+        Some(true)
+    );
+
+    click(window, part("enabled-tp", "open"), cx);
+    cx.update(|cx| assert!(enabled_state.read(cx).is_open(cx)));
+    cx.update_window(window, |_, window, _| {
+        assert!(find(window, &[], &part("enabled-tp", "toggle")).is_none());
+    })
+    .unwrap();
+
+    // on_dismiss_request veto keeps dialog open, then allow closes and fires on_close.
+    cx.simulate_keystrokes(window, "escape");
+    frame(window, cx);
+    cx.update(|cx| assert!(enabled_state.read(cx).is_open(cx)));
+    assert_eq!(*dismiss_requests.borrow(), [DialogCloseReason::Escape]);
+    assert!(closes.borrow().is_empty());
+
+    allow.set(true);
+    cx.simulate_keystrokes(window, "escape");
+    frame(window, cx);
+    cx.update(|cx| assert!(!enabled_state.read(cx).is_open(cx)));
+    assert_eq!(*closes.borrow(), [DialogCloseReason::Escape]);
+}

@@ -300,6 +300,7 @@ fn render_expanded_content(
 fn wrap_interactive_row(
     id: &ElementId,
     label: SharedString,
+    aria_description: Option<SharedString>,
     surface: Stateful<Div>,
     focus: FocusHandle,
     tab_stop: bool,
@@ -326,6 +327,9 @@ fn wrap_interactive_row(
         .tab_stop(tab_stop)
         .w_full()
         .accessibility_label(label)
+        .when_some(aria_description, |control, description| {
+            control.aria_description(description)
+        })
         .disabled(!enabled)
         .selected(selected)
         .when_some(checked, |control, checked| {
@@ -539,7 +543,8 @@ impl ListItem {
             (
                 tone(ColorRole::Secondary),
                 tone(ColorRole::Shadow),
-                self.colors.resolve(selected, selection, interaction, tone),
+                self.colors
+                    .resolve(selected, selection, interaction, self.tone, tone),
             )
         };
         let layer = animate(
@@ -665,10 +670,12 @@ impl ListItem {
         let checked = self.checked;
         let expanded_content =
             render_expanded_content(self.expansion, interactive, enabled, &focus, window, cx);
+        let aria_description = self.aria_description;
         let row = if interactive {
             wrap_interactive_row(
                 &self.id,
                 self.label.clone(),
+                aria_description.clone(),
                 surface,
                 focus,
                 tab_stop,
@@ -705,7 +712,12 @@ impl ListItem {
             .role(Role::ListItem)
             .test_support()
             .aria_selected(self.selected)
-            .when(!interactive, |row| row.aria_label(self.label))
+            .when(!interactive, |row| {
+                row.aria_label(self.label)
+                    .when_some(aria_description, |row, description| {
+                        row.aria_description(description)
+                    })
+            })
             .flex()
             .flex_col()
             .w_full()
@@ -732,9 +744,11 @@ fn inherit_color(id: impl Into<ElementId>, element: AnyElement, color: Option<Hs
 
 fn is_long_press_shortcut(keystroke: &Keystroke) -> bool {
     let modifiers = keystroke.modifiers;
-    keystroke.key == "f10"
+    let is_shift_f10 = keystroke.key == "f10"
         && modifiers.shift
         && !modifiers.control
         && !modifiers.alt
-        && !modifiers.platform
+        && !modifiers.platform;
+    let is_context_menu = keystroke.key == "contextmenu" && !modifiers.modified();
+    is_shift_f10 || is_context_menu
 }

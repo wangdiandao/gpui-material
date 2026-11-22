@@ -1,6 +1,7 @@
 use gpui::{
     AnyElement, App, ElementId, Entity, InteractiveElement, IntoElement, ParentElement, Pixels,
-    RenderOnce, Size, Styled, Window, div, prelude::FluentBuilder, px,
+    RenderOnce, Role, SharedString, Size, StatefulInteractiveElement, Styled, Window, div,
+    prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
 use gpui_material_foundation::current_material_theme;
@@ -224,6 +225,7 @@ pub struct Feed {
     width: Pixels,
     scroll: gpui::ScrollHandle,
     cards: Vec<AnyElement>,
+    accessible_label: Option<SharedString>,
 }
 
 impl Feed {
@@ -233,7 +235,14 @@ impl Feed {
             width,
             scroll: scroll.clone(),
             cards: Vec::new(),
+            accessible_label: None,
         }
+    }
+
+    /// Names the feed container (`Role::List`) for assistive technology.
+    pub fn accessible_label(mut self, label: impl Into<SharedString>) -> Self {
+        self.accessible_label = Some(label.into());
+        self
     }
 
     pub fn columns(width: Pixels) -> usize {
@@ -283,6 +292,8 @@ impl RenderOnce for Feed {
         });
         gpui_material_foundation::isolated_scroll(self.id, &self.scroll)
             .test_support()
+            .role(Role::List)
+            .when_some(self.accessible_label, |feed, label| feed.aria_label(label))
             .flex_1()
             .w_full()
             .min_w_0()

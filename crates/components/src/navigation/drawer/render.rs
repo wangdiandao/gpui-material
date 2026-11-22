@@ -80,6 +80,7 @@ fn render_destination(
     is_tab_stop: bool,
     on_select: Option<Select>,
     colors: &ResolvedDrawerColors,
+    font_scale: f32,
     rtl: bool,
     window: &mut Window,
     cx: &mut App,
@@ -136,6 +137,7 @@ fn render_destination(
             } else {
                 TypeRole::TitleSmall
             })
+            .font_scale(font_scale)
             .into_any_element()
     });
 
@@ -144,7 +146,7 @@ fn render_destination(
             .flex_none()
             .text_size(px(24.))
             .text_color(icon_color)
-            .child(icon.size(px(24.)))
+            .child(icon.size(px(24.)).inherit_color())
     });
 
     let badge_elem = item.badge.map(|badge| div().flex_none().child(badge));
@@ -165,6 +167,8 @@ fn render_destination(
                 .flex_1()
                 .min_w_0()
                 .overflow_hidden()
+                .flex()
+                .when(rtl, Styled::justify_end)
                 .text_color(label_color)
                 .child(label_elem),
         )
@@ -229,7 +233,7 @@ impl RenderOnce for NavigationDrawer {
         let resolved_width = self.width.min(viewport_width.max(px(0.)));
         let colors = self.colors.resolve(window, cx);
 
-        let (collection_id, nav_label, initial_items, selected, on_select, _font_scale) =
+        let (collection_id, nav_label, initial_items, selected, on_select, font_scale) =
             self.items.into_drawer_parts();
 
         let mut combined: Vec<NavigationDrawerEntry> =
@@ -240,7 +244,14 @@ impl RenderOnce for NavigationDrawer {
             }
             combined.push(NavigationDrawerEntry::item(item));
         }
-        combined.extend(self.entries);
+        for entry in self.entries {
+            if let NavigationDrawerEntry::Item(ref item) = entry
+                && self.dividers_before.contains(&item.id)
+            {
+                combined.push(NavigationDrawerEntry::Divider);
+            }
+            combined.push(entry);
+        }
 
         let drawer_state =
             window.use_keyed_state((self.id.clone(), "navigation-drawer-state"), cx, |_, _| {
@@ -309,6 +320,7 @@ impl RenderOnce for NavigationDrawer {
                         is_tab_stop,
                         on_select.clone(),
                         &colors,
+                        font_scale,
                         rtl,
                         window,
                         cx,
@@ -322,15 +334,17 @@ impl RenderOnce for NavigationDrawer {
                             .px(px(16.))
                             .pt(px(16.))
                             .pb(px(8.))
+                            .flex()
+                            .when(rtl, Styled::justify_end)
                             .text_color(colors.header)
-                            .when(rtl, Styled::text_right)
                             .child(
                                 Text::new(title)
                                     .id((
                                         self.id.clone(),
                                         format!("drawer-header-text-{entry_index}"),
                                     ))
-                                    .role(TypeRole::TitleSmall),
+                                    .role(TypeRole::TitleSmall)
+                                    .font_scale(font_scale),
                             )
                             .into_any_element(),
                     );
@@ -408,12 +422,14 @@ impl RenderOnce for NavigationDrawer {
                         .px(px(28.))
                         .pt(px(18.))
                         .pb(px(10.))
+                        .flex()
+                        .when(rtl, Styled::justify_end)
                         .text_color(colors.header)
-                        .when(rtl, Styled::text_right)
                         .child(
                             Text::new(headline)
                                 .id((self.id.clone(), "drawer-headline-text"))
-                                .role(TypeRole::TitleSmall),
+                                .role(TypeRole::TitleSmall)
+                                .font_scale(font_scale),
                         )
                 }))
             })

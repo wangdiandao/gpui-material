@@ -28,6 +28,7 @@ pub struct SearchBar {
     leading: Option<AnyElement>,
     trailing: Option<AnyElement>,
     trigger_content: Option<AnyElement>,
+    track_focus: Option<FocusHandle>,
     scroll: Option<Entity<SearchScrollState>>,
     linked_scroll: Option<ScrollHandle>,
 }
@@ -46,6 +47,7 @@ impl SearchBar {
             leading: None,
             trailing: None,
             trigger_content: None,
+            track_focus: None,
             scroll: None,
             linked_scroll: None,
         }
@@ -115,6 +117,12 @@ impl SearchBar {
         self.linked_scroll = Some(handle.clone());
         self
     }
+
+    /// Attaches a caller-owned focus handle to the search bar trigger button.
+    pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
+        self.track_focus = Some(focus.clone());
+        self
+    }
 }
 
 impl RenderOnce for SearchBar {
@@ -128,7 +136,7 @@ impl RenderOnce for SearchBar {
             window.request_animation_frame();
         }
         let model = state.read(cx);
-        let focus = model.trigger.clone();
+        let focus = self.track_focus.unwrap_or_else(|| model.trigger.clone());
         let scope = model.scope.clone();
         let visible = model.presented();
         let focused = focus.is_focused(window);

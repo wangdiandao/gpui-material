@@ -174,6 +174,8 @@ impl SearchView {
         duration: Duration,
     ) -> impl IntoElement + use<> {
         let close = self.state.clone();
+        let down_state = self.state.clone();
+        let down_editor = editor.clone();
         let field = TextField::new((self.id.clone(), "editor"), self.label.clone(), editor)
             .when_some(self.style.input_colors, TextField::colors);
         let field = match self.input.take() {
@@ -204,6 +206,42 @@ impl SearchView {
                     .flex_1()
                     .min_w_0()
                     .when_some(editor_width, |editor, width| editor.max_w(width))
+                    .capture_key_down(move |event, window, cx| {
+                        if event.keystroke.key != "down" || event.keystroke.modifiers.modified() {
+                            return;
+                        }
+                        if down_editor.update(cx, |input, cx| {
+                            input.marked_text_range(window, cx).is_some()
+                        }) {
+                            return;
+                        }
+                        let target = {
+                            let model = down_state.read(cx);
+                            model.rows().first().and_then(|row| {
+                                model
+                                    .result_focus
+                                    .get(&row.id)
+                                    .cloned()
+                                    .map(|focus| (row.id.clone(), focus, model.scroll.clone()))
+                            })
+                        };
+                        if let Some((first_id, focus, scroll)) = target {
+                            if scroll.bounds_for_item(0).is_some() {
+                                scroll.scroll_to_reveal_item(0);
+                            } else {
+                                scroll.scroll_to(gpui::ListOffset {
+                                    item_ix: 0,
+                                    offset_in_item: px(0.),
+                                });
+                            }
+                            down_state.update(cx, |state, _| {
+                                state.active_result = Some(first_id);
+                            });
+                            focus.focus(window, cx);
+                            window.refresh();
+                            cx.stop_propagation();
+                        }
+                    })
                     .child(field),
             )
     }
@@ -498,9 +536,15 @@ fn provider_results(
         .min_h_0()
         .overflow_hidden()
         .on_key_down(move |event, window, cx| {
+            if event.keystroke.modifiers.modified() {
+                return;
+            }
             let (next_id, focus) = {
                 let model = keys.read(cx);
                 let rows = model.rows();
+                if rows.is_empty() {
+                    return;
+                }
                 let Some(current) = model
                     .active_result
                     .as_ref()
@@ -521,6 +565,8 @@ fn provider_results(
                 let next = match event.keystroke.key.as_str() {
                     "up" => (current + rows.len() - 1) % rows.len(),
                     "down" => (current + 1) % rows.len(),
+                    "home" => 0,
+                    "end" => rows.len() - 1,
                     _ => return,
                 };
                 let next_id = rows[next].id.clone();

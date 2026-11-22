@@ -353,6 +353,12 @@ pub struct TimePicker {
     options: TimeOptions,
     confirm: Option<Confirm<NaiveTime>>,
     style: TimePickerStyle,
+    colors: DialogColors,
+    show_mode_toggle: bool,
+    properties: DialogProperties,
+    on_dismiss_request: Option<DismissRequest>,
+    on_close: Option<OnClose>,
+    disabled: bool,
 }
 
 impl TimePicker {
@@ -375,6 +381,12 @@ impl TimePicker {
             },
             confirm: None,
             style: TimePickerStyle::default(),
+            colors: DialogColors::default(),
+            show_mode_toggle: true,
+            properties: DialogProperties::default(),
+            on_dismiss_request: None,
+            on_close: None,
+            disabled: false,
         }
     }
 
@@ -403,6 +415,43 @@ impl TimePicker {
         self
     }
 
+    pub fn colors(mut self, colors: DialogColors) -> Self {
+        self.colors = colors;
+        self
+    }
+
+    pub fn show_mode_toggle(mut self, show: bool) -> Self {
+        self.show_mode_toggle = show;
+        self
+    }
+
+    pub fn properties(mut self, properties: DialogProperties) -> Self {
+        self.properties = properties;
+        self
+    }
+
+    pub fn on_dismiss_request(
+        mut self,
+        request: impl Fn(DialogCloseReason, &mut Window, &mut App) -> bool + 'static,
+    ) -> Self {
+        self.on_dismiss_request = Some(Rc::new(request));
+        self
+    }
+
+    pub fn on_close(
+        mut self,
+        callback: impl Fn(DialogCloseReason, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.on_close = Some(Rc::new(callback));
+        self
+    }
+
+    /// Disables the built-in trigger button.
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
+        self
+    }
+
     pub fn on_confirm(
         mut self,
         callback: impl Fn(NaiveTime, &mut Window, &mut App) + 'static,
@@ -425,6 +474,7 @@ impl RenderOnce for TimePicker {
             .child(
                 Button::new((self.id.clone(), "open"), self.label.clone())
                     .variant(ButtonVariant::Outlined)
+                    .disabled(self.disabled)
                     .track_focus(&model.trigger)
                     .on_activate(move |window, cx| {
                         state.update(cx, |state, cx| {
@@ -442,8 +492,13 @@ impl RenderOnce for TimePicker {
             );
         let mut dialog = TimePickerDialog::new(self.id, self.label, &self.state)
             .layout(layout)
-            .style(self.style);
+            .style(self.style)
+            .colors(self.colors)
+            .show_mode_toggle(self.show_mode_toggle)
+            .properties(self.properties);
         dialog.on_confirm = self.confirm;
+        dialog.on_dismiss_request = self.on_dismiss_request;
+        dialog.on_close = self.on_close;
         div().child(trigger).child(dialog)
     }
 }

@@ -13,12 +13,28 @@ use gpui_material_theme::{
 };
 
 use super::{
-    FabContent, Invoke, Toolbar, ToolbarAction, ToolbarColor, ToolbarElevations,
+    ActionIcon, FabContent, Invoke, Toolbar, ToolbarAction, ToolbarColor, ToolbarElevations,
     ToolbarExitDirection, ToolbarFab, ToolbarFabPosition, ToolbarOrientation, ToolbarPlacement,
     ToolbarScrollBehavior, ToolbarScrollState, activate_key, focus_handle,
     layout::{StripGeometry, ToolbarSlot, arrange_horizontal},
     style_button,
 };
+
+impl ActionIcon {
+    fn render_inline(&self) -> AnyElement {
+        match self {
+            Self::Symbol(icon) => Icon::new(*icon).size(px(24.)).into_any_element(),
+            Self::Custom(build) => build(),
+        }
+    }
+
+    fn render_overflow(&self) -> AnyElement {
+        match self {
+            Self::Symbol(icon) => Icon::new(*icon).size(px(20.)).into_any_element(),
+            Self::Custom(build) => build(),
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 struct ToolbarPalette {
@@ -64,7 +80,7 @@ impl ToolbarPalette {
                 .colors
                 .selected_content
                 .unwrap_or_else(|| tone(selected_ink_role)),
-            ring: tone(ColorRole::OnSurface),
+            ring: tone(ColorRole::Secondary),
             shadow: tone(ColorRole::Shadow),
             default_fab_color,
         }
@@ -223,7 +239,7 @@ fn render_visible_actions(
                 .size(px(48.))
                 .flex_none()
                 .rounded_full()
-                .child(Icon::new(action.icon).size(px(24.)))
+                .child(action.icon.render_inline())
                 .when_some(action.selected, |button, selected| {
                     button.aria_toggled(if selected {
                         gpui::accesskit::Toggled::True
@@ -263,7 +279,10 @@ fn render_overflow_menu(
     palette: ToolbarPalette,
 ) -> (AnyElement, FocusHandle) {
     let entries = hidden.into_iter().map(|action| {
-        let item = MenuItem::new(action.id, action.label).disabled(!action.enabled);
+        let icon = action.icon;
+        let item = MenuItem::new(action.id, action.label)
+            .disabled(!action.enabled)
+            .leading(move || icon.render_overflow());
         let item = if let Some(selected) = action.selected {
             item.checked(selected)
         } else {

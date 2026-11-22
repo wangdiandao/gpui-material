@@ -1,15 +1,18 @@
 use std::{marker::PhantomData, rc::Rc};
 
 use gpui::{
-    AccessibleAction, AnyElement, App, ClickEvent, ElementId, ExternalPaths, Hsla,
-    InteractiveElement, IntoElement, ParentElement, RenderOnce, Role, SharedString,
+    AccessibleAction, AnyElement, App, ClickEvent, ElementId, Entity, ExternalPaths, FocusHandle,
+    Hsla, InteractiveElement, IntoElement, ParentElement, RenderOnce, Role, SharedString,
     StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{Button as BaseButton, TestSupportExt};
-use gpui_material_foundation::{color, current_material_theme};
+use gpui_material_foundation::{InteractionSource, ThemeScope, color, current_material_theme};
 use gpui_material_theme::{ColorRole, CornerRole, CornerShape, Direction, StateLayer, TypeRole};
 
-use crate::{Icon, IconName, Text};
+use crate::{
+    Icon, IconName, Text,
+    action::{activate_feedback, feedback_target, ripple_state},
+};
 
 type DropPredicate<T> = Rc<dyn Fn(&T, &mut Window, &mut App) -> bool>;
 type DropHandler<T> = Rc<dyn Fn(&T, &mut Window, &mut App)>;
@@ -121,6 +124,8 @@ pub struct DropTarget<T: 'static = ExternalPaths> {
     on_drop: Option<DropHandler<T>>,
     on_activate: Option<ActivateHandler>,
     accessible_label: Option<SharedString>,
+    focus: Option<FocusHandle>,
+    source: Option<Entity<InteractionSource>>,
     _payload: PhantomData<fn(&T)>,
 }
 
@@ -147,6 +152,8 @@ impl<T: 'static> DropTarget<T> {
             on_drop: None,
             on_activate: None,
             accessible_label: None,
+            focus: None,
+            source: None,
             _payload: PhantomData,
         }
     }
@@ -220,6 +227,31 @@ impl<T: 'static> DropTarget<T> {
         self.accessible_label = Some(label.into());
         self
     }
+
+    /// Uses a caller-owned focus handle when the drop target is actionable via `.on_activate(...)`.
+    pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
+        self.focus = Some(focus.clone());
+        self
+    }
+
+    /// Observes hover, focus, press, and disabled states under this drop target's element ID.
+    pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
+        self.source = Some(source.clone());
+        self
+    }
+}
+
+fn apply_corner_shape<E: Styled>(element: E, shape: CornerShape, direction: Direction) -> E {
+    if shape == CornerShape::Full {
+        element.rounded_full()
+    } else {
+        let [tl, tr, br, bl] = shape.radii(f32::MAX, f32::MAX, direction);
+        element
+            .rounded_tl(px(tl))
+            .rounded_tr(px(tr))
+            .rounded_br(px(br))
+            .rounded_bl(px(bl))
+    }
 }
 
 impl<T: 'static> RenderOnce for DropTarget<T> {
@@ -227,11 +259,28 @@ impl<T: 'static> RenderOnce for DropTarget<T> {
         let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
         let palette = self.colors.resolve(self.disabled, window, cx);
-        let [tl, tr, br, bl] = self.shape.radii(240., 120., direction).map(px);
         let accessible_name = self
             .accessible_label
             .or_else(|| self.title.clone())
             .unwrap_or_else(|| "Drop target".into());
+        let actionable = self.on_activate.is_some();
+        let enabled = !self.disabled;
+        let focus = self.focus.filter(|_| actionable).unwrap_or_else(|| {
+            window
+                .use_keyed_state((self.id.clone(), "drop-target-focus"), cx, |_, cx| {
+                    cx.focus_handle()
+                })
+                .read(cx)
+                .clone()
+        });
+        let feedback = ripple_state(&self.id, actionable && enabled, window, cx);
+        let tracker = self
+            .source
+            .as_ref()
+            .map(|source| InteractionSource::track(source, &self.id, window, cx));
+        feedback
+            .borrow_mut()
+            .track(enabled, &focus, tracker, window, cx);
 
         let inner_content = match self.content {
             Some(content) => div().w_full().child(content).into_any_element(),
@@ -266,34 +315,47 @@ impl<T: 'static> RenderOnce for DropTarget<T> {
             }
         };
 
-        let body = if let Some(on_activate) = self.on_activate.filter(|_| !self.disabled) {
+        let body = if let Some(on_activate) = self.on_activate {
+            let on_activate = Rc::new(ThemeScope::bind_action(
+                move |window, cx| on_activate(window, cx),
+                window,
+                cx,
+            ));
             let click_handler = on_activate.clone();
             let a11y_handler = on_activate;
+            let press = feedback.clone();
             let hover_tint = palette.hover_tint;
             let ring = palette.ring;
-            BaseButton::new((self.id.clone(), "activate"))
-                .w_full()
-                .accessibility_label(accessible_name)
-                .rounded_tl(tl)
-                .rounded_tr(tr)
-                .rounded_br(br)
-                .rounded_bl(bl)
-                .border_2()
-                .border_color(gpui::transparent_black())
-                .hover(move |style| style.bg(hover_tint))
-                .focus_visible(move |style| style.border_color(ring))
-                .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
-                    a11y_handler(window, cx);
-                })
-                .on_click(move |event, window, cx| {
-                    if matches!(event, ClickEvent::Mouse(_)) && cx.has_active_drag() {
-                        return;
-                    }
-                    cx.stop_propagation();
-                    click_handler(window, cx);
-                })
-                .child(inner_content)
-                .into_any_element()
+            apply_corner_shape(
+                BaseButton::new((self.id.clone(), "activate"))
+                    .track_focus(&focus)
+                    .tab_stop(enabled)
+                    .disabled(self.disabled)
+                    .w_full()
+                    .accessibility_label(accessible_name)
+                    .border_2()
+                    .border_color(gpui::transparent_black()),
+                self.shape,
+                direction,
+            )
+            .when(enabled, |button| {
+                feedback_target(button, feedback, true, Some(focus.clone()))
+                    .hover(move |style| style.bg(hover_tint))
+                    .focus_visible(move |style| style.border_color(ring))
+                    .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
+                        a11y_handler(window, cx);
+                    })
+                    .on_click(move |event, window, cx| {
+                        if matches!(event, ClickEvent::Mouse(_)) && cx.has_active_drag() {
+                            return;
+                        }
+                        cx.stop_propagation();
+                        activate_feedback(event, &press, window, cx);
+                        click_handler(window, cx);
+                    })
+            })
+            .child(inner_content)
+            .into_any_element()
         } else {
             div()
                 .id((self.id.clone(), "body"))
@@ -333,39 +395,39 @@ impl<T: 'static> RenderOnce for DropTarget<T> {
             })
             .child(body);
 
-        div()
-            .id(self.id)
-            .test_support()
-            .w_full()
-            .overflow_hidden()
-            .rounded_tl(tl)
-            .rounded_tr(tr)
-            .rounded_br(br)
-            .rounded_bl(bl)
-            .bg(palette.container)
-            .border_2()
-            .border_dashed()
-            .border_color(palette.border)
-            .text_color(palette.content)
-            .when(direction == Direction::Rtl, Styled::flex_row_reverse)
-            .when(!self.disabled, move |surface| {
-                surface.drag_over::<T>(move |style, payload, window, cx| {
-                    let accepted = visual_can_drop
-                        .as_ref()
-                        .is_none_or(|predicate| predicate(payload, window, cx));
-                    if accepted {
-                        style
-                            .bg(palette.active_container)
-                            .border_color(palette.active_border)
-                            .text_color(palette.active_content)
-                    } else {
-                        style
-                            .bg(palette.invalid_container)
-                            .border_color(palette.invalid_border)
-                            .text_color(palette.invalid_content)
-                    }
-                })
+        apply_corner_shape(
+            div()
+                .id(self.id)
+                .test_support()
+                .w_full()
+                .overflow_hidden()
+                .bg(palette.container)
+                .border_2()
+                .border_dashed()
+                .border_color(palette.border)
+                .text_color(palette.content),
+            self.shape,
+            direction,
+        )
+        .when(direction == Direction::Rtl, Styled::flex_row_reverse)
+        .when(!self.disabled, move |surface| {
+            surface.drag_over::<T>(move |style, payload, window, cx| {
+                let accepted = visual_can_drop
+                    .as_ref()
+                    .is_none_or(|predicate| predicate(payload, window, cx));
+                if accepted {
+                    style
+                        .bg(palette.active_container)
+                        .border_color(palette.active_border)
+                        .text_color(palette.active_content)
+                } else {
+                    style
+                        .bg(palette.invalid_container)
+                        .border_color(palette.invalid_border)
+                        .text_color(palette.invalid_content)
+                }
             })
-            .child(receiver)
+        })
+        .child(receiver)
     }
 }

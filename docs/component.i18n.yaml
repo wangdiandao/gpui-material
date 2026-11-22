@@ -27,29 +27,29 @@
   en: "5e761accd1c5125c"
   zh: "3c445596aa8104e1"
 /components/content-and-feedback:
-  en: "f7f8e400ef85a47b"
-  zh: "07b1025f776c6703"
+  en: "5bb92026bbf0ff65"
+  zh: "3b8c1b0801a893b3"
 /components/content-and-feedback/surfaces:
   en: "e0f5d2b66870d586"
   zh: "7c7c4891edaf84a4"
 /components/content-and-feedback/cards:
-  en: "65d40de578d9945b"
-  zh: "df159ea64e94f3d9"
+  en: "48e66a7e0b26dfd1"
+  zh: "81ba2a41223fc05c"
 /components/content-and-feedback/lists:
-  en: "31095ee35ec859f3"
-  zh: "09918936439b1d1b"
+  en: "89b740fda621afb6"
+  zh: "c1d62de30ca53b2b"
 /components/content-and-feedback/settings-tiles-and-list-sections:
-  en: "659a97c967a58772"
-  zh: "727c4de274c6392e"
+  en: "3bf88dcda39c989f"
+  zh: "95f04fcd65f21ef0"
 /components/content-and-feedback/drop-target:
-  en: "686c7f0a8713cbc0"
-  zh: "d4ab54d7fe4f9800"
+  en: "117723017496f78e"
+  zh: "54073dff55605b3a"
 /components/content-and-feedback/divider:
   en: "91017ca9ca1e50e9"
   zh: "552fa38bdd6c09d0"
 /components/content-and-feedback/badges:
-  en: "cc8892fc589b1141"
-  zh: "9639305e9b653de9"
+  en: "7057aac7ccb9c32a"
+  zh: "4c41e70b8d28085f"
 /components/content-and-feedback/avatars:
   en: "22cd71489ab5bb08"
   zh: "fb29ab92ec9eb55b"
@@ -114,8 +114,8 @@
   en: "5bfec344f6037300"
   zh: "6dd7c52a5068c1a3"
 /components/navigation-and-adaptive-layout/adaptive-multi-pane-layouts:
-  en: "7bb0db714cf569a7"
-  zh: "0d09fbd610528926"
+  en: "ef5a9647038367c4"
+  zh: "81a60998d83e9381"
 /components/navigation-and-adaptive-layout/app-bars:
   en: "79b650d089fcfb3d"
   zh: "a14d94149ba7031f"
@@ -150,29 +150,29 @@
   en: "8dffbeb751e59849"
   zh: "2d18a921a0d77596"
 /components/optional-components/window-chrome:
-  en: "aaefab3fe6f6063b"
-  zh: "aff96eee8fcf7ae7"
+  en: "90b7978cbd0f9268"
+  zh: "4466ad4e1cd4b7b7"
 /components/optional-components/search:
-  en: "b67194606d49b75f"
-  zh: "3888b8816683cb39"
+  en: "2018f02b14d7c842"
+  zh: "da03abb63f8972ae"
 /components/optional-components/button-groups:
-  en: "631622327d0c2c9b"
-  zh: "08974767aacb9f6f"
+  en: "92a8a01d610813d0"
+  zh: "afc55f6a992d2e1f"
 /components/optional-components/split-buttons:
-  en: "925c4848924530f5"
-  zh: "e9bac206204f6f05"
+  en: "57034ba69652dee1"
+  zh: "3d98c3ba200cd55d"
 /components/optional-components/fab-menus:
   en: "a5d840d969ad243a"
   zh: "8e22b7c51755c7fa"
 /components/optional-components/toolbars:
-  en: "be4f9791b41356d4"
-  zh: "5ef25bbf22730ef0"
+  en: "2b62923d3e3c5713"
+  zh: "45d2b11361923caa"
 /components/optional-components/date-pickers:
-  en: "2191eb74db1f7803"
-  zh: "fb5992e54b1d8ea1"
+  en: "7d8ea1d4e8084f47"
+  zh: "e44574703eaf142e"
 /components/optional-components/time-pickers:
-  en: "1bee5f23c205b79d"
-  zh: "e4f861621bd4d80c"
+  en: "734f18b5fdcb53a9"
+  zh: "2dfca7f2af49bb01"
 /components/optional-components/scroll-fields:
   en: "5881f1d730e7138a"
   zh: "a30907506d331a76"

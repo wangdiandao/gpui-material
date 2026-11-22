@@ -13,6 +13,8 @@ use gpui_material::{
     foundation::isolated_scroll, theme::TypeRole,
 };
 
+#[cfg(all(test, feature = "test-support"))]
+mod feed_tests;
 mod multi_pane;
 #[cfg(all(test, feature = "test-support"))]
 mod navigation_tests;

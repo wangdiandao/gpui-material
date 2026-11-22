@@ -895,3 +895,150 @@ fn list_section_segmented_applies_grouped_corners_and_unified_roving_focus(
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn settings_tiles_preserve_track_focus_interaction_source_trailing_slot_and_choice_description(
+    cx: &mut TestAppContext,
+) {
+    use gpui::FocusHandle;
+    use gpui_base::TestSupportExt as _;
+    use gpui_material::{InteractionSource, ListSectionItem};
+
+    struct Example {
+        handles: [FocusHandle; 5],
+        source: Entity<InteractionSource>,
+        slider: Entity<SliderState>,
+    }
+
+    impl Render for Example {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().w(px(360.)).p_4().child(
+                ListSection::segmented("tracked-section").items([
+                    ListSectionItem::Switch(
+                        SwitchTile::new("st-switch", "Notifications", true)
+                            .track_focus(&self.handles[0])
+                            .interaction_source(&self.source)
+                            .on_change(|_, _, _| {}),
+                    ),
+                    ListSectionItem::Checkbox(
+                        CheckboxTile::bool("st-check", "Auto download", true)
+                            .trailing_checkbox(false)
+                            .trailing(
+                                div()
+                                    .id("check-trailing")
+                                    .test_support()
+                                    .child("Wi-Fi only"),
+                            )
+                            .track_focus(&self.handles[1])
+                            .interaction_source(&self.source)
+                            .on_change(|_, _, _| {}),
+                    ),
+                    ListSectionItem::Radio(
+                        RadioTile::new("st-radio", "Compact", false)
+                            .trailing_radio(false)
+                            .trailing(div().id("radio-trailing").test_support().child("Beta"))
+                            .track_focus(&self.handles[2])
+                            .interaction_source(&self.source)
+                            .on_select(|_, _| {}),
+                    ),
+                    ListSectionItem::Slider(
+                        SliderTile::new("st-slider", "Brightness", &self.slider)
+                            .track_focus(&self.handles[3])
+                            .interaction_source(&self.source),
+                    ),
+                    ListSectionItem::Choice(
+                        ChoiceTile::new(
+                            "st-choice",
+                            "Theme",
+                            [
+                                ChoiceOption::new("light", "Light"),
+                                ChoiceOption::new("dark", "Dark"),
+                            ],
+                            "dark",
+                        )
+                        .track_focus(&self.handles[4])
+                        .interaction_source(&self.source)
+                        .on_select(|_, _, _| {}),
+                    ),
+                ]),
+            )
+        }
+    }
+
+    let mut entity = None;
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+            let source = cx.new(|_| InteractionSource::default());
+            let slider = cx.new(|_| SliderState::new());
+            let e = cx.new(|cx| Example {
+                handles: std::array::from_fn(|_| cx.focus_handle()),
+                source,
+                slider,
+            });
+            entity = Some(e.clone());
+            e
+        })
+        .unwrap()
+    });
+    let view = entity.unwrap();
+
+    let draw = |window: &mut Window, cx: &mut App| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+    };
+
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.activate_window();
+        draw(window, cx);
+
+        let check_row = find(window, &[], &"st-check".into()).unwrap().bounds();
+        let check_trailing = find(window, &[], &"check-trailing".into())
+            .unwrap()
+            .bounds();
+        let radio_row = find(window, &[], &"st-radio".into()).unwrap().bounds();
+        let radio_trailing = find(window, &[], &"radio-trailing".into())
+            .unwrap()
+            .bounds();
+        assert!(check_trailing.left() > check_row.center().x);
+        assert!(radio_trailing.left() > radio_row.center().x);
+
+        let choice_act = find(
+            window,
+            &[],
+            &(ElementId::from("st-choice"), "activate").into(),
+        )
+        .unwrap();
+        assert_eq!(choice_act.description(), Some("Dark"));
+
+        let wid = window.window_handle().window_id();
+        let source = view.read(cx).source.read(cx);
+        for id in [
+            "st-switch",
+            "st-check",
+            "st-radio",
+            "st-slider",
+            "st-choice",
+        ] {
+            assert!(
+                source.state(wid, &ElementId::from(id)).is_some(),
+                "missing interaction state for {id}"
+            );
+        }
+
+        // Caller focus handles are preserved by ListSection roving navigation.
+        view.read(cx).handles[0].clone().focus(window, cx);
+        draw(window, cx);
+        assert!(view.read(cx).handles[0].is_focused(window));
+
+        press_key("down", window, cx);
+        draw(window, cx);
+        assert!(view.read(cx).handles[1].is_focused(window));
+
+        press_key("end", window, cx);
+        draw(window, cx);
+        assert!(view.read(cx).handles[4].is_focused(window));
+    })
+    .unwrap();
+}

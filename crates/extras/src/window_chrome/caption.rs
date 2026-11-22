@@ -1,7 +1,8 @@
 use gpui::{
     AccessibleAction, App, Bounds, ClickEvent, ElementId, Hsla, InteractiveElement, IntoElement,
-    ParentElement, PathBuilder, Pixels, RenderOnce, Role, StatefulInteractiveElement, Styled,
-    Window, WindowControlArea, canvas, div, point, prelude::FluentBuilder, px, transparent_black,
+    ParentElement, PathBuilder, Pixels, RenderOnce, Role, SharedString, StatefulInteractiveElement,
+    Styled, Window, WindowControlArea, canvas, div, point, prelude::FluentBuilder, px,
+    transparent_black,
 };
 use gpui_base::TestSupportExt as _;
 use gpui_material_foundation::{color, current_material_theme};
@@ -28,6 +29,37 @@ pub struct CaptionButtonColors {
     pub close_pressed_foreground: Option<Hsla>,
 }
 
+/// Localized accessible names for [`CaptionButtons`] and [`super::TitleBar`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CaptionButtonLabels {
+    pub minimize: SharedString,
+    pub maximize: SharedString,
+    pub restore: SharedString,
+    pub close: SharedString,
+}
+
+impl Default for CaptionButtonLabels {
+    fn default() -> Self {
+        Self {
+            minimize: SharedString::new_static("Minimize"),
+            maximize: SharedString::new_static("Maximize"),
+            restore: SharedString::new_static("Restore"),
+            close: SharedString::new_static("Close"),
+        }
+    }
+}
+
+impl CaptionButtonLabels {
+    fn for_control(&self, control: CaptionButton) -> SharedString {
+        match control {
+            CaptionButton::Minimize => self.minimize.clone(),
+            CaptionButton::Maximize => self.maximize.clone(),
+            CaptionButton::Restore => self.restore.clone(),
+            CaptionButton::Close => self.close.clone(),
+        }
+    }
+}
+
 /// Minimize, maximize or restore, and close buttons for a client-drawn title bar.
 ///
 /// Use this directly in a custom title bar layout for a window opened with
@@ -37,6 +69,7 @@ pub struct CaptionButtonColors {
 pub struct CaptionButtons {
     id: ElementId,
     colors: CaptionButtonColors,
+    labels: CaptionButtonLabels,
     button_width: Option<Pixels>,
     platform: ChromePlatform,
     show: Option<bool>,
@@ -49,6 +82,7 @@ impl CaptionButtons {
         Self {
             id: id.into(),
             colors: CaptionButtonColors::default(),
+            labels: CaptionButtonLabels::default(),
             button_width: None,
             platform: ChromePlatform::current(),
             show: None,
@@ -59,6 +93,12 @@ impl CaptionButtons {
     /// Overrides the button palette. Omitted fields keep the Material theme defaults.
     pub fn colors(mut self, colors: CaptionButtonColors) -> Self {
         self.colors = colors;
+        self
+    }
+
+    /// Overrides the localized accessible button names (Minimize, Maximize, Restore, Close).
+    pub fn labels(mut self, labels: CaptionButtonLabels) -> Self {
+        self.labels = labels;
         self
     }
 
@@ -132,6 +172,7 @@ impl RenderOnce for CaptionButtons {
                     self.platform,
                     button_width,
                     self.colors,
+                    self.labels.for_control(CaptionButton::Minimize),
                     None,
                     window,
                     cx,
@@ -148,6 +189,7 @@ impl RenderOnce for CaptionButtons {
                     self.platform,
                     button_width,
                     self.colors,
+                    self.labels.for_control(control),
                     None,
                     window,
                     cx,
@@ -158,6 +200,7 @@ impl RenderOnce for CaptionButtons {
                 self.platform,
                 button_width,
                 self.colors,
+                self.labels.for_control(CaptionButton::Close),
                 self.on_close,
                 window,
                 cx,
@@ -190,15 +233,6 @@ impl CaptionButton {
         }
     }
 
-    fn label(self) -> &'static str {
-        match self {
-            Self::Minimize => "Minimize",
-            Self::Maximize => "Maximize",
-            Self::Restore => "Restore",
-            Self::Close => "Close",
-        }
-    }
-
     fn activate(self, window: &mut Window, cx: &mut App, on_close: Option<&CloseHandler>) {
         match self {
             Self::Minimize => activate_minimize(window),
@@ -208,11 +242,13 @@ impl CaptionButton {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn title_bar_control(
     control: CaptionButton,
     platform: ChromePlatform,
     button_width: Pixels,
     colors: CaptionButtonColors,
+    label: SharedString,
     on_close: Option<CloseHandler>,
     window: &Window,
     cx: &App,
@@ -258,7 +294,7 @@ fn title_bar_control(
                 .unwrap_or_else(|| tone(ColorRole::OnSurface)),
         ),
     };
-    let ring = tone(ColorRole::Primary);
+    let ring = tone(ColorRole::Secondary);
 
     // Windows routes native pointer clicks (and Snap Layouts on Maximize) through
     // non-client hit areas unless a custom `on_close` callback overrides Close.
@@ -283,7 +319,7 @@ fn title_bar_control(
             button.window_control_area(control.area())
         })
         .role(Role::Button)
-        .aria_label(control.label())
+        .aria_label(label)
         .tab_index(0)
         .focus_visible(move |style| style.border_color(ring))
         .hover(move |style| style.bg(hover_fill).text_color(hover_text))

@@ -81,7 +81,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ### 滑块
 
-调用方持有 `SliderState` 实体，范围与步进由 Base 管理。`SliderEvent::Change` 报告数值编辑，`SliderEvent::Release` 报告指针手势结束。键盘或无障碍操作改变数值时，先发出 `Change`，再发出 `Release`。数值未变时不会发出这两个事件。使用 `Slider::range` 时传入范围值和两个无障碍名称。单值滑块使用 `.kind(SliderKind::Centered)` 从中点开始填充。`.axis(Axis::Vertical)` 默认从下往上递增。设置 `.reverse_vertical(true)` 后，布局、指针移动和上下方向键改为从上往下递增。横向布局和方向键随窗口方向调整。两种方向下，无障碍的值和边界都遵循数值顺序。
+调用方持有 `SliderState` 实体，范围与步进由 Base 管理。`SliderEvent::Change` 报告数值编辑，`SliderEvent::Release` 报告指针手势结束。键盘或无障碍操作改变数值时，先发出 `Change`，再发出 `Release`。数值未变时不会发出这两个事件。使用 `Slider::range` 时传入范围值和两个无障碍名称。单值滑块使用 `.kind(SliderKind::Centered)` 从中点开始填充。`.axis(Axis::Vertical)` 默认从下往上递增。设置 `.reverse_vertical(true)` 后，布局、指针移动和上下方向键改为从上往下递增。横向布局和方向键随窗口方向调整。聚焦滑柄时，`Home` 和 `End` 跳转到数值下限或上限，`PageUp` 和 `PageDown` 按较大步长（量程的 10% 且不小于一个无障碍步进）调整。两种方向下，无障碍的值和边界都遵循数值顺序。
 
 `.track_style(SliderTrackStyle)` 可按逻辑像素设置 `thickness`、`outer_radius`、`inner_radius` 和 `thumb_gap`。省略时沿用对应尺寸的默认轨道厚度和外侧圆角、2 dp 内侧圆角，以及距滑柄边缘 6 dp 的间隙。使用 `.thumb_style(RangeThumb, SliderThumbStyle)` 分别为滑柄设置 `size`、`pressed_width`、`color`、`disabled_color` 和 `focused_color`。`size` 的第一维沿数值轴，第二维垂直于数值轴。滑柄沿数值轴默认宽 4 dp，拖动时缩到 2 dp，另一维随当前尺寸变化。非有限数值和非正尺寸使用默认值。圆角和间隙可设为零。单值滑块使用 `RangeThumb::End`。
 

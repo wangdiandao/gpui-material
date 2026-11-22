@@ -23,7 +23,9 @@ mod generated {
 pub use color::contrast_ratio_of_tones;
 pub use color::{Appearance, Argb, ColorPair, ColorScheme, Elevation, StateLayer};
 #[cfg(feature = "dynamic-color")]
-pub use dynamic_color::{DynamicVariant, SpecVersion, ThemePreset};
+pub use dynamic_color::{
+    CustomColorGroup, DynamicVariant, SpecVersion, ThemePreset, harmonize_color,
+};
 pub use generated::ColorRole;
 pub use layout::{Density, Direction, LayoutPolicy, WidthClass};
 pub use motion::{CubicBezier, MotionKind, MotionScheme, MotionSpec, MotionSpeed, Spring};
@@ -56,6 +58,36 @@ impl MaterialTheme {
             colors: ColorScheme::from_seed(seed, appearance, contrast),
             ..Self::default()
         }
+    }
+
+    pub fn with_colors(mut self, colors: ColorScheme) -> Self {
+        self.colors = colors;
+        self
+    }
+
+    pub fn with_typography(mut self, typography: Typography) -> Self {
+        self.typography = typography;
+        self
+    }
+
+    pub fn with_motion(mut self, motion: MotionScheme) -> Self {
+        self.motion = motion;
+        self
+    }
+
+    pub fn with_layout(mut self, layout: LayoutPolicy) -> Self {
+        self.layout = layout;
+        self
+    }
+
+    pub fn with_density(mut self, density: Density) -> Self {
+        self.layout.density = density;
+        self
+    }
+
+    pub fn with_direction(mut self, direction: Direction) -> Self {
+        self.layout.direction = direction;
+        self
     }
 }
 

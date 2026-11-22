@@ -2,6 +2,7 @@ use gpui::{App, Axis, FocusHandle, Window};
 use gpui_material_theme::Direction;
 
 /// Moves within an ordered focus group, skipping disabled items and wrapping.
+/// Supports axis arrows (`left`/`right` or `up`/`down`) plus `home` and `end`.
 /// The caller owns selection and sets the active item's tab stop.
 pub fn move_roving_focus(
     items: &[(&FocusHandle, bool)],
@@ -11,6 +12,29 @@ pub fn move_roving_focus(
     window: &mut Window,
     cx: &mut App,
 ) -> Option<usize> {
+    match key {
+        "home" => {
+            return items.iter().enumerate().find_map(|(ix, (focus, enabled))| {
+                enabled.then(|| {
+                    focus.focus(window, cx);
+                    ix
+                })
+            });
+        }
+        "end" => {
+            return items
+                .iter()
+                .enumerate()
+                .rev()
+                .find_map(|(ix, (focus, enabled))| {
+                    enabled.then(|| {
+                        focus.focus(window, cx);
+                        ix
+                    })
+                });
+        }
+        _ => {}
+    }
     let backward = match key {
         "left" if axis == Axis::Horizontal => direction == Direction::Ltr,
         "right" if axis == Axis::Horizontal => direction == Direction::Rtl,

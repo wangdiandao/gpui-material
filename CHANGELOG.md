@@ -4,6 +4,12 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Theme and foundation
+
+- Expose Material 3 custom colors and harmonization behind `dynamic-color` (`CustomColorGroup`, `harmonize_color`, `ColorScheme::custom_color`, and `ColorScheme::custom_color_with_contrast`).
+- Add ergonomic M3 helpers: `Argb::{from_rgba, with_alpha, alpha, red, green, blue}`, `ColorRole::on_role`, `ColorScheme::with_color`, `MaterialTheme::{with_colors, with_typography, with_motion, with_layout, with_density, with_direction}`, `CornerShape::{uniform, top, bottom, start, end}`, and `ThemeScope::density`.
+- Support `Home`/`End` in `move_roving_focus` (unifying keyboard navigation across `NavigationDrawer`, `Stepper`, `List`, `Menu`, `RadioGroup`, `ButtonGroup`, `Toolbar`, and `FabMenu`) and `Home`/`End`/`PageUp`/`PageDown` in `range_semantics` for `Slider`.
+
 ## 0.3.0 - 2026-11-22
 
 Changes since [v0.2.0](https://github.com/wangdiandao/gpui-material/releases/tag/v0.2.0).

@@ -5,7 +5,7 @@ use gpui::{
     LayoutId, Pixels, Window, WindowId,
 };
 use gpui_base::Theme;
-use gpui_material_theme::{Direction, MaterialTheme};
+use gpui_material_theme::{Density, Direction, MaterialTheme};
 
 use crate::root::{project_base_theme, window_override_handle, window_theme_handle};
 
@@ -64,12 +64,13 @@ fn with_scope<R>(
     draw(window, cx)
 }
 
-/// Applies a Material theme or direction to a child and its Material overlays.
+/// Applies a Material theme, direction, or density to a child and its Material overlays.
 /// The element participates in layout using its child's layout directly.
 pub struct ThemeScope {
     child: AnyElement,
     theme: Option<Rc<MaterialTheme>>,
     direction: Option<Direction>,
+    density: Option<Density>,
 }
 
 impl ThemeScope {
@@ -78,6 +79,7 @@ impl ThemeScope {
             child: child.into_any_element(),
             theme: None,
             direction: None,
+            density: None,
         }
     }
 
@@ -91,6 +93,11 @@ impl ThemeScope {
         self
     }
 
+    pub fn density(mut self, density: Density) -> Self {
+        self.density = Some(density);
+        self
+    }
+
     /// Carries the current subtree scope across a deferred draw. Wrap the
     /// content passed to the positioning or overlay host.
     pub fn inherit(child: impl IntoElement, window: &Window, cx: &App) -> AnyElement {
@@ -99,6 +106,7 @@ impl ThemeScope {
                 child: child.into_any_element(),
                 theme: Some(theme),
                 direction: None,
+                density: None,
             }
             .into_any_element(),
             None => child.into_any_element(),
@@ -146,12 +154,19 @@ impl Element for ThemeScope {
         window: &mut Window,
         cx: &mut App,
     ) -> (LayoutId, ()) {
-        if let Some(direction) = self.direction {
+        if self.direction.is_some() || self.density.is_some() {
             let mut theme = self.theme.take().unwrap_or_else(|| {
                 scoped_theme(window, cx).unwrap_or_else(|| window_theme_handle(window, cx).clone())
             });
-            if theme.layout.direction != direction {
+            if let Some(direction) = self.direction
+                && theme.layout.direction != direction
+            {
                 Rc::make_mut(&mut theme).layout.direction = direction;
+            }
+            if let Some(density) = self.density
+                && theme.layout.density != density
+            {
+                Rc::make_mut(&mut theme).layout.density = density;
             }
             self.theme = Some(theme);
         }

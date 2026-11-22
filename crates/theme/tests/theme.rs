@@ -389,3 +389,62 @@ fn serde_round_trips_theme_overrides_and_keeps_baseline_roles() {
     let clamped: MaterialTheme = serde_json::from_value(serialized).unwrap();
     assert_eq!(clamped.typography.text_scale(), 2.);
 }
+
+#[test]
+fn argb_color_role_on_role_corner_shape_and_fluent_theme_helpers() {
+    let c = Argb::from_rgba(0x12, 0x34, 0x56, 0x80);
+    assert_eq!(
+        (c.alpha(), c.red(), c.green(), c.blue()),
+        (0x80, 0x12, 0x34, 0x56)
+    );
+    assert_eq!(c.with_alpha(0xff), Argb::from_rgb(0x12, 0x34, 0x56));
+
+    assert_eq!(ColorRole::Primary.on_role(), Some(ColorRole::OnPrimary));
+    assert_eq!(
+        ColorRole::SuccessContainer.on_role(),
+        Some(ColorRole::OnSuccessContainer)
+    );
+    assert_eq!(ColorRole::Outline.on_role(), None);
+    let baseline = ColorScheme::baseline(Appearance::Light);
+    for role in ColorRole::ALL {
+        assert_eq!(
+            baseline.pair(role).map(|pair| pair.foreground),
+            role.on_role().map(|fg| baseline.color(fg))
+        );
+    }
+
+    let custom = baseline
+        .clone()
+        .with_color(ColorRole::Primary, Argb::from_rgb(1, 2, 3));
+    assert_eq!(custom.color(ColorRole::Primary), Argb::from_rgb(1, 2, 3));
+
+    assert_eq!(CornerShape::uniform(8.0), CornerShape::Radii([8.0; 4]));
+    assert_eq!(
+        CornerShape::top(12.0),
+        CornerShape::Radii([12.0, 12.0, 0.0, 0.0])
+    );
+    assert_eq!(
+        CornerShape::bottom(12.0),
+        CornerShape::Radii([0.0, 0.0, 12.0, 12.0])
+    );
+    assert_eq!(
+        CornerShape::start(12.0),
+        CornerShape::Radii([12.0, 0.0, 0.0, 12.0])
+    );
+    assert_eq!(
+        CornerShape::end(12.0),
+        CornerShape::Radii([0.0, 12.0, 12.0, 0.0])
+    );
+
+    let theme = MaterialTheme::baseline(Appearance::Dark)
+        .with_colors(custom.clone())
+        .with_typography(gpui_material_theme::Typography::default().with_text_scale(1.25))
+        .with_motion(MotionScheme::Expressive)
+        .with_density(Density::Compact)
+        .with_direction(Direction::Rtl);
+    assert_eq!(theme.colors, custom);
+    assert_eq!(theme.typography.text_scale(), 1.25);
+    assert_eq!(theme.motion, MotionScheme::Expressive);
+    assert_eq!(theme.layout.density, Density::Compact);
+    assert_eq!(theme.layout.direction, Direction::Rtl);
+}

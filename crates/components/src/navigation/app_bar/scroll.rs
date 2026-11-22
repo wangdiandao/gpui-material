@@ -12,7 +12,7 @@ pub enum AppBarScrollBehavior {
     ExitUntilCollapsed,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 enum Request {
     Fraction(f32),
     Settle(f32),
@@ -65,7 +65,17 @@ impl AppBarScrollState {
     /// Sets the presentation fraction immediately, provided the bar can collapse.
     pub fn set_collapsed_fraction(&mut self, fraction: f32, cx: &mut Context<Self>) {
         if fraction.is_finite() {
-            self.request = Some(Request::Fraction(fraction.clamp(0., 1.)));
+            let clamped = fraction.clamp(0., 1.);
+            let next = Some(Request::Fraction(clamped));
+            if self.request == next
+                || (self.request.is_none()
+                    && !self.settle
+                    && self.target == clamped
+                    && self.collapsed_fraction() == clamped)
+            {
+                return;
+            }
+            self.request = next;
             cx.notify();
         }
     }
@@ -73,12 +83,15 @@ impl AppBarScrollState {
     /// Settles at an endpoint of the current range. Velocity is in logical pixels
     /// per second, positive away from the top. A zero velocity uses the nearest endpoint.
     pub fn settle(&mut self, velocity: f32, cx: &mut Context<Self>) {
-        self.request = Some(Request::Settle(if velocity.is_finite() {
+        let next = Some(Request::Settle(if velocity.is_finite() {
             velocity
         } else {
             0.
         }));
-        cx.notify();
+        if self.request != next {
+            self.request = next;
+            cx.notify();
+        }
     }
 
     pub fn content_offset(&self) -> Pixels {

@@ -494,11 +494,14 @@ fn period_selector(
         let state = state.clone();
         let activate = Rc::new(move |_: &mut Window, cx: &mut App| {
             state.update(cx, |state, cx| {
-                state.draft = state
+                let next = state
                     .draft
                     .with_hour(state.draft.hour() % 12 + if pm { 12 } else { 0 })
                     .unwrap();
-                cx.notify();
+                if state.draft != next {
+                    state.draft = next;
+                    cx.notify();
+                }
             });
         });
         let click = activate.clone();

@@ -95,26 +95,37 @@ impl PullToRefreshState {
 
     /// Sets the displayed distance immediately and cancels an active gesture.
     pub fn snap_to(&mut self, fraction: f32, cx: &mut Context<Self>) {
-        self.gesture = None;
-        self.fraction = if fraction.is_finite() {
+        let target = if fraction.is_finite() {
             fraction.max(0.)
         } else {
             0.
         };
+        let had_gesture = self.gesture.take().is_some();
+        let was_animating = self.motion.is_animating();
+        let changed = had_gesture || self.fraction != target || was_animating;
+        self.fraction = target;
         self.motion.snap_to(self.fraction);
-        cx.notify();
+        if changed {
+            cx.notify();
+        }
     }
 
     pub fn animate_to_threshold(&mut self, cx: &mut Context<Self>) {
-        self.gesture = None;
-        self.settle_to(1., cx);
-        cx.notify();
+        self.animate_to_fraction(1., cx);
     }
 
     pub fn animate_to_hidden(&mut self, cx: &mut Context<Self>) {
-        self.gesture = None;
-        self.settle_to(0., cx);
-        cx.notify();
+        self.animate_to_fraction(0., cx);
+    }
+
+    fn animate_to_fraction(&mut self, target: f32, cx: &mut Context<Self>) {
+        let had_gesture = self.gesture.take().is_some();
+        let was_animating = self.motion.is_animating();
+        let before = self.fraction;
+        self.settle_to(target, cx);
+        if had_gesture || was_animating || before != self.fraction || self.motion.is_animating() {
+            cx.notify();
+        }
     }
 
     /// Clears the current pull and any unanswered request, keeping the controlled busy value.
@@ -181,12 +192,19 @@ impl PullToRefreshState {
 
     fn pull_by(&mut self, amount: Pixels, threshold: Pixels, cx: &mut Context<Self>) {
         if let Some(gesture) = &mut self.gesture {
-            gesture.distance = (gesture.distance + amount).max(px(0.));
-            let progress = (gesture.distance / threshold) * DRAG_MULTIPLIER;
+            let next_distance = (gesture.distance + amount).max(px(0.));
+            let progress = (next_distance / threshold) * DRAG_MULTIPLIER;
             let overshoot = (progress - 1.).clamp(0., 2.);
-            self.fraction = progress.min(1.) + overshoot - overshoot.powi(2) * 0.25;
-            self.motion.snap_to(self.fraction);
-            cx.notify();
+            let next_fraction = progress.min(1.) + overshoot - overshoot.powi(2) * 0.25;
+            if next_distance != gesture.distance
+                || next_fraction != self.fraction
+                || self.motion.is_animating()
+            {
+                gesture.distance = next_distance;
+                self.fraction = next_fraction;
+                self.motion.snap_to(self.fraction);
+                cx.notify();
+            }
         }
     }
 }

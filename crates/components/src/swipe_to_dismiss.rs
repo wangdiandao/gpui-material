@@ -218,9 +218,11 @@ impl SwipeToDismissState {
         if !self.options.allows(value) {
             return false;
         }
-        self.cancel_input(window, true);
-        self.settle(value, window, cx);
-        window.refresh();
+        let cancelled = self.cancel_input(window, true);
+        let settled = self.settle(value, window, cx);
+        if cancelled || settled {
+            window.refresh();
+        }
         true
     }
 
@@ -236,8 +238,8 @@ impl SwipeToDismissState {
         if self.moving && self.target == value {
             return;
         }
-        if cx.reduce_motion() || self.position == value.position() {
-            self.settle(value, window, cx);
+        let changed = if cx.reduce_motion() || self.position == value.position() {
+            self.settle(value, window, cx)
         } else {
             if !self.moving {
                 self.rebase_motion = true;
@@ -245,11 +247,19 @@ impl SwipeToDismissState {
             self.target = value;
             self.moving = true;
             cx.notify();
+            true
+        };
+        if changed {
+            window.refresh();
         }
-        window.refresh();
     }
 
-    fn settle(&mut self, value: SwipeToDismissValue, window: &mut Window, cx: &mut Context<Self>) {
+    fn settle(
+        &mut self,
+        value: SwipeToDismissValue,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
         let changed = self.position != value.position() || self.target != value || self.moving;
         self.position = value.position();
         self.target = value;
@@ -268,8 +278,12 @@ impl SwipeToDismissState {
                 cx.emit(Dismissed(value));
             }
             cx.notify();
+            true
         } else if changed {
             cx.notify();
+            true
+        } else {
+            false
         }
     }
 

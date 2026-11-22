@@ -169,6 +169,9 @@ pub(crate) fn window_theme_handle<'a>(window: &Window, cx: &'a App) -> &'a Rc<Ma
 /// overridden window or subtree can call [`crate::current_base_theme`] or
 /// [`project_base_theme`] to apply matching local tokens and scrollbar styles.
 pub fn set_window_material_theme(theme: Option<MaterialTheme>, window: &mut Window, cx: &mut App) {
+    if window_override_handle(window, cx).map(Rc::as_ref) == theme.as_ref() {
+        return;
+    }
     refresh_installed_fonts(cx);
     if !cx.has_global::<WindowMaterialThemes>() {
         cx.set_global(WindowMaterialThemes::default());
@@ -203,6 +206,16 @@ pub fn project_base_theme(theme: &MaterialTheme, cx: &App) -> Theme {
 /// Colors follow the new theme's Slow Effects motion spec from the displayed
 /// palette. Typography and layout apply immediately.
 pub fn set_material_theme(mut theme: MaterialTheme, cx: &mut App) {
+    let has_transition = cx
+        .try_global::<ThemeAnimator>()
+        .is_some_and(|animator| animator.transition.is_some());
+    if !has_transition
+        && cx
+            .try_global::<ActiveMaterialTheme>()
+            .is_some_and(|previous| *previous.0 == theme)
+    {
+        return;
+    }
     refresh_installed_fonts(cx);
     let spec = theme
         .motion

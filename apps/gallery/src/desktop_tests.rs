@@ -452,3 +452,256 @@ fn gallery_lazy_loads_stories_and_preserves_visited_views(cx: &mut TestAppContex
         assert!(g.story_view_id(Story::AdaptiveLayout).is_none());
     });
 }
+
+#[gpui::test]
+fn gallery_virtualizes_catalog_and_skips_noop_navigation_notifications(cx: &mut TestAppContext) {
+    use std::{cell::Cell, rc::Rc};
+
+    let notifications = Rc::new(Cell::new(0usize));
+    let (handle, gallery) = cx.update(|cx| {
+        init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut gallery = None;
+        let handle = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let view = cx.new(|cx| Gallery::new(Story::Button, window, cx));
+            let counter = notifications.clone();
+            cx.observe(&view, move |_, _| {
+                counter.set(counter.get() + 1);
+            })
+            .detach();
+            gallery = Some(view.clone());
+            view
+        })
+        .unwrap();
+        (handle, gallery.unwrap())
+    });
+    cx.simulate_window_resize(handle.into(), size(px(1040.), px(744.)));
+    cx.run_until_parked();
+
+    let rendered_rows = cx
+        .update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            Story::ALL
+                .iter()
+                .filter(|story| {
+                    let id = ElementId::from((ElementId::from("gallery-story"), story.id()));
+                    find(window, &[], &(id, "activate").into()).is_some()
+                })
+                .count()
+        })
+        .unwrap();
+    assert!(rendered_rows > 0);
+    assert!(
+        rendered_rows < Story::ALL.len(),
+        "expected virtualized catalog to render fewer than {} stories, rendered {}",
+        Story::ALL.len(),
+        rendered_rows
+    );
+
+    // Re-activating the already-selected story in two-pane mode must not notify Gallery.
+    notifications.set(0);
+    let button_story = ElementId::from((ElementId::from("gallery-story"), "button"));
+    click(cx, handle, (button_story.clone(), "activate").into());
+    assert_eq!(notifications.get(), 0);
+
+    // Focus the selected catalog row, then press End to reveal and focus the last story.
+    let last_story = *Story::ALL.last().expect("catalog is non-empty");
+    let last_id = ElementId::from((ElementId::from("gallery-story"), last_story.id()));
+    cx.update_window(handle.into(), |_, window, cx| {
+        let focus = gallery
+            .read(cx)
+            .catalog_story_focus(Story::Button)
+            .expect("button catalog focus");
+        focus.focus(window, cx);
+    })
+    .unwrap();
+    cx.simulate_keystrokes(handle.into(), "end");
+    cx.run_until_parked();
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let last = find(window, &[], &(last_id, "activate").into());
+        assert!(
+            last.is_some(),
+            "expected End key to reveal last story {}",
+            last_story.id()
+        );
+    })
+    .unwrap();
+}
+
+#[gpui::test]
+fn noop_state_updates_skip_redundant_notifications(cx: &mut TestAppContext) {
+    use std::rc::Rc;
+
+    use gpui_material::{
+        AppBarScrollState, BottomSheetState, BottomSheetValue, PullToRefreshState,
+        SearchScrollState, SwipeToDismissState, SwipeToDismissValue, ToolbarScrollState,
+        date_time::{DatePickerState, ScrollFieldState, TimePickerState},
+    };
+
+    let (handle, counts) = cx.update(|cx| {
+        init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let counts = Rc::new(std::cell::RefCell::new(Vec::<&'static str>::new()));
+        let mut states = None;
+        let handle = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let ptr = cx.new(|_| PullToRefreshState::new());
+            let app_bar = cx.new(|_| AppBarScrollState::new());
+            let search = cx.new(|_| SearchScrollState::new());
+            let toolbar = cx.new(|_| ToolbarScrollState::new());
+            let wheel = cx.new(|cx| ScrollFieldState::new(12, 0, cx));
+            let swipe = cx.new(|_| SwipeToDismissState::new());
+            let sheet = cx.new(|cx| BottomSheetState::new(BottomSheetValue::Hidden, cx));
+            let date = cx.new(|cx| DatePickerState::new(window, cx));
+            let time = cx.new(|cx| TimePickerState::new(window, cx));
+
+            macro_rules! track {
+                ($name:literal, $entity:expr) => {{
+                    let c = counts.clone();
+                    cx.observe(&$entity, move |_, _| c.borrow_mut().push($name))
+                        .detach();
+                }};
+            }
+            track!("ptr", ptr);
+            track!("app_bar", app_bar);
+            track!("search", search);
+            track!("toolbar", toolbar);
+            track!("wheel", wheel);
+            track!("swipe", swipe);
+            track!("sheet", sheet);
+            track!("date", date);
+            track!("time", time);
+
+            states = Some((
+                ptr, app_bar, search, toolbar, wheel, swipe, sheet, date, time,
+            ));
+            cx.new(|_| EmptyView)
+        })
+        .unwrap();
+        (handle, (counts, states.unwrap()))
+    });
+    let (counts, (ptr, app_bar, search, toolbar, wheel, swipe, sheet, date, time)) = counts;
+    cx.run_until_parked();
+    counts.borrow_mut().clear();
+
+    cx.update_window(handle.into(), |_, window, cx| {
+        ptr.update(cx, |s, cx| {
+            s.snap_to(0., cx);
+            s.animate_to_hidden(cx);
+        });
+        app_bar.update(cx, |s, cx| {
+            s.set_collapsed_fraction(0., cx);
+            s.settle(0., cx);
+            s.settle(0., cx);
+        });
+        search.update(cx, |s, cx| {
+            s.set_hidden_fraction(0., cx);
+        });
+        toolbar.update(cx, |s, cx| {
+            s.set_collapsed_fraction(0., cx);
+            s.settle(0., cx);
+            s.settle(0., cx);
+        });
+        wheel.update(cx, |s, cx| {
+            s.scroll_to_option(0, cx);
+        });
+        swipe.update(cx, |s, cx| {
+            s.snap_to(SwipeToDismissValue::Settled, window, cx);
+        });
+        sheet.update(cx, |s, cx| {
+            s.hide(window, cx);
+        });
+        let displayed = date.read(cx).displayed_month();
+        date.update(cx, |s, cx| {
+            s.set_displayed_month(displayed, cx);
+            s.set_displayed_month(displayed, cx);
+        });
+        let (value, hour, minute) = {
+            let state = time.read(cx);
+            (state.value(), state.hour(), state.minute())
+        };
+        time.update(cx, |s, cx| {
+            s.set_value(value, window, cx);
+            s.set_hour(hour, window, cx);
+            s.set_minute(minute, window, cx);
+        });
+    })
+    .unwrap();
+    cx.run_until_parked();
+
+    // Only the initial settle(0.) on app_bar/toolbar and the first set_displayed_month (if cursor != first_of_month)
+    // can legitimately notify; repeated identical calls must be silent.
+    counts.borrow_mut().clear();
+    cx.update_window(handle.into(), |_, window, cx| {
+        ptr.update(cx, |s, cx| {
+            s.snap_to(0., cx);
+            s.animate_to_hidden(cx);
+        });
+        app_bar.update(cx, |s, cx| {
+            s.settle(0., cx);
+        });
+        search.update(cx, |s, cx| {
+            s.set_hidden_fraction(0., cx);
+        });
+        toolbar.update(cx, |s, cx| {
+            s.settle(0., cx);
+        });
+        wheel.update(cx, |s, cx| {
+            s.scroll_to_option(0, cx);
+        });
+        swipe.update(cx, |s, cx| {
+            s.snap_to(SwipeToDismissValue::Settled, window, cx);
+        });
+        sheet.update(cx, |s, cx| {
+            s.hide(window, cx);
+        });
+        let displayed = date.read(cx).displayed_month();
+        date.update(cx, |s, cx| {
+            s.set_displayed_month(displayed, cx);
+        });
+        let (value, hour, minute) = {
+            let state = time.read(cx);
+            (state.value(), state.hour(), state.minute())
+        };
+        time.update(cx, |s, cx| {
+            s.set_value(value, window, cx);
+            s.set_hour(hour, window, cx);
+            s.set_minute(minute, window, cx);
+        });
+    })
+    .unwrap();
+    cx.run_until_parked();
+    assert_eq!(
+        *counts.borrow(),
+        Vec::<&str>::new(),
+        "no-op state updates must not emit notifications"
+    );
+
+    // Genuine state changes still notify.
+    cx.update_window(handle.into(), |_, window, cx| {
+        ptr.update(cx, |s, cx| s.snap_to(0.5, cx));
+        search.update(cx, |s, cx| s.set_hidden_fraction(0.5, cx));
+        wheel.update(cx, |s, cx| s.scroll_to_option(3, cx));
+        time.update(cx, |s, cx| {
+            let next_minute = (s.minute() + 1) % 60;
+            assert!(s.set_minute(next_minute, window, cx));
+        });
+    })
+    .unwrap();
+    cx.run_until_parked();
+    assert_eq!(counts.borrow().len(), 4);
+}
+
+struct EmptyView;
+
+impl gpui::Render for EmptyView {
+    fn render(
+        &mut self,
+        _: &mut gpui::Window,
+        _: &mut gpui::Context<Self>,
+    ) -> impl gpui::IntoElement {
+        gpui::div()
+    }
+}

@@ -51,7 +51,7 @@ impl Default for ToolbarScrollBehavior {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 enum Request {
     Position(f32),
     Settle(f32),
@@ -132,19 +132,32 @@ impl ToolbarScrollState {
 
     pub fn set_collapsed_fraction(&mut self, fraction: f32, cx: &mut Context<Self>) {
         if fraction.is_finite() {
-            self.request = Some(Request::Position(fraction.clamp(0., 1.)));
+            let clamped = fraction.clamp(0., 1.);
+            let next = Some(Request::Position(clamped));
+            if self.request == next
+                || (self.request.is_none()
+                    && matches!(self.motion, SettleMotion::Direct)
+                    && self.target == clamped
+                    && self.collapsed_fraction() == clamped)
+            {
+                return;
+            }
+            self.request = next;
             cx.notify();
         }
     }
 
     /// Releases an application-owned gesture. Positive logical pixels per second exit the strip.
     pub fn settle(&mut self, velocity: f32, cx: &mut Context<Self>) {
-        self.request = Some(Request::Settle(if velocity.is_finite() {
+        let next = Some(Request::Settle(if velocity.is_finite() {
             velocity
         } else {
             0.
         }));
-        cx.notify();
+        if self.request != next {
+            self.request = next;
+            cx.notify();
+        }
     }
 
     pub fn content_offset(&self) -> Pixels {

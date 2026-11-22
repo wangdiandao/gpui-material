@@ -1,5 +1,5 @@
 #[cfg(feature = "feedback")]
-use gpui::ElementId;
+use gpui::{App, ElementId, Window};
 use gpui::{IntoElement, SharedString};
 
 use crate::Badge;
@@ -38,6 +38,20 @@ pub trait MaterialElementExt: IntoElement + Sized {
         items: impl IntoIterator<Item = MenuItem>,
     ) -> Menu {
         Menu::new(id, self, items).context()
+    }
+
+    /// Wraps this element as the trigger of a secondary-click context [`Menu`]
+    /// whose items are built lazily only while the menu is open.
+    #[cfg(feature = "feedback")]
+    fn context_menu_with<I>(
+        self,
+        id: impl Into<ElementId>,
+        build: impl FnOnce(&mut Window, &mut App) -> I + 'static,
+    ) -> Menu
+    where
+        I: IntoIterator<Item = MenuItem>,
+    {
+        Menu::new_with(id, self, build).context()
     }
 }
 

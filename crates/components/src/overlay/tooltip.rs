@@ -2,7 +2,7 @@ mod appearance;
 mod interaction;
 mod label;
 
-use std::{cell::Cell, rc::Rc};
+use std::{cell::Cell, rc::Rc, time::Duration};
 
 use gpui::{
     AccessibleAction, Anchor, AnyElement, App, Bounds, ElementId, Entity, FocusHandle,
@@ -95,6 +95,8 @@ pub struct Tooltip {
     offset: Pixels,
     positioner: Option<PositionProvider>,
     appearance: Appearance,
+    show_delay: Duration,
+    hide_delay: Duration,
 }
 
 impl Tooltip {
@@ -126,6 +128,8 @@ impl Tooltip {
             offset: px(4.),
             positioner: None,
             appearance: Appearance::default(),
+            show_delay: Duration::from_millis(500),
+            hide_delay: Duration::from_millis(200),
         }
     }
 
@@ -192,6 +196,18 @@ impl Tooltip {
     ) -> Self {
         self.rich = true;
         self.link = Some((label.into(), Rc::new(callback)));
+        self
+    }
+
+    /// Overrides the pointer hover delay before showing a transient tooltip (default 500 ms).
+    pub fn show_delay(mut self, delay: Duration) -> Self {
+        self.show_delay = delay;
+        self
+    }
+
+    /// Overrides the pointer leave grace delay before hiding a transient tooltip (default 200 ms).
+    pub fn hide_delay(mut self, delay: Duration) -> Self {
+        self.hide_delay = delay;
         self
     }
 
@@ -313,6 +329,7 @@ impl RenderOnce for Tooltip {
         state.update(cx, |state, cx| {
             state.configure(
                 transient,
+                (self.show_delay, self.hide_delay),
                 self.trigger_focus.as_ref(),
                 self.persistent.as_ref(),
                 window,

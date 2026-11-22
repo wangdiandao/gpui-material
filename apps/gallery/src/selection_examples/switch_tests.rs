@@ -469,3 +469,107 @@ fn switch_interpolates_size_and_position_and_respects_reduced_motion(cx: &mut Te
     assert_eq!(end.1, px(24.));
     assert!(end.0 > middle.0);
 }
+
+#[gpui::test]
+fn switch_show_label_and_label_content_keep_accessibility_and_interactivity(
+    cx: &mut TestAppContext,
+) {
+    struct SwitchVariants {
+        compact_requests: Vec<bool>,
+        rich_requests: Vec<bool>,
+    }
+
+    impl Render for SwitchVariants {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let v1 = cx.entity();
+            let v2 = cx.entity();
+            div()
+                .flex()
+                .flex_col()
+                .items_start()
+                .p_2()
+                .child(Switch::new("labeled-switch", "Standard label", false))
+                .child(
+                    Switch::new("compact-switch", "Dark mode", false)
+                        .show_label(false)
+                        .on_change(move |next, _, cx| {
+                            v1.update(cx, |this, _| this.compact_requests.push(next));
+                        }),
+                )
+                .child(
+                    Switch::new("rich-switch", "Accessible switch", false)
+                        .label_content(
+                            div()
+                                .id("rich-switch-content")
+                                .test_support()
+                                .child("Rich switch label"),
+                        )
+                        .on_change(move |next, _, cx| {
+                            v2.update(cx, |this, _| this.rich_requests.push(next));
+                        }),
+                )
+        }
+    }
+
+    let (handle, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut entity = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            let v = cx.new(|_| SwitchVariants {
+                compact_requests: Vec::new(),
+                rich_requests: Vec::new(),
+            });
+            entity = Some(v.clone());
+            v
+        })
+        .unwrap();
+        (window.into(), entity.unwrap())
+    });
+
+    cx.update_window(handle, |_, window, cx| {
+        window.activate_window();
+        draw(window, cx);
+
+        let labeled = find(window, &[], &"labeled-switch".into()).unwrap();
+        let compact = find(window, &[], &"compact-switch".into()).unwrap();
+        let rich = find(window, &[], &"rich-switch".into()).unwrap();
+
+        assert_eq!(compact.label(), Some("Dark mode"));
+        assert!(find(window, compact.path(), &"selection-label".into()).is_none());
+        assert_eq!(compact.bounds().size.width, px(64.));
+        assert!(compact.bounds().size.width < labeled.bounds().size.width);
+
+        assert_eq!(rich.label(), Some("Accessible switch"));
+        assert!(find(window, rich.path(), &"rich-switch-content".into()).is_some());
+
+        for pos in [compact.bounds().center(), rich.bounds().center()] {
+            window.dispatch_event(
+                MouseDownEvent {
+                    button: MouseButton::Left,
+                    position: pos,
+                    click_count: 1,
+                    first_mouse: false,
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.dispatch_event(
+                MouseUpEvent {
+                    button: MouseButton::Left,
+                    position: pos,
+                    click_count: 1,
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+        }
+        draw(window, cx);
+
+        assert_eq!(view.read(cx).compact_requests, vec![true]);
+        assert_eq!(view.read(cx).rich_requests, vec![true]);
+    })
+    .unwrap();
+}

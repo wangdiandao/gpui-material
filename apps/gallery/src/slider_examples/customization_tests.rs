@@ -1,8 +1,8 @@
 use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
-    ElementId, Modifiers, MouseButton, Pixels, Role, Subscription, TestAppContext, TouchDragEvent,
-    TouchPhase, VisualTestContext, rgb,
+    ElementId, FocusHandle, Modifiers, MouseButton, Pixels, Role, Subscription, TestAppContext,
+    TouchDragEvent, TouchPhase, VisualTestContext, rgb,
 };
 use gpui_base::test_support::find;
 use gpui_material::{
@@ -456,4 +456,95 @@ fn slider_home_end_and_page_keys_adjust_single_and_range_values(cx: &mut TestApp
     cx.simulate_keystrokes("home");
     draw(cx);
     assert_range(&view, (0., 5.), cx);
+}
+
+#[gpui::test]
+fn slider_track_focus_attaches_caller_focus_handles_for_single_and_range(cx: &mut TestAppContext) {
+    struct FocusSliders {
+        single: Entity<SliderState>,
+        range: Entity<SliderState>,
+        single_focus: FocusHandle,
+        start_focus: FocusHandle,
+        end_focus: FocusHandle,
+        source: Entity<InteractionSource>,
+    }
+
+    impl Render for FocusSliders {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div()
+                .w(px(320.))
+                .flex()
+                .flex_col()
+                .gap_3()
+                .p_3()
+                .child(
+                    Slider::new("single-focus-slider", "Volume", &self.single)
+                        .track_focus(RangeThumb::End, &self.single_focus)
+                        .interaction_source(RangeThumb::End, &self.source),
+                )
+                .child(
+                    Slider::range("range-focus-slider", "Min", "Max", &self.range)
+                        .track_focus(RangeThumb::Start, &self.start_focus)
+                        .track_focus(RangeThumb::End, &self.end_focus)
+                        .interaction_source(RangeThumb::Start, &self.source)
+                        .interaction_source(RangeThumb::End, &self.source),
+                )
+        }
+    }
+
+    cx.update(|cx| {
+        MaterialRoot::init(MaterialTheme::default(), cx);
+        cx.set_reduce_motion(true);
+    });
+    let (view, cx) = cx.add_window_view(|window, cx| {
+        window.activate_window();
+        FocusSliders {
+            single: cx.new(|_| SliderState::new().max(10.).step(1.).default_value(4.)),
+            range: cx.new(|_| SliderState::new().max(10.).step(1.).default_value(2.0..8.0)),
+            single_focus: cx.focus_handle(),
+            start_focus: cx.focus_handle(),
+            end_focus: cx.focus_handle(),
+            source: cx.new(|_| InteractionSource::new()),
+        }
+    });
+    draw(cx);
+
+    // Focusing caller's single_focus focuses the single slider thumb and enables keyboard steps.
+    cx.update(|window, cx| view.read(cx).single_focus.clone().focus(window, cx));
+    draw(cx);
+    cx.simulate_keystrokes("right");
+    draw(cx);
+    cx.update(|window, cx| {
+        let model = view.read(cx);
+        assert!(model.single_focus.is_focused(window));
+        assert_eq!(model.single.read(cx).value(), SliderValue::Single(5.));
+        let key: ElementId = (ElementId::from("single-focus-slider"), "end").into();
+        let state = model
+            .source
+            .read(cx)
+            .state(window.window_handle().window_id(), &key)
+            .unwrap();
+        assert!(state.focus_visible);
+    });
+
+    // Focusing caller's start_focus and end_focus independently drives the range thumbs.
+    cx.update(|window, cx| view.read(cx).start_focus.clone().focus(window, cx));
+    draw(cx);
+    cx.simulate_keystrokes("right");
+    draw(cx);
+    cx.update(|window, cx| {
+        let model = view.read(cx);
+        assert!(model.start_focus.is_focused(window));
+        assert_eq!(model.range.read(cx).value(), SliderValue::Range(3., 8.));
+    });
+
+    cx.update(|window, cx| view.read(cx).end_focus.clone().focus(window, cx));
+    draw(cx);
+    cx.simulate_keystrokes("left");
+    draw(cx);
+    cx.update(|window, cx| {
+        let model = view.read(cx);
+        assert!(model.end_focus.is_focused(window));
+        assert_eq!(model.range.read(cx).value(), SliderValue::Range(3., 7.));
+    });
 }

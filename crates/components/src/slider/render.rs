@@ -980,7 +980,7 @@ fn attach_pointer_handlers(
 
 impl RenderOnce for Slider {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let ([start_focus, end_focus], gesture) = window
+        let ([default_start_focus, default_end_focus], gesture) = window
             .use_keyed_state(
                 ElementId::from((self.id.clone(), "slider-state")),
                 cx,
@@ -993,6 +993,14 @@ impl RenderOnce for Slider {
             )
             .read(cx)
             .clone();
+        let start_focus = self.thumbs[thumb_index(RangeThumb::Start)]
+            .focus
+            .take()
+            .unwrap_or(default_start_focus);
+        let end_focus = self.thumbs[thumb_index(RangeThumb::End)]
+            .focus
+            .take()
+            .unwrap_or(default_end_focus);
         let geometry = Geometry {
             axis: self.axis,
             direction: current_material_theme(window, cx).layout.direction,

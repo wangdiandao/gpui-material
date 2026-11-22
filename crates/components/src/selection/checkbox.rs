@@ -1,10 +1,10 @@
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{
-    AccessibleAction, App, BorderStyle, Bounds, ContentMask, ElementId, Entity, FocusHandle, Hsla,
-    InteractiveElement, IntoElement, ParentElement, Path, PathBuilder, PathStyle, Pixels,
-    RenderOnce, Rgba, SharedString, StatefulInteractiveElement, StrokeOptions, Styled, Window,
-    canvas, div, point, prelude::FluentBuilder, px, quad,
+    AccessibleAction, AnyElement, App, BorderStyle, Bounds, ContentMask, ElementId, Entity,
+    FocusHandle, Hsla, InteractiveElement, IntoElement, ParentElement, Path, PathBuilder,
+    PathStyle, Pixels, RenderOnce, Rgba, SharedString, StatefulInteractiveElement, StrokeOptions,
+    Styled, Window, canvas, div, point, prelude::FluentBuilder, px, quad,
 };
 use gpui_base::{Checkbox as BaseCheckbox, CheckboxState, TestSupportExt};
 use gpui_material_foundation::{InteractionSource, ThemeScope, animate, current_material_theme};
@@ -63,6 +63,8 @@ const CHECKBOX_STROKE: f32 = 2.;
 pub struct Checkbox {
     id: ElementId,
     label: SharedString,
+    show_label: bool,
+    label_content: Option<AnyElement>,
     state: CheckboxState,
     error: bool,
     disabled: bool,
@@ -84,6 +86,8 @@ impl Checkbox {
         Self {
             id: id.into(),
             label: label.into(),
+            show_label: true,
+            label_content: None,
             state,
             error: false,
             disabled: false,
@@ -100,6 +104,19 @@ impl Checkbox {
     #[cfg(feature = "surfaces")]
     pub(crate) fn decorative(mut self, decorative: bool) -> Self {
         self.decorative = decorative;
+        self
+    }
+
+    /// Controls whether the visible label is rendered. Defaults to `true`.
+    /// When `false`, the constructor's label remains the accessible name and the trailing gap is omitted.
+    pub fn show_label(mut self, show: bool) -> Self {
+        self.show_label = show;
+        self
+    }
+
+    /// Replaces the visible label while keeping the constructor's label as the accessible name.
+    pub fn label_content(mut self, content: impl IntoElement) -> Self {
+        self.label_content = Some(content.into_any_element());
         self
     }
 
@@ -302,7 +319,7 @@ impl RenderOnce for Checkbox {
             .rounded_md()
             .focus_visible(focus_style(tone(ColorRole::Secondary, window, cx)))
             .child(
-                row(direction)
+                row(direction, self.show_label)
                     .child(selection_target(
                         group,
                         indicator,
@@ -312,7 +329,9 @@ impl RenderOnce for Checkbox {
                         direction,
                         cx.reduce_motion(),
                     ))
-                    .child(selection_label(label, self.disabled, window, cx)),
+                    .children(self.show_label.then(|| {
+                        selection_label(label, self.label_content, self.disabled, window, cx)
+                    })),
             );
         match self.on_change {
             Some(handler) if !self.disabled => {

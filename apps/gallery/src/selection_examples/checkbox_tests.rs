@@ -1,9 +1,9 @@
 use gpui::{
-    App, AppContext, Context, Entity, Hsla, InputEvent, IntoElement, KeyDownEvent, KeyUpEvent,
-    Keystroke, MouseButton, MouseDownEvent, MouseUpEvent, ParentElement, Render, Role,
-    StrokeOptions, Styled, TestAppContext, Window, div, px, rgb, size,
+    App, AppContext, Context, Entity, Hsla, InputEvent, InteractiveElement, IntoElement,
+    KeyDownEvent, KeyUpEvent, Keystroke, MouseButton, MouseDownEvent, MouseUpEvent, ParentElement,
+    Render, Role, StrokeOptions, Styled, TestAppContext, Window, div, px, rgb, size,
 };
-use gpui_base::test_support::find;
+use gpui_base::{TestSupportExt, test_support::find};
 use gpui_material::{
     Checkbox, CheckboxState, InteractionSource, InteractionUpdate, MaterialRoot,
     foundation::{color, window_material_theme},
@@ -274,6 +274,92 @@ fn checkbox_facade_paints_states_and_observes_controlled_input(cx: &mut TestAppC
                 .iter()
                 .any(|event| event.id == "mixed".into() && event.state.is_none())
         );
+    })
+    .unwrap();
+}
+
+#[gpui::test]
+fn checkbox_show_label_and_label_content_keep_accessibility_and_interactivity(
+    cx: &mut TestAppContext,
+) {
+    struct LabelVariants {
+        compact_requests: Vec<CheckboxState>,
+        rich_requests: Vec<CheckboxState>,
+    }
+
+    impl Render for LabelVariants {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let v1 = cx.entity();
+            let v2 = cx.entity();
+            div()
+                .flex()
+                .flex_col()
+                .items_start()
+                .child(Checkbox::new(
+                    "labeled",
+                    "Labeled option",
+                    CheckboxState::Unchecked,
+                ))
+                .child(
+                    Checkbox::new("compact", "Accept terms", CheckboxState::Unchecked)
+                        .show_label(false)
+                        .on_change(move |next, _, cx| {
+                            v1.update(cx, |this, _| this.compact_requests.push(next));
+                        }),
+                )
+                .child(
+                    Checkbox::new("rich", "Accessible checkbox", CheckboxState::Unchecked)
+                        .label_content(
+                            div()
+                                .id("rich-checkbox-content")
+                                .test_support()
+                                .child("Rich label"),
+                        )
+                        .on_change(move |next, _, cx| {
+                            v2.update(cx, |this, _| this.rich_requests.push(next));
+                        }),
+                )
+        }
+    }
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut entity = None;
+        let window = MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+            let v = cx.new(|_| LabelVariants {
+                compact_requests: Vec::new(),
+                rich_requests: Vec::new(),
+            });
+            entity = Some(v.clone());
+            v
+        })
+        .unwrap();
+        (window.into(), entity.unwrap())
+    });
+
+    cx.update_window(window, |_, window, cx| {
+        window.activate_window();
+        draw(window, cx);
+
+        let labeled = find(window, &[], &"labeled".into()).unwrap();
+        let compact = find(window, &[], &"compact".into()).unwrap();
+        let rich = find(window, &[], &"rich".into()).unwrap();
+
+        assert_eq!(compact.label(), Some("Accept terms"));
+        assert!(find(window, compact.path(), &"selection-label".into()).is_none());
+        assert_eq!(compact.bounds().size.width, px(52.));
+        assert!(compact.bounds().size.width < labeled.bounds().size.width);
+
+        assert_eq!(rich.label(), Some("Accessible checkbox"));
+        assert!(find(window, rich.path(), &"rich-checkbox-content".into()).is_some());
+
+        click("compact", window, cx);
+        click("rich", window, cx);
+        draw(window, cx);
+
+        assert_eq!(view.read(cx).compact_requests, vec![CheckboxState::Checked]);
+        assert_eq!(view.read(cx).rich_requests, vec![CheckboxState::Checked]);
     })
     .unwrap();
 }

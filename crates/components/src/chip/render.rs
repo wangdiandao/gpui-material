@@ -6,7 +6,7 @@ use gpui::{
     prelude::FluentBuilder, px, quad,
 };
 use gpui_material_foundation::{
-    InteractionSource, InteractionState, InteractionTracker, animate, color,
+    InteractionSource, InteractionState, InteractionTracker, ThemeScope, animate, color,
     current_material_theme, elevation_shadow_pair,
 };
 use gpui_material_theme::{
@@ -416,6 +416,8 @@ fn render_split_chip(
     window: &mut Window,
     cx: &mut App,
 ) -> Stateful<Div> {
+    let primary_focus = primary.focus_handle(window, cx);
+    let key_remove = on_remove.clone();
     let remove = ActionControl {
         id: ElementId::from((id.clone(), "remove")),
         label: remove_label,
@@ -483,9 +485,22 @@ fn render_split_chip(
         },
         ..layout
     };
-    row.child(surface)
-        .child(primary.render_with_tracker(1., primary_layout, tracker, window, cx))
-        .child(remove.render_with_tracker(1., remove_layout, None, window, cx))
+    row.when(!disabled, |row| {
+        let on_remove =
+            ThemeScope::bind_action(move |window, cx| key_remove(window, cx), window, cx);
+        row.on_key_down(move |event, window, cx| {
+            if !event.keystroke.modifiers.modified()
+                && matches!(event.keystroke.key.as_str(), "backspace" | "delete")
+                && primary_focus.is_focused(window)
+            {
+                cx.stop_propagation();
+                on_remove(window, cx);
+            }
+        })
+    })
+    .child(surface)
+    .child(primary.render_with_tracker(1., primary_layout, tracker, window, cx))
+    .child(remove.render_with_tracker(1., remove_layout, None, window, cx))
 }
 
 impl RenderOnce for Chip {
@@ -727,7 +742,7 @@ impl SplitSurface {
         state: InteractionState,
         window: &mut Window,
         cx: &mut App,
-    ) -> impl IntoElement {
+    ) -> impl IntoElement + use<> {
         let theme = current_material_theme(window, cx);
         let shadow = color(theme.colors.color(ColorRole::Shadow));
         let effects = theme

@@ -1,9 +1,12 @@
 use gpui::{
-    AppContext as _, Axis, Context, ElementId, Entity, Hsla, IntoElement, Modifiers, MouseButton,
-    ParentElement as _, Render, Rgba, Role, Styled as _, TestAppContext, VisualTestContext, Window,
-    div, px, rgb,
+    AppContext as _, Axis, Context, ElementId, Entity, FocusHandle, Hsla, InteractiveElement as _,
+    IntoElement, Modifiers, MouseButton, ParentElement as _, Render, Rgba, Role, Styled as _,
+    TestAppContext, VisualTestContext, Window, div, px, rgb,
 };
-use gpui_base::test_support::{ElementSnapshot, find};
+use gpui_base::{
+    TestSupportExt,
+    test_support::{ElementSnapshot, find},
+};
 use gpui_material::foundation::{color, set_window_material_theme, window_material_theme};
 use gpui_material::theme::{ColorRole, Direction};
 use gpui_material::{
@@ -309,4 +312,144 @@ fn radio_observation_tracks_standalone_input_and_detaches_group_options(cx: &mut
     draw(cx);
     assert!(observed(cx, &preview, &observed_option, true).is_none());
     assert!(observed(cx, &preview, &other_group, false).is_some());
+}
+
+#[gpui::test]
+fn radio_show_label_label_content_and_group_preserves_caller_focus(cx: &mut TestAppContext) {
+    struct RadioVariants {
+        focus_a: FocusHandle,
+        focus_b: FocusHandle,
+        selected: ElementId,
+        compact_selected: bool,
+        rich_selected: bool,
+    }
+
+    impl Render for RadioVariants {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let v1 = cx.entity();
+            let v2 = cx.entity();
+            let v3 = cx.entity();
+            div()
+                .flex()
+                .flex_col()
+                .items_start()
+                .gap_2()
+                .child(Radio::new("labeled-radio", "Labeled choice"))
+                .child(
+                    Radio::new("compact-radio", "Compact radio")
+                        .show_label(false)
+                        .selected(self.compact_selected)
+                        .on_select(move |_, cx| {
+                            v1.update(cx, |this, cx| {
+                                this.compact_selected = true;
+                                cx.notify();
+                            });
+                        }),
+                )
+                .child(
+                    Radio::new("rich-radio", "Accessible radio")
+                        .label_content(
+                            div()
+                                .id("rich-radio-content")
+                                .test_support()
+                                .child("Rich radio label"),
+                        )
+                        .selected(self.rich_selected)
+                        .on_select(move |_, cx| {
+                            v2.update(cx, |this, cx| {
+                                this.rich_selected = true;
+                                cx.notify();
+                            });
+                        }),
+                )
+                .child(
+                    RadioGroup::new("focus-group", "Caller focus group")
+                        .axis(Axis::Horizontal)
+                        .selected(self.selected.clone())
+                        .options([
+                            Radio::new("opt-a", "Option A").track_focus(&self.focus_a),
+                            Radio::new("opt-b", "Option B")
+                                .show_label(false)
+                                .track_focus(&self.focus_b),
+                        ])
+                        .on_select(move |id, _, cx| {
+                            let id = id.clone();
+                            v3.update(cx, |this, cx| {
+                                this.selected = id;
+                                cx.notify();
+                            });
+                        }),
+                )
+        }
+    }
+
+    cx.update(|cx| {
+        MaterialRoot::init(MaterialTheme::default(), cx);
+        cx.set_reduce_motion(true);
+    });
+    let (view, cx) = cx.add_window_view(|window, cx| {
+        window.activate_window();
+        RadioVariants {
+            focus_a: cx.focus_handle(),
+            focus_b: cx.focus_handle(),
+            selected: "opt-a".into(),
+            compact_selected: false,
+            rich_selected: false,
+        }
+    });
+    draw(cx);
+
+    let (compact_pos, rich_pos) = cx.update(|window, _| {
+        let labeled = snapshot(window, &"labeled-radio".into());
+        let compact = snapshot(window, &"compact-radio".into());
+        let rich = snapshot(window, &"rich-radio".into());
+
+        assert_eq!(compact.label(), Some("Compact radio"));
+        assert!(find(window, compact.path(), &"selection-label".into()).is_none());
+        assert_eq!(compact.bounds().size.width, px(52.));
+        assert!(compact.bounds().size.width < labeled.bounds().size.width);
+
+        assert_eq!(rich.label(), Some("Accessible radio"));
+        assert!(find(window, rich.path(), &"rich-radio-content".into()).is_some());
+
+        let opt_b = snapshot(window, &option_id("focus-group", "opt-b"));
+        assert_eq!(opt_b.label(), Some("Option B"));
+        assert!(find(window, opt_b.path(), &"selection-label".into()).is_none());
+
+        (compact.bounds().center(), rich.bounds().center())
+    });
+
+    cx.simulate_mouse_down(compact_pos, MouseButton::Left, Modifiers::default());
+    cx.simulate_mouse_up(compact_pos, MouseButton::Left, Modifiers::default());
+    cx.simulate_mouse_down(rich_pos, MouseButton::Left, Modifiers::default());
+    cx.simulate_mouse_up(rich_pos, MouseButton::Left, Modifiers::default());
+    draw(cx);
+    cx.update(|_, cx| {
+        assert!(view.read(cx).compact_selected);
+        assert!(view.read(cx).rich_selected);
+    });
+
+    // RadioGroup preserves caller-supplied focus handles and uses them for roving navigation.
+    cx.update(|window, cx| {
+        let focus_a = view.read(cx).focus_a.clone();
+        focus_a.focus(window, cx);
+    });
+    draw(cx);
+    cx.update(|window, cx| {
+        assert!(view.read(cx).focus_a.is_focused(window));
+        assert_eq!(
+            snapshot(window, &option_id("focus-group", "opt-a")).focused(),
+            Some(true)
+        );
+    });
+
+    cx.simulate_keystrokes("right");
+    draw(cx);
+    cx.update(|window, cx| {
+        assert!(
+            view.read(cx).focus_b.is_focused(window),
+            "RadioGroup roving focus must move into caller-supplied focus_b"
+        );
+        assert_eq!(view.read(cx).selected, ElementId::from("opt-b"));
+    });
 }

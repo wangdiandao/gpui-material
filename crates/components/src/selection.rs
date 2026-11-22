@@ -5,9 +5,10 @@ mod switch;
 use std::rc::Rc;
 
 use gpui::{
-    App, Div, Hsla, InteractiveElement, IntoElement, ParentElement, SharedString,
+    AnyElement, App, Div, Hsla, InteractiveElement, IntoElement, ParentElement, SharedString,
     StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
+use gpui_base::TestSupportExt;
 use gpui_material_foundation::{color, current_material_theme};
 use gpui_material_theme::{ColorRole, Direction, StateLayer};
 
@@ -32,22 +33,30 @@ fn selection_tone(selected: bool, disabled: bool, window: &Window, cx: &App) -> 
     }
 }
 
-fn row(direction: Direction) -> Div {
+fn row(direction: Direction, show_label: bool) -> Div {
     div()
         .flex()
         .items_center()
-        .gap_2()
+        .when(show_label, Styled::gap_2)
         .when(direction == Direction::Rtl, Styled::flex_row_reverse)
 }
 
-fn selection_label(label: SharedString, disabled: bool, window: &Window, cx: &App) -> Div {
+fn selection_label(
+    label: SharedString,
+    content: Option<AnyElement>,
+    disabled: bool,
+    window: &Window,
+    cx: &App,
+) -> impl IntoElement + use<> {
     div()
+        .id("selection-label")
+        .test_support()
         .min_w_0()
-        .truncate()
+        .when(content.is_none(), Styled::truncate)
         .when(disabled, |element| {
             element.text_color(tone(ColorRole::OnSurface, window, cx).opacity(0.38))
         })
-        .child(label)
+        .child(content.unwrap_or_else(|| label.into_any_element()))
 }
 
 fn selection_target(

@@ -1405,3 +1405,224 @@ fn button_loading_suppresses_activation_preserves_width_and_respects_motion_and_
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn toggle_buttons_support_variant_shorthands_and_loading_state(cx: &mut TestAppContext) {
+    struct ToggleLoadingView {
+        loading: bool,
+        disabled: bool,
+        offscreen: bool,
+        selected: bool,
+        toggle_requests: Vec<bool>,
+        icon_requests: Vec<bool>,
+    }
+
+    impl Render for ToggleLoadingView {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let v1 = cx.entity();
+            let v2 = cx.entity();
+            let content = row()
+                .child(
+                    ToggleButton::filled("toggle-save", "Save draft", self.selected)
+                        .loading(self.loading)
+                        .disabled(self.disabled)
+                        .on_change(move |next, _, cx| {
+                            v1.update(cx, |this, _| this.toggle_requests.push(next));
+                        }),
+                )
+                .child(ToggleButton::tonal("toggle-tonal", "Tonal", false))
+                .child(ToggleButton::elevated("toggle-elevated", "Elevated", true))
+                .child(ToggleButton::outlined("toggle-outlined", "Outlined", false))
+                .child(
+                    IconToggleButton::filled(
+                        "icon-toggle-pin",
+                        "Pin item",
+                        Icon::new(IconName::Add),
+                        self.selected,
+                    )
+                    .loading(self.loading)
+                    .disabled(self.disabled)
+                    .on_change(move |next, _, cx| {
+                        v2.update(cx, |this, _| this.icon_requests.push(next));
+                    }),
+                )
+                .child(IconToggleButton::standard(
+                    "icon-toggle-std",
+                    "Standard",
+                    Icon::new(IconName::Add),
+                    false,
+                ))
+                .child(IconToggleButton::tonal(
+                    "icon-toggle-tonal",
+                    "Tonal",
+                    Icon::new(IconName::Add),
+                    true,
+                ))
+                .child(IconToggleButton::outlined(
+                    "icon-toggle-out",
+                    "Outlined",
+                    Icon::new(IconName::Add),
+                    false,
+                ));
+            if self.offscreen {
+                div()
+                    .w(px(200.))
+                    .h(px(60.))
+                    .overflow_hidden()
+                    .child(div().mt(px(400.)).child(content))
+            } else {
+                div().p_4().child(content)
+            }
+        }
+    }
+
+    let mut entity = None;
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            let e = cx.new(|_| ToggleLoadingView {
+                loading: false,
+                disabled: false,
+                offscreen: false,
+                selected: true,
+                toggle_requests: Vec::new(),
+                icon_requests: Vec::new(),
+            });
+            entity = Some(e.clone());
+            e
+        })
+        .unwrap()
+    });
+    let view = entity.unwrap();
+
+    let draw = |window: &mut Window, cx: &mut App| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+    };
+
+    cx.update_window(handle.into(), |_, window, _| window.activate_window())
+        .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle.into(), |_, window, cx| {
+        draw(window, cx);
+
+        let resting_bounds = find(window, &[], &"toggle-save".into()).unwrap().bounds();
+        let icon_resting_bounds = find(window, &[], &"icon-toggle-pin".into())
+            .unwrap()
+            .bounds();
+
+        // Enter loading state: resting width stays identical and spinners render.
+        view.update(cx, |this, cx| {
+            this.loading = true;
+            cx.notify();
+        });
+        draw(window, cx);
+
+        let loading_bounds = find(window, &[], &"toggle-save".into()).unwrap().bounds();
+        let icon_loading_bounds = find(window, &[], &"icon-toggle-pin".into())
+            .unwrap()
+            .bounds();
+        assert_eq!(loading_bounds.size.width, resting_bounds.size.width);
+        assert_eq!(
+            icon_loading_bounds.size.width,
+            icon_resting_bounds.size.width
+        );
+
+        let toggle_spinner: ElementId = (ElementId::from("toggle-save"), "loading-spinner").into();
+        let icon_spinner: ElementId =
+            (ElementId::from("icon-toggle-pin"), "loading-spinner").into();
+        assert!(find(window, &[], &toggle_spinner).is_some());
+        assert!(find(window, &[], &icon_spinner).is_some());
+
+        // Pointer clicks and keyboard Space are suppressed while loading.
+        for center in [loading_bounds.center(), icon_loading_bounds.center()] {
+            window.dispatch_event(
+                MouseDownEvent {
+                    button: MouseButton::Left,
+                    position: center,
+                    click_count: 1,
+                    first_mouse: false,
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.dispatch_event(
+                MouseUpEvent {
+                    button: MouseButton::Left,
+                    position: center,
+                    click_count: 1,
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+        }
+        window.focus_next(cx);
+        let space = Keystroke::parse("space").unwrap();
+        window.dispatch_event(
+            KeyDownEvent {
+                keystroke: space.clone(),
+                is_held: false,
+                prefer_character_input: false,
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(KeyUpEvent { keystroke: space }.to_platform_input(), cx);
+        draw(window, cx);
+        assert!(view.read(cx).toggle_requests.is_empty());
+        assert!(view.read(cx).icon_requests.is_empty());
+
+        // Reduced motion schedules zero frames; visible full motion schedules frames;
+        // off-screen clipped loading schedules zero frames.
+        assert_eq!(window.simulate_next_frame(cx), 0);
+        cx.set_reduce_motion(false);
+        draw(window, cx);
+        assert!(window.simulate_next_frame(cx) > 0);
+        view.update(cx, |this, cx| {
+            this.offscreen = true;
+            cx.notify();
+        });
+        draw(window, cx);
+        assert_eq!(window.simulate_next_frame(cx), 0);
+
+        // Exiting loading re-enables toggle activation.
+        cx.set_reduce_motion(true);
+        view.update(cx, |this, cx| {
+            this.offscreen = false;
+            this.loading = false;
+            cx.notify();
+        });
+        draw(window, cx);
+        for id in ["toggle-save", "icon-toggle-pin"] {
+            let center = find(window, &[], &id.into()).unwrap().bounds().center();
+            window.dispatch_event(
+                MouseDownEvent {
+                    button: MouseButton::Left,
+                    position: center,
+                    click_count: 1,
+                    first_mouse: false,
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.dispatch_event(
+                MouseUpEvent {
+                    button: MouseButton::Left,
+                    position: center,
+                    click_count: 1,
+                    modifiers: Default::default(),
+                }
+                .to_platform_input(),
+                cx,
+            );
+        }
+        draw(window, cx);
+        assert_eq!(view.read(cx).toggle_requests, vec![false]);
+        assert_eq!(view.read(cx).icon_requests, vec![false]);
+    })
+    .unwrap();
+}

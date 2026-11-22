@@ -10,6 +10,14 @@ See [versioning and releases](docs/release.md) for the release process.
 - Add ergonomic M3 helpers: `Argb::{from_rgba, with_alpha, alpha, red, green, blue}`, `ColorRole::on_role`, `ColorScheme::with_color`, `MaterialTheme::{with_colors, with_typography, with_motion, with_layout, with_density, with_direction}`, `CornerShape::{uniform, top, bottom, start, end}`, and `ThemeScope::density`.
 - Support `Home`/`End` in `move_roving_focus` (unifying keyboard navigation across `NavigationDrawer`, `Stepper`, `List`, `Menu`, `RadioGroup`, `ButtonGroup`, `Toolbar`, and `FabMenu`) and `Home`/`End`/`PageUp`/`PageDown` in `range_semantics` for `Slider`.
 
+### Components
+
+- Add `TextField::show_label(bool)`, density-aware default minimum height with `TextField::min_height(Pixels)`, and `TextField::indicator_width(unfocused, focused)`.
+- Add variant shorthand constructors (`filled`, `tonal`, `elevated`, `outlined` on `ToggleButton`; `standard`, `filled`, `tonal`, `outlined` on `IconToggleButton`) and controlled `.loading(bool)` busy state to `ToggleButton` and `IconToggleButton`.
+- Add `.show_label(bool)` and `.label_content(...)` to `Checkbox`, `Radio`, and `Switch`, and preserve caller-supplied `Radio::track_focus(&FocusHandle)` handles inside `RadioGroup`.
+- Add `Slider::track_focus(RangeThumb, &FocusHandle)` for caller-owned thumb focus handles.
+- Support `Backspace`/`Delete` keyboard removal on focused removable `Chip` actions, and add group-level `.tonal(bool)`, `.elevated(bool)`, and `.disabled(bool)` defaults to `ChipGroup`.
+
 ### Overlays and menus
 
 - Enhance `Menu::context()` and `MaterialElementExt::context_menu(...)` to open at the secondary-click cursor position (viewport-clamped, repositioning on subsequent right-clicks), avoid hijacking trigger `Enter`/`Space` actions, and support `Shift+F10` and `ContextMenu` keyboard triggers; add lazy builders `Menu::new_with` and `MaterialElementExt::context_menu_with`, plus `Menu::disabled(bool)`.

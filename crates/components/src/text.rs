@@ -7,7 +7,7 @@ use std::{
 use gpui::{
     App, ElementId, Global, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels,
     RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, TextAlign, Window, canvas,
-    div, px,
+    div, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
 use gpui_material_foundation::{
@@ -88,6 +88,9 @@ pub struct Text {
     emphasis: TypographyEmphasis,
     font_scale: f32,
     color: Option<ColorRole>,
+    color_override: Option<Hsla>,
+    align: Option<TextAlign>,
+    max_lines: Option<usize>,
     max_width: Option<gpui::Pixels>,
     wrap: bool,
 }
@@ -101,6 +104,9 @@ impl Text {
             emphasis: TypographyEmphasis::Baseline,
             font_scale: 1.,
             color: None,
+            color_override: None,
+            align: None,
+            max_lines: None,
             max_width: None,
             wrap: false,
         }
@@ -193,12 +199,31 @@ impl Text {
 
     pub fn color(mut self, role: ColorRole) -> Self {
         self.color = Some(role);
+        self.color_override = None;
+        self
+    }
+
+    /// Sets a literal text color. A later call to [`Self::color`] restores theme-role lookup.
+    pub fn color_override(mut self, color: impl Into<Hsla>) -> Self {
+        self.color_override = Some(color.into());
         self
     }
 
     /// Sets the text color to [`ColorRole::OnSurfaceVariant`].
     pub fn muted(self) -> Self {
         self.color(ColorRole::OnSurfaceVariant)
+    }
+
+    /// Sets explicit horizontal text alignment. Defaults to the window's logical start edge.
+    pub fn align(mut self, align: TextAlign) -> Self {
+        self.align = Some(align);
+        self
+    }
+
+    /// Clamps wrapped text to at most `lines` lines (minimum 1) when `.wrap()` is enabled.
+    pub fn max_lines(mut self, lines: usize) -> Self {
+        self.max_lines = Some(lines.max(1));
+        self
     }
 
     pub fn truncate(mut self, max_width: gpui::Pixels) -> Self {
@@ -219,10 +244,12 @@ impl Text {
 
 impl RenderOnce for Text {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let tint = self.color.map_or_else(
-            || window.text_style().color,
-            |role| color(current_material_theme(window, cx).colors.color(role)),
-        );
+        let tint = self.color_override.unwrap_or_else(|| {
+            self.color.map_or_else(
+                || window.text_style().color,
+                |role| color(current_material_theme(window, cx).colors.color(role)),
+            )
+        });
         let text = if self.wrap {
             wrapped_text(
                 self.value.clone(),
@@ -232,13 +259,18 @@ impl RenderOnce for Text {
                 window,
                 cx,
             )
+            .when_some(self.align, |text, align| text.w_full().text_align(align))
+            .when_some(self.max_lines, |text, lines| {
+                text.line_clamp(lines).text_ellipsis()
+            })
         } else {
-            single_line(
+            single_line_aligned(
                 self.value.clone(),
                 self.role.style(self.emphasis),
                 self.font_scale,
                 tint,
                 (self.max_width, 1., 1.),
+                self.align,
                 window,
                 cx,
             )
@@ -281,6 +313,30 @@ pub(crate) fn shape_single_line(
     (clean, shaped)
 }
 
+#[allow(clippy::too_many_arguments)]
+fn single_line_aligned(
+    value: SharedString,
+    style: TypeStyle,
+    font_scale: f32,
+    tint: Hsla,
+    (max_width, expansion, opacity): (Option<Pixels>, f32, f32),
+    align_override: Option<TextAlign>,
+    window: &Window,
+    cx: &App,
+) -> gpui::Div {
+    let shaped = shape_single_line(value, style, font_scale, tint, window, cx);
+    single_line_with_shaped_and_align(
+        shaped,
+        style,
+        font_scale,
+        tint,
+        (max_width, expansion, opacity),
+        align_override,
+        window,
+        cx,
+    )
+}
+
 pub(crate) fn single_line(
     value: SharedString,
     style: TypeStyle,
@@ -290,20 +346,20 @@ pub(crate) fn single_line(
     window: &Window,
     cx: &App,
 ) -> gpui::Div {
-    let shaped = shape_single_line(value, style, font_scale, tint, window, cx);
-    single_line_with_shaped(
-        shaped,
+    single_line_aligned(
+        value,
         style,
         font_scale,
         tint,
         (max_width, expansion, opacity),
+        None,
         window,
         cx,
     )
 }
 
 pub(crate) fn single_line_with_shaped(
-    (clean, shaped): (SharedString, ShapedText),
+    shaped: (SharedString, ShapedText),
     style: TypeStyle,
     font_scale: f32,
     tint: Hsla,
@@ -311,18 +367,48 @@ pub(crate) fn single_line_with_shaped(
     window: &Window,
     cx: &App,
 ) -> gpui::Div {
+    single_line_with_shaped_and_align(
+        shaped,
+        style,
+        font_scale,
+        tint,
+        (max_width, expansion, opacity),
+        None,
+        window,
+        cx,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn single_line_with_shaped_and_align(
+    (clean, shaped): (SharedString, ShapedText),
+    style: TypeStyle,
+    font_scale: f32,
+    tint: Hsla,
+    (max_width, expansion, opacity): (Option<Pixels>, f32, f32),
+    align_override: Option<TextAlign>,
+    window: &Window,
+    cx: &App,
+) -> gpui::Div {
     let theme = current_material_theme(window, cx);
     let typography = theme.typography.clone();
-    let align = if theme.layout.direction == Direction::Rtl {
+    let align = align_override.unwrap_or(if theme.layout.direction == Direction::Rtl {
         TextAlign::Right
     } else {
         TextAlign::Left
-    };
+    });
     let width = shaped.line().width.ceil();
     let height = shaped.line_height();
-    div()
-        .min_w_0()
-        .w(max_width.map_or(width, |max| width.min(max)) * expansion)
+    let container = div().min_w_0();
+    let container = if align_override.is_some() {
+        match max_width {
+            Some(max) => container.w(max * expansion),
+            None => container.w_full(),
+        }
+    } else {
+        container.w(max_width.map_or(width, |max| width.min(max)) * expansion)
+    };
+    container
         .max_w_full()
         .h(height)
         .overflow_hidden()

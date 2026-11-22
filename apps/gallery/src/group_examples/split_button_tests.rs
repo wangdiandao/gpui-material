@@ -533,3 +533,65 @@ fn split_button_variants_keep_their_base_paint_and_name_icon_only_buttons(cx: &m
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn split_button_tone_overrides_apply_per_segment(cx: &mut TestAppContext) {
+    use gpui_material::SemanticTone;
+
+    struct TonedSplits;
+    impl Render for TonedSplits {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div()
+                .flex()
+                .flex_col()
+                .items_start()
+                .gap_3()
+                .p_4()
+                .child(
+                    SplitButton::new("both-tone", "Deploy", "Deploy menu", [])
+                        .tone(SemanticTone::Success)
+                        .on_activate(|_, _| {})
+                        .on_trailing_activate(|_, _| {}),
+                )
+                .child(
+                    SplitButton::new("per-seg-tone", "Archive", "Delete options", [])
+                        .leading_tone(SemanticTone::Info)
+                        .trailing_tone(SemanticTone::Danger)
+                        .on_activate(|_, _| {})
+                        .on_trailing_activate(|_, _| {}),
+                )
+        }
+    }
+
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        MaterialRoot::open_window(Default::default(), cx, |_, cx| cx.new(|_| TonedSplits))
+            .unwrap()
+            .into()
+    });
+    draw(cx, handle);
+    cx.update_window(handle, |_, window, cx| {
+        let quads = window.painted_quads();
+        let theme = window_material_theme(window, cx);
+        let scale = window.scale_factor();
+        for (split, part, role) in [
+            ("both-tone", "primary", ColorRole::Success),
+            ("both-tone", "secondary", ColorRole::Success),
+            ("per-seg-tone", "primary", ColorRole::Info),
+            ("per-seg-tone", "secondary", ColorRole::Error),
+        ] {
+            let segment = find(window, &[], &id(split, part)).unwrap();
+            let seg_bounds = segment.bounds().scale(scale);
+            let expected = color(theme.colors.color(role));
+            assert!(
+                quads.iter().any(|quad| {
+                    seg_bounds.contains(&quad.bounds.center())
+                        && quad.background.as_solid() == Some(expected)
+                }),
+                "missing toned paint for {split}/{part}"
+            );
+        }
+    })
+    .unwrap();
+}

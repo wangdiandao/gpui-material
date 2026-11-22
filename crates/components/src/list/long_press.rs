@@ -80,6 +80,17 @@ fn listen(hold: Rc<RefCell<Hold>>, hitbox: Hitbox, window: &mut Window) {
         let hold = hold.clone();
         let hitbox = hitbox.clone();
         move |event: &MouseDownEvent, phase, window, cx| {
+            if event.button == MouseButton::Right {
+                if phase.bubble() && hitbox.is_hovered(window) && !window.default_prevented() {
+                    let action = hold.borrow().action.clone();
+                    if let Some(action) = action {
+                        window.prevent_default();
+                        cx.stop_propagation();
+                        action(window, cx);
+                    }
+                }
+                return;
+            }
             if event.button != MouseButton::Left {
                 return;
             }

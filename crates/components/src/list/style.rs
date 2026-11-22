@@ -2,6 +2,8 @@ use gpui::{Hsla, Pixels, px};
 use gpui_material_foundation::InteractionState;
 use gpui_material_theme::{ColorRole, CornerShape, Elevation};
 
+use crate::SemanticTone;
+
 /// Alignment of the slots within one row.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ListItemAlignment {
@@ -109,16 +111,20 @@ impl ListItemColors {
         selected: bool,
         selection: f32,
         state: InteractionState,
+        semantic_tone: SemanticTone,
         tone: impl Fn(ColorRole) -> Hsla,
     ) -> RowColors {
         let normal_container = self
             .normal
             .container
             .unwrap_or_else(|| tone(ColorRole::Surface));
-        let selected_container = self
-            .selected
-            .container
-            .unwrap_or_else(|| tone(ColorRole::SecondaryContainer));
+        let selected_container = self.selected.container.unwrap_or_else(|| {
+            tone(
+                semantic_tone
+                    .container_role()
+                    .unwrap_or(ColorRole::SecondaryContainer),
+            )
+        });
         let (colors, content, secondary, side, background) = if state.disabled {
             let tint = tone(ColorRole::OnSurface).opacity(0.38);
             let background = self
@@ -135,22 +141,30 @@ impl ListItemColors {
                 }
             });
             let content = tone(if selected {
-                ColorRole::OnSecondaryContainer
+                semantic_tone
+                    .on_container_role()
+                    .unwrap_or(ColorRole::OnSecondaryContainer)
             } else {
-                ColorRole::OnSurface
+                semantic_tone.role().unwrap_or(ColorRole::OnSurface)
             });
             (self.dragged, content, content, Some(content), background)
         } else {
             let background = crate::motion::mix(normal_container, selected_container, selection);
             if selected {
-                let tint = tone(ColorRole::OnSecondaryContainer);
-                (self.selected, tint, tint, None, background)
+                let tint = tone(
+                    semantic_tone
+                        .on_container_role()
+                        .unwrap_or(ColorRole::OnSecondaryContainer),
+                );
+                let side = semantic_tone.on_container_role().map(&tone);
+                (self.selected, tint, tint, side, background)
             } else {
+                let accent = semantic_tone.role().map(&tone);
                 (
                     self.normal,
-                    tone(ColorRole::OnSurface),
+                    accent.unwrap_or_else(|| tone(ColorRole::OnSurface)),
                     tone(ColorRole::OnSurfaceVariant),
-                    None,
+                    accent,
                     background,
                 )
             }
@@ -256,9 +270,13 @@ mod tests {
         ] {
             state.disabled = disabled;
             state.dragged = dragged;
-            let actual = colors.resolve(selected, f32::from(selected), state, |_| {
-                gpui::transparent_black()
-            });
+            let actual = colors.resolve(
+                selected,
+                f32::from(selected),
+                state,
+                SemanticTone::Default,
+                |_| gpui::transparent_black(),
+            );
             let expected_container = expected.container.unwrap();
             let actual_container = actual.container;
             assert!(
@@ -278,5 +296,66 @@ mod tests {
             assert_eq!(Some(actual.supporting), expected.supporting);
             assert_eq!(elevations.resolve(state), level);
         }
+    }
+
+    #[test]
+    fn semantic_tone_tints_enabled_and_selected_roles_without_overriding_disabled_or_explicit_colors()
+     {
+        let role_color = |role: ColorRole| -> Hsla {
+            match role {
+                ColorRole::Error => gpui::rgb(0xB3261E).into(),
+                ColorRole::ErrorContainer => gpui::rgb(0xF9DEDC).into(),
+                ColorRole::OnErrorContainer => gpui::rgb(0x410E0B).into(),
+                ColorRole::OnSurface => gpui::rgb(0x1C1B1F).into(),
+                ColorRole::OnSurfaceVariant => gpui::rgb(0x49454F).into(),
+                _ => gpui::rgb(0xFFFFFF).into(),
+            }
+        };
+        let state = InteractionState::default();
+        let normal =
+            ListItemColors::default().resolve(false, 0., state, SemanticTone::Danger, role_color);
+        assert_eq!(normal.content, role_color(ColorRole::Error));
+        assert_eq!(normal.leading, Some(role_color(ColorRole::Error)));
+        assert_eq!(normal.trailing, Some(role_color(ColorRole::Error)));
+
+        let selected =
+            ListItemColors::default().resolve(true, 1., state, SemanticTone::Danger, role_color);
+        assert_eq!(selected.content, role_color(ColorRole::OnErrorContainer));
+        assert_eq!(
+            selected.leading,
+            Some(role_color(ColorRole::OnErrorContainer))
+        );
+        assert_eq!(
+            selected.trailing,
+            Some(role_color(ColorRole::OnErrorContainer))
+        );
+
+        let mut disabled_state = InteractionState::default();
+        disabled_state.disabled = true;
+        let disabled = ListItemColors::default().resolve(
+            false,
+            0.,
+            disabled_state,
+            SemanticTone::Danger,
+            role_color,
+        );
+        assert_eq!(
+            disabled.content,
+            role_color(ColorRole::OnSurface).opacity(0.38)
+        );
+
+        let custom: Hsla = gpui::rgb(0x123456).into();
+        let overridden = ListItemColors {
+            normal: ListItemStateColors {
+                content: Some(custom),
+                leading: Some(custom),
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+        .resolve(false, 0., state, SemanticTone::Danger, role_color);
+        assert_eq!(overridden.content, custom);
+        assert_eq!(overridden.leading, Some(custom));
+        assert_eq!(overridden.trailing, Some(role_color(ColorRole::Error)));
     }
 }

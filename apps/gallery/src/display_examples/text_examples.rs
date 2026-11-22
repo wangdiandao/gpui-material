@@ -156,3 +156,70 @@ fn text_previews_compare_scale_and_overflow(cx: &mut gpui::TestAppContext) {
         .unwrap();
     }
 }
+
+#[cfg(all(test, feature = "test-support"))]
+#[gpui::test]
+fn text_supports_color_override_align_and_max_lines(cx: &mut gpui::TestAppContext) {
+    use gpui::{
+        AppContext, Context, IntoElement, Render, TextAlign, Window, WindowOptions, rgb, size,
+    };
+    use gpui_base::test_support::find;
+    use gpui_material::MaterialRoot;
+
+    struct Example;
+    impl Render for Example {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let paragraph = "Material design typography wraps cleanly across multiple lines when placed inside a narrow container width";
+            div()
+                .w(px(120.))
+                .flex()
+                .flex_col()
+                .gap_2()
+                .child(
+                    Text::new("Centered")
+                        .id("aligned-text")
+                        .align(TextAlign::Center),
+                )
+                .child(
+                    Text::new("Overridden")
+                        .id("override-text")
+                        .color(ColorRole::Primary)
+                        .color_override(rgb(0x1b5e20)),
+                )
+                .child(Text::new(paragraph).id("unclamped-text").wrap())
+                .child(
+                    Text::new(paragraph)
+                        .id("clamped-text")
+                        .wrap()
+                        .max_lines(2)
+                        .align(TextAlign::Right),
+                )
+        }
+    }
+
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| cx.new(|_| Example))
+            .unwrap()
+    });
+    cx.simulate_window_resize(handle.into(), size(px(320.), px(480.)));
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert_eq!(
+            find(window, &[], &"aligned-text".into()).unwrap().label(),
+            Some("Centered")
+        );
+        assert_eq!(
+            find(window, &[], &"override-text".into()).unwrap().label(),
+            Some("Overridden")
+        );
+        let full = find(window, &[], &"unclamped-text".into())
+            .unwrap()
+            .bounds();
+        let clamped = find(window, &[], &"clamped-text".into()).unwrap().bounds();
+        assert!(clamped.size.height < full.size.height);
+        assert!(clamped.size.width > px(0.));
+    })
+    .unwrap();
+}

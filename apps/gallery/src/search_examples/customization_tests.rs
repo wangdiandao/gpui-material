@@ -442,3 +442,213 @@ fn standalone_search_scroll_reveals_on_reverse_and_keeps_active_editor(cx: &mut 
         );
     });
 }
+
+#[gpui::test]
+fn search_bar_track_focus_and_view_keyboard_navigation(cx: &mut TestAppContext) {
+    use gpui::{
+        EntityInputHandler as _, FocusHandle, InputEvent as _, KeyDownEvent, KeyUpEvent, Keystroke,
+    };
+
+    struct NavSearch {
+        custom_state: Entity<SearchState>,
+        default_state: Entity<SearchState>,
+        custom_trigger_focus: FocusHandle,
+    }
+
+    impl Render for NavSearch {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div()
+                .size_full()
+                .p_4()
+                .flex()
+                .flex_col()
+                .gap_3()
+                .child(
+                    SearchBar::new("nav-custom", "Custom focus search", &self.custom_state)
+                        .track_focus(&self.custom_trigger_focus),
+                )
+                .child(SearchBar::new(
+                    "nav-default",
+                    "Default focus search",
+                    &self.default_state,
+                ))
+        }
+    }
+
+    cx.update(crate::init_gallery);
+    let (mut custom_state, mut default_state) = (None, None);
+    let mut custom_focus = None;
+    let (_, cx) = cx.add_window_view(|window, cx| {
+        window.activate_window();
+        let cs = cx.new(|cx| SearchState::new(window, cx));
+        let ds = cx.new(|cx| SearchState::new(window, cx));
+        let cf = cx.focus_handle();
+        custom_state = Some(cs.clone());
+        default_state = Some(ds.clone());
+        custom_focus = Some(cf.clone());
+        let entity = cx.new(|cx| {
+            cx.observe(&cs, |_, _, cx| cx.notify()).detach();
+            cx.observe(&ds, |_, _, cx| cx.notify()).detach();
+            NavSearch {
+                custom_state: cs,
+                default_state: ds,
+                custom_trigger_focus: cf,
+            }
+        });
+        gpui_base::Root::new(entity, window, cx)
+    });
+    let custom_state = custom_state.unwrap();
+    let default_state = default_state.unwrap();
+    let custom_focus = custom_focus.unwrap();
+    let (pending_tx, pending_rx) = std::sync::mpsc::channel();
+    cx.update(|_, cx| {
+        cx.subscribe(&custom_state, move |_, event, _| {
+            if let SearchEvent::Request(req) = event {
+                let _ = pending_tx.send(req.clone());
+            }
+        })
+        .detach();
+    });
+    draw(cx);
+
+    // Default SearchState exposes trigger_focus(), and SearchBar::track_focus binds caller focus.
+    cx.update(|window, cx| {
+        default_state
+            .read(cx)
+            .trigger_focus()
+            .clone()
+            .focus(window, cx);
+    });
+    draw(cx);
+    cx.update(|window, _| {
+        assert_eq!(
+            find(
+                window,
+                &[],
+                &(ElementId::from("nav-default"), "search-trigger").into(),
+            )
+            .unwrap()
+            .focused(),
+            Some(true)
+        );
+    });
+    cx.update(|window, cx| {
+        custom_focus.focus(window, cx);
+    });
+    draw(cx);
+    cx.update(|window, _| {
+        assert_eq!(
+            find(
+                window,
+                &[],
+                &(ElementId::from("nav-custom"), "search-trigger").into(),
+            )
+            .unwrap()
+            .focused(),
+            Some(true)
+        );
+    });
+
+    // Open custom search and populate 5 results via pending request.
+    cx.update(|window, cx| {
+        custom_state.update(cx, |state, cx| {
+            state.open(window, cx);
+            state.set_query("items", window, cx);
+        });
+    });
+    let req = pending_rx.recv().unwrap();
+    cx.update(|_, cx| {
+        custom_state.update(cx, |state, cx| {
+            assert!(
+                state.complete(
+                    &req,
+                    SearchOutcome::Results(
+                        (0_usize..5)
+                            .map(|i| SearchResult::new(("res", i), format!("Result {i}")))
+                            .collect(),
+                    ),
+                    cx,
+                )
+            );
+        });
+    });
+    draw(cx);
+
+    // Active IME composition ignores Down in search input.
+    cx.update(|window, cx| {
+        let editor = custom_state.read(cx).editor().clone();
+        editor.update(cx, |ed, cx| {
+            ed.replace_and_mark_text_in_range(None, "n", Some(1..1), window, cx);
+        });
+    });
+    cx.simulate_keystrokes("down");
+    draw(cx);
+    cx.update(|window, cx| {
+        assert!(custom_state.read(cx).input_focus(cx).is_focused(window));
+        let editor = custom_state.read(cx).editor().clone();
+        editor.update(cx, |ed, cx| {
+            ed.unmark_text(window, cx);
+        });
+    });
+    let req_after_ime = pending_rx.recv().unwrap();
+    cx.update(|_, cx| {
+        custom_state.update(cx, |state, cx| {
+            assert!(
+                state.complete(
+                    &req_after_ime,
+                    SearchOutcome::Results(
+                        (0_usize..5)
+                            .map(|i| SearchResult::new(("res", i), format!("Result {i}")))
+                            .collect(),
+                    ),
+                    cx,
+                )
+            );
+        });
+    });
+    draw(cx);
+
+    // Pressing Down from unfocused-IME search input focuses first result ("res", 0).
+    let press = |cx: &mut VisualTestContext, key: &str| {
+        cx.update(|window, cx| {
+            let ks = Keystroke::parse_with_os(key, cx.platform_info().os).unwrap();
+            window.dispatch_event(
+                KeyDownEvent {
+                    keystroke: ks.clone(),
+                    is_held: false,
+                    prefer_character_input: false,
+                }
+                .to_platform_input(),
+                cx,
+            );
+            window.dispatch_event(KeyUpEvent { keystroke: ks }.to_platform_input(), cx);
+        });
+        draw(cx);
+    };
+    let row_activate_id =
+        |index: usize| ElementId::from((ElementId::from(("res", index)), "activate"));
+    press(cx, "down");
+    cx.update(|window, _| {
+        assert_eq!(
+            find(window, &[], &row_activate_id(0)).unwrap().focused(),
+            Some(true)
+        );
+    });
+
+    // End jumps to last result ("res", 4); Home jumps back to first ("res", 0).
+    press(cx, "end");
+    cx.update(|window, _| {
+        assert_eq!(
+            find(window, &[], &row_activate_id(4)).unwrap().focused(),
+            Some(true)
+        );
+    });
+
+    press(cx, "home");
+    cx.update(|window, _| {
+        assert_eq!(
+            find(window, &[], &row_activate_id(0)).unwrap().focused(),
+            Some(true)
+        );
+    });
+}

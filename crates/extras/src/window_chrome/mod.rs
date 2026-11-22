@@ -14,7 +14,7 @@ use gpui_base::TestSupportExt as _;
 use gpui_material_foundation::{color, current_material_theme, font_for_style};
 use gpui_material_theme::{ColorRole, Direction, TypeRole, TypographyEmphasis};
 
-pub use caption::{CaptionButtonColors, CaptionButtons};
+pub use caption::{CaptionButtonColors, CaptionButtonLabels, CaptionButtons};
 pub use platform::{
     ChromePlatform, DEFAULT_LINUX_CAPTION_BUTTON_WIDTH, DEFAULT_MACOS_TRAFFIC_LIGHT_PADDING,
     DEFAULT_TITLE_BAR_HEIGHT, DEFAULT_WINDOWS_CAPTION_BUTTON_WIDTH, title_bar_window_options,
@@ -51,6 +51,7 @@ pub struct TitleBar {
     traffic_light_padding: Pixels,
     colors: TitleBarColors,
     caption_colors: CaptionButtonColors,
+    caption_labels: CaptionButtonLabels,
     caption_button_width: Option<Pixels>,
     show_caption_buttons: Option<bool>,
     on_close: Option<CloseHandler>,
@@ -74,6 +75,7 @@ impl TitleBar {
             traffic_light_padding: DEFAULT_MACOS_TRAFFIC_LIGHT_PADDING,
             colors: TitleBarColors::default(),
             caption_colors: CaptionButtonColors::default(),
+            caption_labels: CaptionButtonLabels::default(),
             caption_button_width: None,
             show_caption_buttons: None,
             on_close: None,
@@ -153,6 +155,12 @@ impl TitleBar {
     /// Overrides the caption button palette.
     pub fn caption_colors(mut self, colors: CaptionButtonColors) -> Self {
         self.caption_colors = colors;
+        self
+    }
+
+    /// Overrides the localized accessible names for the caption buttons.
+    pub fn caption_labels(mut self, labels: CaptionButtonLabels) -> Self {
+        self.caption_labels = labels;
         self
     }
 
@@ -274,6 +282,7 @@ impl RenderOnce for TitleBar {
 
         let caption_buttons = CaptionButtons::new("caption-buttons")
             .colors(self.caption_colors)
+            .labels(self.caption_labels)
             .with_button_width_override(self.caption_button_width)
             .platform(platform)
             .with_show_override(self.show_caption_buttons)

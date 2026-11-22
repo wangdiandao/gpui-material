@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use gpui::{
-    AccessibleAction, AnyElement, App, BorderStyle, ClickEvent, Corners, ElementId, Entity,
+    AccessibleAction, AnyElement, App, BorderStyle, ClickEvent, Corners, Edges, ElementId, Entity,
     FocusHandle, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce, Role,
     SharedString, StatefulInteractiveElement, Styled, Window, canvas, div, prelude::FluentBuilder,
     px, quad,
@@ -12,7 +12,7 @@ use gpui_material_foundation::{
     current_material_theme, elevation_shadow_pair,
 };
 use gpui_material_theme::{
-    ColorRole, CornerRole, CornerShape, Elevation, MotionKind, MotionSpec, MotionSpeed,
+    ColorRole, CornerRole, CornerShape, Direction, Elevation, MotionKind, MotionSpec, MotionSpeed,
 };
 
 use crate::{
@@ -85,12 +85,15 @@ pub struct Card {
     variant: CardVariant,
     children: Vec<AnyElement>,
     activation: Option<(SharedString, Activate)>,
+    accessible_label: Option<SharedString>,
     disabled: bool,
     dragged: bool,
     shape: CornerShape,
     border: Option<CardBorder>,
     colors: CardColors,
     elevations: CardElevations,
+    content_padding: Edges<Pixels>,
+    gap: Pixels,
     focus: Option<FocusHandle>,
     source: Option<Entity<InteractionSource>>,
 }
@@ -102,12 +105,15 @@ impl Card {
             variant: CardVariant::default(),
             children: Vec::new(),
             activation: None,
+            accessible_label: None,
             disabled: false,
             dragged: false,
             shape: CornerRole::Medium.shape(),
             border: None,
             colors: CardColors::default(),
             elevations: CardElevations::default(),
+            content_padding: Edges::all(px(16.)),
+            gap: px(8.),
             focus: None,
             source: None,
         }
@@ -164,6 +170,33 @@ impl Card {
 
     pub fn elevations(mut self, elevations: CardElevations) -> Self {
         self.elevations = elevations;
+        self
+    }
+
+    /// Sets the card's inner padding in logical pixels. Defaults to 16 dp on all sides.
+    pub fn content_padding(mut self, padding: Edges<Pixels>) -> Self {
+        self.content_padding = Edges {
+            top: finite_length(padding.top),
+            right: finite_length(padding.right),
+            bottom: finite_length(padding.bottom),
+            left: finite_length(padding.left),
+        };
+        self
+    }
+
+    /// Sets the vertical gap between child elements. Defaults to 8 dp.
+    pub fn gap(mut self, gap: Pixels) -> Self {
+        self.gap = if f32::from(gap).is_finite() && gap >= px(0.) {
+            gap
+        } else {
+            px(8.)
+        };
+        self
+    }
+
+    /// Names a static (`Role::Group`) card for assistive technology.
+    pub fn accessible_label(mut self, label: impl Into<SharedString>) -> Self {
+        self.accessible_label = Some(label.into());
         self
     }
 
@@ -350,17 +383,29 @@ impl RenderOnce for Card {
         .absolute()
         .inset_0()
         .size_full();
+        let content = apply_corner_shape(
+            div()
+                .relative()
+                .w_full()
+                .overflow_hidden()
+                .text_color(foreground)
+                .pt(self.content_padding.top + border_width)
+                .pr(self.content_padding.right + border_width)
+                .pb(self.content_padding.bottom + border_width)
+                .pl(self.content_padding.left + border_width)
+                .flex()
+                .flex_col()
+                .gap(self.gap),
+            self.shape,
+            direction,
+        )
+        .children(self.children);
         let surface = div()
             .id("card-surface")
             .relative()
-            .text_color(foreground)
             .w_full()
-            .p(px(16.) + border_width)
-            .flex()
-            .flex_col()
-            .gap(px(8.))
             .child(visual)
-            .children(self.children);
+            .child(content);
         match self.activation {
             Some((name, activate)) => {
                 let activate = Rc::new(ThemeScope::bind_action(
@@ -405,9 +450,23 @@ impl RenderOnce for Card {
                 .id(self.id)
                 .test_support()
                 .role(Role::Group)
+                .when_some(self.accessible_label, |card, label| card.aria_label(label))
                 .child(surface)
                 .into_any_element(),
         }
+    }
+}
+
+fn apply_corner_shape<E: Styled>(element: E, shape: CornerShape, direction: Direction) -> E {
+    if shape == CornerShape::Full {
+        element.rounded_full()
+    } else {
+        let [tl, tr, br, bl] = shape.radii(f32::MAX, f32::MAX, direction);
+        element
+            .rounded_tl(px(tl))
+            .rounded_tr(px(tr))
+            .rounded_br(px(br))
+            .rounded_bl(px(bl))
     }
 }
 

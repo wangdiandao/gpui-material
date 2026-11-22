@@ -495,3 +495,166 @@ fn modal_range_commits_across_months_only_on_confirm(cx: &mut TestAppContext) {
         )
     });
 }
+
+#[gpui::test]
+fn date_picker_disabled_blocks_trigger_and_docked_enter_and_exposes_trigger_focus(
+    cx: &mut TestAppContext,
+) {
+    struct DisabledDates {
+        modal_state: Entity<DatePickerState>,
+        docked_state: Entity<DatePickerState>,
+        committed: Vec<DateSelection>,
+    }
+
+    impl Render for DisabledDates {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let owner = cx.entity();
+            let owner_docked = cx.entity();
+            div()
+                .p_4()
+                .flex()
+                .flex_col()
+                .gap_3()
+                .child(
+                    DatePicker::new(
+                        "disabled-modal",
+                        "Modal trigger",
+                        &self.modal_state,
+                        DateSelection::Single(None),
+                    )
+                    .disabled(true)
+                    .on_confirm(move |val, _, cx| {
+                        owner.update(cx, |this, _| this.committed.push(val));
+                    }),
+                )
+                .child(
+                    DatePicker::new(
+                        "disabled-docked",
+                        "Docked date",
+                        &self.docked_state,
+                        DateSelection::Single(None),
+                    )
+                    .variant(Variant::Docked)
+                    .docked_anchor(|field| div().w(px(220.)).child(field))
+                    .disabled(true)
+                    .on_confirm(move |val, _, cx| {
+                        owner_docked.update(cx, |this, _| this.committed.push(val));
+                    }),
+                )
+        }
+    }
+
+    let (mut modal_state, mut docked_state) = (None, None);
+    let mut entity = None;
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let ms = cx.new(|cx| DatePickerState::new(window, cx));
+            let ds = cx.new(|cx| DatePickerState::new(window, cx));
+            modal_state = Some(ms.clone());
+            docked_state = Some(ds.clone());
+            let e = cx.new(|_| DisabledDates {
+                modal_state: ms,
+                docked_state: ds,
+                committed: Vec::new(),
+            });
+            entity = Some(e.clone());
+            e
+        })
+        .unwrap()
+    });
+    let view = entity.unwrap();
+    let modal_state = modal_state.unwrap();
+    let docked_state = docked_state.unwrap();
+    let window = handle.into();
+    cx.simulate_window_resize(window, size(px(500.), px(420.)));
+
+    cx.update_window(window, |_, window, cx| {
+        window.activate_window();
+        window.refresh();
+        window.draw(cx).clear(cx);
+
+        let modal_open = find(
+            window,
+            &[],
+            &(ElementId::from("disabled-modal"), "open").into(),
+        )
+        .unwrap();
+        assert_eq!(modal_open.disabled(), Some(true));
+
+        let pos = modal_open.bounds().center();
+        window.dispatch_event(
+            gpui::MouseDownEvent {
+                button: gpui::MouseButton::Left,
+                position: pos,
+                click_count: 1,
+                first_mouse: false,
+                modifiers: Default::default(),
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(
+            gpui::MouseUpEvent {
+                button: gpui::MouseButton::Left,
+                position: pos,
+                click_count: 1,
+                modifiers: Default::default(),
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert!(!modal_state.read(cx).is_open(cx));
+
+        // Focusing trigger_focus() does not throw and focuses the docked trigger icon button.
+        let trigger_focus = docked_state.read(cx).trigger_focus().clone();
+        trigger_focus.focus(window, cx);
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let docked_open = find(
+            window,
+            &[],
+            &(ElementId::from("disabled-docked"), "open").into(),
+        )
+        .unwrap();
+        assert_eq!(docked_open.disabled(), Some(true));
+
+        // Pressing Enter inside docked anchor while disabled must NOT commit.
+        let anchor_center = find(
+            window,
+            &[],
+            &(ElementId::from("disabled-docked"), "anchor").into(),
+        )
+        .unwrap()
+        .bounds()
+        .center();
+        window.dispatch_event(
+            gpui::MouseDownEvent {
+                button: gpui::MouseButton::Left,
+                position: anchor_center,
+                click_count: 1,
+                first_mouse: false,
+                modifiers: Default::default(),
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(
+            gpui::MouseUpEvent {
+                button: gpui::MouseButton::Left,
+                position: anchor_center,
+                click_count: 1,
+                modifiers: Default::default(),
+            }
+            .to_platform_input(),
+            cx,
+        );
+    })
+    .unwrap();
+    cx.simulate_input(window, "16/06/2026");
+    cx.simulate_keystrokes(window, "enter");
+    cx.update(|cx| assert!(view.read(cx).committed.is_empty()));
+}

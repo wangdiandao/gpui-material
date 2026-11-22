@@ -610,3 +610,117 @@ fn list_roves_skips_disabled_and_wraps_supporting_text(cx: &mut TestAppContext) 
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn list_item_builder_tone_right_click_accessible_label_and_preserved_track_focus(
+    cx: &mut TestAppContext,
+) {
+    use gpui::{FocusHandle, InputEvent as _, WindowOptions, size};
+    use gpui_material::SemanticTone;
+
+    struct Example {
+        focus: FocusHandle,
+        long_presses: usize,
+    }
+
+    impl Render for Example {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let owner = cx.entity();
+            div().w(px(320.)).child(
+                List::new("custom-list")
+                    .accessible_label("Inbox items")
+                    .item(
+                        ListItem::new("item-tone", "Completed")
+                            .tone(SemanticTone::Success)
+                            .track_focus(&self.focus, false)
+                            .on_long_press("Item options", move |_, cx| {
+                                owner.update(cx, |this, cx| {
+                                    this.long_presses += 1;
+                                    cx.notify();
+                                });
+                            }),
+                    )
+                    .item(ListItem::new("item-next", "Next item").on_activate(|_, _| {})),
+            )
+        }
+    }
+
+    let mut entity = None;
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            let e = cx.new(|cx| Example {
+                focus: cx.focus_handle(),
+                long_presses: 0,
+            });
+            entity = Some(e.clone());
+            e
+        })
+        .unwrap()
+    });
+    let view = entity.unwrap();
+    cx.simulate_window_resize(handle.into(), size(px(400.), px(300.)));
+
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.activate_window();
+        window.refresh();
+        window.draw(cx).clear(cx);
+
+        let list = find(window, &[], &"custom-list".into()).unwrap();
+        assert_eq!(list.role(), Some(Role::List));
+        assert_eq!(list.label(), Some("Inbox items"));
+
+        // Focusing caller-supplied handle targets item-tone activate node, and Down moves to item-next.
+        view.read(cx).focus.clone().focus(window, cx);
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let first_act = find(
+            window,
+            &[],
+            &(ElementId::from("item-tone"), "activate").into(),
+        )
+        .unwrap();
+        assert_eq!(first_act.focused(), Some(true));
+
+        let center = first_act.bounds().center();
+        window.dispatch_event(
+            gpui::MouseDownEvent {
+                button: MouseButton::Right,
+                position: center,
+                click_count: 1,
+                first_mouse: false,
+                modifiers: Modifiers::default(),
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert_eq!(view.read(cx).long_presses, 1);
+
+        let down = Keystroke::parse("down").unwrap();
+        window.dispatch_event(
+            KeyDownEvent {
+                keystroke: down.clone(),
+                is_held: false,
+                prefer_character_input: false,
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(KeyUpEvent { keystroke: down }.to_platform_input(), cx);
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert_eq!(
+            find(
+                window,
+                &[],
+                &(ElementId::from("item-next"), "activate").into()
+            )
+            .unwrap()
+            .focused(),
+            Some(true)
+        );
+    })
+    .unwrap();
+}

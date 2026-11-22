@@ -419,3 +419,103 @@ fn toolbar_exit_scroll_retargets_and_keeps_the_adjacent_fab_available(cx: &mut T
     assert_eq!(read(cx).0, read(cx).1);
     assert_eq!(lookup(handle, part("fab"), cx).focused(), Some(true));
 }
+
+#[gpui::test]
+fn toolbar_action_with_icon_renders_custom_icons_inline_and_in_overflow(cx: &mut TestAppContext) {
+    use gpui::{InputEvent as _, InteractiveElement as _};
+    use gpui_base::TestSupportExt as _;
+
+    struct Preview {
+        expanded: bool,
+    }
+
+    impl Render for Preview {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().w(px(320.)).child(
+                Toolbar::new(
+                    "toolbar",
+                    "Custom icon actions",
+                    [
+                        ToolbarAction::with_icon("alpha", "Alpha", || {
+                            div().id("custom-alpha-icon").test_support().size(px(18.))
+                        }),
+                        ToolbarAction::with_icon("beta", "Beta", || {
+                            div().id("custom-beta-icon").test_support().size(px(18.))
+                        })
+                        .secondary(true),
+                    ],
+                )
+                .placement(ToolbarPlacement::Docked)
+                .expanded(self.expanded)
+                .overflow_label("More actions"),
+            )
+        }
+    }
+
+    let (handle, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let view = cx.new(|_| Preview { expanded: true });
+        let handle =
+            MaterialRoot::open_window(Default::default(), cx, |_, _| view.clone()).unwrap();
+        (handle, view)
+    });
+    cx.simulate_window_resize(handle.into(), gpui::size(px(400.), px(280.)));
+    frame(handle, cx);
+
+    cx.update_window(handle.into(), |_, window, _| {
+        assert!(find(window, &[], &"custom-alpha-icon".into()).is_some());
+        assert!(find(window, &[], &"custom-beta-icon".into()).is_some());
+    })
+    .unwrap();
+
+    // Collapse toolbar so secondary "Beta" moves into overflow and renders its custom icon inside the overflow menu.
+    cx.update(|cx| {
+        view.update(cx, |this, cx| {
+            this.expanded = false;
+            cx.notify();
+        });
+    });
+    frame(handle, cx);
+
+    let overflow_center = cx
+        .update_window(handle.into(), |_, window, _| {
+            assert!(find(window, &[], &"custom-beta-icon".into()).is_none());
+            find(window, &[], &part("overflow"))
+                .unwrap()
+                .bounds()
+                .center()
+        })
+        .unwrap();
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.activate_window();
+        window.dispatch_event(
+            gpui::MouseDownEvent {
+                button: gpui::MouseButton::Left,
+                position: overflow_center,
+                click_count: 1,
+                first_mouse: false,
+                modifiers: Default::default(),
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(
+            gpui::MouseUpEvent {
+                button: gpui::MouseButton::Left,
+                position: overflow_center,
+                click_count: 1,
+                modifiers: Default::default(),
+            }
+            .to_platform_input(),
+            cx,
+        );
+    })
+    .unwrap();
+    frame(handle, cx);
+
+    cx.update_window(handle.into(), |_, window, _| {
+        assert!(find(window, &[], &"custom-beta-icon".into()).is_some());
+    })
+    .unwrap();
+}

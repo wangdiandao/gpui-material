@@ -311,6 +311,7 @@ pub struct DatePicker {
     request: Option<DismissRequest>,
     closed: Option<OnClose>,
     colors: DatePickerColors,
+    disabled: bool,
 }
 
 impl DatePicker {
@@ -342,6 +343,7 @@ impl DatePicker {
             request: None,
             closed: None,
             colors: DatePickerColors::default(),
+            disabled: false,
         }
     }
 
@@ -459,6 +461,12 @@ impl DatePicker {
 
     pub fn colors(mut self, colors: DatePickerColors) -> Self {
         self.colors = colors;
+        self
+    }
+
+    /// Disables the built-in trigger control.
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
         self
     }
 }
@@ -699,7 +707,11 @@ impl DatePicker {
         let state = self.state.clone();
         let options = self.options.clone();
         let typed_actions = docked_actions.clone();
+        let disabled = self.disabled;
         let toggle = move |window: &mut Window, cx: &mut App| {
+            if disabled {
+                return;
+            }
             if docked && state.read(cx).docked_open {
                 docked_actions.dismiss(DialogCloseReason::Cancel, window, cx);
             } else {
@@ -759,6 +771,7 @@ impl DatePicker {
                 "Open calendar",
                 Icon::new(IconName::ArrowDropDown),
             )
+            .disabled(disabled)
             .track_focus(&focus)
             .on_activate(toggle);
             let field = TextField::new((self.id.clone(), "anchor"), self.label.clone(), &editor)
@@ -767,7 +780,7 @@ impl DatePicker {
                 .trailing(trailing);
             let element = group
                 .on_key_down(move |event, window, cx| {
-                    if event.keystroke.key != "enter" || !handle.is_focused(window) {
+                    if disabled || event.keystroke.key != "enter" || !handle.is_focused(window) {
                         return;
                     }
                     let text = editor.update(cx, |editor, cx| {
@@ -812,6 +825,7 @@ impl DatePicker {
                 .child(
                     Button::new(control_id, self.label.clone())
                         .variant(ButtonVariant::Outlined)
+                        .disabled(disabled)
                         .track_focus(&focus)
                         .on_activate(toggle),
                 )

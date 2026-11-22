@@ -10,7 +10,7 @@ use gpui::{
     Window, div, prelude::FluentBuilder, px,
 };
 use gpui_material_components::{
-    ButtonPadding, ButtonShapes, ControlSize, Icon, IconName, Menu, MenuItem,
+    ButtonPadding, ButtonShapes, ControlSize, Icon, IconName, Menu, MenuItem, SemanticTone,
     button_composition::{
         ButtonPart, Segment, group_icon_width, group_label_width, split_trailing_size,
     },
@@ -167,8 +167,15 @@ impl ButtonGroupItem {
         self.style.apply(button, shapes)
     }
 
-    fn render_overflow(self, selected: Option<bool>, command: Option<Command>) -> MenuItem {
-        let mut entry = MenuItem::new(self.id, self.label.clone()).disabled(self.disabled);
+    fn render_overflow(
+        self,
+        selected: Option<bool>,
+        command: Option<Command>,
+        group_tone: SemanticTone,
+    ) -> MenuItem {
+        let mut entry = MenuItem::new(self.id, self.label.clone())
+            .disabled(self.disabled)
+            .tone(self.tone.unwrap_or(group_tone));
         if let Some(checked) = selected {
             entry = entry.checked(checked);
         }
@@ -506,7 +513,7 @@ impl RenderOnce for ButtonGroup {
             let selected_state = item.selected(self.selection, &selected);
             let action = item.activation(self.selection, &selected, self.on_change.clone());
             if index >= shown {
-                hidden.push(item.render_overflow(selected_state, action));
+                hidden.push(item.render_overflow(selected_state, action, self.tone));
                 continue;
             }
             let id = ElementId::from((self.id.clone(), item.id.clone()));
@@ -523,6 +530,7 @@ impl RenderOnce for ButtonGroup {
                 .size(self.size)
                 .shape(self.shape)
                 .variant(item.appearance.unwrap_or(self.appearance))
+                .tone(item.tone.unwrap_or(self.tone))
                 .segment(shape)
                 .disabled(item.disabled)
                 .track_focus(&synced.handles[index])
@@ -560,6 +568,7 @@ impl RenderOnce for ButtonGroup {
                         .size(self.size)
                         .shape(self.shape)
                         .variant(self.appearance)
+                        .tone(self.tone)
                         .segment(shape)
                         .shapes(shapes)
                         .track_focus(&overflow_focus)

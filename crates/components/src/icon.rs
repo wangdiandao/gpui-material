@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use gpui::{
-    AnyElement, App, ElementId, InteractiveElement, IntoElement, ParentElement, Pixels, Radians,
-    RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Transformation, Window,
-    div, px, radians, size, svg,
+    AnyElement, App, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels,
+    Radians, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Transformation,
+    Window, div, px, radians, size, svg,
 };
 use gpui_base::TestSupportExt;
 use gpui_material_foundation::{color, current_material_theme};
@@ -69,6 +69,7 @@ pub struct Icon {
     name: Option<(ElementId, SharedString)>,
     side: Option<Pixels>,
     color: Option<ColorRole>,
+    color_override: Option<Hsla>,
     mirror: bool,
     rotation: Radians,
     filled: bool,
@@ -88,6 +89,7 @@ impl Icon {
             name: None,
             side: None,
             color: None,
+            color_override: None,
             mirror: false,
             rotation: radians(0.),
             filled: false,
@@ -137,12 +139,22 @@ impl Icon {
 
     pub fn color(mut self, color: ColorRole) -> Self {
         self.color = Some(color);
+        self.color_override = None;
         self
     }
 
-    #[cfg_attr(not(feature = "full"), allow(dead_code))]
-    pub(crate) fn inherit_color(mut self) -> Self {
+    /// Sets a literal icon tint. A later call to [`Self::color`] or [`Self::inherit_color`]
+    /// replaces this override.
+    pub fn color_override(mut self, color: impl Into<Hsla>) -> Self {
+        self.color_override = Some(color.into());
+        self
+    }
+
+    /// Clears any explicit color role or override so the icon inherits its parent text color
+    /// (for example, inside buttons, navigation items, or surfaces).
+    pub fn inherit_color(mut self) -> Self {
         self.color = None;
+        self.color_override = None;
         self
     }
 
@@ -161,10 +173,12 @@ impl Icon {
 impl RenderOnce for Icon {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = current_material_theme(window, cx);
-        let tint = self.color.map_or_else(
-            || window.text_style().color,
-            |role| color(theme.colors.color(role)),
-        );
+        let tint = self.color_override.unwrap_or_else(|| {
+            self.color.map_or_else(
+                || window.text_style().color,
+                |role| color(theme.colors.color(role)),
+            )
+        });
         let side = self
             .side
             .unwrap_or_else(|| window.text_style().font_size.to_pixels(window.rem_size()));

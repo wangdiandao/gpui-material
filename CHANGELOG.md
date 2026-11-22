@@ -17,6 +17,14 @@ See [versioning and releases](docs/release.md) for the release process.
 - Add `.show_label(bool)` and `.label_content(...)` to `Checkbox`, `Radio`, and `Switch`, and preserve caller-supplied `Radio::track_focus(&FocusHandle)` handles inside `RadioGroup`.
 - Add `Slider::track_focus(RangeThumb, &FocusHandle)` for caller-owned thumb focus handles.
 - Support `Backspace`/`Delete` keyboard removal on focused removable `Chip` actions, and add group-level `.tonal(bool)`, `.elevated(bool)`, and `.disabled(bool)` defaults to `ChipGroup`.
+- Add `Feed::accessible_label` with `Role::List` semantics and promote `Feed` to `Verified` (62/62 documented components verified in CI), alongside standalone `SupportingPane::new` narrow toggle coverage.
+- Fix `NavigationDrawer` font scaling (`NavigationItems::font_scale`), RTL section header/headline alignment, `.divider_before(...)` across `.entries`/`.section`/`.push_section`, and icon tint inheritance (`.inherit_color()`).
+- Add `List::{accessible_label, item}`, `ListItem::tone(SemanticTone)`, desktop secondary click (`MouseButton::Right`) and `contextmenu` key triggering for `ListItem::on_long_press`, caller `.track_focus` preservation in `List` and `ListSection`, `.track_focus` / `.interaction_source` across `SwitchTile`, `CheckboxTile`, `RadioTile`, `SliderTile`, and `ChoiceTile`, `ChoiceTile` accessible value description, and `.trailing(...)` on `CheckboxTile` and `RadioTile`.
+- Add `Badge::{visible, offset}` and scaled-font `min_h` fix, `Card::{content_padding, gap, accessible_label}` with rounded child clipping, `Text::{align, max_lines, color_override}`, public `Icon::{inherit_color, color_override}`, and `DropTarget::{track_focus, interaction_source}` with disabled `Role::Button` preservation, `ThemeScope` action binding, and dynamic corner radii.
+
+### Extras
+
+- Add `SemanticTone` support to `ButtonGroup`, `ButtonGroupItem`, and `SplitButton`; fix `Toolbar` and `CaptionButtons` focus ring tokens to `ColorRole::Secondary`; add `ToolbarAction::with_icon` and overflow menu icons; add `SearchView` `Home`/`End` and input-`Down` navigation plus `SearchState::trigger_focus` and `SearchBar::track_focus`; add `TimePicker` dialog options, `DatePicker`/`TimePicker::disabled`, and `DatePickerState`/`TimePickerState::trigger_focus`; add `CaptionButtonLabels` localization for `CaptionButtons` and `TitleBar`.
 
 ### Overlays and menus
 

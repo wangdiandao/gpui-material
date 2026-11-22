@@ -212,3 +212,79 @@ fn badge_tones_standalone_shorthands_and_element_ext_precedence(cx: &mut TestApp
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn badge_supports_visible_and_offset(cx: &mut TestAppContext) {
+    use gpui::point;
+
+    struct Example;
+    impl Render for Example {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let icon = || Icon::new(IconName::Notifications).size(px(24.));
+            div()
+                .p_4()
+                .flex()
+                .flex_col()
+                .items_start()
+                .gap_4()
+                .child(
+                    Badge::standalone_label("Hidden")
+                        .container_color(rgb(0x112233))
+                        .visible(false)
+                        .accessible_label("hidden-standalone", "Hidden"),
+                )
+                .child(
+                    Badge::dot(Button::new("hidden-host", "Notifications").on_activate(|_, _| {}))
+                        .container_color(rgb(0x445566))
+                        .visible(false),
+                )
+                .child(Badge::count(icon(), 5, 99).container_color(rgb(0x778899)))
+                .child(
+                    Badge::count(icon(), 5, 99)
+                        .container_color(rgb(0x998877))
+                        .offset(point(px(6.), px(8.))),
+                )
+        }
+    }
+
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+            cx.new(|_| Example)
+        })
+        .unwrap()
+    });
+    cx.simulate_window_scale_factor_change(handle.into(), 1.);
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+
+        assert!(find(window, &[], &"hidden-standalone".into()).is_none());
+        assert!(find(window, &[], &"hidden-host".into()).is_some());
+
+        let quads = window.painted_quads();
+        assert!(!quads.iter().any(|q| q.background == rgb(0x112233).into()));
+        assert!(!quads.iter().any(|q| q.background == rgb(0x445566).into()));
+
+        let base = quads
+            .iter()
+            .find(|q| q.background == rgb(0x778899).into())
+            .unwrap()
+            .bounds;
+        let shifted = quads
+            .iter()
+            .find(|q| q.background == rgb(0x998877).into())
+            .unwrap()
+            .bounds;
+        let scale = window.scale_factor();
+        assert_eq!(
+            (shifted.origin.x - base.origin.x).round(),
+            px(6.).scale(scale)
+        );
+        assert_eq!(
+            shifted.origin.y - base.origin.y,
+            px(24. + 16. + 8.).scale(scale)
+        );
+    })
+    .unwrap();
+}

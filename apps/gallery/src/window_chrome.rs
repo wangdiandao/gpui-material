@@ -334,4 +334,61 @@ mod tests {
         click_id(cx, csd_handle, "close".into());
         assert_eq!(closed.get(), 1);
     }
+
+    #[gpui::test]
+    fn title_bar_and_caption_buttons_accept_localized_labels(cx: &mut TestAppContext) {
+        use gpui_base::test_support::find_all;
+        use gpui_material::window_chrome::{CaptionButtonLabels, CaptionButtons};
+
+        struct LocalizedChrome;
+        impl Render for LocalizedChrome {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                let labels = CaptionButtonLabels {
+                    minimize: "最小化".into(),
+                    maximize: "最大化".into(),
+                    restore: "还原".into(),
+                    close: "关闭".into(),
+                };
+                div()
+                    .flex()
+                    .flex_col()
+                    .size_full()
+                    .child(
+                        TitleBar::new("localized-title-bar")
+                            .platform(ChromePlatform::Windows)
+                            .caption_labels(labels.clone()),
+                    )
+                    .child(
+                        CaptionButtons::new("standalone-caption")
+                            .platform(ChromePlatform::Windows)
+                            .labels(labels),
+                    )
+            }
+        }
+
+        let handle = cx.update(|cx| {
+            init_gallery(cx);
+            cx.set_reduce_motion(true);
+            MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+                cx.new(|_| LocalizedChrome)
+            })
+            .unwrap()
+        });
+        cx.simulate_window_resize(handle.into(), size(px(800.), px(400.)));
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+
+            let mins = find_all(window, &[], &"minimize".into());
+            let maxes = find_all(window, &[], &"maximize-restore".into());
+            let closes = find_all(window, &[], &"close".into());
+            assert_eq!(mins.len(), 2);
+            assert_eq!(maxes.len(), 2);
+            assert_eq!(closes.len(), 2);
+            assert!(mins.iter().all(|node| node.label() == Some("最小化")));
+            assert!(maxes.iter().all(|node| node.label() == Some("最大化")));
+            assert!(closes.iter().all(|node| node.label() == Some("关闭")));
+        })
+        .unwrap();
+    }
 }

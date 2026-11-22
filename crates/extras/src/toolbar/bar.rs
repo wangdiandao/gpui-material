@@ -55,10 +55,16 @@ pub enum ToolbarFabPosition {
     End,
 }
 
+#[derive(Clone)]
+pub(super) enum ActionIcon {
+    Symbol(IconName),
+    Custom(Rc<dyn Fn() -> AnyElement>),
+}
+
 pub struct ToolbarAction {
     id: SharedString,
     label: SharedString,
-    icon: IconName,
+    icon: ActionIcon,
     enabled: bool,
     selected: Option<bool>,
     secondary: bool,
@@ -74,7 +80,25 @@ impl ToolbarAction {
         Self {
             id: id.into(),
             label: label.into(),
-            icon,
+            icon: ActionIcon::Symbol(icon),
+            enabled: true,
+            selected: None,
+            secondary: false,
+            invoke: None,
+        }
+    }
+
+    /// Creates a toolbar action with a custom repeatable icon factory used both inline
+    /// and in the collapsed overflow menu.
+    pub fn with_icon<E: IntoElement>(
+        id: impl Into<SharedString>,
+        label: impl Into<SharedString>,
+        icon: impl Fn() -> E + 'static,
+    ) -> Self {
+        Self {
+            id: id.into(),
+            label: label.into(),
+            icon: ActionIcon::Custom(Rc::new(move || icon().into_any_element())),
             enabled: true,
             selected: None,
             secondary: false,

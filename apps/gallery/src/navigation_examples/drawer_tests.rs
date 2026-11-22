@@ -182,6 +182,42 @@ fn navigation_drawer_supports_standard_roving_keyboard_rtl_and_modal_dismissal(
         window.dispatch_event(KeyUpEvent { keystroke: enter }.to_platform_input(), cx);
         draw(window, cx);
         assert_eq!(view.read(cx).selected, "archive");
+
+        // Home and End move roving focus to first ("inbox") and last ("docs") destinations.
+        let docs_id: ElementId = (ElementId::from("std-nav"), SharedString::from("docs")).into();
+        let end_key = Keystroke::parse("end").unwrap();
+        window.dispatch_event(
+            KeyDownEvent {
+                keystroke: end_key.clone(),
+                is_held: false,
+                prefer_character_input: false,
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(KeyUpEvent { keystroke: end_key }.to_platform_input(), cx);
+        draw(window, cx);
+        assert_eq!(find(window, &[], &docs_id).unwrap().focused(), Some(true));
+
+        let home_key = Keystroke::parse("home").unwrap();
+        window.dispatch_event(
+            KeyDownEvent {
+                keystroke: home_key.clone(),
+                is_held: false,
+                prefer_character_input: false,
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(
+            KeyUpEvent {
+                keystroke: home_key,
+            }
+            .to_platform_input(),
+            cx,
+        );
+        draw(window, cx);
+        assert_eq!(find(window, &[], &inbox_id).unwrap().focused(), Some(true));
     })
     .unwrap();
 

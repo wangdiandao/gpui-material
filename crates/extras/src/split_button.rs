@@ -7,7 +7,7 @@ use gpui::{
 };
 use gpui_material_components::{
     ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShapes, ButtonVariant,
-    ControlSize, Icon, IconName, Menu, MenuItem,
+    ControlSize, Icon, IconName, Menu, MenuItem, SemanticTone,
     button_composition::{ButtonPart, Segment, label_width, split_trailing_size},
 };
 use gpui_material_foundation::{InteractionSource, current_material_theme};
@@ -77,6 +77,8 @@ pub struct SplitButton {
     trailing_action: TrailingAction,
     size: ControlSize,
     variant: ButtonVariant,
+    leading_tone: SemanticTone,
+    trailing_tone: SemanticTone,
     spacing: Pixels,
     disabled: bool,
     trailing_disabled: bool,
@@ -102,6 +104,8 @@ impl SplitButton {
             trailing_action: TrailingAction::Menu(menu.into_iter().collect()),
             size: ControlSize::default(),
             variant: ButtonVariant::default(),
+            leading_tone: SemanticTone::Default,
+            trailing_tone: SemanticTone::Default,
             spacing: px(2.),
             disabled: false,
             trailing_disabled: false,
@@ -117,6 +121,25 @@ impl SplitButton {
 
     pub fn variant(mut self, variant: ButtonVariant) -> Self {
         self.variant = variant;
+        self
+    }
+
+    /// Applies a Material 3 semantic tone to both segments.
+    pub fn tone(mut self, tone: SemanticTone) -> Self {
+        self.leading_tone = tone;
+        self.trailing_tone = tone;
+        self
+    }
+
+    /// Applies a Material 3 semantic tone to the leading segment.
+    pub fn leading_tone(mut self, tone: SemanticTone) -> Self {
+        self.leading_tone = tone;
+        self
+    }
+
+    /// Applies a Material 3 semantic tone to the trailing segment.
+    pub fn trailing_tone(mut self, tone: SemanticTone) -> Self {
+        self.trailing_tone = tone;
         self
     }
 
@@ -257,6 +280,7 @@ impl RenderOnce for SplitButton {
             .apply(primary)
             .size(self.size)
             .variant(self.variant)
+            .tone(self.leading_tone)
             .segment(Some(Segment::SplitLeading))
             .track_focus(&primary_focus)
             .disabled(self.disabled)
@@ -289,6 +313,7 @@ impl RenderOnce for SplitButton {
                 .apply(part)
                 .size(self.size)
                 .variant(self.variant)
+                .tone(self.trailing_tone)
                 .segment(Some(Segment::SplitTrailing))
                 .track_focus(&trailing_focus)
                 .disabled(self.trailing_disabled)

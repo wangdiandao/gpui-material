@@ -3,8 +3,8 @@
   en: "0c16ec483c073c5d"
   zh: "b24fff9ed8f0b160"
 /components/actions-and-selection:
-  en: "e80f3226330ffcee"
-  zh: "9a9bc309c4862db3"
+  en: "d4606a496c2fd953"
+  zh: "34681f3fe187c245"
 /components/actions-and-selection/floating-action-button:
   en: "c77a57b086907ad0"
   zh: "e5c132ba393b8843"
@@ -12,20 +12,20 @@
   en: "41d061e6fce042a9"
   zh: "b508e9b159c2bec7"
 /components/actions-and-selection/checkbox:
-  en: "b8b4bc70b7067b0b"
-  zh: "df99d564be1daea7"
+  en: "ba61732665e8b8fd"
+  zh: "d8b266022986e5dd"
 /components/actions-and-selection/radio-buttons:
-  en: "d1c7cc19e481ec22"
-  zh: "ebb606d4e3dd7e4c"
+  en: "6dcf084f5cb4aaf3"
+  zh: "a83993e2a53bd046"
 /components/actions-and-selection/switches:
-  en: "bff28a3dc4c03f2a"
-  zh: "4af655de1cac2f40"
+  en: "30c88d6f9b32344c"
+  zh: "6b8b4776b4937580"
 /components/actions-and-selection/chips:
-  en: "e67854892fd1599d"
-  zh: "46c7bca712943601"
+  en: "ec6a38a9cfa92a19"
+  zh: "e8ce6215beaa4fad"
 /components/actions-and-selection/sliders:
-  en: "1da046944fe56c7e"
-  zh: "903480f1027059ee"
+  en: "5e761accd1c5125c"
+  zh: "3c445596aa8104e1"
 /components/content-and-feedback:
   en: "f7f8e400ef85a47b"
   zh: "07b1025f776c6703"
@@ -81,8 +81,8 @@
   en: "652d4f4f4421dc47"
   zh: "efa23e7600bab5f0"
 /components/input-and-overlays:
-  en: "afe4206ecef4201b"
-  zh: "737c838255cb0f4e"
+  en: "64b0c8482c0a5c74"
+  zh: "1ebed802f72e78da"
 /components/input-and-overlays/exposed-dropdowns:
   en: "5af40c400c43abca"
   zh: "ddef8112ceaeebaf"

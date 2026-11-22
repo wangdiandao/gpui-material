@@ -12,7 +12,7 @@ use gpui_material::{
     TextFieldColors, TextFieldLayout, TextFieldMaskPattern, TextFieldState, TextFieldVariant,
     foundation::set_window_material_theme,
     material_theme, set_material_theme,
-    theme::{Appearance, CornerShape, Direction, TypeRole, TypographyEmphasis},
+    theme::{Appearance, CornerShape, Density, Direction, TypeRole, TypographyEmphasis},
 };
 
 use super::TextFieldExamples;
@@ -1279,6 +1279,210 @@ fn text_field_visibility_toggle_syncs_obfuscation_and_toggles_labels(cx: &mut Te
         window.refresh();
         window.draw(cx).clear(cx);
         assert_eq!(view.read(cx).disabled_clicks, 0);
+    })
+    .unwrap();
+}
+
+#[gpui::test]
+fn text_field_show_label_density_min_height_and_indicator_width(cx: &mut TestAppContext) {
+    struct CompactFields {
+        filled_default: Entity<TextFieldState>,
+        outlined_default: Entity<TextFieldState>,
+        no_label_compact: Entity<TextFieldState>,
+        invalid_override: Entity<TextFieldState>,
+        borderless_filled: Entity<TextFieldState>,
+        focus_indicator_outlined: Entity<TextFieldState>,
+    }
+
+    const CUSTOM_INDICATOR: u32 = 0x2a8f63;
+
+    impl Render for CompactFields {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let indicator_color: Hsla = rgb(CUSTOM_INDICATOR).into();
+            let indicator_colors = TextFieldColors {
+                unfocused: TextFieldColorOverrides {
+                    indicator: Some(indicator_color),
+                    ..Default::default()
+                },
+                focused: TextFieldColorOverrides {
+                    indicator: Some(indicator_color),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            div()
+                .w(px(360.))
+                .flex()
+                .flex_col()
+                .gap_3()
+                .p_3()
+                .child(TextField::filled(
+                    "filled-default",
+                    "Filled default",
+                    &self.filled_default,
+                ))
+                .child(TextField::outlined(
+                    "outlined-default",
+                    "Outlined default",
+                    &self.outlined_default,
+                ))
+                .child(
+                    TextField::filled("no-label-compact", "Search query", &self.no_label_compact)
+                        .show_label(false)
+                        .min_height(px(36.))
+                        .placeholder_content("Find", "Find...")
+                        .prefix(div().id("compact-prefix").test_support().child("@"))
+                        .suffix(div().id("compact-suffix").test_support().child(".rs")),
+                )
+                .child(
+                    TextField::outlined(
+                        "invalid-override",
+                        "Invalid override",
+                        &self.invalid_override,
+                    )
+                    .min_height(px(-10.))
+                    .min_height(px(f32::NAN))
+                    .indicator_width(px(-2.), px(f32::INFINITY)),
+                )
+                .child(
+                    TextField::filled(
+                        "borderless-filled",
+                        "Borderless filled",
+                        &self.borderless_filled,
+                    )
+                    .show_label(false)
+                    .colors(indicator_colors)
+                    .indicator_width(px(0.), px(0.)),
+                )
+                .child(
+                    TextField::outlined(
+                        "focus-indicator-outlined",
+                        "Focus indicator",
+                        &self.focus_indicator_outlined,
+                    )
+                    .show_label(false)
+                    .colors(indicator_colors)
+                    .indicator_width(px(0.), px(3.)),
+                )
+        }
+    }
+
+    let (window, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut entity = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let v = cx.new(|cx| CompactFields {
+                filled_default: cx.new(|cx| TextFieldState::new(window, cx)),
+                outlined_default: cx.new(|cx| TextFieldState::new(window, cx)),
+                no_label_compact: cx.new(|cx| TextFieldState::new(window, cx)),
+                invalid_override: cx.new(|cx| TextFieldState::new(window, cx)),
+                borderless_filled: cx.new(|cx| TextFieldState::new(window, cx)),
+                focus_indicator_outlined: cx.new(|cx| TextFieldState::new(window, cx)),
+            });
+            entity = Some(v.clone());
+            v
+        })
+        .unwrap();
+        (window, entity.unwrap())
+    });
+    cx.simulate_window_resize(window.into(), size(px(440.), px(900.)));
+
+    let custom_indicator: Hsla = rgb(CUSTOM_INDICATOR).into();
+    let container_height = |window: &Window, id: &'static str| {
+        let field = find(window, &[], &id.into()).unwrap();
+        find(window, field.path(), &"container".into())
+            .unwrap()
+            .bounds()
+            .size
+            .height
+    };
+
+    cx.update_window(window.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+
+        // Standard density: 56dp default height for both Filled and Outlined,
+        // invalid min_height overrides ignored.
+        assert_eq!(container_height(window, "filled-default"), px(56.));
+        assert_eq!(container_height(window, "outlined-default"), px(56.));
+        assert_eq!(container_height(window, "invalid-override"), px(56.));
+
+        // show_label(false): preserves aria_label, omits visual label, keeps
+        // placeholder and affixes immediately visible, and allows shrinking via min_height.
+        let compact = find(window, &[], &"no-label-compact".into()).unwrap();
+        assert_eq!(compact.label(), Some("Search query"));
+        assert!(find(window, compact.path(), &"label".into()).is_none());
+        assert!(find(window, compact.path(), &"placeholder".into()).is_some());
+        assert!(find(window, compact.path(), &"compact-prefix".into()).is_some());
+        assert!(find(window, compact.path(), &"compact-suffix".into()).is_some());
+        assert_eq!(container_height(window, "no-label-compact"), px(36.));
+
+        // Unfocused: both indicator_width(0, 0) and indicator_width(0, 3) omit indicator quads.
+        assert!(
+            !window
+                .painted_quads()
+                .iter()
+                .any(|quad| quad.border_color == custom_indicator),
+            "unfocused 0px indicator_width must omit border/indicator quad"
+        );
+
+        // Density::Compact -> 52dp default height for both Filled and Outlined.
+        let mut compact_theme = MaterialTheme::baseline(Appearance::Light);
+        compact_theme.layout.density = Density::Compact;
+        set_window_material_theme(Some(compact_theme), window, cx);
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert_eq!(container_height(window, "filled-default"), px(52.));
+        assert_eq!(container_height(window, "outlined-default"), px(52.));
+
+        // Density::Comfortable -> 60dp default height for both Filled and Outlined.
+        let mut comfortable_theme = MaterialTheme::baseline(Appearance::Light);
+        comfortable_theme.layout.density = Density::Comfortable;
+        set_window_material_theme(Some(comfortable_theme), window, cx);
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert_eq!(container_height(window, "filled-default"), px(60.));
+        assert_eq!(container_height(window, "outlined-default"), px(60.));
+
+        // Focusing borderless-filled with indicator_width(0, 0) still paints no indicator.
+        let borderless_focus = view
+            .read(cx)
+            .borderless_filled
+            .read(cx)
+            .presentation()
+            .focus_handle()
+            .clone();
+        borderless_focus.focus(window, cx);
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert!(
+            !window
+                .painted_quads()
+                .iter()
+                .any(|quad| quad.border_color == custom_indicator),
+            "focused 0px indicator_width must omit indicator quad"
+        );
+
+        // Focusing focus-indicator-outlined with indicator_width(0, 3) paints a 3px border.
+        let focus_indicator = view
+            .read(cx)
+            .focus_indicator_outlined
+            .read(cx)
+            .presentation()
+            .focus_handle()
+            .clone();
+        focus_indicator.focus(window, cx);
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let scale = window.scale_factor();
+        assert!(
+            window.painted_quads().iter().any(|quad| {
+                quad.border_color == custom_indicator
+                    && quad.border_widths.top == px(3.).scale(scale)
+            }),
+            "focused indicator_width(0, 3) must paint 3px border"
+        );
     })
     .unwrap();
 }

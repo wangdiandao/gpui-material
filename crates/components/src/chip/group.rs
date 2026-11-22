@@ -64,8 +64,8 @@ pub struct ChipGroupItem {
     avatar: Option<AnyElement>,
     trailing: Option<AnyElement>,
     disabled: bool,
-    tonal: bool,
-    elevated: bool,
+    tonal: Option<bool>,
+    elevated: Option<bool>,
     tone: SemanticTone,
     remove: Option<(SharedString, Activate)>,
 }
@@ -79,8 +79,8 @@ impl ChipGroupItem {
             avatar: None,
             trailing: None,
             disabled: false,
-            tonal: false,
-            elevated: false,
+            tonal: None,
+            elevated: None,
             tone: SemanticTone::Default,
             remove: None,
         }
@@ -107,12 +107,12 @@ impl ChipGroupItem {
     }
 
     pub fn tonal(mut self, tonal: bool) -> Self {
-        self.tonal = tonal;
+        self.tonal = Some(tonal);
         self
     }
 
     pub fn elevated(mut self, elevated: bool) -> Self {
-        self.elevated = elevated;
+        self.elevated = Some(elevated);
         self
     }
 
@@ -143,6 +143,9 @@ pub struct ChipGroup {
     selected: Vec<SharedString>,
     on_change: Option<SelectionChange>,
     variant: ChipVariant,
+    tonal: bool,
+    elevated: bool,
+    disabled: bool,
     scrollable: bool,
     scroll_handle: Option<ScrollHandle>,
     spacing: Pixels,
@@ -163,6 +166,9 @@ impl ChipGroup {
             selected: Vec::new(),
             on_change: None,
             variant: ChipVariant::Filter,
+            tonal: false,
+            elevated: false,
+            disabled: false,
             scrollable: false,
             scroll_handle: None,
             spacing: px(8.),
@@ -212,6 +218,24 @@ impl ChipGroup {
         self
     }
 
+    /// Sets the default expressive Tonal appearance for members unless overridden per item.
+    pub fn tonal(mut self, tonal: bool) -> Self {
+        self.tonal = tonal;
+        self
+    }
+
+    /// Sets the default elevated appearance for members unless overridden per item.
+    pub fn elevated(mut self, elevated: bool) -> Self {
+        self.elevated = elevated;
+        self
+    }
+
+    /// Disables all members in the group when `true` (OR-ed with per-item disabled state).
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
+        self
+    }
+
     /// Switches between wrapped rows (`false`, default) and a single horizontal
     /// scrolling row (`true`).
     pub fn scrollable(mut self, scrollable: bool) -> Self {
@@ -255,23 +279,31 @@ impl RenderOnce for ChipGroup {
             })
             .collect();
 
+        let group_disabled = self.disabled;
+        let group_tonal = self.tonal;
+        let group_elevated = self.elevated;
+
         let focused_index = self
             .items
             .iter()
             .zip(&focus_handles)
-            .position(|(item, focus)| !item.disabled && focus.is_focused(window));
-        let selected_index = self
+            .position(|(item, focus)| {
+                !(group_disabled || item.disabled) && focus.is_focused(window)
+            });
+        let selected_index = self.items.iter().position(|item| {
+            !(group_disabled || item.disabled) && self.selected.iter().any(|id| id == &item.id)
+        });
+        let first_enabled = self
             .items
             .iter()
-            .position(|item| !item.disabled && self.selected.iter().any(|id| id == &item.id));
-        let first_enabled = self.items.iter().position(|item| !item.disabled);
+            .position(|item| !(group_disabled || item.disabled));
         let tab_stop = focused_index.or(selected_index).or(first_enabled);
 
         let nav_entries: Vec<(FocusHandle, bool)> = self
             .items
             .iter()
             .zip(&focus_handles)
-            .map(|(item, focus)| (focus.clone(), !item.disabled))
+            .map(|(item, focus)| (focus.clone(), !(group_disabled || item.disabled)))
             .collect();
 
         let scroll_handle = self.scrollable.then(|| {
@@ -310,9 +342,9 @@ impl RenderOnce for ChipGroup {
                 let mut chip = Chip::new(chip_id, item.label)
                     .variant(variant)
                     .selected(is_selected)
-                    .disabled(item.disabled)
-                    .tonal(item.tonal)
-                    .elevated(item.elevated)
+                    .disabled(group_disabled || item.disabled)
+                    .tonal(item.tonal.unwrap_or(group_tonal))
+                    .elevated(item.elevated.unwrap_or(group_elevated))
                     .tone(item.tone)
                     .track_focus(&focus)
                     .tab_stop(Some(ix) == tab_stop);

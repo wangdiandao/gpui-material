@@ -145,6 +145,11 @@ impl ActionControl {
         )
     }
 
+    #[cfg(feature = "selection")]
+    pub(crate) fn focus_handle(&self, window: &mut Window, cx: &mut App) -> FocusHandle {
+        self.feedback(window, cx).1
+    }
+
     pub(crate) fn clear_interaction(&self, window: &mut Window, cx: &mut App) {
         let (feedback, focus) = self.feedback(window, cx);
         let mut state = feedback.borrow_mut();
@@ -653,15 +658,20 @@ fn render_toggle_control(
     window: &Window,
     cx: &App,
 ) -> AnyElement {
-    let enabled = !disabled;
+    let interactive = !disabled && !layout.loading;
     let control = Toggle::new(id)
         .track_focus(&focus)
         .tab_stop(layout.tab_stop)
         .pressed(selected)
         .disabled(disabled)
-        .accessibility_label(label);
+        .accessibility_label(label)
+        .when(layout.loading, |control| {
+            control.a11y_synthetic_children(|tree| {
+                tree.parent_node().set_busy();
+            })
+        });
     let control = match on_change {
-        Some(on_change) if enabled => {
+        Some(on_change) if interactive => {
             let pending = Rc::new(Cell::new(!selected));
             let pending_arg = pending.clone();
             let on_change = Rc::new(ThemeScope::bind_action(
@@ -698,7 +708,7 @@ fn render_toggle_control(
         foreground,
         target_height,
         width,
-        enabled,
+        interactive,
     )
 }
 

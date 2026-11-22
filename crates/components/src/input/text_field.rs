@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use gpui::{
     AnyElement, App, Bounds, Edges, ElementId, Entity, Hsla, IntoElement, Pixels, SharedString,
-    Window,
+    Window, px,
 };
 use gpui_base::input::{InputBaseState, InputModeKind};
 use gpui_material_foundation::InteractionSource;
@@ -117,6 +117,7 @@ pub struct TextField {
     editor: Editor,
     variant: TextFieldVariant,
     obfuscation_mode: TextFieldObfuscationMode,
+    show_label: bool,
     label_content: Option<AnyElement>,
     label_position: Option<TextFieldLabelPosition>,
     label_minimized: bool,
@@ -143,6 +144,8 @@ pub struct TextField {
     text_style: Option<TypeStyle>,
     shape: Option<CornerShape>,
     content_padding: Option<Edges<Pixels>>,
+    min_height: Option<Pixels>,
+    indicator_width: (Pixels, Pixels),
     colors: TextFieldColors,
     on_text_layout: Option<OnTextLayout>,
     interaction_source: Option<Entity<InteractionSource>>,
@@ -253,6 +256,7 @@ impl TextField {
             editor,
             variant: TextFieldVariant::Filled,
             obfuscation_mode: TextFieldObfuscationMode::Hidden,
+            show_label: true,
             label_content: None,
             label_position: None,
             label_minimized: false,
@@ -279,6 +283,8 @@ impl TextField {
             text_style: None,
             shape: None,
             content_padding: None,
+            min_height: None,
+            indicator_width: (px(1.), px(2.)),
             colors: TextFieldColors::default(),
             on_text_layout: None,
             interaction_source: None,
@@ -368,6 +374,35 @@ impl TextField {
         self
     }
 
+    /// Overrides the container's minimum height in logical pixels.
+    ///
+    /// Negative or non-finite values are ignored and keep the density-aware default (`52 dp`
+    /// Compact, `56 dp` Standard, `60 dp` Comfortable). The container still expands to fit its
+    /// text line height, vertical padding, and any inside label reserve.
+    pub fn min_height(mut self, height: Pixels) -> Self {
+        let value = f32::from(height);
+        if value.is_finite() && value >= 0. {
+            self.min_height = Some(height);
+        }
+        self
+    }
+
+    /// Sets the indicator thickness for unfocused and focused states (defaults to `1 px` and `2 px`).
+    ///
+    /// Controls the Filled bottom indicator or the Outlined container border. Pass `px(0.)` to
+    /// omit the indicator or border cleanly. Negative or non-finite values are ignored.
+    pub fn indicator_width(mut self, unfocused: Pixels, focused: Pixels) -> Self {
+        let unfocused_value = f32::from(unfocused);
+        if unfocused_value.is_finite() && unfocused_value >= 0. {
+            self.indicator_width.0 = unfocused;
+        }
+        let focused_value = f32::from(focused);
+        if focused_value.is_finite() && focused_value >= 0. {
+            self.indicator_width.1 = focused;
+        }
+        self
+    }
+
     /// Applies per-state color overrides while preserving theme defaults for unset colors.
     pub fn colors(mut self, colors: TextFieldColors) -> Self {
         self.colors = colors;
@@ -396,6 +431,15 @@ impl TextField {
             text: text.into(),
             content: None,
         });
+        self
+    }
+
+    /// Controls whether the visual label is rendered. Defaults to `true`.
+    ///
+    /// When `false`, the constructor's label remains the accessible name (`aria_label`), vertical
+    /// label space is omitted, and placeholders, prefixes, and suffixes stay immediately visible.
+    pub fn show_label(mut self, show: bool) -> Self {
+        self.show_label = show;
         self
     }
 

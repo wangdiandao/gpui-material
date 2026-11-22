@@ -1,9 +1,10 @@
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{
-    App, AppContext, Bounds, Context, ElementId, Entity, Hsla, IntoElement, KeyDownEvent,
-    KeyUpEvent, Keystroke, Modifiers, MouseButton, ParentElement, Pixels, Render, RenderOnce, Role,
-    Styled, TestAppContext, VisualTestContext, Window, canvas, div, px, rgb, size,
+    App, AppContext, Bounds, Context, ElementId, Entity, Hsla, InteractiveElement, IntoElement,
+    KeyDownEvent, KeyUpEvent, Keystroke, Modifiers, MouseButton, ParentElement, Pixels, Render,
+    RenderOnce, Role, Styled, TestAppContext, VisualTestContext, Window, canvas, div, px, rgb,
+    size,
 };
 use gpui_base::test_support::find;
 use gpui_material::{
@@ -816,5 +817,111 @@ fn chip_shorthands_and_semantic_tones_respect_selection_disabled_and_overrides(
                 .any(|quad| quad.border_color == rgb(0x884422).into()),
             "explicit ChipColors border must override SemanticTone"
         );
+    });
+}
+
+#[gpui::test]
+fn removable_chip_invokes_on_remove_on_backspace_and_delete_when_focused(cx: &mut TestAppContext) {
+    struct RemovableChipView {
+        chip_focus: gpui::FocusHandle,
+        disabled_focus: gpui::FocusHandle,
+        restore_focus: gpui::FocusHandle,
+        removed: usize,
+        disabled_removed: usize,
+        parent_keys: Vec<String>,
+    }
+
+    impl Render for RemovableChipView {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let v1 = cx.entity();
+            let v2 = cx.entity();
+            let v3 = cx.entity();
+            let restore = self.restore_focus.clone();
+            div()
+                .id("chip-key-root")
+                .on_key_down(move |event, _, cx| {
+                    v3.update(cx, |this, _| {
+                        this.parent_keys.push(event.keystroke.key.clone());
+                    });
+                })
+                .child(
+                    div()
+                        .id("restore-target")
+                        .track_focus(&self.restore_focus)
+                        .size(px(20.)),
+                )
+                .child(
+                    Chip::input("removable", "Rust")
+                        .track_focus(&self.chip_focus)
+                        .on_remove("Remove Rust", Some(restore), move |_, cx| {
+                            v1.update(cx, |this, _| this.removed += 1);
+                        }),
+                )
+                .child(
+                    Chip::input("disabled-removable", "Locked")
+                        .disabled(true)
+                        .track_focus(&self.disabled_focus)
+                        .on_remove("Remove Locked", None, move |_, cx| {
+                            v2.update(cx, |this, _| this.disabled_removed += 1);
+                        }),
+                )
+        }
+    }
+
+    cx.update(|cx| {
+        MaterialRoot::init(MaterialTheme::default(), cx);
+        cx.set_reduce_motion(true);
+    });
+    let (view, cx) = cx.add_window_view(|window, cx| {
+        window.activate_window();
+        RemovableChipView {
+            chip_focus: cx.focus_handle(),
+            disabled_focus: cx.focus_handle(),
+            restore_focus: cx.focus_handle(),
+            removed: 0,
+            disabled_removed: 0,
+            parent_keys: Vec::new(),
+        }
+    });
+    draw(cx);
+
+    // Backspace on focused primary chip action invokes on_remove, restores focus, stops propagation.
+    cx.update(|window, cx| view.read(cx).chip_focus.clone().focus(window, cx));
+    draw(cx);
+    cx.simulate_keystrokes("backspace");
+    draw(cx);
+    cx.update(|window, cx| {
+        assert_eq!(view.read(cx).removed, 1);
+        assert!(view.read(cx).restore_focus.is_focused(window));
+        assert!(view.read(cx).parent_keys.is_empty());
+    });
+
+    // Delete on focused primary chip action invokes on_remove and stops propagation.
+    cx.update(|window, cx| view.read(cx).chip_focus.clone().focus(window, cx));
+    draw(cx);
+    cx.simulate_keystrokes("delete");
+    draw(cx);
+    cx.update(|_, cx| {
+        assert_eq!(view.read(cx).removed, 2);
+        assert!(view.read(cx).parent_keys.is_empty());
+    });
+
+    // Modified Backspace/Delete do NOT invoke on_remove.
+    cx.update(|window, cx| view.read(cx).chip_focus.clone().focus(window, cx));
+    draw(cx);
+    cx.simulate_keystrokes("ctrl-backspace shift-delete");
+    draw(cx);
+    cx.update(|_, cx| {
+        assert_eq!(view.read(cx).removed, 2);
+        assert_eq!(view.read(cx).parent_keys, vec!["backspace", "delete"]);
+    });
+
+    // Disabled removable chip does NOT invoke on_remove on Backspace/Delete.
+    cx.update(|window, cx| view.read(cx).disabled_focus.clone().focus(window, cx));
+    draw(cx);
+    cx.simulate_keystrokes("backspace delete");
+    draw(cx);
+    cx.update(|_, cx| {
+        assert_eq!(view.read(cx).disabled_removed, 0);
     });
 }

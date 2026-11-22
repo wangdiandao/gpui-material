@@ -18,8 +18,8 @@ use gpui_material_foundation::{
     font_for_style,
 };
 use gpui_material_theme::{
-    ColorRole, CornerRole, CornerShape, Direction, LayoutPolicy, MaterialTheme, MotionKind,
-    MotionSpeed, TypeRole, TypeStyle, TypographyEmphasis,
+    ColorRole, CornerRole, CornerShape, Density, Direction, LayoutPolicy, MaterialTheme,
+    MotionKind, MotionSpeed, TypeRole, TypeStyle, TypographyEmphasis,
 };
 
 use super::{
@@ -420,10 +420,14 @@ fn configure_and_build_editor(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn resolve_metrics(
     type_style: TypeStyle,
     caption_style: TypeStyle,
     animation: &FieldAnimation,
+    density: Density,
+    min_height: Option<Pixels>,
+    indicator_width: (Pixels, Pixels),
     content_padding: Option<Edges<Pixels>>,
     label_inside: bool,
     filled: bool,
@@ -431,13 +435,21 @@ fn resolve_metrics(
     let label_size = type_style.size + (caption_style.size - type_style.size) * animation.floating;
     let label_height = type_style.line_height
         + (caption_style.line_height - type_style.line_height) * animation.floating;
-    let outline_width = px(1. + animation.focus_amount);
+    let (unfocused_indicator, focused_indicator) = indicator_width;
+    let unfocused_w = f32::from(unfocused_indicator);
+    let focused_w = f32::from(focused_indicator);
+    let outline_width = px(unfocused_w + (focused_w - unfocused_w) * animation.focus_amount);
+    let inside_vertical_pad = if density == Density::Compact { 6. } else { 8. };
     let padding = content_padding.unwrap_or(Edges {
         left: px(16.),
         right: px(16.),
-        top: px(if label_inside { 8. } else { 4. }),
+        top: px(if label_inside {
+            inside_vertical_pad
+        } else {
+            4.
+        }),
         bottom: if label_inside && filled {
-            px(8.) - outline_width
+            (px(inside_vertical_pad) - outline_width).max(px(0.))
         } else {
             px(4.)
         },
@@ -450,9 +462,14 @@ fn resolve_metrics(
     let editor_top_padding = padding.top + label_reserve;
     // The canvas covers the whole container, including the filled indicator.
     let editor_bottom_padding = padding.bottom + if filled { outline_width } else { px(0.) };
-    let minimum_height = px(56.)
-        .max(px(type_style.line_height + 16.) + label_reserve)
-        .max(px(type_style.line_height) + editor_top_padding + editor_bottom_padding);
+    let content_min_height =
+        px(type_style.line_height) + editor_top_padding + editor_bottom_padding;
+    let minimum_height = match min_height {
+        Some(height) => height.max(content_min_height),
+        None => px(density.visual_size(56.))
+            .max(px(type_style.line_height + 2. * inside_vertical_pad) + label_reserve)
+            .max(content_min_height),
+    };
     let resting_top = f32::from(minimum_height - px(type_style.line_height)) * 0.5;
     let floating_top = if label_inside {
         f32::from(padding.top)
@@ -507,6 +524,9 @@ fn build_outline_canvas(
                     gpui::transparent_black(),
                     BorderStyle::Solid,
                 ));
+            }
+            if outline_width <= px(0.) {
+                return;
             }
             let border = quad(
                 bounds,
@@ -960,9 +980,10 @@ impl RenderOnce for TextField {
         } else {
             TextFieldLabelPosition::Cutout
         });
-        let label_inside = label_position == TextFieldLabelPosition::Inside;
-        let label_above = label_position == TextFieldLabelPosition::Above;
-        let has_cutout = label_position == TextFieldLabelPosition::Cutout && !filled;
+        let label_inside = self.show_label && label_position == TextFieldLabelPosition::Inside;
+        let label_above = self.show_label && label_position == TextFieldLabelPosition::Above;
+        let has_cutout =
+            self.show_label && label_position == TextFieldLabelPosition::Cutout && !filled;
         let error = self.invalid;
 
         let shape = self.shape.unwrap_or(
@@ -994,12 +1015,17 @@ impl RenderOnce for TextField {
         let animation = sample_animation(
             &self.id,
             &theme,
-            focused || has_text || self.label_minimized || label_above,
+            focused || has_text || self.label_minimized || label_above || !self.show_label,
             focused,
             error && !disabled,
             window,
             cx,
         );
+        let effective_floating = if self.show_label {
+            animation.floating
+        } else {
+            1.
+        };
         let hover = window
             .use_keyed_state((self.id.clone(), "field-hover"), cx, |_, _| {
                 Rc::new(Cell::new(false))
@@ -1033,7 +1059,7 @@ impl RenderOnce for TextField {
             &palette,
             has_text,
             self.placeholder.is_some(),
-            animation.floating,
+            effective_floating,
             self.dropdown_editor && readonly,
             error,
         );
@@ -1103,6 +1129,9 @@ impl RenderOnce for TextField {
             type_style,
             caption_style,
             &animation,
+            theme.layout.density,
+            self.min_height,
+            self.indicator_width,
             self.content_padding,
             label_inside,
             filled,
@@ -1138,27 +1167,31 @@ impl RenderOnce for TextField {
             window,
             cx,
         );
-        let (above_label, attached_label) = build_label(
-            LabelConfig {
-                label: label.clone(),
-                label_content: self.label_content,
-                label_above,
-                has_cutout,
-                required: self.required,
-                disabled,
-                rtl,
-                has_leading: self.leading.is_some(),
-                has_trailing: trailing.is_some(),
-                floating: animation.floating,
-                expanded_alignment: self.expanded_alignment,
-                minimized_alignment: self.minimized_alignment,
-                label_color: palette.label_color,
-            },
-            &metrics,
-            &focus,
-            cutout,
-        );
-        let show_affixes = animation.floating >= 0.5;
+        let (above_label, attached_label) = if self.show_label {
+            build_label(
+                LabelConfig {
+                    label: label.clone(),
+                    label_content: self.label_content,
+                    label_above,
+                    has_cutout,
+                    required: self.required,
+                    disabled,
+                    rtl,
+                    has_leading: self.leading.is_some(),
+                    has_trailing: trailing.is_some(),
+                    floating: animation.floating,
+                    expanded_alignment: self.expanded_alignment,
+                    minimized_alignment: self.minimized_alignment,
+                    label_color: palette.label_color,
+                },
+                &metrics,
+                &focus,
+                cutout,
+            )
+        } else {
+            (None, None)
+        };
+        let show_affixes = effective_floating >= 0.5;
         let editor_row = build_editor_row(
             EditorSlots {
                 leading: self.leading,

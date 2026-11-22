@@ -116,6 +116,8 @@ impl SwitchColors {
 pub struct Switch {
     id: ElementId,
     label: SharedString,
+    show_label: bool,
+    label_content: Option<AnyElement>,
     checked: bool,
     disabled: bool,
     checked_icon: Option<AnyElement>,
@@ -133,6 +135,8 @@ impl Switch {
         Self {
             id: id.into(),
             label: label.into(),
+            show_label: true,
+            label_content: None,
             checked,
             disabled: false,
             checked_icon: None,
@@ -149,6 +153,19 @@ impl Switch {
     #[cfg(feature = "surfaces")]
     pub(crate) fn decorative(mut self, decorative: bool) -> Self {
         self.decorative = decorative;
+        self
+    }
+
+    /// Controls whether the visible label is rendered. Defaults to `true`.
+    /// When `false`, the constructor's label remains the accessible name and the trailing gap is omitted.
+    pub fn show_label(mut self, show: bool) -> Self {
+        self.show_label = show;
+        self
+    }
+
+    /// Replaces the visible label while keeping the constructor's label as the accessible name.
+    pub fn label_content(mut self, content: impl IntoElement) -> Self {
+        self.label_content = Some(content.into_any_element());
         self
     }
 
@@ -460,12 +477,14 @@ impl RenderOnce for Switch {
             .rounded_md()
             .focus_visible(focus_style(tone(ColorRole::Secondary, window, cx)))
             .child(
-                row(direction)
+                row(direction, self.show_label)
                     .id("switch-row")
                     .min_h(px(48.))
                     .px_1()
                     .child(track)
-                    .child(selection_label(self.label, self.disabled, window, cx)),
+                    .children(self.show_label.then(|| {
+                        selection_label(self.label, self.label_content, self.disabled, window, cx)
+                    })),
             );
         match self.on_change {
             Some(handler) if !self.disabled => {

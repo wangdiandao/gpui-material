@@ -2,8 +2,8 @@ mod geometry;
 mod render;
 
 use gpui::{
-    AnyElement, App, Axis, ElementId, Entity, Hsla, IntoElement, Pixels, Point, SharedString, Size,
-    Window,
+    AnyElement, App, Axis, ElementId, Entity, FocusHandle, Hsla, IntoElement, Pixels, Point,
+    SharedString, Size, Window,
 };
 use gpui_material_foundation::InteractionSource;
 
@@ -64,6 +64,7 @@ type FormatValue = Box<dyn Fn(f32) -> SharedString>;
 struct ThumbOptions {
     style: SliderThumbStyle,
     content: Option<AnyElement>,
+    focus: Option<FocusHandle>,
     source: Option<Entity<InteractionSource>>,
 }
 
@@ -223,6 +224,13 @@ impl Slider {
 
     pub fn colors(mut self, colors: SliderColors) -> Self {
         self.colors = colors;
+        self
+    }
+
+    /// Uses the caller's focus handle for one handle instead of an internal keyed handle.
+    /// Use `RangeThumb::End` for a single-value slider.
+    pub fn track_focus(mut self, which: RangeThumb, focus: &FocusHandle) -> Self {
+        self.thumbs[thumb_index(which)].focus = Some(focus.clone());
         self
     }
 

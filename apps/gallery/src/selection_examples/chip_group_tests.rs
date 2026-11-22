@@ -6,8 +6,8 @@ use gpui::{
 use gpui_base::test_support::find;
 use gpui_material::{
     Button, ChipGroup, ChipGroupItem, ChipGroupSelection, ChipVariant,
-    foundation::{MaterialRoot, set_window_material_theme},
-    theme::{Appearance, Direction, MaterialTheme},
+    foundation::{MaterialRoot, color, set_window_material_theme, window_material_theme},
+    theme::{Appearance, ColorRole, Direction, MaterialTheme},
 };
 
 fn click(window: &mut Window, cx: &mut gpui::App, pos: gpui::Point<gpui::Pixels>) {
@@ -349,6 +349,119 @@ fn chip_group_supports_selection_modes_roving_focus_rtl_and_scroll_layout(cx: &m
             Some(true),
             "Left arrow in RTL should move forward to the next chip"
         );
+    })
+    .unwrap();
+}
+
+#[gpui::test]
+fn chip_group_applies_tonal_elevated_and_disabled_defaults_with_item_overrides(
+    cx: &mut TestAppContext,
+) {
+    struct DefaultsExample {
+        disabled_changes: usize,
+    }
+
+    impl Render for DefaultsExample {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let owner = cx.entity();
+            div()
+                .flex()
+                .flex_col()
+                .gap_3()
+                .p_3()
+                .child(
+                    ChipGroup::new(
+                        "styled-group",
+                        "Styled defaults",
+                        [
+                            ChipGroupItem::new("inherited", "Inherited"),
+                            ChipGroupItem::new("overridden", "Overridden")
+                                .tonal(false)
+                                .elevated(false),
+                        ],
+                    )
+                    .tonal(true)
+                    .elevated(true),
+                )
+                .child(
+                    ChipGroup::new(
+                        "disabled-group",
+                        "Disabled defaults",
+                        [
+                            ChipGroupItem::new("first", "First"),
+                            ChipGroupItem::new("second", "Second").disabled(false),
+                        ],
+                    )
+                    .disabled(true)
+                    .on_change(move |_, _, cx| {
+                        owner.update(cx, |this, _| this.disabled_changes += 1);
+                    }),
+                )
+        }
+    }
+
+    let mut entity = None;
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        MaterialRoot::open_window(gpui::WindowOptions::default(), cx, |_, cx| {
+            let v = cx.new(|_| DefaultsExample {
+                disabled_changes: 0,
+            });
+            entity = Some(v.clone());
+            v
+        })
+        .unwrap()
+        .into()
+    });
+    let view = entity.unwrap();
+
+    cx.update_window(handle, |_, window, cx| {
+        window.activate_window();
+        window.refresh();
+        window.draw(cx).clear(cx);
+
+        let theme = window_material_theme(window, cx);
+        let elevated_bg = color(theme.colors.color(ColorRole::SurfaceContainerLow));
+        let outline_color = color(theme.colors.color(ColorRole::OutlineVariant));
+        let scale = window.scale_factor();
+
+        let inherited = find(window, &[], &chip_activate_id("styled-group", "inherited"))
+            .unwrap()
+            .bounds();
+        let overridden = find(window, &[], &chip_activate_id("styled-group", "overridden"))
+            .unwrap()
+            .bounds();
+        let quads = window.painted_quads();
+
+        // Inherited chip receives group tonal (Medium = 12dp radius) + elevated (SurfaceContainerLow).
+        assert!(
+            quads.iter().any(|quad| {
+                quad.bounds.intersects(&inherited.scale(scale))
+                    && quad.background == elevated_bg.into()
+                    && quad.corner_radii.top_left == px(12.).scale(scale)
+            }),
+            "inherited chip must receive group tonal Medium corners and elevated background"
+        );
+        // Overridden chip uses non-tonal Small (8dp) corners and non-elevated outline.
+        assert!(
+            quads.iter().any(|quad| {
+                quad.bounds.intersects(&overridden.scale(scale))
+                    && quad.border_color == outline_color
+                    && quad.corner_radii.top_left == px(8.).scale(scale)
+            }),
+            "overridden chip must opt out of group tonal and elevated defaults"
+        );
+
+        // Disabled group disables all members (OR-ed with per-item disabled) and ignores clicks.
+        for item in ["first", "second"] {
+            let chip = find(window, &[], &chip_activate_id("disabled-group", item)).unwrap();
+            assert_eq!(chip.disabled(), Some(true));
+            click(window, cx, chip.bounds().center());
+        }
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert_eq!(view.read(cx).disabled_changes, 0);
     })
     .unwrap();
 }

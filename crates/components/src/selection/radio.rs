@@ -1,9 +1,9 @@
 use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
-    AccessibleAction, App, Axis, ElementId, Entity, FocusHandle, Hsla, InteractiveElement,
-    IntoElement, ParentElement, RenderOnce, SharedString, StatefulInteractiveElement, Styled,
-    Window, div, prelude::FluentBuilder, px,
+    AccessibleAction, AnyElement, App, Axis, ElementId, Entity, FocusHandle, Hsla,
+    InteractiveElement, IntoElement, ParentElement, RenderOnce, SharedString,
+    StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{Radio as BaseRadio, RadioGroup as BaseRadioGroup, TestSupportExt};
 use gpui_material_foundation::{
@@ -43,6 +43,8 @@ impl RadioColors {
 pub struct Radio {
     id: ElementId,
     label: SharedString,
+    show_label: bool,
+    label_content: Option<AnyElement>,
     selected: bool,
     disabled: bool,
     on_select: Option<crate::action::Activate>,
@@ -57,6 +59,8 @@ impl Radio {
         Self {
             id: id.into(),
             label: label.into(),
+            show_label: true,
+            label_content: None,
             selected: false,
             disabled: false,
             on_select: None,
@@ -70,6 +74,19 @@ impl Radio {
     #[cfg(feature = "surfaces")]
     pub(crate) fn decorative(mut self, decorative: bool) -> Self {
         self.decorative = decorative;
+        self
+    }
+
+    /// Controls whether the visible label is rendered. Defaults to `true`.
+    /// When `false`, the constructor's label remains the accessible name and the trailing gap is omitted.
+    pub fn show_label(mut self, show: bool) -> Self {
+        self.show_label = show;
+        self
+    }
+
+    /// Replaces the visible label while keeping the constructor's label as the accessible name.
+    pub fn label_content(mut self, content: impl IntoElement) -> Self {
+        self.label_content = Some(content.into_any_element());
         self
     }
 
@@ -94,7 +111,8 @@ impl Radio {
         self
     }
 
-    /// Uses the caller's focus handle when rendered as a standalone radio.
+    /// Uses the caller's focus handle instead of an internal keyed handle, both standalone and
+    /// inside a [`RadioGroup`].
     pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
         self.focus = Some(focus.clone());
         self
@@ -188,7 +206,7 @@ impl Radio {
             .rounded_md()
             .focus_visible(focus_style(tone(ColorRole::Secondary, window, cx)))
             .child(
-                row(direction)
+                row(direction, self.show_label)
                     .child(selection_target(
                         group,
                         indicator,
@@ -198,7 +216,9 @@ impl Radio {
                         direction,
                         cx.reduce_motion(),
                     ))
-                    .child(selection_label(self.label, self.disabled, window, cx)),
+                    .children(self.show_label.then(|| {
+                        selection_label(self.label, self.label_content, self.disabled, window, cx)
+                    })),
             )
             .track_focus(&focus)
             .when_some(position, |radio, (position, size)| {
@@ -305,13 +325,17 @@ impl RenderOnce for RadioGroup {
             .options
             .iter()
             .map(|item| {
-                let id = ElementId::from((self.id.clone(), "radio-focus"));
-                window.with_id(id, |window| {
-                    window
-                        .use_keyed_state(item.id.clone(), cx, |_, cx| cx.focus_handle())
-                        .read(cx)
-                        .clone()
-                })
+                if let Some(focus) = &item.focus {
+                    focus.clone()
+                } else {
+                    let id = ElementId::from((self.id.clone(), "radio-focus"));
+                    window.with_id(id, |window| {
+                        window
+                            .use_keyed_state(item.id.clone(), cx, |_, cx| cx.focus_handle())
+                            .read(cx)
+                            .clone()
+                    })
+                }
             })
             .collect();
         let navigation: Vec<_> = self

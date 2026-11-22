@@ -486,6 +486,51 @@ impl Button {
     }
 }
 
+fn loading_overlay(
+    id: &ElementId,
+    resting_content: AnyElement,
+    icon_size: f32,
+    tint: gpui::Hsla,
+    window: &mut Window,
+    cx: &mut App,
+) -> AnyElement {
+    div()
+        .relative()
+        .flex()
+        .items_center()
+        .justify_center()
+        .child(div().opacity(0.).child(resting_content))
+        .child(
+            div()
+                .id((id.clone(), "loading-spinner"))
+                .test_support()
+                .absolute()
+                .inset_0()
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(render_loading_spinner(id, icon_size, tint, window, cx)),
+        )
+        .into_any_element()
+}
+
+fn loading_icon_spinner(
+    id: &ElementId,
+    icon_size: f32,
+    tint: gpui::Hsla,
+    window: &mut Window,
+    cx: &mut App,
+) -> AnyElement {
+    div()
+        .id((id.clone(), "loading-spinner"))
+        .test_support()
+        .flex()
+        .items_center()
+        .justify_center()
+        .child(render_loading_spinner(id, icon_size, tint, window, cx))
+        .into_any_element()
+}
+
 impl RenderOnce for Button {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let metrics = self.common.size.metrics();
@@ -510,30 +555,14 @@ impl RenderOnce for Button {
             cx,
         );
         let content = if self.common.loading {
-            div()
-                .relative()
-                .flex()
-                .items_center()
-                .justify_center()
-                .child(div().opacity(0.).child(resting_content))
-                .child(
-                    div()
-                        .id((self.common.id.clone(), "loading-spinner"))
-                        .test_support()
-                        .absolute()
-                        .inset_0()
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(render_loading_spinner(
-                            &self.common.id,
-                            metrics.icon * self.scale,
-                            tint,
-                            window,
-                            cx,
-                        )),
-                )
-                .into_any_element()
+            loading_overlay(
+                &self.common.id,
+                resting_content,
+                metrics.icon * self.scale,
+                tint,
+                window,
+                cx,
+            )
         } else {
             resting_content
         };
@@ -570,12 +599,51 @@ impl ToggleButton {
         }
     }
 
+    /// Creates a Filled toggle button.
+    pub fn filled(
+        id: impl Into<ElementId>,
+        label: impl Into<SharedString>,
+        selected: bool,
+    ) -> Self {
+        Self::new(id, label, selected).variant(ToggleButtonVariant::Filled)
+    }
+
+    /// Creates a Filled Tonal toggle button.
+    pub fn tonal(id: impl Into<ElementId>, label: impl Into<SharedString>, selected: bool) -> Self {
+        Self::new(id, label, selected).variant(ToggleButtonVariant::FilledTonal)
+    }
+
+    /// Creates an Elevated toggle button.
+    pub fn elevated(
+        id: impl Into<ElementId>,
+        label: impl Into<SharedString>,
+        selected: bool,
+    ) -> Self {
+        Self::new(id, label, selected).variant(ToggleButtonVariant::Elevated)
+    }
+
+    /// Creates an Outlined toggle button.
+    pub fn outlined(
+        id: impl Into<ElementId>,
+        label: impl Into<SharedString>,
+        selected: bool,
+    ) -> Self {
+        Self::new(id, label, selected).variant(ToggleButtonVariant::Outlined)
+    }
+
     common_builders!();
     appearance_builders!();
     slot_builders!();
 
     pub fn variant(mut self, variant: ToggleButtonVariant) -> Self {
         self.variant = variant;
+        self
+    }
+
+    /// Shows a centered inline circular spinner while suppressing activation and preserving the
+    /// button's resting width. Keeps the active palette unless `.disabled(true)` is also set.
+    pub fn loading(mut self, loading: bool) -> Self {
+        self.common.loading = loading;
         self
     }
 
@@ -600,18 +668,27 @@ impl RenderOnce for ToggleButton {
             0.,
         );
         style.selected_corner = Some(self.common.shape.corner(metrics.square, true));
-        let content = self.slots.render(
-            self.common.label.clone(),
-            metrics,
-            1.,
-            window,
-            self.common
-                .appearance
-                .colors
-                .content(self.common.disabled, self.selected)
-                .unwrap_or_else(|| style.foreground(self.common.disabled, window, cx)),
-            cx,
-        );
+        let tint = self
+            .common
+            .appearance
+            .colors
+            .content(self.common.disabled, self.selected)
+            .unwrap_or_else(|| style.foreground(self.common.disabled, window, cx));
+        let resting_content =
+            self.slots
+                .render(self.common.label.clone(), metrics, 1., window, tint, cx);
+        let content = if self.common.loading {
+            loading_overlay(
+                &self.common.id,
+                resting_content,
+                metrics.icon,
+                tint,
+                window,
+                cx,
+            )
+        } else {
+            resting_content
+        };
         self.common.render(
             content,
             style,
@@ -728,20 +805,7 @@ impl RenderOnce for IconButton {
                 .colors
                 .content(self.common.disabled, false)
                 .unwrap_or_else(|| style.foreground(self.common.disabled, window, cx));
-            div()
-                .id((self.common.id.clone(), "loading-spinner"))
-                .test_support()
-                .flex()
-                .items_center()
-                .justify_center()
-                .child(render_loading_spinner(
-                    &self.common.id,
-                    metrics.icon,
-                    tint,
-                    window,
-                    cx,
-                ))
-                .into_any_element()
+            loading_icon_spinner(&self.common.id, metrics.icon, tint, window, cx)
         } else {
             icon_slot(self.icon, metrics.icon).into_any_element()
         };
@@ -781,6 +845,46 @@ impl IconToggleButton {
         }
     }
 
+    /// Creates a Standard icon toggle button.
+    pub fn standard(
+        id: impl Into<ElementId>,
+        name: impl Into<SharedString>,
+        icon: impl IntoElement,
+        selected: bool,
+    ) -> Self {
+        Self::new(id, name, icon, selected).variant(IconButtonVariant::Standard)
+    }
+
+    /// Creates a Filled icon toggle button.
+    pub fn filled(
+        id: impl Into<ElementId>,
+        name: impl Into<SharedString>,
+        icon: impl IntoElement,
+        selected: bool,
+    ) -> Self {
+        Self::new(id, name, icon, selected).variant(IconButtonVariant::Filled)
+    }
+
+    /// Creates a Filled Tonal icon toggle button.
+    pub fn tonal(
+        id: impl Into<ElementId>,
+        name: impl Into<SharedString>,
+        icon: impl IntoElement,
+        selected: bool,
+    ) -> Self {
+        Self::new(id, name, icon, selected).variant(IconButtonVariant::FilledTonal)
+    }
+
+    /// Creates an Outlined icon toggle button.
+    pub fn outlined(
+        id: impl Into<ElementId>,
+        name: impl Into<SharedString>,
+        icon: impl IntoElement,
+        selected: bool,
+    ) -> Self {
+        Self::new(id, name, icon, selected).variant(IconButtonVariant::Outlined)
+    }
+
     common_builders!();
     appearance_builders!();
 
@@ -796,6 +900,13 @@ impl IconToggleButton {
 
     pub fn width(mut self, width: IconButtonWidth) -> Self {
         self.width = width;
+        self
+    }
+
+    /// Shows an inline circular spinner in place of the icon while suppressing activation.
+    /// Keeps the active palette unless `.disabled(true)` is also set.
+    pub fn loading(mut self, loading: bool) -> Self {
+        self.common.loading = loading;
         self
     }
 
@@ -815,13 +926,24 @@ impl RenderOnce for IconToggleButton {
         );
         style.selected_corner = Some(self.common.shape.corner(metrics.square, true));
         style.corner_motion = (MotionKind::Effects, MotionSpeed::Default);
-        let icon = if self.selected {
-            self.selected_icon.unwrap_or(self.icon)
+        let content = if self.common.loading {
+            let tint = self
+                .common
+                .appearance
+                .colors
+                .content(self.common.disabled, self.selected)
+                .unwrap_or_else(|| style.foreground(self.common.disabled, window, cx));
+            loading_icon_spinner(&self.common.id, metrics.icon, tint, window, cx)
         } else {
-            self.icon
+            let icon = if self.selected {
+                self.selected_icon.unwrap_or(self.icon)
+            } else {
+                self.icon
+            };
+            icon_slot(icon, metrics.icon).into_any_element()
         };
         self.common.render(
-            icon_slot(icon, metrics.icon).into_any_element(),
+            content,
             style,
             Action::Toggle {
                 selected: self.selected,
@@ -858,6 +980,23 @@ mod tests {
         assert_eq!(Button::text("b5", "Text").variant, ButtonVariant::Text);
 
         assert_eq!(
+            ToggleButton::filled("tb1", "Filled", true).variant,
+            ToggleButtonVariant::Filled
+        );
+        assert_eq!(
+            ToggleButton::tonal("tb2", "Tonal", false).variant,
+            ToggleButtonVariant::FilledTonal
+        );
+        assert_eq!(
+            ToggleButton::elevated("tb3", "Elevated", true).variant,
+            ToggleButtonVariant::Elevated
+        );
+        assert_eq!(
+            ToggleButton::outlined("tb4", "Outlined", false).variant,
+            ToggleButtonVariant::Outlined
+        );
+
+        assert_eq!(
             IconButton::standard("i1", "Std", div()).variant,
             IconButtonVariant::Standard
         );
@@ -871,6 +1010,23 @@ mod tests {
         );
         assert_eq!(
             IconButton::outlined("i4", "Out", div()).variant,
+            IconButtonVariant::Outlined
+        );
+
+        assert_eq!(
+            IconToggleButton::standard("it1", "Std", div(), false).variant,
+            IconButtonVariant::Standard
+        );
+        assert_eq!(
+            IconToggleButton::filled("it2", "Fill", div(), true).variant,
+            IconButtonVariant::Filled
+        );
+        assert_eq!(
+            IconToggleButton::tonal("it3", "Tonal", div(), false).variant,
+            IconButtonVariant::FilledTonal
+        );
+        assert_eq!(
+            IconToggleButton::outlined("it4", "Out", div(), true).variant,
             IconButtonVariant::Outlined
         );
 

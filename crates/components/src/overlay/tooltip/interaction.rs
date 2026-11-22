@@ -194,6 +194,13 @@ impl Interaction {
     }
 
     fn dismiss(&mut self, window: &mut Window) {
+        let changed = self.open
+            || self.task.is_some()
+            || self.trigger_hover
+            || self.surface_hover
+            || self.keyboard
+            || self.surface_focus
+            || !self.suppress_focus;
         self.open = false;
         self.task = None;
         self.trigger_hover = false;
@@ -201,7 +208,9 @@ impl Interaction {
         self.keyboard = false;
         self.surface_focus = false;
         self.suppress_focus = true;
-        window.refresh();
+        if changed {
+            window.refresh();
+        }
     }
 
     pub(super) fn present(

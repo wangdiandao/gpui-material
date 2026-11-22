@@ -150,11 +150,21 @@ impl ScrollFieldState {
 
     /// Centers the clamped option without animation.
     pub fn scroll_to_option(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.target = index.min(self.item_count.saturating_sub(1));
+        let target = index.min(self.item_count.saturating_sub(1));
+        let position = Position::at(target);
+        if self.target == target
+            && self.position == position
+            && self.gesture_start.is_none()
+            && self.settle.is_none()
+            && self.motion.is_none()
+        {
+            return;
+        }
+        self.target = target;
         self.gesture_start = None;
         self.settle = None;
         self.motion = None;
-        self.position = Position::at(self.target);
+        self.position = position;
         cx.notify();
     }
 

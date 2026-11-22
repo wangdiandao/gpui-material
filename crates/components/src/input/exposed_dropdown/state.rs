@@ -206,15 +206,21 @@ impl ExposedDropdownState {
         cx.notify();
     }
 
-    pub(super) fn reset_draft(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.active = None;
-        self.active_index = None;
+    fn clear_draft(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        let mut changed = self.active.take().is_some() | self.active_index.take().is_some();
         self.input.update(cx, |input, cx| {
             if input.value() != self.committed {
                 input.set_value(self.committed.clone(), window, cx);
+                changed = true;
             }
         });
-        cx.notify();
+        changed
+    }
+
+    pub(super) fn reset_draft(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.clear_draft(window, cx) {
+            cx.notify();
+        }
     }
 
     pub(super) fn request_open(
@@ -235,7 +241,7 @@ impl ExposedDropdownState {
         {
             self.open = open;
             if !open {
-                self.reset_draft(window, cx);
+                self.clear_draft(window, cx);
             }
         }
         if let Some(visibility) = visibility

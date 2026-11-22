@@ -1,20 +1,23 @@
+use std::rc::Rc;
+
 use gpui::{
     AnyView, App, AppContext, Context, ElementId, Entity, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Pixels, Render, Role, ScrollHandle,
-    StatefulInteractiveElement, Styled, Subscription, Window, div, point, prelude::FluentBuilder,
-    px, svg,
+    InteractiveElement, IntoElement, ListAlignment, ListOffset, ListState, ParentElement, Pixels,
+    Render, Role, ScrollHandle, Size, StatefulInteractiveElement, Styled, Subscription, Window,
+    div, list, point, prelude::FluentBuilder, px, svg,
 };
 use gpui_base::{TestSupportExt, TextView, TextViewStyle};
 use gpui_material::{
-    ControlSize, Fab, FabColor, FloatingAction, Icon, IconButton, IconName, List, ListDetail,
-    ListDetailPane, ListItem, ListVariant, Text, TextField, TextFieldEvent, TextFieldState,
+    ControlSize, Fab, FabColor, FloatingAction, Icon, IconButton, IconName, ListDetail,
+    ListDetailPane, ListItem, ListItemShapes, Text, TextField, TextFieldEvent, TextFieldState,
     TextFieldVariant, ToggleButton, ToggleButtonVariant, Tooltip,
     foundation::{
         Surface, color, set_material_theme, set_window_material_theme, text_style,
         window_material_theme,
     },
     theme::{
-        Appearance, ColorRole, CornerRole, Direction, TypeRole, TypographyEmphasis, WidthClass,
+        Appearance, ColorRole, CornerRole, CornerShape, Direction, TypeRole, TypographyEmphasis,
+        WidthClass,
     },
 };
 
@@ -36,10 +39,14 @@ pub struct Gallery {
     single_pane_catalog_open: bool,
     current: Story,
     search: Entity<TextFieldState>,
-    catalog_scroll: ScrollHandle,
+    search_has_value: bool,
+    catalog_list: ListState,
+    catalog_focus_handles: Rc<[FocusHandle]>,
+    filtered_stories: Rc<[usize]>,
     catalog_focus: FocusHandle,
     content_scroll: ScrollHandle,
     content_focus: FocusHandle,
+    last_viewport: Size<Pixels>,
     stories: Vec<(Story, AnyView)>,
     _search: Subscription,
     _bounds: Subscription,
@@ -50,15 +57,20 @@ impl Gallery {
     /// The theme toggle updates the application's Material theme by default.
     pub fn new(initial_story: Story, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let search = cx.new(|cx| TextFieldState::new(window, cx));
-        let catalog_scroll = ScrollHandle::new();
+        let catalog_list = ListState::new(Story::ALL.len(), ListAlignment::Top, px(200.));
+        let catalog_focus_handles: Rc<[FocusHandle]> = Story::ALL
+            .iter()
+            .map(|_| cx.focus_handle())
+            .collect::<Vec<_>>()
+            .into();
+        let filtered_stories: Rc<[usize]> = (0..Story::ALL.len()).collect::<Vec<_>>().into();
         let observe_search =
             cx.subscribe_in(
                 &search,
                 window,
                 move |this, _, event, window, cx| match event {
                     TextFieldEvent::Change => {
-                        this.catalog_scroll.set_offset(point(px(0.), px(0.)));
-                        cx.notify();
+                        this.refresh_filtered_stories(cx);
                     }
                     TextFieldEvent::PressEnter {
                         secondary: false,
@@ -72,6 +84,10 @@ impl Gallery {
             stories.push((initial_story, view));
         }
         let bounds = cx.observe_window_bounds(window, |this, window, cx| {
+            let viewport = window.viewport_size();
+            let viewport_changed = this.last_viewport != viewport;
+            this.last_viewport = viewport;
+            let prev_open = this.single_pane_catalog_open;
             if Self::single_pane(Self::width_class(window)) {
                 let catalog_focused = this
                     .search
@@ -84,7 +100,9 @@ impl Gallery {
                     this.single_pane_catalog_open = catalog_focused;
                 }
             }
-            cx.notify();
+            if viewport_changed || this.single_pane_catalog_open != prev_open {
+                cx.notify();
+            }
         });
         Self {
             local_theme: false,
@@ -92,10 +110,14 @@ impl Gallery {
             single_pane_catalog_open: false,
             current: initial_story,
             search,
-            catalog_scroll,
+            search_has_value: false,
+            catalog_list,
+            catalog_focus_handles,
+            filtered_stories,
             catalog_focus: cx.focus_handle(),
             content_scroll: ScrollHandle::new(),
             content_focus: cx.focus_handle(),
+            last_viewport: window.viewport_size(),
             stories,
             _search: observe_search,
             _bounds: bounds,
@@ -121,6 +143,14 @@ impl Gallery {
             .map(|(_, view)| view.entity_id())
     }
 
+    #[cfg(test)]
+    pub(crate) fn catalog_story_focus(&self, story: Story) -> Option<FocusHandle> {
+        Story::ALL
+            .iter()
+            .position(|entry| *entry == story)
+            .map(|ix| self.catalog_focus_handles[ix].clone())
+    }
+
     fn story_view(&mut self, story: Story, window: &mut Window, cx: &mut App) -> Option<AnyView> {
         if let Some((_, view)) = self.stories.iter().find(|(entry, _)| *entry == story) {
             return Some(view.clone());
@@ -142,6 +172,30 @@ impl Gallery {
         self.search.read(cx).value().trim().to_ascii_lowercase()
     }
 
+    fn refresh_filtered_stories(&mut self, cx: &mut Context<Self>) {
+        let has_value = !self.search.read(cx).value().is_empty();
+        let query = self.query(cx);
+        let next: Vec<usize> = Story::ALL
+            .iter()
+            .enumerate()
+            .filter_map(|(ix, story)| story.matches(&query).then_some(ix))
+            .collect();
+        let list_changed = self.filtered_stories.as_ref() != next.as_slice();
+        let clear_button_changed = self.search_has_value != has_value;
+        self.search_has_value = has_value;
+        if list_changed {
+            self.filtered_stories = next.into();
+            self.catalog_list.reset(self.filtered_stories.len());
+            self.catalog_list.scroll_to(ListOffset {
+                item_ix: 0,
+                offset_in_item: px(0.),
+            });
+        }
+        if list_changed || clear_button_changed {
+            cx.notify();
+        }
+    }
+
     fn open_search_result(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let query = self.query(cx);
         if query.is_empty() {
@@ -160,16 +214,19 @@ impl Gallery {
     }
 
     fn navigate(&mut self, story: Story, window: &mut Window, cx: &mut Context<Self>) {
-        if self.current != story {
+        let story_changed = self.current != story;
+        if story_changed {
             self.current = story;
             self.content_scroll.set_offset(point(px(0.), px(0.)));
             self.story_view(story, window, cx);
         }
-        self.single_pane_catalog_open = false;
+        let closed_catalog = std::mem::take(&mut self.single_pane_catalog_open);
         if Self::single_pane(Self::width_class(window)) {
             self.content_focus.focus(window, cx);
         }
-        cx.notify();
+        if story_changed || closed_catalog {
+            cx.notify();
+        }
     }
 
     fn toggle_catalog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -196,20 +253,17 @@ impl Gallery {
         window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        let query = self.query(cx);
-        let results: Vec<_> = Story::ALL
-            .iter()
-            .copied()
-            .filter(|story| story.matches(&query))
-            .collect();
+        let results = self.filtered_stories.clone();
+        let handles = self.catalog_focus_handles.clone();
         let no_results = results.is_empty();
+        let current = self.current;
         let theme = window_material_theme(window, cx);
         let rtl = theme.layout.direction == Direction::Rtl;
         let surface = color(theme.colors.color(ColorRole::Surface));
         let owner = cx.weak_entity();
         let mut search = TextField::new("gallery-search", "Search components", &self.search)
             .variant(TextFieldVariant::Outlined);
-        if !self.search.read(cx).value().is_empty() {
+        if self.search_has_value {
             let state = self.search.downgrade();
             search = search.trailing(
                 IconButton::new("clear-search", "Clear search", Icon::new(IconName::Close))
@@ -222,6 +276,20 @@ impl Gallery {
                     }),
             );
         }
+
+        let tab_stop = results
+            .iter()
+            .position(|&story_ix| handles[story_ix].is_focused(window))
+            .or_else(|| {
+                results
+                    .iter()
+                    .position(|&story_ix| Story::ALL[story_ix] == current)
+            })
+            .or_else(|| (!results.is_empty()).then_some(0));
+
+        let nav_results = results.clone();
+        let nav_handles = handles.clone();
+        let nav_list = self.catalog_list.clone();
 
         div()
             .id("gallery-catalog-pane")
@@ -256,45 +324,105 @@ impl Gallery {
                 div()
                     .id("gallery-catalog")
                     .tab_group()
-                    .track_scroll(&self.catalog_scroll)
-                    .overflow_y_scroll()
                     .min_h_0()
                     .flex_1()
-                    .child(
+                    .flex()
+                    .flex_col()
+                    .child(if no_results {
                         div()
                             .px(inset)
                             .pb_4()
                             .child(
-                                List::new("component-catalog")
-                                    .variant(ListVariant::Segmented)
-                                    .items(results.into_iter().map(|story| {
-                                        let owner = owner.clone();
-                                        ListItem::new(
-                                            (ElementId::from("gallery-story"), story.id()),
-                                            story.name(),
-                                        )
-                                        .selected(self.current == story)
-                                        .on_activate(
-                                            move |window, cx| {
+                                div()
+                                    .id("no-components")
+                                    .role(Role::Status)
+                                    .aria_label("No matching components")
+                                    .test_support()
+                                    .p_2()
+                                    .child(Text::new("No matching components")),
+                            )
+                            .into_any_element()
+                    } else {
+                        let last = results.len() - 1;
+                        let render_results = results;
+                        let render_handles = handles;
+                        div()
+                            .id("component-catalog")
+                            .role(Role::List)
+                            .test_support()
+                            .flex_1()
+                            .min_h_0()
+                            .w_full()
+                            .on_key_down(move |event, window, cx| {
+                                let Some(active) = nav_results
+                                    .iter()
+                                    .position(|&story_ix| nav_handles[story_ix].is_focused(window))
+                                else {
+                                    return;
+                                };
+                                let count = nav_results.len();
+                                let next = match event.keystroke.key.as_str() {
+                                    "up" => Some((active + count - 1) % count),
+                                    "down" => Some((active + 1) % count),
+                                    "home" => Some(0),
+                                    "end" => Some(count - 1),
+                                    _ => None,
+                                };
+                                if let Some(next) = next {
+                                    nav_handles[nav_results[next]].focus(window, cx);
+                                    if nav_list.bounds_for_item(next).is_some() {
+                                        nav_list.scroll_to_reveal_item(next);
+                                    } else {
+                                        nav_list.scroll_to(ListOffset {
+                                            item_ix: next,
+                                            offset_in_item: px(0.),
+                                        });
+                                    }
+                                    cx.stop_propagation();
+                                    window.refresh();
+                                }
+                            })
+                            .child(
+                                list(self.catalog_list.clone(), move |ix, _, _| {
+                                    let story_ix = render_results[ix];
+                                    let story = Story::ALL[story_ix];
+                                    let owner = owner.clone();
+                                    let top = if ix == 0 { 16. } else { 4. };
+                                    let bottom = if ix == last { 16. } else { 4. };
+                                    let shapes = ListItemShapes {
+                                        resting: Some(CornerShape::Radii([
+                                            top, top, bottom, bottom,
+                                        ])),
+                                        selected: Some(CornerRole::Large.shape()),
+                                        ..ListItemShapes::default()
+                                    };
+                                    div()
+                                        .w_full()
+                                        .px(inset)
+                                        .pb(if ix == last { px(16.) } else { px(2.) })
+                                        .child(
+                                            ListItem::new(
+                                                (ElementId::from("gallery-story"), story.id()),
+                                                story.name(),
+                                            )
+                                            .shapes(shapes)
+                                            .selected(current == story)
+                                            .track_focus(
+                                                &render_handles[story_ix],
+                                                Some(ix) == tab_stop,
+                                            )
+                                            .on_activate(move |window, cx| {
                                                 let _ = owner.update(cx, |this, cx| {
                                                     this.navigate(story, window, cx);
                                                 });
-                                            },
+                                            }),
                                         )
-                                    })),
+                                        .into_any_element()
+                                })
+                                .size_full(),
                             )
-                            .when(no_results, |panel| {
-                                panel.child(
-                                    div()
-                                        .id("no-components")
-                                        .role(Role::Status)
-                                        .aria_label("No matching components")
-                                        .test_support()
-                                        .p_2()
-                                        .child(Text::new("No matching components")),
-                                )
-                            }),
-                    ),
+                            .into_any_element()
+                    }),
             )
     }
 

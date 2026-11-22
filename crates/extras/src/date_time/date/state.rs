@@ -253,10 +253,13 @@ impl DatePickerState {
 
     /// Updates presentation and cursor without changing the draft.
     pub fn set_displayed_month(&mut self, date: NaiveDate, cx: &mut Context<Self>) {
-        self.cursor = date.clamp(*self.limits.bounds.start(), *self.limits.bounds.end());
-        self.show_month(self.cursor, cx);
-        self.year_page = None;
-        cx.notify();
+        let clamped = date.clamp(*self.limits.bounds.start(), *self.limits.bounds.end());
+        let month_changed = self.show_month(clamped, cx);
+        let changed = self.cursor != clamped || self.year_page.take().is_some() || month_changed;
+        self.cursor = clamped;
+        if changed {
+            cx.notify();
+        }
     }
 
     pub fn displayed_month(&self) -> NaiveDate {
@@ -385,11 +388,17 @@ impl DatePickerState {
         });
     }
 
-    fn show_month(&self, date: NaiveDate, cx: &mut Context<Self>) {
+    fn show_month(&self, date: NaiveDate, cx: &mut Context<Self>) -> bool {
         self.calendar.update(cx, |calendar, _| {
-            calendar.select_year(date.year());
-            calendar.select_month(date.month() as u8);
-        });
+            let year = date.year();
+            let month = date.month();
+            let changed = calendar.offset_year_month(0) != (year, month);
+            if changed {
+                calendar.select_year(year);
+                calendar.select_month(month as u8);
+            }
+            changed
+        })
     }
 
     /// Opens a picker rendered by a caller-owned trigger and copies the committed value.
@@ -563,9 +572,12 @@ impl DatePickerState {
             _ => return false,
         };
         if let Some(date) = candidate {
-            self.cursor = date.clamp(*self.limits.bounds.start(), *self.limits.bounds.end());
-            self.show_month(self.cursor, cx);
-            cx.notify();
+            let clamped = date.clamp(*self.limits.bounds.start(), *self.limits.bounds.end());
+            let month_changed = self.show_month(clamped, cx);
+            if self.cursor != clamped || month_changed {
+                self.cursor = clamped;
+                cx.notify();
+            }
         }
         true
     }

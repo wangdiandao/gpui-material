@@ -237,21 +237,39 @@ impl BottomSheetState {
         {
             return false;
         }
-        self.release_drag(window, cx);
+        let had_drag = self.release_drag(window, cx);
+        let prev_target = self.target;
+        let prev_current = self.current;
+        let prev_height = self.height;
+        let was_animating = self.motion.is_animating();
         self.target = value;
+        let mut dialog_changed = false;
         if synchronize_focus
             && self
                 .layout
                 .is_some_and(|layout| layout.mode == SheetMode::Modal)
         {
-            self.dialog.update(cx, |dialog, cx| match value {
-                BottomSheetValue::Hidden => dialog.close(window, cx),
-                _ => dialog.open(window, cx),
-            });
+            let want_open = value != BottomSheetValue::Hidden;
+            if self.dialog.read(cx).is_open() != want_open {
+                dialog_changed = true;
+                self.dialog.update(cx, |dialog, cx| match value {
+                    BottomSheetValue::Hidden => dialog.close(window, cx),
+                    _ => dialog.open(window, cx),
+                });
+            }
         }
         self.move_to_target(animate, cx);
-        cx.notify();
-        window.refresh();
+        let changed = had_drag
+            || dialog_changed
+            || prev_target != self.target
+            || prev_current != self.current
+            || prev_height != self.height
+            || was_animating
+            || self.motion.is_animating();
+        if changed {
+            cx.notify();
+            window.refresh();
+        }
         true
     }
 
@@ -414,9 +432,9 @@ impl BottomSheetState {
         });
     }
 
-    fn drag_to(&mut self, y: Pixels, cx: &mut Context<Self>) -> bool {
+    fn drag_to(&mut self, y: Pixels, cx: &mut Context<Self>) -> Option<bool> {
         let (Some(drag), Some(layout)) = (&mut self.drag, self.layout) else {
-            return false;
+            return None;
         };
         let now = cx.background_executor().now();
         if y != drag.last_position {
@@ -431,10 +449,14 @@ impl BottomSheetState {
         }
         let low = layout.height(self.enabled[0]);
         let high = layout.height(*self.enabled.last().expect("an available stop"));
-        self.height = (drag.start_height + drag.origin - y).clamp(low, high);
+        let next = (drag.start_height + drag.origin - y).clamp(low, high);
+        let changed = self.height != next || self.motion.is_animating();
+        self.height = next;
         self.motion.snap_to(f32::from(self.height));
-        cx.notify();
-        true
+        if changed {
+            cx.notify();
+        }
+        Some(changed)
     }
 
     fn finish_drag(
@@ -444,9 +466,7 @@ impl BottomSheetState {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Option<BottomSheetValue> {
-        if !self.drag_to(position, cx) {
-            return None;
-        }
+        self.drag_to(position, cx)?;
         let drag = self.drag.as_ref().expect("the active drag");
         let velocity = if cx
             .background_executor()
@@ -683,11 +703,12 @@ impl BottomHandle {
                         cx.new(|_| DragPayload)
                     })
                     .on_drag_move(move |event: &DragMoveEvent<DragPayload>, window, cx| {
-                        if moving
-                            .update(cx, |state, cx| state.drag_to(event.event.position.y, cx))
-                            .unwrap_or(false)
+                        if let Ok(Some(changed)) =
+                            moving.update(cx, |state, cx| state.drag_to(event.event.position.y, cx))
                         {
-                            window.refresh();
+                            if changed {
+                                window.refresh();
+                            }
                             cx.stop_propagation();
                         }
                     })

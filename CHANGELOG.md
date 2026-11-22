@@ -10,6 +10,11 @@ See [versioning and releases](docs/release.md) for the release process.
 - Add ergonomic M3 helpers: `Argb::{from_rgba, with_alpha, alpha, red, green, blue}`, `ColorRole::on_role`, `ColorScheme::with_color`, `MaterialTheme::{with_colors, with_typography, with_motion, with_layout, with_density, with_direction}`, `CornerShape::{uniform, top, bottom, start, end}`, and `ThemeScope::density`.
 - Support `Home`/`End` in `move_roving_focus` (unifying keyboard navigation across `NavigationDrawer`, `Stepper`, `List`, `Menu`, `RadioGroup`, `ButtonGroup`, `Toolbar`, and `FabMenu`) and `Home`/`End`/`PageUp`/`PageDown` in `range_semantics` for `Slider`.
 
+### Performance
+
+- Guard no-op state updates against redundant `cx.notify()` and `window.refresh()` calls across Foundation theme updates (`set_material_theme`, `set_window_material_theme`), Components (`PullToRefreshState`, `SwipeToDismissState`, `BottomSheetState`, `Tooltip`, `ExposedDropdownState`, `AppBarScrollState`), and Extras (`SearchScrollState`, `ToolbarScrollState`, `ScrollFieldState`, `DatePickerState`, `TimePickerState`).
+- Virtualize the Gallery component catalog with `gpui::list`, cache filtered catalog indices on search input changes, and skip no-op navigation and window-move notifications, cutting Gallery shell frame overhead by 58%–75% in the Release `perf_bench` suite.
+
 ## 0.3.0 - 2026-11-22
 
 Changes since [v0.2.0](https://github.com/wangdiandao/gpui-material/releases/tag/v0.2.0).

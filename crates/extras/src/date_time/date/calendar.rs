@@ -51,8 +51,11 @@ fn year_choices(
         let state = state.clone();
         move |_: &mut Window, cx: &mut App| {
             state.update(cx, |model, cx| {
-                model.year_page = Some((from + delta).clamp(first, last));
-                cx.notify();
+                let next = Some((from + delta).clamp(first, last));
+                if model.year_page != next {
+                    model.year_page = next;
+                    cx.notify();
+                }
             });
         }
     };

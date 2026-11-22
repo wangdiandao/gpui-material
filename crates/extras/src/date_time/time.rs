@@ -320,11 +320,16 @@ impl TimePickerState {
 
     /// Replaces the editable draft and cancels outstanding wheel motion.
     pub fn set_value(&mut self, value: NaiveTime, window: &mut Window, cx: &mut Context<Self>) {
-        self.draft = NaiveTime::from_hms_opt(value.hour(), value.minute(), 0).unwrap();
+        let next = NaiveTime::from_hms_opt(value.hour(), value.minute(), 0).unwrap();
+        let draft_changed = self.draft != next;
+        let attempted_changed = self.input_attempted;
+        self.draft = next;
         self.input_attempted = false;
-        self.sync_fields(window, cx);
-        self.sync_wheels(cx);
-        cx.notify();
+        let fields_changed = self.sync_fields(window, cx);
+        let wheels_changed = self.sync_wheels(cx);
+        if draft_changed || attempted_changed || fields_changed || wheels_changed {
+            cx.notify();
+        }
     }
 
     /// Sets a 24-hour value. Returns whether the supplied hour was valid.
@@ -512,7 +517,12 @@ impl TimePickerState {
         }
     }
 
-    fn sync_field(&self, segment: TimePickerSegment, window: &mut Window, cx: &mut Context<Self>) {
+    fn sync_field(
+        &self,
+        segment: TimePickerSegment,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
         let number = match segment {
             TimePickerSegment::Hour => display_hour(self.draft, self.format),
             TimePickerSegment::Minute => self.minute(),
@@ -521,15 +531,18 @@ impl TimePickerState {
         let field = self.field(segment);
         if field.read(cx).value() != text || has_marked_text(field, window, cx) {
             field.update(cx, |field, cx| field.set_value(text, window, cx));
+            true
+        } else {
+            false
         }
     }
 
-    fn sync_fields(&self, window: &mut Window, cx: &mut Context<Self>) {
-        self.sync_field(TimePickerSegment::Hour, window, cx);
-        self.sync_field(TimePickerSegment::Minute, window, cx);
+    fn sync_fields(&self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        self.sync_field(TimePickerSegment::Hour, window, cx)
+            | self.sync_field(TimePickerSegment::Minute, window, cx)
     }
 
-    fn sync_wheel(&self, segment: TimePickerSegment, cx: &mut Context<Self>) {
+    fn sync_wheel(&self, segment: TimePickerSegment, cx: &mut Context<Self>) -> bool {
         let count = match (segment, self.format) {
             (TimePickerSegment::Hour, TimeFormat::TwelveHour) => 12,
             (TimePickerSegment::Hour, TimeFormat::TwentyFourHour) => 24,
@@ -540,13 +553,16 @@ impl TimePickerState {
             wheel.set_item_count(count, cx);
             if wheel.target_option() != Some(index) || wheel.is_scroll_in_progress() {
                 wheel.scroll_to_option(index, cx);
+                true
+            } else {
+                false
             }
-        });
+        })
     }
 
-    fn sync_wheels(&self, cx: &mut Context<Self>) {
-        self.sync_wheel(TimePickerSegment::Hour, cx);
-        self.sync_wheel(TimePickerSegment::Minute, cx);
+    fn sync_wheels(&self, cx: &mut Context<Self>) -> bool {
+        self.sync_wheel(TimePickerSegment::Hour, cx)
+            | self.sync_wheel(TimePickerSegment::Minute, cx)
     }
 
     fn update_draft(&mut self, segment: TimePickerSegment, value: u32) -> bool {
@@ -567,12 +583,15 @@ impl TimePickerState {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
+        let previous = self.draft;
         if !self.update_draft(segment, value) {
             return false;
         }
-        self.sync_field(segment, window, cx);
-        self.sync_wheel(segment, cx);
-        cx.notify();
+        let field_changed = self.sync_field(segment, window, cx);
+        let wheel_changed = self.sync_wheel(segment, cx);
+        if self.draft != previous || field_changed || wheel_changed {
+            cx.notify();
+        }
         true
     }
 

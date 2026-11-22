@@ -940,3 +940,61 @@ fn theme_scope_density_and_roving_focus_home_end(cx: &mut TestAppContext) {
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn redundant_theme_updates_skip_window_redraws(cx: &mut TestAppContext) {
+    struct CountingView {
+        renders: Rc<std::cell::Cell<usize>>,
+    }
+
+    impl Render for CountingView {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            self.renders.set(self.renders.get() + 1);
+            div().size_full()
+        }
+    }
+
+    let renders = Rc::new(std::cell::Cell::new(0usize));
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let renders = renders.clone();
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            cx.new(|_| CountingView { renders })
+        })
+        .unwrap()
+    });
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.draw(cx).clear(cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    renders.set(0);
+
+    // Identical application and window theme calls should be no-ops.
+    cx.update_window(handle.into(), |_, window, cx| {
+        let current = material_theme(cx).clone();
+        set_material_theme(current, cx);
+        set_window_material_theme(None, window, cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    assert_eq!(renders.get(), 0);
+
+    // Applying a distinct window override refreshes once; repeating it does not.
+    let dark = MaterialTheme::baseline(Appearance::Dark);
+    cx.update_window(handle.into(), |_, window, cx| {
+        set_window_material_theme(Some(dark.clone()), window, cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    assert_eq!(renders.get(), 1);
+
+    renders.set(0);
+    cx.update_window(handle.into(), |_, window, cx| {
+        set_window_material_theme(Some(dark), window, cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    assert_eq!(renders.get(), 0);
+}

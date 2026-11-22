@@ -43,8 +43,11 @@ impl SearchScrollState {
 
     pub fn set_hidden_fraction(&mut self, fraction: f32, cx: &mut Context<Self>) {
         if fraction.is_finite() {
-            self.hidden = self.limit * fraction.clamp(0., 1.);
-            cx.notify();
+            let next = self.limit * fraction.clamp(0., 1.);
+            if self.hidden != next {
+                self.hidden = next;
+                cx.notify();
+            }
         }
     }
 

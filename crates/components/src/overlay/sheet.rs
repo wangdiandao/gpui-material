@@ -163,6 +163,7 @@ pub struct Sheet {
     placement: SheetPlacement,
     margins: SheetMargins,
     header: Option<AnyElement>,
+    show_header: bool,
     back: Option<AnyElement>,
     close_content: Option<CloseSlot>,
     close_label: SharedString,
@@ -184,7 +185,7 @@ pub struct Sheet {
     presence: Option<gpui_base::motion::PresenceSample>,
     layout_size: Option<Size<Pixels>>,
     peek_height: Option<Pixels>,
-    max_width: Pixels,
+    max_width: Option<Pixels>,
     drag_enabled: bool,
     show_handle: bool,
     handle_content: Option<AnyElement>,
@@ -241,6 +242,7 @@ impl Sheet {
             placement: SheetPlacement::Docked,
             margins: SheetMargins::default(),
             header: None,
+            show_header: true,
             back: None,
             close_content: None,
             close_label: "Close".into(),
@@ -262,7 +264,7 @@ impl Sheet {
             presence: None,
             layout_size: None,
             peek_height: None,
-            max_width: px(640.),
+            max_width: None,
             drag_enabled: true,
             show_handle: true,
             handle_content: None,
@@ -288,10 +290,10 @@ impl Sheet {
         self
     }
 
-    /// Sets the bottom sheet's maximum width in logical pixels.
+    /// Sets the maximum width in logical pixels (defaults to 640 dp for bottom sheets and 400 dp for side sheets).
     pub fn max_width(mut self, width: Pixels) -> Self {
         if f32::from(width).is_finite() && width > px(0.) {
-            self.max_width = width;
+            self.max_width = Some(width);
         }
         self
     }
@@ -371,6 +373,12 @@ impl Sheet {
     /// Replaces the visible heading while preserving the accessible sheet name.
     pub fn header_content(mut self, heading: impl IntoElement) -> Self {
         self.header = Some(heading.into_any_element());
+        self
+    }
+
+    /// Shows or hides the visible header row while keeping the constructor's name as the accessible label.
+    pub fn show_header(mut self, show: bool) -> Self {
+        self.show_header = show;
         self
     }
 

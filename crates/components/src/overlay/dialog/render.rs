@@ -63,6 +63,8 @@ fn build_surface_shell(
 fn build_actions(
     confirm: Option<(SharedString, Confirm)>,
     confirm_tone: SemanticTone,
+    confirm_disabled: bool,
+    confirm_loading: bool,
     confirm_content: Option<ActionSlot>,
     confirm_action: DialogAction,
     confirm_focus: &FocusHandle,
@@ -80,6 +82,8 @@ fn build_actions(
                 .track_focus(confirm_focus)
                 .variant(ButtonVariant::Text)
                 .tone(confirm_tone)
+                .disabled(confirm_disabled)
+                .loading(confirm_loading)
                 .on_activate(move |window, cx| confirm_action.activate(window, cx))
                 .into_any_element()
         }),
@@ -400,8 +404,11 @@ impl RenderOnce for Dialog {
             reason: DialogCloseReason::Cancel,
             validate: None,
         };
-        let keyboard_confirmation =
-            self.confirm.is_some() && self.confirm_content.is_none() && !self.unstructured;
+        let keyboard_confirmation = self.confirm.is_some()
+            && self.confirm_content.is_none()
+            && !self.unstructured
+            && !self.confirm_disabled
+            && !self.confirm_loading;
         let body = self
             .body
             .map(|body| body(confirm_action.clone(), dismiss_action.clone()));
@@ -425,6 +432,8 @@ impl RenderOnce for Dialog {
             let (cancel, confirm) = build_actions(
                 self.confirm,
                 self.confirm_tone,
+                self.confirm_disabled,
+                self.confirm_loading,
                 self.confirm_content,
                 confirm_action.clone(),
                 &confirm_focus,

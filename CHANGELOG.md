@@ -10,6 +10,14 @@ See [versioning and releases](docs/release.md) for the release process.
 - Add ergonomic M3 helpers: `Argb::{from_rgba, with_alpha, alpha, red, green, blue}`, `ColorRole::on_role`, `ColorScheme::with_color`, `MaterialTheme::{with_colors, with_typography, with_motion, with_layout, with_density, with_direction}`, `CornerShape::{uniform, top, bottom, start, end}`, and `ThemeScope::density`.
 - Support `Home`/`End` in `move_roving_focus` (unifying keyboard navigation across `NavigationDrawer`, `Stepper`, `List`, `Menu`, `RadioGroup`, `ButtonGroup`, `Toolbar`, and `FabMenu`) and `Home`/`End`/`PageUp`/`PageDown` in `range_semantics` for `Slider`.
 
+### Overlays and menus
+
+- Enhance `Menu::context()` and `MaterialElementExt::context_menu(...)` to open at the secondary-click cursor position (viewport-clamped, repositioning on subsequent right-clicks), avoid hijacking trigger `Enter`/`Space` actions, and support `Shift+F10` and `ContextMenu` keyboard triggers; add lazy builders `Menu::new_with` and `MaterialElementExt::context_menu_with`, plus `Menu::disabled(bool)`.
+- Add `Sheet::show_header(bool)` and apply `Sheet::max_width(Pixels)` to side sheets as well as bottom sheets (keeping the 400 dp side-sheet default).
+- Add `Dialog::confirm_disabled(bool)`, `Dialog::confirm_loading(bool)`, `DialogState::focus_handle()`, and `DialogState::scroll_handle()`.
+- Add `Snackbar::dismiss_label(...)`, `SnackbarHost::pending_len()`, `SnackbarHost::clear_queue(cx)`, and pause timed snackbar auto-dismiss while hovered or focused.
+- Add `Tooltip::show_delay(Duration)` and `Tooltip::hide_delay(Duration)` overrides.
+
 ### Performance
 
 - Guard no-op state updates against redundant `cx.notify()` and `window.refresh()` calls across Foundation theme updates (`set_material_theme`, `set_window_material_theme`), Components (`PullToRefreshState`, `SwipeToDismissState`, `BottomSheetState`, `Tooltip`, `ExposedDropdownState`, `AppBarScrollState`), and Extras (`SearchScrollState`, `ToolbarScrollState`, `ScrollFieldState`, `DatePickerState`, `TimePickerState`).

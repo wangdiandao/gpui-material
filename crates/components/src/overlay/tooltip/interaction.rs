@@ -52,6 +52,8 @@ pub(super) struct Interaction {
     presented: bool,
     previous_focus: Option<FocusHandle>,
     pub(super) pressed: bool,
+    show_delay: Duration,
+    hide_delay: Duration,
 }
 
 impl Interaction {
@@ -87,17 +89,21 @@ impl Interaction {
             presented: false,
             previous_focus: None,
             pressed: false,
+            show_delay: Duration::from_millis(500),
+            hide_delay: Duration::from_millis(200),
         }
     }
 
     pub(super) fn configure(
         &mut self,
         transient: bool,
+        delays: (Duration, Duration),
         trigger: Option<&FocusHandle>,
         visibility: Option<&Entity<TooltipState>>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        (self.show_delay, self.hide_delay) = delays;
         if self.transient != transient {
             self.transient = transient;
             self.open = false;
@@ -170,7 +176,11 @@ impl Interaction {
             window.refresh();
             return;
         }
-        let delay = Duration::from_millis(if open { 500 } else { 200 });
+        let delay = if open {
+            self.show_delay
+        } else {
+            self.hide_delay
+        };
         self.task = Some(cx.spawn_in(window, async move |state, cx| {
             cx.background_executor().timer(delay).await;
             let _ = state.update_in(cx, |state, window, _| {

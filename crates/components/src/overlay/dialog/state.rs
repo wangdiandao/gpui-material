@@ -49,6 +49,16 @@ impl DialogState {
         self.last_close_reason
     }
 
+    /// Returns the modal container's retained focus handle.
+    pub fn focus_handle(&self) -> &FocusHandle {
+        &self.focus
+    }
+
+    /// Returns the retained scroll handle bound to the dialog or sheet body.
+    pub fn scroll_handle(&self) -> &ScrollHandle {
+        &self.scroll
+    }
+
     pub(super) fn begin(
         &mut self,
         previous: Option<FocusHandle>,

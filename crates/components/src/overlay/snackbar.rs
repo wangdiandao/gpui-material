@@ -5,8 +5,8 @@ use crate::motion::{OverlayMotion, ScaledOverlay};
 use gpui::{
     AnyElement, App, ClickEvent, Context, EntityId, FocusHandle, Hsla, InteractiveElement,
     IntoElement, KeyDownEvent, ParentElement, Render, Role, SharedString,
-    StatefulInteractiveElement, Styled, Task, WeakFocusHandle, Window, canvas, div, point,
-    prelude::FluentBuilder, px,
+    StatefulInteractiveElement, Styled, Subscription, Task, WeakFocusHandle, Window, canvas, div,
+    point, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt as _;
 use gpui_material_foundation::{color, current_material_theme, elevation_shadows};
@@ -60,6 +60,7 @@ pub struct Snackbar {
     action: Option<(SharedString, Action)>,
     message_content: Option<Content>,
     action_content: Option<Content>,
+    dismiss_label: Option<SharedString>,
     dismiss_content: Option<(SharedString, Content)>,
     show_dismiss: bool,
     action_on_new_line: bool,
@@ -78,6 +79,7 @@ impl Snackbar {
             action: None,
             message_content: None,
             action_content: None,
+            dismiss_label: None,
             dismiss_content: None,
             show_dismiss: true,
             action_on_new_line: false,
@@ -136,6 +138,12 @@ impl Snackbar {
         self.action_content = Some(Box::new(move |window, cx| {
             content(window, cx).into_any_element()
         }));
+        self
+    }
+
+    /// Overrides the accessible name of the default dismiss button (default `"Dismiss message"`).
+    pub fn dismiss_label(mut self, label: impl Into<SharedString>) -> Self {
+        self.dismiss_label = Some(label.into());
         self
     }
 
@@ -216,6 +224,9 @@ pub struct SnackbarHost {
     pending: VecDeque<(SnackbarId, Snackbar)>,
     next_id: usize,
     timer: Option<Task<()>>,
+    hovered: bool,
+    focused: bool,
+    _focus_subscriptions: Vec<Subscription>,
     renderer: Option<HostRenderer>,
 }
 
@@ -293,6 +304,20 @@ impl SnackbarHost {
         self.active.as_ref().map(|entry| (entry.id, &entry.message))
     }
 
+    /// Returns the number of queued snackbars waiting behind the active entry.
+    pub fn pending_len(&self) -> usize {
+        self.pending.len()
+    }
+
+    /// Discards all queued snackbars waiting behind the active entry without
+    /// disturbing the currently visible snackbar.
+    pub fn clear_queue(&mut self, cx: &mut Context<Self>) {
+        if !self.pending.is_empty() {
+            self.pending.clear();
+            cx.notify();
+        }
+    }
+
     /// Dismisses the active message. If any are queued, the next begins its own timeout.
     pub fn dismiss(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some((id, _)) = self.current() {
@@ -321,12 +346,67 @@ impl SnackbarHost {
     }
 
     fn show_next(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.hovered = false;
+        self.focused = false;
+        self._focus_subscriptions.clear();
+        self.timer = None;
         self.active = self.pending.pop_front().map(|(id, message)| Entry {
             id,
             message,
             controls: [cx.focus_handle(), cx.focus_handle()],
             return_focus: window.focused(cx).map(|focus| focus.downgrade()),
         });
+        if let Some(entry) = &self.active {
+            let controls = entry.controls.clone();
+            for handle in &controls {
+                let enter = cx.weak_entity();
+                let leave = enter.clone();
+                self._focus_subscriptions.push(window.on_focus_in(
+                    handle,
+                    cx,
+                    move |window, cx| {
+                        let _ = enter.update(cx, |host, cx| host.refresh_focus(window, cx));
+                    },
+                ));
+                self._focus_subscriptions.push(window.on_focus_out(
+                    handle,
+                    cx,
+                    move |_, window, cx| {
+                        let _ = leave.update(cx, |host, cx| host.refresh_focus(window, cx));
+                    },
+                ));
+            }
+        }
+        self.sync_timer(window, cx);
+        cx.notify();
+    }
+
+    fn set_hovered(&mut self, hovered: bool, window: &mut Window, cx: &mut Context<Self>) {
+        if self.hovered != hovered {
+            self.hovered = hovered;
+            self.sync_timer(window, cx);
+        }
+    }
+
+    fn refresh_focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let focused = self
+            .active
+            .as_ref()
+            .is_some_and(|entry| entry.controls.iter().any(|focus| focus.is_focused(window)));
+        if self.focused != focused {
+            self.focused = focused;
+            self.sync_timer(window, cx);
+        }
+    }
+
+    fn sync_timer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.hovered || self.focused {
+            self.timer = None;
+            return;
+        }
+        if self.timer.is_some() {
+            return;
+        }
         self.timer = self.active.as_ref().and_then(|entry| {
             let id = entry.id;
             let timeout = entry.message.timeout?;
@@ -337,7 +417,6 @@ impl SnackbarHost {
                 });
             }))
         });
-        cx.notify();
     }
 
     fn finish(
@@ -568,7 +647,10 @@ fn snackbar_surface(
         let (label, content) = message.dismiss_content.as_ref().map_or_else(
             || {
                 (
-                    "Dismiss message".into(),
+                    message
+                        .dismiss_label
+                        .clone()
+                        .unwrap_or_else(|| "Dismiss message".into()),
                     crate::Icon::new(crate::IconName::Close)
                         .size(motion.px(24.))
                         .into_any_element(),
@@ -603,11 +685,17 @@ fn snackbar_surface(
         .w(width * motion.scale)
         .opacity(motion.alpha)
         .when(active, |surface| {
-            surface.capture_key_down(cx.listener(move |host, event: &KeyDownEvent, window, cx| {
-                if event.keystroke.key == "escape" && host.dismiss_message(id, window, cx) {
-                    cx.stop_propagation();
-                }
-            }))
+            surface
+                .on_hover(cx.listener(move |host, hovering: &bool, window, cx| {
+                    if host.active.as_ref().is_some_and(|entry| entry.id == id) {
+                        host.set_hovered(*hovering, window, cx);
+                    }
+                }))
+                .capture_key_down(cx.listener(move |host, event: &KeyDownEvent, window, cx| {
+                    if event.keystroke.key == "escape" && host.dismiss_message(id, window, cx) {
+                        cx.stop_propagation();
+                    }
+                }))
         })
         .child(rendered);
     super::text_style(surface, TypeRole::BodyMedium, motion.scale, window, cx)

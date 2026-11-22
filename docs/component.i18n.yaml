@@ -75,8 +75,8 @@
   en: "365a31a5af2de233"
   zh: "f572ac88da55844f"
 /components/content-and-feedback/snackbars:
-  en: "38f4660591747d99"
-  zh: "27b8ec86a97488af"
+  en: "7c1f74a1a16d4a34"
+  zh: "42cafeddfc783563"
 /components/content-and-feedback/display-only-scrollbar:
   en: "652d4f4f4421dc47"
   zh: "efa23e7600bab5f0"
@@ -87,11 +87,11 @@
   en: "5af40c400c43abca"
   zh: "ddef8112ceaeebaf"
 /components/input-and-overlays/menu-controls-and-item-content:
-  en: "444e469ff24a064c"
-  zh: "9c7e0edb4499101c"
+  en: "d8970765f0b5f112"
+  zh: "89abdd2375eb03a3"
 /components/input-and-overlays/tooltips:
-  en: "558de217f4287fc6"
-  zh: "b9a436997132a3be"
+  en: "7d75773da4e0cc83"
+  zh: "4546f0360b549cc0"
 /components/input-and-overlays/labels:
   en: "be925872bd81db8e"
   zh: "36108d0b259747c2"
@@ -99,14 +99,14 @@
   en: "20874df8c77ef23f"
   zh: "40a01b267fdd61eb"
 /components/input-and-overlays/dialogs:
-  en: "61ed75e69983a5b8"
-  zh: "8d50c280535fcaac"
+  en: "2e7b43b71a17c1b3"
+  zh: "f193d5d46a02415c"
 /components/input-and-overlays/bottom-sheets:
   en: "5f3e91fc4e5d7bd7"
   zh: "08ad0c6ddb32e7cc"
 /components/input-and-overlays/side-sheets:
-  en: "88d7f9f958c88e33"
-  zh: "800322be47d3d24b"
+  en: "309f317efcf575fc"
+  zh: "39beb261e5e1b3df"
 /components/navigation-and-adaptive-layout:
   en: "386f9e03d343996f"
   zh: "284fb499d4fcce3d"

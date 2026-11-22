@@ -660,3 +660,98 @@ fn dialog_alert_on_confirm_and_confirm_tone_work_in_basic_and_full_screen_modes(
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn dialog_confirm_disabled_loading_and_state_handles(cx: &mut TestAppContext) {
+    use std::cell::Cell;
+
+    struct ConfirmStateDialog {
+        state: Entity<DialogState>,
+        confirm_disabled: bool,
+        confirm_loading: bool,
+        confirmed: Rc<Cell<usize>>,
+    }
+
+    impl Render for ConfirmStateDialog {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let confirmed = self.confirmed.clone();
+            div().size_full().child(
+                Dialog::new("confirm-state-dialog", &self.state, "Publish")
+                    .confirm_disabled(self.confirm_disabled)
+                    .confirm_loading(self.confirm_loading)
+                    .on_confirm("Submit", move |_, _| {
+                        confirmed.set(confirmed.get() + 1);
+                    }),
+            )
+        }
+    }
+
+    let confirmed = Rc::new(Cell::new(0));
+    let (window, view, state) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let state = cx.new(DialogState::new);
+        let s = state.clone();
+        let c = confirmed.clone();
+        let mut view = None;
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            let entity = cx.new(|cx| {
+                cx.observe(&s, |_, _, cx| cx.notify()).detach();
+                ConfirmStateDialog {
+                    state: s,
+                    confirm_disabled: true,
+                    confirm_loading: false,
+                    confirmed: c,
+                }
+            });
+            view = Some(entity.clone());
+            entity
+        })
+        .unwrap();
+        (window.into(), view.unwrap(), state)
+    });
+
+    cx.update_window(window, |_, window, cx| {
+        state.update(cx, |s, cx| s.open(window, cx));
+        let focus = state.read(cx).focus_handle().clone();
+        let _scroll = state.read(cx).scroll_handle().clone();
+        assert!(focus.is_focused(window));
+    })
+    .unwrap();
+    frame(window, cx);
+
+    // Disabled confirm suppresses Enter confirmation.
+    cx.simulate_keystrokes(window, "enter");
+    frame(window, cx);
+    assert_eq!(confirmed.get(), 0);
+    assert!(cx.update(|cx| state.read(cx).is_open()));
+
+    // Loading confirm also suppresses Enter confirmation and keeps busy semantics.
+    cx.update_window(window, |_, _, cx| {
+        view.update(cx, |v, cx| {
+            v.confirm_disabled = false;
+            v.confirm_loading = true;
+            cx.notify();
+        });
+    })
+    .unwrap();
+    frame(window, cx);
+    cx.simulate_keystrokes(window, "enter");
+    frame(window, cx);
+    assert_eq!(confirmed.get(), 0);
+    assert!(cx.update(|cx| state.read(cx).is_open()));
+
+    // Re-enabling confirm allows Enter confirmation and closes the dialog.
+    cx.update_window(window, |_, _, cx| {
+        view.update(cx, |v, cx| {
+            v.confirm_loading = false;
+            cx.notify();
+        });
+    })
+    .unwrap();
+    frame(window, cx);
+    cx.simulate_keystrokes(window, "enter");
+    frame(window, cx);
+    assert_eq!(confirmed.get(), 1);
+    assert!(!cx.update(|cx| state.read(cx).is_open()));
+}

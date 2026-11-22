@@ -815,3 +815,91 @@ fn tooltip_shortcut_and_element_ext_chaining(cx: &mut TestAppContext) {
     frame(handle, cx);
     assert!(element(handle, "chained-action", cx).is_some());
 }
+
+#[gpui::test]
+fn tooltip_custom_show_and_hide_delays(cx: &mut TestAppContext) {
+    struct DelayTooltipView;
+
+    impl Render for DelayTooltipView {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().p_8().child(
+                Tooltip::plain(
+                    "fast-tip",
+                    div()
+                        .id("fast-trigger")
+                        .test_support()
+                        .w(px(80.))
+                        .h(px(32.)),
+                    "Fast tooltip",
+                )
+                .show_delay(Duration::from_millis(100))
+                .hide_delay(Duration::from_millis(50)),
+            )
+        }
+    }
+
+    let handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            cx.new(|_| DelayTooltipView)
+        })
+        .unwrap()
+        .into()
+    });
+    frame(handle, cx);
+
+    let trigger_center = cx
+        .update_window(handle, |_, window, _| {
+            find(window, &[], &"fast-trigger".into())
+                .unwrap()
+                .bounds()
+                .center()
+        })
+        .unwrap();
+    cx.update_window(handle, |_, window, cx| {
+        window.dispatch_event(
+            MouseMoveEvent {
+                position: trigger_center,
+                pressed_button: None,
+                modifiers: Default::default(),
+            }
+            .to_platform_input(),
+            cx,
+        );
+    })
+    .unwrap();
+    frame(handle, cx);
+    cx.executor().advance_clock(Duration::from_millis(120));
+    frame(handle, cx);
+    cx.update_window(handle, |_, window, _| {
+        assert!(
+            find(window, &[], &"tooltip".into()).is_some(),
+            "custom 100 ms show_delay opens before default 500 ms"
+        );
+    })
+    .unwrap();
+
+    cx.update_window(handle, |_, window, cx| {
+        window.dispatch_event(
+            MouseMoveEvent {
+                position: point(px(2.), px(2.)),
+                pressed_button: None,
+                modifiers: Default::default(),
+            }
+            .to_platform_input(),
+            cx,
+        );
+    })
+    .unwrap();
+    frame(handle, cx);
+    cx.executor().advance_clock(Duration::from_millis(70));
+    frame(handle, cx);
+    cx.update_window(handle, |_, window, _| {
+        assert!(
+            find(window, &[], &"tooltip".into()).is_none(),
+            "custom 50 ms hide_delay closes before default 200 ms"
+        );
+    })
+    .unwrap();
+}

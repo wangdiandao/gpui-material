@@ -112,6 +112,7 @@ fn resolve_geometry(
     viewport: Size<Pixels>,
     available: Size<Pixels>,
     requested_extent: Pixels,
+    side_max_width: Pixels,
     expanded: bool,
     has_expansion: bool,
     retained_layout: Option<(Pixels, Pixels)>,
@@ -136,7 +137,7 @@ fn resolve_geometry(
     let target = if bottom {
         requested_extent.min(available.height)
     } else {
-        requested_extent.min(px(400.)).min(available_width)
+        requested_extent.min(side_max_width).min(available_width)
     };
     let extent = if !bottom && !modal {
         px(animate(
@@ -392,7 +393,7 @@ fn styled_divider(divider: Divider, color_override: Option<Hsla>) -> Divider {
 
 struct SurfaceParts {
     handle: Option<AnyElement>,
-    header: AnyElement,
+    header: Option<AnyElement>,
     content: AnyElement,
     footer: Option<AnyElement>,
     scroll: ScrollHandle,
@@ -466,7 +467,7 @@ fn build_surface(
             |surface| surface.w_full().h(height).overflow_hidden(),
             |surface| surface.h_full().flex_1().min_w_0().overflow_hidden(),
         )
-        .children(show_chrome.then_some(parts.header))
+        .children(show_chrome.then_some(parts.header).flatten())
         .when(show_chrome && (expanded || height > collapsed), |surface| {
             surface.child(
                 isolated_scroll("sheet-content", &parts.scroll)
@@ -576,7 +577,8 @@ impl RenderOnce for Sheet {
         let viewport = window.viewport_size();
         let available = self.layout_size.unwrap_or(viewport);
         let bottom = self.edge == SheetEdge::Bottom;
-        let bottom_width = available.width.min(self.max_width);
+        let bottom_width = available.width.min(self.max_width.unwrap_or(px(640.)));
+        let side_max_width = self.max_width.unwrap_or(px(400.));
         let bottom_left = (viewport.width - bottom_width) / 2.;
         let (dialog, retained) = match &self.state {
             SheetBinding::Immediate(dialog) => (dialog.clone(), None),
@@ -646,6 +648,7 @@ impl RenderOnce for Sheet {
             viewport,
             available,
             self.extent,
+            side_max_width,
             expanded,
             self.expansion.is_some(),
             retained_layout,
@@ -694,18 +697,20 @@ impl RenderOnce for Sheet {
             self.close_content,
             close_action,
         );
-        let header = build_header(
-            self.title.clone(),
-            self.header,
-            self.back,
-            self.expansion,
-            close,
-            bottom,
-            geometry.rtl,
-            open,
-            self.colors.header,
-            side_color,
-        );
+        let header = self.show_header.then(|| {
+            build_header(
+                self.title.clone(),
+                self.header,
+                self.back,
+                self.expansion,
+                close,
+                bottom,
+                geometry.rtl,
+                open,
+                self.colors.header,
+                side_color,
+            )
+        });
         let footer = build_footer(
             self.footer,
             self.footer_divider,

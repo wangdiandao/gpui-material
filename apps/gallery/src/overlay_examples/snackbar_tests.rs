@@ -755,3 +755,53 @@ fn snackbar_tone_push_message_and_replace_precedence(cx: &mut TestAppContext) {
         );
     });
 }
+
+#[gpui::test]
+fn snackbar_dismiss_label_queue_controls_and_hover_focus_pause(cx: &mut TestAppContext) {
+    let (view, cx) = open(cx, SnackbarHost::default());
+    let host = cx.update(|_, cx| view.read(cx).host.clone().unwrap());
+
+    let first = enqueue(
+        &host,
+        cx,
+        Snackbar::new("Timed notice")
+            .timeout(Some(Duration::from_millis(200)))
+            .dismiss_label("Close notice"),
+    );
+    let _second = enqueue(&host, cx, Snackbar::new("Queued 1"));
+    let _third = enqueue(&host, cx, Snackbar::new("Queued 2"));
+    draw(cx);
+
+    cx.update(|window, cx| {
+        assert_eq!(host.read(cx).pending_len(), 2);
+        let dismiss = find(window, &[], &"snackbar-dismiss".into()).unwrap();
+        assert_eq!(dismiss.label(), Some("Close notice"));
+        host.update(cx, |host, cx| host.clear_queue(cx));
+        assert_eq!(host.read(cx).pending_len(), 0);
+    });
+    draw(cx);
+
+    // Hovering pauses the auto-dismiss timer beyond its original 200 ms timeout.
+    let center = cx.update(|window, _| {
+        find(window, &[], &("snackbar", 1usize).into())
+            .unwrap()
+            .bounds()
+            .center()
+    });
+    cx.simulate_mouse_move(center, None, Modifiers::default());
+    draw(cx);
+    cx.executor().advance_clock(Duration::from_millis(350));
+    draw(cx);
+    assert_eq!(
+        current(&host, cx),
+        Some((first, "Timed notice".into())),
+        "hovered snackbar must pause its auto-dismiss timer"
+    );
+
+    // Leaving hover restarts the timer and dismisses once elapsed.
+    cx.simulate_mouse_move(gpui::point(px(0.), px(0.)), None, Modifiers::default());
+    draw(cx);
+    cx.executor().advance_clock(Duration::from_millis(250));
+    draw(cx);
+    assert_eq!(current(&host, cx), None);
+}

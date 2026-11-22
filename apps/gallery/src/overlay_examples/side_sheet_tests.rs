@@ -654,3 +654,62 @@ fn expandable_sheet_drag_handle_is_not_a_keyboard_tab_stop(cx: &mut TestAppConte
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn sheet_show_header_false_and_side_sheet_max_width_override(cx: &mut TestAppContext) {
+    use gpui_base::TestSupportExt as _;
+
+    struct WideHeaderlessSheet {
+        state: Entity<DialogState>,
+    }
+
+    impl Render for WideHeaderlessSheet {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().size_full().child(
+                Sheet::new(
+                    "wide-sheet",
+                    &self.state,
+                    "Inspector panel",
+                    div().id("wide-body").test_support().child("Body content"),
+                )
+                .edge(SheetEdge::End)
+                .mode(SheetMode::Modal)
+                .extent(px(520.))
+                .max_width(px(560.))
+                .show_header(false),
+            )
+        }
+    }
+
+    let (window, state) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let state = cx.new(DialogState::new);
+        let s = state.clone();
+        let window = MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            cx.new(|cx| {
+                cx.observe(&s, |_, _, cx| cx.notify()).detach();
+                WideHeaderlessSheet { state: s }
+            })
+        })
+        .unwrap();
+        (window.into(), state)
+    });
+    cx.simulate_window_resize(window, size(px(900.), px(600.)));
+    cx.update_window(window, |_, window, cx| {
+        state.update(cx, |s, cx| s.open(window, cx));
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let sheet = find(window, &[], &"wide-sheet".into()).unwrap();
+        assert_eq!(sheet.role(), Some(Role::Dialog));
+        assert_eq!(sheet.label(), Some("Inspector panel"));
+        assert!(
+            (sheet.bounds().size.width - px(520.)).abs() <= px(1.),
+            "side sheet max_width override allows width above 400 dp, got {:?}",
+            sheet.bounds().size.width
+        );
+        assert!(find(window, sheet.path(), &"close".into()).is_none());
+        assert!(find(window, sheet.path(), &"wide-body".into()).is_some());
+    })
+    .unwrap();
+}

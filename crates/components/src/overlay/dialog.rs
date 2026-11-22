@@ -180,6 +180,8 @@ pub struct Dialog {
     unstructured: bool,
     confirm: Option<(SharedString, Confirm)>,
     confirm_tone: SemanticTone,
+    confirm_disabled: bool,
+    confirm_loading: bool,
     confirm_content: Option<ActionSlot>,
     dismiss_content: Option<ActionSlot>,
     cancel: SharedString,
@@ -216,6 +218,8 @@ impl Dialog {
             unstructured: false,
             confirm: None,
             confirm_tone: SemanticTone::Default,
+            confirm_disabled: false,
+            confirm_loading: false,
             confirm_content: None,
             dismiss_content: None,
             cancel: "Cancel".into(),
@@ -394,6 +398,18 @@ impl Dialog {
     /// Applies a Material 3 semantic tone to the default confirmation button.
     pub fn confirm_tone(mut self, tone: SemanticTone) -> Self {
         self.confirm_tone = tone;
+        self
+    }
+
+    /// Disables the default confirmation button and suppresses Enter confirmation.
+    pub fn confirm_disabled(mut self, disabled: bool) -> Self {
+        self.confirm_disabled = disabled;
+        self
+    }
+
+    /// Shows an inline busy spinner on the default confirmation button and suppresses Enter confirmation.
+    pub fn confirm_loading(mut self, loading: bool) -> Self {
+        self.confirm_loading = loading;
         self
     }
 

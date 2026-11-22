@@ -7,12 +7,13 @@ pub use crate::menu_appearance::{MenuColor, MenuItemStyle, MenuSurfaceStyle};
 use crate::motion::{OverlayMotion, ScaledOverlay, menu_pivot};
 use crate::{Icon, IconName, SemanticTone};
 use gpui::{
-    Anchor, AnyElement, App, Bounds, ElementId, Focusable, InteractiveElement, IntoElement,
-    MouseButton, ParentElement, Pixels, Point, RenderOnce, Role, ScrollHandle, SharedString,
-    StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
+    Anchor, AnyElement, App, Bounds, ElementId, FocusHandle, Focusable, InteractiveElement,
+    IntoElement, MouseButton, ParentElement, Pixels, Point, RenderOnce, Role, ScrollHandle,
+    SharedString, Size, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
+    px,
 };
 use gpui_base::{
-    Popover, PopoverState, Positioner, TestSupportExt,
+    Popover, PopoverState, Popup, Positioner, TestSupportExt,
     actions::{Cancel, Confirm},
 };
 use gpui_material_foundation::{ThemeScope, current_material_theme, logical_anchor};
@@ -26,6 +27,21 @@ type Action = Rc<dyn Fn(&mut Window, &mut App)>;
 type Change = Rc<dyn Fn(bool, &mut Window, &mut App)>;
 type ItemContent = Rc<dyn Fn() -> AnyElement>;
 type ComposedTrigger = Box<dyn FnOnce(bool, Action) -> AnyElement>;
+type LazyItems = Box<dyn FnOnce(&mut Window, &mut App) -> Vec<MenuItem>>;
+
+enum MenuItems {
+    Eager(Vec<MenuItem>),
+    Lazy(LazyItems),
+}
+
+impl MenuItems {
+    fn resolve(self, window: &mut Window, cx: &mut App) -> Vec<MenuItem> {
+        match self {
+            Self::Eager(items) => items,
+            Self::Lazy(build) => build(window, cx),
+        }
+    }
+}
 
 /// An item in a Material menu. Callers retain command and selection state.
 pub struct MenuItem {
@@ -328,7 +344,7 @@ impl MenuItem {
 pub struct Menu {
     id: ElementId,
     trigger: AnyElement,
-    items: Vec<MenuItem>,
+    items: MenuItems,
     mouse_button: MouseButton,
     anchor: Anchor,
     close_parent: Option<Action>,
@@ -350,6 +366,10 @@ pub struct Menu {
 struct PopupBounds {
     trigger: Cell<Bounds<Pixels>>,
     popup: Cell<Bounds<Pixels>>,
+    context_position: Cell<Option<Point<Pixels>>>,
+    context_was_open: Cell<bool>,
+    context_focus: RefCell<Option<FocusHandle>>,
+    context_previous_focus: RefCell<Option<FocusHandle>>,
     child: RefCell<Option<Rc<PopupBounds>>>,
     presented: RefCell<Option<PresentedMenu>>,
     scroll: ScrollHandle,
@@ -371,14 +391,17 @@ struct PresentedMenu {
 }
 
 impl PopupBounds {
-    fn contains(&self, point: &Point<Pixels>) -> bool {
-        self.trigger.get().contains(point)
-            || self.popup.get().contains(point)
+    fn popup_contains(&self, point: &Point<Pixels>) -> bool {
+        self.popup.get().contains(point)
             || self
                 .child
                 .borrow()
                 .as_ref()
                 .is_some_and(|child| child.open.get() && child.contains(point))
+    }
+
+    fn contains(&self, point: &Point<Pixels>) -> bool {
+        self.trigger.get().contains(point) || self.popup_contains(point)
     }
 }
 
@@ -388,10 +411,36 @@ impl Menu {
         trigger: impl IntoElement,
         items: impl IntoIterator<Item = MenuItem>,
     ) -> Self {
+        Self::with_items(
+            id.into(),
+            trigger.into_any_element(),
+            MenuItems::Eager(items.into_iter().collect()),
+        )
+    }
+
+    /// Creates a menu whose items are built lazily only while the menu is open.
+    pub fn new_with<I>(
+        id: impl Into<ElementId>,
+        trigger: impl IntoElement,
+        build: impl FnOnce(&mut Window, &mut App) -> I + 'static,
+    ) -> Self
+    where
+        I: IntoIterator<Item = MenuItem>,
+    {
+        Self::with_items(
+            id.into(),
+            trigger.into_any_element(),
+            MenuItems::Lazy(Box::new(move |window, cx| {
+                build(window, cx).into_iter().collect()
+            })),
+        )
+    }
+
+    fn with_items(id: ElementId, trigger: AnyElement, items: MenuItems) -> Self {
         Self {
-            id: id.into(),
-            trigger: trigger.into_any_element(),
-            items: items.into_iter().collect(),
+            id,
+            trigger,
+            items,
             mouse_button: MouseButton::Left,
             anchor: Anchor::TopLeft,
             close_parent: None,
@@ -410,7 +459,15 @@ impl Menu {
         }
     }
 
-    /// Opens on secondary click; Enter and Space still work on the trigger.
+    /// Disables menu activation while continuing to render the trigger element.
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.enabled = !disabled;
+        self
+    }
+
+    /// Opens on secondary click at the pointer location (viewport-clamped), or
+    /// anchored to the trigger on `Shift+F10` / `ContextMenu`, without hijacking
+    /// the trigger's own `Enter` or `Space` activation.
     pub fn context(mut self) -> Self {
         self.mouse_button = MouseButton::Right;
         self
@@ -542,6 +599,7 @@ impl RenderOnce for Menu {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let direction = current_material_theme(window, cx).layout.direction;
         let submenu = self.close_parent.is_some();
+        let is_context = self.mouse_button == MouseButton::Right;
         if !self.enabled {
             return self.trigger;
         }
@@ -558,6 +616,7 @@ impl RenderOnce for Menu {
         open_state.set(open);
         let key_state = open_state.clone();
         let trigger_state = open_state.clone();
+        let context_open_state = open_state.clone();
         let request: Change = {
             let on_open_change = self.on_open_change;
             let on_dismiss = self.on_dismiss;
@@ -587,22 +646,39 @@ impl RenderOnce for Menu {
         };
         let key_trigger = trigger.clone();
         let mouse_trigger = trigger.clone();
+        let context_open: Action = {
+            let request = request.clone();
+            Rc::new(move |window, cx| request(true, window, cx))
+        };
+        let context_key_open = context_open.clone();
         let popover_request = request.clone();
         let popup_request = request;
         let motion = OverlayMotion::sample(&self.id, open, window, cx);
         let position = bounds.clone();
+        let context_mouse_bounds = bounds.clone();
+        let context_key_bounds = bounds.clone();
         let ancestor = self.ancestor.clone();
         let anchor = logical_anchor(self.anchor, direction);
-        let explicit_position = self.position;
+        if !open && motion.is_none() {
+            bounds.presented.borrow_mut().take();
+            bounds.child.borrow_mut().take();
+            bounds.context_position.set(None);
+        }
+        let explicit_position = self
+            .position
+            .or_else(|| is_context.then(|| bounds.context_position.get()).flatten());
         let presentation = MenuPresentation {
             color: self.color,
             appearance: self.appearance,
             decoration: self.decoration,
             scroll: self.scroll.unwrap_or_else(|| bounds.scroll.clone()),
         };
-        if open && !cx.reduce_motion() {
+        let resolved_items = open.then(|| self.items.resolve(window, cx));
+        if let Some(items) = resolved_items.as_ref()
+            && !cx.reduce_motion()
+        {
             *bounds.presented.borrow_mut() = Some(PresentedMenu {
-                items: self.items.iter().map(MenuExitRow::from).collect(),
+                items: items.iter().map(MenuExitRow::from).collect(),
                 presentation: presentation.clone(),
             });
         }
@@ -615,67 +691,70 @@ impl RenderOnce for Menu {
         let exit_view = motion
             .filter(|_| !open)
             .map(|motion| build_exit_branch(&self.id, &bounds, motion, direction, window, cx));
-        if !open && motion.is_none() {
-            bounds.presented.borrow_mut().take();
-            bounds.child.borrow_mut().take();
-        }
         let menu_id = self.id.clone();
-        let menu = Popover::new(self.id)
-            .open(open)
-            .on_open_change(move |open, window, cx| popover_request(*open, window, cx))
-            .anchor(anchor)
-            .offset(self.offset)
-            .mouse_button(self.mouse_button)
-            .overlay_closable(false)
-            .on_position(move |resolved, trigger| {
-                position.trigger.set(trigger);
-                if explicit_position.is_none() {
-                    position.popup.set(resolved.bounds);
+        let menu_element: AnyElement = if is_context {
+            let content_focus = {
+                let mut slot = bounds.context_focus.borrow_mut();
+                slot.get_or_insert_with(|| cx.focus_handle()).clone()
+            };
+            let was_open = bounds.context_was_open.replace(open);
+            if open && !was_open {
+                *bounds.context_previous_focus.borrow_mut() = window.focused(cx);
+                content_focus.focus(window, cx);
+            } else if !open && was_open {
+                let previous = bounds.context_previous_focus.borrow_mut().take();
+                if content_focus.contains_focused(window, cx) {
+                    match previous {
+                        Some(previous) => previous.focus(window, cx),
+                        None => window.blur(cx),
+                    }
                 }
-                if let Some(ancestor) = &ancestor {
-                    *ancestor.child.borrow_mut() = Some(position.clone());
-                }
-            })
-            .trigger_with(move |open, _, _| {
-                let content = self
-                    .composed_trigger
-                    .map_or(self.trigger, |build| build(open, trigger));
-                div()
-                    .id("menu-trigger")
-                    .role(Role::Group)
-                    .aria_expanded(open)
-                    .when(controlled, |trigger| {
-                        // Accepting the request through Popover::open applies
-                        // the Base focus lifecycle only after the owner agrees.
-                        trigger
-                            .on_action(move |_: &Confirm, window, cx| key_trigger(window, cx))
-                            .on_mouse_down(self.mouse_button, move |_, window, cx| {
-                                cx.stop_propagation();
-                                mouse_trigger(window, cx);
-                            })
-                    })
-                    .on_key_down(move |event, _, cx| {
-                        if submenu && event.keystroke.key == forward && !key_state.get() {
-                            key_state.set(true);
-                            cx.notify(view);
-                            cx.stop_propagation();
-                        }
-                    })
-                    .child(content)
-                    .into_any_element()
-            })
-            .content(move |state, window, cx| {
+            }
+
+            let content = self
+                .composed_trigger
+                .map_or(self.trigger, |build| build(open, trigger));
+            let trigger_el = div()
+                .id("menu-trigger")
+                .role(Role::Group)
+                .aria_expanded(open)
+                .on_mouse_down(MouseButton::Right, move |event, window, cx| {
+                    cx.stop_propagation();
+                    context_mouse_bounds
+                        .context_position
+                        .set(Some(event.position));
+                    if context_open_state.get() {
+                        cx.notify(view);
+                    } else {
+                        context_open(window, cx);
+                    }
+                })
+                .on_key_down(move |event, window, cx| {
+                    if is_context_menu_key(&event.keystroke) {
+                        context_key_bounds.context_position.set(None);
+                        context_key_open(window, cx);
+                        cx.stop_propagation();
+                    }
+                })
+                .child(content);
+
+            let popup = Popup::new(self.id, trigger_el)
+                .anchor(anchor)
+                .offset(self.offset)
+                .on_position(move |resolved, trigger| {
+                    position.trigger.set(trigger);
+                    if explicit_position.is_none() {
+                        position.popup.set(resolved.bounds);
+                    }
+                    if let Some(ancestor) = &ancestor {
+                        *ancestor.child.borrow_mut() = Some(position.clone());
+                    }
+                });
+
+            if open {
                 let motion = motion.expect("open menu has motion");
-                let close_level: Action = if controlled {
-                    Rc::new(move |window, cx| popup_request(false, window, cx))
-                } else {
-                    let own = cx.entity().downgrade();
-                    Rc::new(move |window, cx| {
-                        let _ = own.update(cx, |state: &mut PopoverState, cx| {
-                            state.dismiss(window, cx);
-                        });
-                    })
-                };
+                let close_level: Action =
+                    Rc::new(move |window, cx| popup_request(false, window, cx));
                 let close: Action = {
                     let close_level = close_level.clone();
                     Rc::new(move |window, cx| {
@@ -688,37 +767,49 @@ impl RenderOnce for Menu {
                 let dismissal = close_level.clone();
                 let escape = close_level.clone();
                 let item_bounds = bounds.clone();
-                let content = window.with_id(menu_id, |window| {
+                let items = resolved_items.unwrap_or_default();
+                let body = window.with_id(menu_id, |window| {
                     menu_content(
-                        self.items,
+                        items,
                         close,
                         submenu.then_some(close_level),
-                        state.focus_handle(cx),
+                        content_focus.clone(),
                         (direction, bounds.clone(), presentation, motion),
                         window,
                         cx,
                     )
                 });
-                let popup = div()
+                let dismiss_shell = div()
                     .id("dismiss-menu")
                     .opacity(motion.alpha)
-                    .when(controlled, |popup| {
-                        popup.on_action(move |_: &Cancel, window, cx| escape(window, cx))
+                    .on_key_down(move |event, window, cx| {
+                        if event.keystroke.key == "escape" && !event.keystroke.modifiers.modified()
+                        {
+                            escape(window, cx);
+                            cx.stop_propagation();
+                        }
                     })
                     .on_mouse_down_out(move |event, window, cx| {
                         let point = &event.position;
-                        if bounds.contains(point) {
+                        if bounds.popup_contains(point)
+                            || (event.button == MouseButton::Right
+                                && bounds.trigger.get().contains(point))
+                        {
                             return;
                         }
                         dismissal(window, cx);
                     })
-                    .child(content);
+                    .child(body);
                 let pivot = item_bounds.clone();
-                let overlay = ScaledOverlay::new(popup, motion, move |menu| {
-                    menu_pivot(menu, pivot.trigger.get())
+                let overlay = ScaledOverlay::new(dismiss_shell, motion, move |menu| {
+                    let anchor_bounds = explicit_position.map_or_else(
+                        || pivot.trigger.get(),
+                        |pos| Bounds::new(pos, Size::default()),
+                    );
+                    menu_pivot(menu, anchor_bounds)
                 });
                 let overlay = ThemeScope::inherit(overlay, window, cx);
-                if let Some(position) = explicit_position {
+                let positioned: AnyElement = if let Some(position) = explicit_position {
                     Positioner::corner(anchor, position)
                         .on_position(move |resolved| item_bounds.popup.set(resolved.bounds))
                         .occlude()
@@ -726,12 +817,156 @@ impl RenderOnce for Menu {
                         .into_any_element()
                 } else {
                     overlay
-                }
-            });
+                };
+                popup
+                    .content(
+                        div()
+                            .id("content")
+                            .role(Role::Dialog)
+                            .occlude()
+                            .tab_group()
+                            .track_focus(&content_focus)
+                            .child(positioned),
+                    )
+                    .into_any_element()
+            } else {
+                popup.into_any_element()
+            }
+        } else {
+            Popover::new(self.id)
+                .open(open)
+                .on_open_change(move |requested, window, cx| {
+                    popover_request(*requested, window, cx)
+                })
+                .anchor(anchor)
+                .offset(self.offset)
+                .mouse_button(self.mouse_button)
+                .overlay_closable(false)
+                .on_position(move |resolved, trigger| {
+                    position.trigger.set(trigger);
+                    if explicit_position.is_none() {
+                        position.popup.set(resolved.bounds);
+                    }
+                    if let Some(ancestor) = &ancestor {
+                        *ancestor.child.borrow_mut() = Some(position.clone());
+                    }
+                })
+                .trigger_with(move |open, _, _| {
+                    let content = self
+                        .composed_trigger
+                        .map_or(self.trigger, |build| build(open, trigger));
+                    div()
+                        .id("menu-trigger")
+                        .role(Role::Group)
+                        .aria_expanded(open)
+                        .when(controlled, |trigger| {
+                            // Accepting the request through Popover::open applies
+                            // the Base focus lifecycle only after the owner agrees.
+                            trigger
+                                .on_action(move |_: &Confirm, window, cx| key_trigger(window, cx))
+                                .on_mouse_down(self.mouse_button, move |_, window, cx| {
+                                    cx.stop_propagation();
+                                    mouse_trigger(window, cx);
+                                })
+                        })
+                        .on_key_down(move |event, _, cx| {
+                            if submenu && event.keystroke.key == forward && !key_state.get() {
+                                key_state.set(true);
+                                cx.notify(view);
+                                cx.stop_propagation();
+                            }
+                        })
+                        .child(content)
+                        .into_any_element()
+                })
+                .content(move |state, window, cx| {
+                    let motion = motion.expect("open menu has motion");
+                    let close_level: Action = if controlled {
+                        Rc::new(move |window, cx| popup_request(false, window, cx))
+                    } else {
+                        let own = cx.entity().downgrade();
+                        Rc::new(move |window, cx| {
+                            let _ = own.update(cx, |state: &mut PopoverState, cx| {
+                                state.dismiss(window, cx);
+                            });
+                        })
+                    };
+                    let close: Action = {
+                        let close_level = close_level.clone();
+                        Rc::new(move |window, cx| {
+                            close_level(window, cx);
+                            if let Some(close_parent) = &self.close_parent {
+                                close_parent(window, cx);
+                            }
+                        })
+                    };
+                    let dismissal = close_level.clone();
+                    let escape = close_level.clone();
+                    let item_bounds = bounds.clone();
+                    let items = resolved_items.unwrap_or_default();
+                    let content = window.with_id(menu_id, |window| {
+                        menu_content(
+                            items,
+                            close,
+                            submenu.then_some(close_level),
+                            state.focus_handle(cx),
+                            (direction, bounds.clone(), presentation, motion),
+                            window,
+                            cx,
+                        )
+                    });
+                    let popup = div()
+                        .id("dismiss-menu")
+                        .opacity(motion.alpha)
+                        .when(controlled, |popup| {
+                            popup.on_action(move |_: &Cancel, window, cx| escape(window, cx))
+                        })
+                        .on_mouse_down_out(move |event, window, cx| {
+                            let point = &event.position;
+                            if bounds.contains(point) {
+                                return;
+                            }
+                            dismissal(window, cx);
+                        })
+                        .child(content);
+                    let pivot = item_bounds.clone();
+                    let overlay = ScaledOverlay::new(popup, motion, move |menu| {
+                        let anchor_bounds = explicit_position.map_or_else(
+                            || pivot.trigger.get(),
+                            |pos| Bounds::new(pos, Size::default()),
+                        );
+                        menu_pivot(menu, anchor_bounds)
+                    });
+                    let overlay = ThemeScope::inherit(overlay, window, cx);
+                    if let Some(position) = explicit_position {
+                        Positioner::corner(anchor, position)
+                            .on_position(move |resolved| item_bounds.popup.set(resolved.bounds))
+                            .occlude()
+                            .child(overlay)
+                            .into_any_element()
+                    } else {
+                        overlay
+                    }
+                })
+                .into_any_element()
+        };
         div()
             .relative()
-            .child(menu)
+            .child(menu_element)
             .children(exit_view)
             .into_any_element()
     }
+}
+
+fn is_context_menu_key(keystroke: &gpui::Keystroke) -> bool {
+    let mods = &keystroke.modifiers;
+    if keystroke.key == "contextmenu" && !mods.modified() {
+        return true;
+    }
+    keystroke.key == "f10"
+        && mods.shift
+        && !mods.control
+        && !mods.alt
+        && !mods.platform
+        && !mods.function
 }

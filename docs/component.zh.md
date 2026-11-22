@@ -231,11 +231,11 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 为窗口保留一个 `Entity<SnackbarHost>`，将其挂载到布局或传给 `Scaffold::snackbar`。通过 `push` 将 `Snackbar::new(message)` 添加到先进先出的队列。普通消息默认显示四秒。设置 `.action(label, callback)` 后，消息默认持续显示。可在 `.action(...)` 之后通过 `.timeout(Some(duration))` 覆盖时长，或使用 `.timeout(None)` 等待关闭。每条消息成为当前项时开始计时。
 
-使用 `.message_content(|window, cx| ...)` 替换可见消息，`Snackbar::new` 仍提供无障碍状态文本。将 `.action_content(...)` 与 `.action(...)` 一同使用，可替换有名称的操作内容。`.dismiss_content(label, |window, cx| ...)` 替换有名称的关闭控件内容。默认显示关闭图标，设置 `.show_dismiss(false)` 可隐藏该控件。插槽内容应为装饰元素，由宿主负责焦点、激活和完成流程。`.action_on_new_line(true)` 将操作和可选的关闭控件放在消息下方，并将这一行对齐到逻辑尾侧。
+使用 `.message_content(|window, cx| ...)` 替换可见消息，`Snackbar::new` 仍提供无障碍状态文本。将 `.action_content(...)` 与 `.action(...)` 一同使用，可替换有名称的操作内容。`.dismiss_label(label)` 可在保留默认关闭图标的前提下自定义关闭按钮的无障碍标签，`.dismiss_content(label, |window, cx| ...)` 则替换有名称的关闭控件内容。默认显示关闭图标，设置 `.show_dismiss(false)` 可隐藏该控件。插槽内容应为装饰元素，由宿主负责焦点、激活和完成流程。`.action_on_new_line(true)` 将操作和可选的关闭控件放在消息下方，并将这一行对齐到逻辑尾侧。
 
-使用 `.shape(CornerShape)` 设置容器形状，通过 `.tone(SemanticTone)` 选用 Material 语义状态色板，通过 `.colors(SnackbarColors)` 分别设置容器、消息、操作和关闭内容的颜色。默认圆角为 4 dp。`SemanticTone::Default` 使用 Inverse Surface 作为容器色、Inverse On Surface 作为消息和关闭内容色、Inverse Primary 作为操作色；语义色调（`Danger`、`Success`、`Warning`、`Info`）分别使用对应 `*Container`、`On*Container` 和基础语义角色，显式传入的 `SnackbarColors` 始终优先。宿主以礼貌模式的实时状态播报消息，保留当前键盘焦点。具名控件可以正常通过 Tab 遍历并激活。消息条的控件获得焦点时，可以按 Escape 关闭消息条。消息条持有焦点时完成操作，焦点将回到仍可用的原目标。
+使用 `.shape(CornerShape)` 设置容器形状，通过 `.tone(SemanticTone)` 选用 Material 语义状态色板，通过 `.colors(SnackbarColors)` 分别设置容器、消息、操作和关闭内容的颜色。默认圆角为 4 dp。`SemanticTone::Default` 使用 Inverse Surface 作为容器色、Inverse On Surface 作为消息和关闭内容色、Inverse Primary 作为操作色；语义色调（`Danger`、`Success`、`Warning`、`Info`）分别使用对应 `*Container`、`On*Container` 和基础语义角色，显式传入的 `SnackbarColors` 始终优先。宿主以礼貌模式的实时状态播报消息，保留当前键盘焦点。定时消息条在指针悬停或内部控件持有焦点时会暂停自动关闭计时，并在悬停与焦点移开后重新计时。具名控件可以正常通过 Tab 遍历并激活。消息条的控件获得焦点时，可以按 Escape 关闭消息条。消息条持有焦点时完成操作，焦点将回到仍可用的原目标。
 
-需要 `SnackbarId` 时用 `enqueue`（纯消息快捷方法为 `push_message(message, window, cx)`）。调用 `replace(snackbar, window, cx)` 会干净地关闭当前显示的消息条（如有，并触发其关闭完成回调），立即将新消息条置于待展示队列之前并显示。`current()` 返回当前项的标识和消息，`dismiss()` 关闭当前项。`dismiss_message(id, window, cx)` 和 `perform_action(id, window, cx)` 只对当前项生效，且 `perform_action` 要求存在操作。通过 `.on_result(|result, window, cx| ...)` 观察 `SnackbarResult::ActionPerformed` 或 `SnackbarResult::Dismissed`。超时、显式关闭和程序关闭均报告 `Dismissed`，并在提供 `.on_dismiss(...)` 时调用它。每条消息只交付一次结果。队列先推进，再执行回调，因此回调可以继续操作同一个宿主的队列。释放宿主会取消计时并丢弃剩余消息。
+需要 `SnackbarId` 时用 `enqueue`（纯消息快捷方法为 `push_message(message, window, cx)`）。调用 `replace(snackbar, window, cx)` 会干净地关闭当前显示的消息条（如有，并触发其关闭完成回调），立即将新消息条置于待展示队列之前并显示。`current()` 返回当前项的标识和消息，`pending_len()` 返回排在当前项之后等待展示的数量，`clear_queue(cx)` 清空待展示队列而不影响当前项，`dismiss()` 关闭当前项。`dismiss_message(id, window, cx)` 和 `perform_action(id, window, cx)` 只对当前项生效，且 `perform_action` 要求存在操作。通过 `.on_result(|result, window, cx| ...)` 观察 `SnackbarResult::ActionPerformed` 或 `SnackbarResult::Dismissed`。超时、显式关闭和程序关闭均报告 `Dismissed`，并在提供 `.on_dismiss(...)` 时调用它。每条消息只交付一次结果。队列先推进，再执行回调，因此回调可以继续操作同一个宿主的队列。释放宿主会取消计时并丢弃剩余消息。
 
 使用 `SnackbarHost::renderer(|message, parts, window, cx| ...)` 可在自定义容器中布局 `SnackbarParts`。放置 `parts.message` 可保留实时状态，放置 `parts.action` 和 `parts.dismiss` 可保留具名控件。计时、完成、动效和退场内容仍由宿主管理。退场期间，插槽以静态内容显示。渲染器可读取 `scale` 让自定义尺寸随动效缩放。
 
@@ -280,7 +280,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ### 菜单开关和菜单项内容
 
-`Menu::new` 默认自行管理显示状态，任意 `IntoElement` 也可通过 `MaterialElementExt::context_menu(id, items)` 以后缀方式附加右键上下文菜单。使用 `.open(open)` 和 `.on_open_change(|requested, window, cx| ...)` 时，由调用者持有状态。调用者可接受请求、更新状态并重新渲染。调用者主动更新 `open` 会同步显示和焦点，不会触发变更回调。`.on_dismiss(|window, cx| ...)` 报告用户操作发出的关闭请求。`Menu::composed` 向自定义触发控件提供当前显示状态及激活回调。
+`Menu::new` 默认自行管理显示状态，`Menu::new_with(id, trigger, |window, cx| ...)` 仅在菜单展开时延迟构造菜单项。任意 `IntoElement` 也可通过 `MaterialElementExt::context_menu(id, items)` 或延迟形式 `MaterialElementExt::context_menu_with(id, |window, cx| ...)` 以后缀方式附加右键上下文菜单。调用 `.context()` 后，右键点击会在指针坐标处弹出并自动限制在视口内（除非显式调用 `.position(...)`），在触发区域内再次右键会平滑更新位置，同时不劫持触发控件自身的 `Enter`/`Space` 主操作，并支持通过 `Shift+F10` 或 `ContextMenu` 键锚定触发控件打开。使用 `.disabled(true)` 可仅渲染触发控件而不启用菜单。使用 `.open(open)` 和 `.on_open_change(|requested, window, cx| ...)` 时，由调用者持有状态。调用者可接受请求、更新状态并重新渲染。调用者主动更新 `open` 会同步显示和焦点，不会触发变更回调。`.on_dismiss(|window, cx| ...)` 报告用户操作发出的关闭请求。`Menu::composed` 向自定义触发控件提供当前显示状态及激活回调。
 
 为每个 `MenuItem` 提供稳定的 ID 和无障碍标签。`.content`、`.leading`、`.supporting`、`.trailing` 和 `.selection_icon` 接收可重复创建视觉元素的闭包。可通过 `.tone(SemanticTone)` 或 `.destructive()`（`SemanticTone::Danger` 的快捷方法）以语义角色为标签和前置图标着色，同时保留禁用样式和显式 `MenuItemStyle` 的优先级。通过 `.shortcut(text)` 可在尾部插槽以 `LabelSmall` 与 `OnSurfaceVariant`（禁用时使用禁用色）渲染桌面快捷键提示，显式 `.trailing(...)` 优先。使用 `MenuItem::divider(id)` 可在平铺菜单中插入不参与交互和键盘导航的水平分隔线行。键盘和指针操作由菜单行处理。用 `.checked(value)` 提供勾选状态，通过 `.on_checked_change` 处理请求。选中项继续用 `.selected(value)` 和 `.on_activate`。
 
@@ -290,7 +290,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ### 提示
 
-`Tooltip::plain`（或后缀形式的 `MaterialElementExt::tooltip(id, text)`）和 `Tooltip::rich` 在指针悬停后显示，也可通过 `.track_focus(&focus)` 在触发控件获得键盘焦点时显示。对于持久富内容提示，用 `cx.new(|_| TooltipState::new())` 创建 `Entity<TooltipState>`，再调用 `.persistent(&state)`。点击或用键盘激活触发控件可以显示提示，调用方也可执行 `state.show(cx)`。触发按钮负责自己的无障碍 Invoke 操作，在其 `on_activate` 回调中执行 `state.update(cx, |state, cx| state.show(cx))` 即可让该操作显示提示。指针离开后，持久提示仍保持显示。调用 `state.dismiss(cx)` 可主动关闭，`is_visible()` 返回已请求的显示状态。
+`Tooltip::plain`（或后缀形式的 `MaterialElementExt::tooltip(id, text)`）和 `Tooltip::rich` 在指针悬停后显示（默认 500 ms 延迟显示、200 ms 延迟隐藏，可通过 `.show_delay(Duration)` 与 `.hide_delay(Duration)` 覆盖），也可通过 `.track_focus(&focus)` 在触发控件获得键盘焦点时显示。对于持久富内容提示，用 `cx.new(|_| TooltipState::new())` 创建 `Entity<TooltipState>`，再调用 `.persistent(&state)`。点击或用键盘激活触发控件可以显示提示，调用方也可执行 `state.show(cx)`。触发按钮负责自己的无障碍 Invoke 操作，在其 `on_activate` 回调中执行 `state.update(cx, |state, cx| state.show(cx))` 即可让该操作显示提示。指针离开后，持久提示仍保持显示。调用 `state.dismiss(cx)` 可主动关闭，`is_visible()` 返回已请求的显示状态。
 
 `.enable_user_input(false)` 将激活操作交给调用方。焦点位于触发控件或提示内容时，可以按 Escape 关闭。点击持久提示外部也会关闭它。使用 `.on_dismiss_request(callback)` 时，持久提示的调用方通过 `dismiss(cx)` 接受关闭请求。临时提示在按 Escape 时关闭，并通过同一回调报告请求。`.focus_target(&focus)` 允许用 Tab 从触发控件进入调用方提供的控件。`.focusable(true)` 会在打开时将焦点移入提示，默认保留焦点。关闭时若焦点位于提示内，则返回触发控件或原来拥有焦点的控件。
 
@@ -316,7 +316,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 每个对话框创建一个 `Entity<DialogState>`。调用 `open(window, cx)` 与 `close(window, cx)` 控制窗口内对话框。用 `Dialog::new(id, &state, title)` 创建采用 Material 默认布局的对话框，或用 `Dialog::alert(id, &state, title, description)` 快速创建带说明文本且隐藏默认取消按钮的基础提示对话框。`DialogVariant::FullScreen` 在内容宽度小于 600 逻辑像素时填满窗口内容区，在较宽窗口中采用基本布局。Tab 和 Shift+Tab 在模态范围内切换焦点。在同一窗口中嵌套时，为内层对话框设置更高的 `.layer(index)`，并从当前对话框内打开它。如果关闭时焦点仍在对话框内，则恢复此前的焦点。
 
-用 `.icon(element)`、`.title_content(element)`、`.description(text)` 和 `.body(element)` 构造图标、标题、辅助文字和正文。构造器的标题用于无障碍名称。用 `.show_title(false)` 隐藏可见标题。`.confirm(label, validate)` 提供默认确认操作，也能在焦点位于对话框容器时用 Enter 触发；校验返回 false 时，对话框保持打开。`.on_confirm(label, action)` 是无需校验的快捷方法，执行 `action` 后总是关闭对话框；`.confirm_tone(SemanticTone)` 为基本和全屏布局中的默认确认按钮应用语义色调。`.confirm_content(|confirm| ...)` 与 `.dismiss_content(|dismiss| ...)` 分别构造确认和取消控件。使用 `Button` 等控件，将指针、键盘及辅助技术的激活操作连接到传入的 `DialogAction::activate(window, cx)`。自定义确认控件可复用同一校验函数，并自行处理快捷键。`.show_cancel(false)` 省略默认的取消按钮或紧凑布局中的关闭图标。
+用 `.icon(element)`、`.title_content(element)`、`.description(text)` 和 `.body(element)` 构造图标、标题、辅助文字和正文。构造器的标题用于无障碍名称。用 `.show_title(false)` 隐藏可见标题。`.confirm(label, validate)` 提供默认确认操作，也能在焦点位于对话框容器时用 Enter 触发；校验返回 false 时，对话框保持打开。`.on_confirm(label, action)` 是无需校验的快捷方法，执行 `action` 后总是关闭对话框；`.confirm_tone(SemanticTone)` 为基本和全屏布局中的默认确认按钮应用语义色调；`.confirm_disabled(bool)` 与 `.confirm_loading(bool)` 可禁用默认确认按钮或显示内嵌加载指示，同时抑制 Enter 确认。`DialogState::focus_handle()` 与 `DialogState::scroll_handle()` 暴露保留的容器焦点句柄与正文滚动句柄。`.confirm_content(|confirm| ...)` 与 `.dismiss_content(|dismiss| ...)` 分别构造确认和取消控件。使用 `Button` 等控件，将指针、键盘及辅助技术的激活操作连接到传入的 `DialogAction::activate(window, cx)`。自定义确认控件可复用同一校验函数，并自行处理快捷键。`.show_cancel(false)` 省略默认的取消按钮或紧凑布局中的关闭图标。
 
 用 `Dialog::unstructured(id, &state, accessible_name).body(element)` 自定义对话框结构。外壳提供焦点范围、无障碍名称、受限视口与关闭策略。调用方指定内边距、滚动、标题、操作和表面。`.body_content(|confirm, dismiss| ...)` 将两个激活句柄传给自定义内容。`.width(pixels)` 设置居中对话框的最大宽度，并受可用空间限制。用 `.shape`、`.colors(DialogColors)`、`.tonal_elevation` 和 `.shadow_elevation` 配置表面及插槽样式。用 `.scrim_color` 和 `.scrim_opacity` 自定义窗口内遮罩。透明遮罩仍拦截指向对话框后方的指针输入。
 
@@ -340,9 +340,9 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 使用 `Sheet::new(id, &state, name, content)` 创建侧边栏，并用 `.edge(SheetEdge::Start)` 或 `.edge(SheetEdge::End)` 选择逻辑侧边。侧边随窗口方向调整。标准侧边栏加入调用方布局，旁边的内容仍可交互。请把它放在主内容对应的逻辑侧边。模态侧边栏覆盖窗口，并在关闭前将焦点限制在其内部。保留一个 `DialogState`，调用 `open(window, cx)` 和 `close(window, cx)` 控制模态侧边栏的显示。嵌套模态侧边栏时，为内层指定更高的 `.layer(index)`。
 
-用 `.placement(SheetPlacement::Detached)` 使侧边栏与窗口或布局区域的边缘留出间距。分离布局默认使用 16 逻辑像素的边距，可用 `.margins(SheetMargins { top, bottom, start, end })` 覆盖。停靠布局贴合边缘。`.extent(width)` 设置侧边栏的宽度，上限为 400 逻辑像素，并受可用空间限制。默认宽度为 320 逻辑像素。用 `.edge_divider(true)` 分隔停靠的标准侧边栏与相邻主内容。
+用 `.placement(SheetPlacement::Detached)` 使侧边栏与窗口或布局区域的边缘留出间距。分离布局默认使用 16 逻辑像素的边距，可用 `.margins(SheetMargins { top, bottom, start, end })` 覆盖。停靠布局贴合边缘。`.extent(width)` 设置侧边栏的宽度，默认上限为 400 逻辑像素（可通过 `.max_width(width)` 调整），并受可用空间限制。默认宽度为 320 逻辑像素。用 `.edge_divider(true)` 分隔停靠的标准侧边栏与相邻主内容。
 
-用 `.header_content(element)` 替换可见标题。构造器中的名称继续用于无障碍。`.back(label, callback)` 提供具名的返回按钮，`.back_content(element)` 接收调用方自定义的控件。返回操作默认保留侧边栏，由回调决定是否关闭。模态侧边栏带有关闭操作，可用 `.close_label(label)` 设置名称，或用 `.show_close(false)` 隐藏。用 `.close_content(|close| ...)` 构建自定义具名控件，并在激活时调用 `close.activate(window, cx)`。标准侧边栏可通过 `.on_close` 启用默认关闭按钮，由调用方移除侧边栏。用 `.footer(element)` 在滚动正文下添加固定操作区，用 `.footer_divider(true)` 将其与正文分开。
+用 `.header_content(element)` 替换可见标题，或在底部面板与侧边栏上用 `.show_header(false)` 省略可见标题行；构造器中的名称继续用于无障碍。`.back(label, callback)` 提供具名的返回按钮，`.back_content(element)` 接收调用方自定义的控件。返回操作默认保留侧边栏，由回调决定是否关闭。模态侧边栏带有关闭操作，可用 `.close_label(label)` 设置名称，或用 `.show_close(false)` 隐藏。用 `.close_content(|close| ...)` 构建自定义具名控件，并在激活时调用 `close.activate(window, cx)`。标准侧边栏可通过 `.on_close` 启用默认关闭按钮，由调用方移除侧边栏。用 `.footer(element)` 在滚动正文下添加固定操作区，用 `.footer_divider(true)` 将其与正文分开。
 
 `.properties(DialogProperties)` 控制模态侧边栏是否响应 Escape 和外部点击。`.on_dismiss_request(|reason, window, cx| ...)` 可拒绝用户发起的关闭，包括关闭按钮。`.on_close(|reason, window, cx| ...)` 对已接受的模态关闭只回调一次，也可接收标准侧边栏的关闭操作。原因包括 `Cancel`、`Escape` 或 `OutsideClick`。程序主动关闭模态侧边栏后，`DialogState::last_close_reason()` 返回 `Programmatic`。关闭时若焦点仍在模态范围内，则恢复此前的焦点。遮罩即使透明或禁用外部点击关闭，也会拦截背景的指针和滚动输入。
 

@@ -9,7 +9,45 @@ use material_color_utils::{
     utils::color_utils::Argb as McuArgb,
 };
 
-use crate::{Appearance, Argb, ColorRole, ColorScheme, MaterialTheme, generated::dynamic_colors};
+use crate::{
+    Appearance, Argb, ColorPair, ColorRole, ColorScheme, MaterialTheme, generated::dynamic_colors,
+};
+
+/// Resolved Material 3 four-role custom color group for one appearance.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CustomColorGroup {
+    pub color: Argb,
+    pub on_color: Argb,
+    pub color_container: Argb,
+    pub on_color_container: Argb,
+}
+
+impl CustomColorGroup {
+    /// Returns the primary `(on_color, color)` foreground/background pair.
+    pub const fn pair(self) -> ColorPair {
+        ColorPair {
+            foreground: self.on_color,
+            background: self.color,
+        }
+    }
+
+    /// Returns the tonal `(on_color_container, color_container)` pair.
+    pub const fn container_pair(self) -> ColorPair {
+        ColorPair {
+            foreground: self.on_color_container,
+            background: self.color_container,
+        }
+    }
+}
+
+/// Shifts `design`'s hue toward `source` using Material Color Utilities harmonization.
+/// Input alpha channels are ignored and the returned color is opaque.
+pub fn harmonize_color(design: Argb, source: Argb) -> Argb {
+    let design = McuArgb(design.to_u32() | 0xff00_0000);
+    let source = McuArgb(source.to_u32() | 0xff00_0000);
+    Argb::from_u32(Blend::harmonize(design, source).0)
+}
 
 /// The Material dynamic color palette to derive from a seed.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -111,6 +149,50 @@ impl ColorScheme {
             }
         }
         colors
+    }
+
+    /// Resolves a Material 3 four-role [`CustomColorGroup`] for `seed` in this
+    /// scheme's appearance at default contrast (`0.0`).
+    ///
+    /// When `harmonize` is `true`, `seed` is shifted toward this scheme's
+    /// [`ColorRole::Primary`] role before tone derivation.
+    pub fn custom_color(&self, seed: Argb, harmonize: bool) -> CustomColorGroup {
+        self.custom_color_with_contrast(seed, 0.0, harmonize)
+    }
+
+    /// Resolves a Material 3 four-role [`CustomColorGroup`] for `seed` in this
+    /// scheme's appearance and requested contrast (`-1.0..=1.0`, `NaN` -> `0.0`).
+    ///
+    /// Uses MCU's error-role contrast curve against a Tonal Spot scheme seeded
+    /// from this scheme's [`ColorRole::Primary`] role.
+    pub fn custom_color_with_contrast(
+        &self,
+        seed: Argb,
+        contrast: f64,
+        harmonize: bool,
+    ) -> CustomColorGroup {
+        let primary = McuArgb(self.color(ColorRole::Primary).to_u32() | 0xff00_0000);
+        let target = if harmonize {
+            McuArgb(harmonize_color(seed, self.color(ColorRole::Primary)).to_u32())
+        } else {
+            McuArgb(seed.to_u32() | 0xff00_0000)
+        };
+        let contrast = if contrast.is_nan() {
+            0.0
+        } else {
+            contrast.clamp(-1.0, 1.0)
+        };
+        let mut scheme =
+            SchemeTonalSpot::builder(primary, self.appearance() == Appearance::Dark, contrast)
+                .spec_version(McuSpec::Spec2021)
+                .build();
+        scheme.error_palette = TonalPalette::from_hct(target.into());
+        CustomColorGroup {
+            color: Argb::from_u32(scheme.error().0),
+            on_color: Argb::from_u32(scheme.on_error().0),
+            color_container: Argb::from_u32(scheme.error_container().0),
+            on_color_container: Argb::from_u32(scheme.on_error_container().0),
+        }
     }
 }
 

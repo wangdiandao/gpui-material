@@ -191,3 +191,38 @@ fn clamps_seed_contrast_and_ignores_seed_alpha() {
         Argb::from_u32(0xffff_dad4)
     );
 }
+
+#[test]
+fn custom_color_and_harmonize_resolve_m3_four_role_groups() {
+    use gpui_material_theme::{CustomColorGroup, harmonize_color};
+
+    let source = Argb::from_u32(0xff00_00ff);
+    let design = Argb::from_u32(0x80ff_0000);
+    let harmonized = harmonize_color(design, source);
+    assert_eq!(harmonized.alpha(), 0xff);
+    assert_ne!(harmonized, Argb::from_u32(0xffff_0000));
+    assert_eq!(harmonize_color(source, source), source);
+
+    for appearance in [Appearance::Light, Appearance::Dark] {
+        let scheme = ColorScheme::from_seed(source, appearance, 0.0);
+        let raw = scheme.custom_color(design, false);
+        let shifted = scheme.custom_color(design, true);
+        assert_ne!(raw.color, shifted.color);
+        assert_ne!(raw.color, raw.on_color);
+        assert_ne!(raw.color_container, raw.on_color_container);
+        assert_eq!(raw.pair().background, raw.color);
+        assert_eq!(raw.pair().foreground, raw.on_color);
+        assert_eq!(raw.container_pair().background, raw.color_container);
+        assert_eq!(raw.container_pair().foreground, raw.on_color_container);
+        assert_eq!(
+            scheme.custom_color_with_contrast(design, f64::NAN, true),
+            shifted
+        );
+        let high = scheme.custom_color_with_contrast(design, 1.0, true);
+        assert_eq!(
+            scheme.custom_color_with_contrast(design, f64::INFINITY, true),
+            high
+        );
+        assert_ne!(high, CustomColorGroup { ..shifted });
+    }
+}

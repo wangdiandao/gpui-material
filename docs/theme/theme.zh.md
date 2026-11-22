@@ -6,10 +6,10 @@
 
 | 领域 | 默认值和使用约定 |
 | --- | --- |
-| 色彩 | `ColorScheme::baseline` 使用 Compose 的浅色或深色角色。通过 `color` 取单个角色，`pair` 取前景和背景，`set_color` 覆盖单个角色。覆盖背景后由调用者检查前景对比度。容器角色提供基准层级，另可通过 `surface_at_elevation` 应用 Compose 的色调叠加公式。 |
-| 源色 | `dynamic-color` 启用 `MaterialTheme::from_seed` 和 `from_seed_with`。默认使用 Tonal Spot Spec2021，忽略输入 alpha。对比度夹取到 −1 至 1，NaN 使用 0。 |
+| 色彩 | `ColorScheme::baseline` 使用 Compose 的浅色或深色角色。通过 `color` 取单个角色，`pair`（及 `ColorRole::on_role`）取前景和背景配对，`set_color` / `with_color` 覆盖单个角色。`Argb` 提供 `from_u32`、`from_rgb`、`from_rgba`、`with_alpha` 与通道访问器。覆盖背景后由调用者检查前景对比度。容器角色提供基准层级，另可通过 `surface_at_elevation` 应用 Compose 的色调叠加公式。 |
+| 源色 | `dynamic-color` 启用 `MaterialTheme::from_seed` 和 `from_seed_with`，以及 `harmonize_color` 和 `ColorScheme::custom_color` / `custom_color_with_contrast`（`CustomColorGroup`）。默认使用 Tonal Spot Spec2021，忽略输入 alpha。对比度夹取到 −1 至 1，NaN 使用 0。 |
 | 排版 | `TypeRole::style` 提供 15 个角色的 baseline 和 emphasized Token，`Typography::style` 按主题比例缩放字号、行高和字距。用 `Typography::with_text_scale` 设置比例，默认 1.0，范围为 1.0–2.0，NaN 使用 1.0。控件已有的字体缩放与主题比例相乘。Brand 和 Plain 都优先请求 Roboto，依次回退到 SF Pro Text、Segoe UI、Noto Sans、PingFang SC、Microsoft YaHei UI 和 Noto Sans CJK SC。 |
-| 形状 | `CornerShape` 使用逻辑角顺序，按方向映射并限制相邻角总和。满圆角取短边的一半。`MaterialShape` 命名与 Compose `MaterialShapes` 对应的 35 种 Expressive 圆角多边形，`PolygonRole` 保留由 Token 提供的 Circle、Square 和 Triangle 源参数。渲染层负责规范化、轮廓插值、绘制、裁剪及命中检测。 |
+| 形状 | `CornerShape`（`uniform`、`top`、`bottom`、`start`、`end`、`Radii`、`Full`）使用逻辑角顺序，按方向映射并限制相邻角总和。满圆角取短边的一半。`MaterialShape` 命名与 Compose `MaterialShapes` 对应的 35 种 Expressive 圆角多边形，`PolygonRole` 保留由 Token 提供的 Circle、Square 和 Triangle 源参数。渲染层负责规范化、轮廓插值、绘制、裁剪及命中检测。 |
 | 动效 | 默认 Standard，可选 Expressive。空间与效果各有 Fast、Default 和 Slow 弹簧。效果弹簧采用临界阻尼。减少动态效果偏好将规格解析为立即完成。固定时长和 Bézier 曲线可通过 Token 查询。 |
 | 布局 | 可用宽度的分界为 600、840、1200、1600 逻辑单位。阈值归入较大的尺寸级。逻辑起止边按 LTR 或 RTL 映射。`LayoutPolicy::scale_text` 用传入的倍率换算文字尺寸。 |
 | 密度 | 桌面策略对组件可视尺寸使用 Compact −4、Standard 0、Comfortable +4 逻辑单位。交互尺寸保留 48 逻辑单位下限。修改组件密度时核验布局与命中。 |
@@ -17,7 +17,7 @@
 
 启用 `dynamic-color` 后，`ColorScheme::from_seed_with` 接受 `DynamicVariant` 和 `SpecVersion`。Tonal Spot、Vibrant、Expressive 和 Neutral 支持 Spec2025。Fidelity、Content 和 Monochrome 按上游规则使用 Spec2021。`ThemePreset` 提供基准、命名动态变体、高对比度和参考 [md3.io](https://md3.io/docs/theming/#the-shipped-themes) 的源色预设。
 
-Info、Success 和 Warning 各有一组前景配色和一组容器配色。源色方案将状态色相向源色协调，并使用 MCU 的错误角色对比度策略解析配色。`ColorScheme::blend` 在 sRGB 中插值所有角色及其 alpha，外观在中点切换，两个端点返回原始色谱。
+Info、Success 和 Warning 各有一组前景配色和一组容器配色。源色方案将状态色相向源色协调，并使用 MCU 的错误角色对比度策略解析配色。`harmonize_color(design, source)` 将任意 sRGB 色相向目标色协调，`ColorScheme::custom_color(seed, harmonize)` / `custom_color_with_contrast(seed, contrast, harmonize)` 则按当前方案的外观与 Primary 角色，使用同一对比度策略解析四角色 `CustomColorGroup`（`color`、`on_color`、`color_container`、`on_color_container`）。`ColorScheme::blend` 在 sRGB 中插值所有角色及其 alpha，外观在中点切换，两个端点返回原始色谱。`MaterialTheme` 提供链式 `with_colors`、`with_typography`、`with_motion`、`with_layout`、`with_density` 和 `with_direction` 辅助方法，`ThemeScope::density` 与 `ThemeScope::direction` 一并支持子树密度覆盖。
 
 <a id="token-data"></a>
 

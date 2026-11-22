@@ -88,12 +88,18 @@ pub fn range_semantics(
             step(&decrement, thumb, -1., window, cx)
         })
         .on_key_down(move |event, window, cx| {
-            let direction = match event.keystroke.key.as_str() {
-                "left" | "down" => -1.,
-                "right" | "up" => 1.,
+            if event.keystroke.modifiers.modified() {
+                return;
+            }
+            match event.keystroke.key.as_str() {
+                "left" | "down" => step(&keyboard, thumb, -1., window, cx),
+                "right" | "up" => step(&keyboard, thumb, 1., window, cx),
+                "pageup" => step_large(&keyboard, thumb, 1., window, cx),
+                "pagedown" => step_large(&keyboard, thumb, -1., window, cx),
+                "home" => jump_bound(&keyboard, thumb, false, window, cx),
+                "end" => jump_bound(&keyboard, thumb, true, window, cx),
                 _ => return,
-            };
-            step(&keyboard, thumb, direction, window, cx);
+            }
             cx.stop_propagation();
         })
         .on_mouse_up(gpui::MouseButton::Left, move |_, _, cx| {
@@ -118,5 +124,47 @@ fn step(
             window,
             cx,
         );
+    });
+}
+
+fn step_large(
+    state: &Entity<SliderState>,
+    thumb: RangeThumb,
+    direction: f32,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    state.update(cx, |state, cx| {
+        let base_step = state.accessibility_step();
+        let span = (state.max_value() - state.min_value()).abs();
+        let target_step = (span * 0.1).max(base_step);
+        let delta = if base_step > 0. && base_step.is_finite() {
+            (target_step / base_step).round().max(1.) * base_step
+        } else {
+            target_step
+        };
+        state.step_thumb(thumb == RangeThumb::Start, direction * delta, window, cx);
+    });
+}
+
+fn jump_bound(
+    state: &Entity<SliderState>,
+    thumb: RangeThumb,
+    to_max: bool,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    state.update(cx, |state, cx| {
+        let value = state.value();
+        let target = match (value.is_range(), thumb, to_max) {
+            (true, RangeThumb::Start, true) => value.end(),
+            (true, RangeThumb::End, false) => value.start(),
+            (_, _, false) => state.min_value(),
+            (_, _, true) => state.max_value(),
+        };
+        let delta = target - thumb.value(value);
+        if delta != 0. {
+            state.step_thumb(thumb == RangeThumb::Start, delta, window, cx);
+        }
     });
 }

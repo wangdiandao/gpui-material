@@ -8,6 +8,31 @@ pub enum CornerShape {
 }
 
 impl CornerShape {
+    /// Creates a rounded rectangle with the same logical radius on all four corners.
+    pub const fn uniform(radius: f32) -> Self {
+        Self::Radii([radius; 4])
+    }
+
+    /// Rounds the top-start and top-end logical corners.
+    pub const fn top(radius: f32) -> Self {
+        Self::Radii([radius, radius, 0.0, 0.0])
+    }
+
+    /// Rounds the bottom-start and bottom-end logical corners.
+    pub const fn bottom(radius: f32) -> Self {
+        Self::Radii([0.0, 0.0, radius, radius])
+    }
+
+    /// Rounds the top-start and bottom-start logical corners.
+    pub const fn start(radius: f32) -> Self {
+        Self::Radii([radius, 0.0, 0.0, radius])
+    }
+
+    /// Rounds the top-end and bottom-end logical corners.
+    pub const fn end(radius: f32) -> Self {
+        Self::Radii([0.0, radius, radius, 0.0])
+    }
+
     /// Returns physical radii in top-left, top-right, bottom-right, bottom-left
     /// order. Scales all corners together when adjacent arcs would overlap.
     pub fn radii(self, width: f32, height: f32, direction: Direction) -> [f32; 4] {

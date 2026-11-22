@@ -858,3 +858,85 @@ fn unified_animation_reverses_proportionally_and_settles_on_reduced_motion(
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn theme_scope_density_and_roving_focus_home_end(cx: &mut TestAppContext) {
+    use gpui::{Axis, FocusHandle, InteractiveElement};
+    use gpui_material::foundation::move_roving_focus;
+    use gpui_material::theme::Density;
+
+    cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(true);
+    });
+    let observed = Rc::new(RefCell::new(None));
+    let observed_for_view = observed.clone();
+    let handles_cell = Rc::new(RefCell::new(Vec::<FocusHandle>::new()));
+    let handles_for_view = handles_cell.clone();
+
+    struct DensityProbe {
+        observed: Rc<RefCell<Option<(Direction, Density)>>>,
+        handles: Rc<RefCell<Vec<FocusHandle>>>,
+    }
+
+    impl Render for DensityProbe {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let handles = self.handles.borrow().clone();
+            let observed = self.observed.clone();
+            ThemeScope::new(
+                ThemeScope::new(
+                    div()
+                        .size_full()
+                        .children(handles.into_iter().enumerate().map(|(ix, handle)| {
+                            div().id(("roving-item", ix)).track_focus(&handle).size_4()
+                        }))
+                        .child(canvas(
+                            move |_, window, cx| {
+                                let layout = current_material_theme(window, cx).layout;
+                                *observed.borrow_mut() = Some((layout.direction, layout.density));
+                            },
+                            |_, _, _, _| {},
+                        )),
+                )
+                .density(Density::Compact),
+            )
+            .direction(Direction::Rtl)
+        }
+    }
+
+    let window = cx.update(|cx| {
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| {
+            *handles_for_view.borrow_mut() = (0..4).map(|_| cx.focus_handle()).collect();
+            cx.new(|_| DensityProbe {
+                observed: observed_for_view,
+                handles: handles_for_view,
+            })
+        })
+        .unwrap()
+    });
+    cx.run_until_parked();
+    cx.update_window(window.into(), |_, window, cx| {
+        window.draw(cx).clear(cx);
+        assert_eq!(*observed.borrow(), Some((Direction::Rtl, Density::Compact)));
+
+        let handles = handles_cell.borrow();
+        let items = [
+            (&handles[0], false),
+            (&handles[1], true),
+            (&handles[2], true),
+            (&handles[3], false),
+        ];
+        handles[2].focus(window, cx);
+        assert_eq!(
+            move_roving_focus(&items, "home", Axis::Horizontal, Direction::Ltr, window, cx),
+            Some(1)
+        );
+        assert!(handles[1].is_focused(window));
+        assert_eq!(
+            move_roving_focus(&items, "end", Axis::Vertical, Direction::Rtl, window, cx),
+            Some(2)
+        );
+        assert!(handles[2].is_focused(window));
+    })
+    .unwrap();
+}

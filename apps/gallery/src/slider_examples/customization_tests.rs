@@ -409,3 +409,51 @@ fn overlapping_range_slider_can_drag_start_thumb_after_zero_delta_move(cx: &mut 
     );
     draw(cx);
 }
+
+#[gpui::test]
+fn slider_home_end_and_page_keys_adjust_single_and_range_values(cx: &mut TestAppContext) {
+    let (view, cx) = open(cx);
+    draw(cx);
+    // Focus single slider end thumb (range 0..=10, step 1, initial value 3).
+    let single_center = thumb(cx, "normal", "end").center();
+    cx.simulate_mouse_down(single_center, MouseButton::Left, Modifiers::default());
+    cx.simulate_mouse_up(single_center, MouseButton::Left, Modifiers::default());
+    draw(cx);
+
+    cx.simulate_keystrokes("end");
+    draw(cx);
+    assert_eq!(
+        view.read_with(cx, |v, cx| v.normal.read(cx).value().end()),
+        10.
+    );
+
+    cx.simulate_keystrokes("home");
+    draw(cx);
+    assert_eq!(
+        view.read_with(cx, |v, cx| v.normal.read(cx).value().end()),
+        0.
+    );
+
+    cx.simulate_keystrokes("pageup");
+    draw(cx);
+    assert!(view.read_with(cx, |v, cx| v.normal.read(cx).value().end()) >= 1.);
+
+    cx.simulate_keystrokes("pagedown");
+    draw(cx);
+    assert_eq!(
+        view.read_with(cx, |v, cx| v.normal.read(cx).value().end()),
+        0.
+    );
+
+    // Focus range start thumb (initial range 4..=5) and jump to its bounds.
+    let start_center = thumb(cx, "test-range", "start").center();
+    cx.simulate_mouse_down(start_center, MouseButton::Left, Modifiers::default());
+    cx.simulate_mouse_up(start_center, MouseButton::Left, Modifiers::default());
+    draw(cx);
+    cx.simulate_keystrokes("end");
+    draw(cx);
+    assert_range(&view, (5., 5.), cx);
+    cx.simulate_keystrokes("home");
+    draw(cx);
+    assert_range(&view, (0., 5.), cx);
+}

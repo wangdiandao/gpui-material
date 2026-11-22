@@ -15,12 +15,77 @@ impl Argb {
         Self(u32::from_be_bytes([255, red, green, blue]))
     }
 
+    pub const fn from_rgba(red: u8, green: u8, blue: u8, alpha: u8) -> Self {
+        Self(u32::from_be_bytes([alpha, red, green, blue]))
+    }
+
+    pub const fn with_alpha(self, alpha: u8) -> Self {
+        let [_, red, green, blue] = self.channels();
+        Self::from_rgba(red, green, blue, alpha)
+    }
+
     pub const fn to_u32(self) -> u32 {
         self.0
     }
 
     pub const fn channels(self) -> [u8; 4] {
         self.0.to_be_bytes()
+    }
+
+    pub const fn alpha(self) -> u8 {
+        self.channels()[0]
+    }
+
+    pub const fn red(self) -> u8 {
+        self.channels()[1]
+    }
+
+    pub const fn green(self) -> u8 {
+        self.channels()[2]
+    }
+
+    pub const fn blue(self) -> u8 {
+        self.channels()[3]
+    }
+}
+
+impl ColorRole {
+    /// Returns the standard Material foreground role paired with this semantic
+    /// background role, or `None` when this role is not a paired background.
+    pub const fn on_role(self) -> Option<Self> {
+        use ColorRole::*;
+
+        Some(match self {
+            Background => OnBackground,
+            Error => OnError,
+            ErrorContainer => OnErrorContainer,
+            Info => OnInfo,
+            InfoContainer => OnInfoContainer,
+            InverseSurface => InverseOnSurface,
+            Primary => OnPrimary,
+            PrimaryContainer => OnPrimaryContainer,
+            PrimaryFixed | PrimaryFixedDim => OnPrimaryFixed,
+            Secondary => OnSecondary,
+            SecondaryContainer => OnSecondaryContainer,
+            SecondaryFixed | SecondaryFixedDim => OnSecondaryFixed,
+            Success => OnSuccess,
+            SuccessContainer => OnSuccessContainer,
+            Surface
+            | SurfaceBright
+            | SurfaceDim
+            | SurfaceContainerLowest
+            | SurfaceContainerLow
+            | SurfaceContainer
+            | SurfaceContainerHigh
+            | SurfaceContainerHighest => OnSurface,
+            SurfaceVariant => OnSurfaceVariant,
+            Tertiary => OnTertiary,
+            TertiaryContainer => OnTertiaryContainer,
+            TertiaryFixed | TertiaryFixedDim => OnTertiaryFixed,
+            Warning => OnWarning,
+            WarningContainer => OnWarningContainer,
+            _ => return None,
+        })
     }
 }
 
@@ -123,6 +188,12 @@ impl ColorScheme {
         self.colors[role as usize] = color;
     }
 
+    /// Fluent counterpart to [`Self::set_color`].
+    pub fn with_color(mut self, role: ColorRole, color: Argb) -> Self {
+        self.set_color(role, color);
+        self
+    }
+
     #[cfg(feature = "serde")]
     const fn baseline_color(&self, role: ColorRole) -> Argb {
         match self.appearance {
@@ -133,39 +204,7 @@ impl ColorScheme {
 
     /// Resolves the standard foreground for a semantic background.
     pub fn pair(&self, background: ColorRole) -> Option<ColorPair> {
-        use ColorRole::*;
-
-        let foreground = match background {
-            Background => OnBackground,
-            Error => OnError,
-            ErrorContainer => OnErrorContainer,
-            Info => OnInfo,
-            InfoContainer => OnInfoContainer,
-            InverseSurface => InverseOnSurface,
-            Primary => OnPrimary,
-            PrimaryContainer => OnPrimaryContainer,
-            PrimaryFixed | PrimaryFixedDim => OnPrimaryFixed,
-            Secondary => OnSecondary,
-            SecondaryContainer => OnSecondaryContainer,
-            SecondaryFixed | SecondaryFixedDim => OnSecondaryFixed,
-            Success => OnSuccess,
-            SuccessContainer => OnSuccessContainer,
-            Surface
-            | SurfaceBright
-            | SurfaceDim
-            | SurfaceContainerLowest
-            | SurfaceContainerLow
-            | SurfaceContainer
-            | SurfaceContainerHigh
-            | SurfaceContainerHighest => OnSurface,
-            SurfaceVariant => OnSurfaceVariant,
-            Tertiary => OnTertiary,
-            TertiaryContainer => OnTertiaryContainer,
-            TertiaryFixed | TertiaryFixedDim => OnTertiaryFixed,
-            Warning => OnWarning,
-            WarningContainer => OnWarningContainer,
-            _ => return None,
-        };
+        let foreground = background.on_role()?;
         Some(ColorPair {
             foreground: self.color(foreground),
             background: self.color(background),

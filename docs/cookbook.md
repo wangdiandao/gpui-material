@@ -740,7 +740,7 @@ By default, `gpui-material` enables `full`, which compiles all six core componen
 [dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.12" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui-material = { version = "0.3.1", default-features = false, features = [
+gpui-material = { version = "0.3.2", default-features = false, features = [
     "actions",
     "inputs",
     "surfaces",

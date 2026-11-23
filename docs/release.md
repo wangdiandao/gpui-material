@@ -6,7 +6,7 @@ English | [中文](release.zh.md)
 
 ## Version policy
 
-The latest release is 0.3.1. The Material crates and Gallery share the version in the root `[workspace.package]`. The [public facade and integration contract](integration.md#api-and-migration) define compatibility, including documented features, upstream types in public signatures, and supported platform behavior.
+The latest release is 0.3.2. The Material crates and Gallery share the version in the root `[workspace.package]`. The [public facade and integration contract](integration.md#api-and-migration) define compatibility, including documented features, upstream types in public signatures, and supported platform behavior.
 
 - Before `1.0.0`, use a patch bump for backward-compatible fixes and a minor bump for backward-compatible features or breaking changes (resetting patch to zero). If a release mixes several change types, use the highest applicable bump.
 - From `1.0.0` onward, follow [SemVer](https://semver.org/): incompatible public API changes increment major, compatible features and deprecations increment minor, and compatible fixes increment patch.

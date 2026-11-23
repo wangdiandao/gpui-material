@@ -22,7 +22,7 @@ Windows 11 x64/MSVC 是主要支持环境。macOS ARM64 和 Linux x64 纳入 CI 
 
 ## 在应用中使用
 
-使用 Rust 1.95.0 或更高版本及 2024 Edition。添加依赖 `gpui-material = "0.3.1"`。[集成指南](docs/integration.zh.md)列出了匹配的 GPUI 包，并提供完整的窗口示例。
+使用 Rust 1.95.0 或更高版本及 2024 Edition。添加依赖 `gpui-material = "0.3.2"`。[集成指南](docs/integration.zh.md)列出了匹配的 GPUI 包，并提供完整的窗口示例。
 
 先初始化 `MaterialRoot` 并调用 `gpui_material::init_components`，再用 `MaterialRoot::open_window` 打开窗口。通过 `gpui_material` 门面组合界面，在应用中管理受控值和命令结果。
 

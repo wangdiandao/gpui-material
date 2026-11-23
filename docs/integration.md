@@ -12,7 +12,7 @@ Add the facade from crates.io. Match GPUI package identities exactly so the faca
 [dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.12" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui-material = "0.3.1"
+gpui-material = "0.3.2"
 ```
 
 An application that uses Base directly should also pin `gpui-base = "=0.10.0"`. For a source integration, use `{ path = "../gpui-material/crates/material" }` and pin the checkout commit. After an upgrade, run `cargo tree -d` to check for duplicate package versions.
@@ -45,7 +45,7 @@ fn main() {
 
 ## Material Symbols
 
-Add `gpui-material-design-symbols = "0.3.1"` alongside `gpui-material` for the full Material Symbols catalog. In a source integration, use `gpui-material-design-symbols = { path = "../gpui-material/crates/design-symbols" }`. The catalog contains all 4,304 names at the pinned revision, including aliases. Use `Symbol::ALL` to browse it or `Symbol::from_name("favorite")` to resolve an upstream name. [Upstream codepoints and font assets](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
+Add `gpui-material-design-symbols = "0.3.2"` alongside `gpui-material` for the full Material Symbols catalog. In a source integration, use `gpui-material-design-symbols = { path = "../gpui-material/crates/design-symbols" }`. The catalog contains all 4,304 names at the pinned revision, including aliases. Use `Symbol::ALL` to browse it or `Symbol::from_name("favorite")` to resolve an upstream name. [Upstream codepoints and font assets](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
 
 On desktop, enable `embed-assets` on `gpui-material-design-symbols` and open an Outlined, Rounded, or Sharp font with `SymbolFont::embedded`. The fonts preserve `FILL` and `wght` with grade 0 and optical size 24. `SymbolAxes::default()` (or `SymbolAxes::new()` in `const` contexts) uses an unfilled glyph and weight 400. Use `.filled(true)` for FILL=1, `Weight::new(550)` for an intermediate weight in the inclusive 100–700 range, and `is_filled()` or `get_weight()` to inspect configured axes.
 

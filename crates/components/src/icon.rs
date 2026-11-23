@@ -14,7 +14,12 @@ macro_rules! symbols {
         /// Bundled official Material Symbols Outlined, weight 400, grade 0, optical size 24.
         /// Both fill variants are embedded unchanged, without an application AssetSource.
         #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-        pub enum IconName { $($variant),+ }
+        pub enum IconName {
+            $(
+                #[doc = concat!("Material Symbols Outlined `", $name, "` glyph.")]
+                $variant
+            ),+
+        }
 
         impl IconName {
             /// All bundled symbols, useful for icon pickers and asset validation.
@@ -83,6 +88,7 @@ enum IconContent {
 }
 
 impl Icon {
+    /// Creates an icon from a bundled Material Symbols Outlined glyph.
     pub fn new(symbol: IconName) -> Self {
         Self {
             content: IconContent::Symbol(symbol),
@@ -114,6 +120,7 @@ impl Icon {
         }
     }
 
+    /// Wraps an arbitrary caller-supplied element in a 24 dp icon container tinted to `OnSurfaceVariant` by default.
     pub fn custom(element: impl IntoElement) -> Self {
         Self {
             content: IconContent::Element(element.into_any_element()),
@@ -127,16 +134,19 @@ impl Icon {
         self
     }
 
+    /// Exposes the icon as an independently meaningful `Role::Image` with the given accessible name.
     pub fn label(mut self, id: impl Into<ElementId>, name: impl Into<SharedString>) -> Self {
         self.name = Some((id.into(), name.into()));
         self
     }
 
+    /// Sets an explicit square side length in logical pixels (clamped to non-negative values).
     pub fn size(mut self, side: Pixels) -> Self {
         self.side = Some(side.max(px(0.)));
         self
     }
 
+    /// Resolves the icon tint from the window theme's semantic color role.
     pub fn color(mut self, color: ColorRole) -> Self {
         self.color = Some(color);
         self.color_override = None;
@@ -158,6 +168,7 @@ impl Icon {
         self
     }
 
+    /// Horizontally mirrors SVG icons when the window layout direction is right-to-left.
     pub fn mirror_in_rtl(mut self, mirror: bool) -> Self {
         self.mirror = mirror;
         self

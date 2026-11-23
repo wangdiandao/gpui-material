@@ -6,7 +6,9 @@ use crate::{
 /// The two Material typeface families.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Typeface {
+    /// Expressive display and headline typeface (`brand`).
     Brand,
+    /// Neutral body and UI label typeface (`plain`).
     Plain,
 }
 
@@ -14,7 +16,9 @@ pub enum Typeface {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FontFamilies {
+    /// Preferred primary font family name (defaults to `"Roboto"`).
     pub primary: String,
+    /// Ordered fallback font family names tried when [`Self::primary`] is unavailable.
     pub fallback: Vec<String>,
 }
 
@@ -39,24 +43,40 @@ impl Default for FontFamilies {
 /// One of the fifteen Material text roles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TypeRole {
+    /// Large body copy (`16 sp`).
     BodyLarge,
+    /// Default body copy (`14 sp`).
     BodyMedium,
+    /// Small body or supporting copy (`12 sp`).
     BodySmall,
+    /// Largest display headline (`57 sp`).
     DisplayLarge,
+    /// Medium display headline (`45 sp`).
     DisplayMedium,
+    /// Small display headline (`36 sp`).
     DisplaySmall,
+    /// Large section headline (`32 sp`).
     HeadlineLarge,
+    /// Medium section headline (`28 sp`).
     HeadlineMedium,
+    /// Small section headline (`24 sp`).
     HeadlineSmall,
+    /// Prominent control label (`14 sp`).
     LabelLarge,
+    /// Standard control label (`12 sp`).
     LabelMedium,
+    /// Compact label or badge text (`11 sp`).
     LabelSmall,
+    /// Large title (`22 sp`).
     TitleLarge,
+    /// Medium title (`16 sp`).
     TitleMedium,
+    /// Small title (`14 sp`).
     TitleSmall,
 }
 
 impl TypeRole {
+    /// All 15 Material text roles in stable token order.
     pub const ALL: [Self; 15] = [
         Self::BodyLarge,
         Self::BodyMedium,
@@ -75,6 +95,7 @@ impl TypeRole {
         Self::TitleSmall,
     ];
 
+    /// Returns the unscaled Material [`TypeStyle`] for this role and emphasis level.
     pub const fn style(self, emphasis: TypographyEmphasis) -> TypeStyle {
         match emphasis {
             TypographyEmphasis::Baseline => BASELINE_TYPE_STYLES[self as usize],
@@ -83,20 +104,28 @@ impl TypeRole {
     }
 }
 
+/// Emphasis tier for Material 3 Expressive typography.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TypographyEmphasis {
+    /// Standard Material 3 type scale weights (default).
     #[default]
     Baseline,
+    /// Heavier Material 3 Expressive emphasized type scale weights.
     Emphasized,
 }
 
 /// Material type metrics in scale-independent units (sp).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TypeStyle {
+    /// Logical typeface slot (`Brand` or `Plain`).
     pub typeface: Typeface,
+    /// Font size in `sp`.
     pub size: f32,
+    /// Line height in `sp`.
     pub line_height: f32,
+    /// Letter spacing (tracking) in `sp`.
     pub tracking: f32,
+    /// Numeric font weight (`100..=900`).
     pub weight: u16,
 }
 
@@ -105,7 +134,9 @@ pub struct TypeStyle {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Typography {
+    /// Font family stack used for [`Typeface::Brand`] roles.
     pub brand: FontFamilies,
+    /// Font family stack used for [`Typeface::Plain`] roles.
     pub plain: FontFamilies,
     #[cfg_attr(
         feature = "serde",
@@ -134,6 +165,7 @@ impl Typography {
         self
     }
 
+    /// Returns the active text scale multiplier in `1.0..=2.0`.
     pub fn text_scale(&self) -> f32 {
         self.text_scale
     }
@@ -148,6 +180,7 @@ impl Typography {
         LayoutPolicy::scale_text(style, self.text_scale)
     }
 
+    /// Returns the configured [`FontFamilies`] for a logical [`Typeface`] slot.
     pub fn families(&self, typeface: Typeface) -> &FontFamilies {
         match typeface {
             Typeface::Brand => &self.brand,

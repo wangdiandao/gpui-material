@@ -24,3 +24,7 @@ gpui-base.workspace = true
 gpui-material-foundation.workspace = true
 gpui-material-theme.workspace = true
 web-time.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

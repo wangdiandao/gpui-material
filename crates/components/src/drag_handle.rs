@@ -24,24 +24,33 @@ const DRAG_SLOP: Pixels = px(4.);
 /// Visual sizes in logical pixels. Omitted values use Material defaults.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct DragHandleSizes {
+    /// Handle dimensions while idle. Defaults to `4 × 48 px`.
     pub resting: Option<Size<Pixels>>,
+    /// Handle dimensions while pressed. Defaults to `12 × 52 px`.
     pub pressed: Option<Size<Pixels>>,
+    /// Handle dimensions while actively dragged. Defaults to `12 × 52 px`.
     pub dragged: Option<Size<Pixels>>,
 }
 
 /// Fill colors. Omitted values use the corresponding window theme role.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct DragHandleColors {
+    /// Fill color while idle. Defaults to `ColorRole::Outline`.
     pub resting: Option<Hsla>,
+    /// Fill color while pressed. Defaults to `ColorRole::OnSurface`.
     pub pressed: Option<Hsla>,
+    /// Fill color while actively dragged. Defaults to `ColorRole::OnSurface`.
     pub dragged: Option<Hsla>,
 }
 
 /// Corner shapes in logical corner order. Omitted values use Material defaults.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct DragHandleShapes {
+    /// Corner shape while idle. Defaults to `CornerRole::Full`.
     pub resting: Option<CornerShape>,
+    /// Corner shape while pressed. Defaults to `CornerRole::Medium`.
     pub pressed: Option<CornerShape>,
+    /// Corner shape while actively dragged. Defaults to `CornerRole::Medium`.
     pub dragged: Option<CornerShape>,
 }
 
@@ -95,16 +104,19 @@ impl VerticalDragHandle {
         }
     }
 
+    /// Overrides the resting, pressed, and dragged handle dimensions.
     pub fn sizes(mut self, sizes: DragHandleSizes) -> Self {
         self.sizes = sizes;
         self
     }
 
+    /// Overrides the resting, pressed, and dragged handle fill colors.
     pub fn colors(mut self, colors: DragHandleColors) -> Self {
         self.colors = colors;
         self
     }
 
+    /// Overrides the resting, pressed, and dragged handle corner shapes.
     pub fn shapes(mut self, shapes: DragHandleShapes) -> Self {
         self.shapes = shapes;
         self

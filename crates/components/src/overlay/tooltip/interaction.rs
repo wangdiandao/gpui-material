@@ -11,6 +11,7 @@ pub struct TooltipState {
 }
 
 impl TooltipState {
+    /// Creates a hidden tooltip visibility state.
     pub fn new() -> Self {
         Self::default()
     }
@@ -20,10 +21,12 @@ impl TooltipState {
         self.visible
     }
 
+    /// Requests that the tooltip be shown and notifies observers if visibility changed.
     pub fn show(&mut self, cx: &mut Context<Self>) {
         self.set_visible(true, cx);
     }
 
+    /// Requests that the tooltip be hidden and notifies observers if visibility changed.
     pub fn dismiss(&mut self, cx: &mut Context<Self>) {
         self.set_visible(false, cx);
     }

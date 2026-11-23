@@ -22,26 +22,42 @@ use crate::date_time::{ScrollField, ScrollFieldColors, status};
 /// Container and content colors for selected and unselected controls.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct TimePickerSelectionColors {
+    /// Background fill color when the control is selected.
     pub selected_container: Option<Hsla>,
+    /// Background fill color when the control is unselected.
     pub container: Option<Hsla>,
+    /// Foreground text color when the control is selected.
     pub selected_content: Option<Hsla>,
+    /// Foreground text color when the control is unselected.
     pub content: Option<Hsla>,
 }
 
 /// Instance appearance for the dial, input, and scroll panels.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct TimePickerStyle {
+    /// Corner shape override for hour and minute selector boxes and inputs.
     pub time_field_shape: Option<CornerShape>,
+    /// Corner shape override for the AM/PM period selector.
     pub period_selector_shape: Option<CornerShape>,
+    /// Background fill color for the panel container.
     pub container: Option<Hsla>,
+    /// Background fill color for the circular clock dial face.
     pub clock_dial: Option<Hsla>,
+    /// Text color for unselected numbers on the clock dial.
     pub clock_dial_content: Option<Hsla>,
+    /// Text color for the currently selected number on the clock dial.
     pub clock_dial_selected_content: Option<Hsla>,
+    /// Accent color for the clock dial hand and selection handle.
     pub selector: Option<Hsla>,
+    /// Colors for the hour and minute header selector tiles.
     pub time_selector: TimePickerSelectionColors,
+    /// Colors for the AM/PM period selector buttons.
     pub period_selector: TimePickerSelectionColors,
+    /// Outline border color around the AM/PM period selector.
     pub period_selector_border: Option<Hsla>,
+    /// Color overrides applied to the text-input fields.
     pub input: TextFieldColors,
+    /// Color overrides applied to the scroll-wheel fields.
     pub scroll: ScrollFieldColors,
 }
 
@@ -112,6 +128,7 @@ pub struct TimePickerPanel {
 }
 
 impl TimePickerPanel {
+    /// Creates a panel that follows `state.mode()` dynamically.
     pub fn new(id: impl Into<ElementId>, state: &Entity<TimePickerState>) -> Self {
         Self {
             id: id.into(),
@@ -126,10 +143,12 @@ impl TimePickerPanel {
         }
     }
 
+    /// Creates a panel pinned to [`TimePickerVariant::Dial`].
     pub fn dial(id: impl Into<ElementId>, state: &Entity<TimePickerState>) -> Self {
         Self::new(id, state).fixed(TimePickerVariant::Dial)
     }
 
+    /// Creates a panel pinned to [`TimePickerVariant::Input`].
     pub fn input(id: impl Into<ElementId>, state: &Entity<TimePickerState>) -> Self {
         Self::new(id, state).fixed(TimePickerVariant::Input)
     }
@@ -139,21 +158,25 @@ impl TimePickerPanel {
         self
     }
 
+    /// Sets the dial layout orientation. Defaults to [`TimePickerLayout::Auto`].
     pub fn layout(mut self, layout: TimePickerLayout) -> Self {
         self.layout = layout;
         self
     }
 
+    /// Overrides the panel's appearance and color tokens.
     pub fn style(mut self, style: TimePickerStyle) -> Self {
         self.presentation.style = style;
         self
     }
 
+    /// Enables or disables the expressive vibrant styling preset.
     pub fn vibrant(mut self, vibrant: bool) -> Self {
         self.presentation.vibrant = vibrant;
         self
     }
 
+    /// Renders a custom mode-toggle control inside the panel.
     pub fn mode_toggle_content<E: IntoElement>(
         mut self,
         content: impl FnOnce(TimePickerModeAction) -> E + 'static,
@@ -221,6 +244,7 @@ impl RenderOnce for TimePickerPanel {
 pub struct TimeScroll(TimePickerPanel);
 
 impl TimeScroll {
+    /// Creates a vibrant scroll-wheel time panel bound to `state`.
     pub fn new(id: impl Into<ElementId>, state: &Entity<TimePickerState>) -> Self {
         Self(
             TimePickerPanel::new(id, state)
@@ -229,11 +253,13 @@ impl TimeScroll {
         )
     }
 
+    /// Overrides the panel's appearance and color tokens.
     pub fn style(mut self, style: TimePickerStyle) -> Self {
         self.0 = self.0.style(style);
         self
     }
 
+    /// Renders a custom mode-toggle control inside the scroll panel.
     pub fn mode_toggle_content<E: IntoElement>(
         mut self,
         content: impl FnOnce(TimePickerModeAction) -> E + 'static,

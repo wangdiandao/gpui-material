@@ -80,10 +80,13 @@ impl ControlSize {
     }
 }
 
+/// Resting corner shape preset for Material buttons.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ButtonShape {
+    /// Pill-shaped full corner radius (default).
     #[default]
     Round,
+    /// Size-dependent rounded-square corner radius.
     Square,
 }
 
@@ -102,39 +105,59 @@ impl ButtonShape {
 /// Per-instance [`ButtonColors`] and [`ButtonBorder`] overrides still take precedence.
 pub type ButtonTone = crate::SemanticTone;
 
+/// Visual emphasis style for [`Button`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ButtonVariant {
+    /// Raised low-emphasis surface with drop shadow.
     Elevated,
+    /// High-emphasis solid filled container (default).
     #[default]
     Filled,
+    /// Medium-emphasis tonal container fill.
     FilledTonal,
+    /// Medium-emphasis outlined container with transparent fill.
     Outlined,
+    /// Low-emphasis borderless text action.
     Text,
 }
 
+/// Visual emphasis style for [`ToggleButton`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ToggleButtonVariant {
+    /// Raised surface with drop shadow.
     Elevated,
+    /// High-emphasis solid filled toggle (default).
     #[default]
     Filled,
+    /// Medium-emphasis tonal container toggle.
     FilledTonal,
+    /// Medium-emphasis outlined toggle.
     Outlined,
 }
 
+/// Visual emphasis style for [`IconButton`] and [`IconToggleButton`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum IconButtonVariant {
+    /// Borderless, transparent icon button (default).
     #[default]
     Standard,
+    /// High-emphasis solid filled icon button.
     Filled,
+    /// Medium-emphasis tonal container icon button.
     FilledTonal,
+    /// Medium-emphasis outlined icon button.
     Outlined,
 }
 
+/// Horizontal width preset for Expressive icon buttons.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum IconButtonWidth {
+    /// Compact horizontal padding.
     Narrow,
+    /// Balanced square-like horizontal padding (default).
     #[default]
     Uniform,
+    /// Expanded pill-like horizontal padding.
     Wide,
 }
 
@@ -423,6 +446,7 @@ pub struct Button {
 }
 
 impl Button {
+    /// Creates a button with the default [`ButtonVariant::Filled`] emphasis.
     pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
         Self {
             common: Common::new(id, label),
@@ -462,6 +486,7 @@ impl Button {
     appearance_builders!();
     slot_builders!();
 
+    /// Sets the visual emphasis variant. Defaults to [`ButtonVariant::Filled`].
     pub fn variant(mut self, variant: ButtonVariant) -> Self {
         self.variant = variant;
         self
@@ -480,6 +505,7 @@ impl Button {
         self
     }
 
+    /// Invoked once when the button is activated via pointer click, keyboard Enter/Space, or assistive technology.
     pub fn on_activate(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
         self.on_activate = Some(Rc::new(handler));
         self
@@ -589,6 +615,7 @@ pub struct ToggleButton {
 }
 
 impl ToggleButton {
+    /// Creates a controlled toggle button with the default [`ToggleButtonVariant::Filled`] emphasis.
     pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>, selected: bool) -> Self {
         Self {
             common: Common::new(id, label),
@@ -635,6 +662,7 @@ impl ToggleButton {
     appearance_builders!();
     slot_builders!();
 
+    /// Sets the visual emphasis variant. Defaults to [`ToggleButtonVariant::Filled`].
     pub fn variant(mut self, variant: ToggleButtonVariant) -> Self {
         self.variant = variant;
         self
@@ -647,6 +675,7 @@ impl ToggleButton {
         self
     }
 
+    /// Invoked with the requested next selected state when the toggle button is activated.
     pub fn on_change(mut self, handler: impl Fn(bool, &mut Window, &mut App) + 'static) -> Self {
         self.on_change = Some(Rc::new(handler));
         self
@@ -713,6 +742,7 @@ pub struct IconButton {
 }
 
 impl IconButton {
+    /// Creates an icon button with the default [`IconButtonVariant::Standard`] emphasis.
     pub fn new(
         id: impl Into<ElementId>,
         name: impl Into<SharedString>,
@@ -766,11 +796,13 @@ impl IconButton {
     common_builders!();
     appearance_builders!();
 
+    /// Sets the visual emphasis variant. Defaults to [`IconButtonVariant::Standard`].
     pub fn variant(mut self, variant: IconButtonVariant) -> Self {
         self.variant = variant;
         self
     }
 
+    /// Sets the horizontal width preset. Defaults to [`IconButtonWidth::Uniform`].
     pub fn width(mut self, width: IconButtonWidth) -> Self {
         self.width = width;
         self
@@ -783,6 +815,7 @@ impl IconButton {
         self
     }
 
+    /// Invoked once when the icon button is activated via pointer, keyboard, or assistive technology.
     pub fn on_activate(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
         self.on_activate = Some(Rc::new(handler));
         self
@@ -828,6 +861,7 @@ pub struct IconToggleButton {
 }
 
 impl IconToggleButton {
+    /// Creates a controlled icon toggle button with the default [`IconButtonVariant::Standard`] emphasis.
     pub fn new(
         id: impl Into<ElementId>,
         name: impl Into<SharedString>,
@@ -888,16 +922,19 @@ impl IconToggleButton {
     common_builders!();
     appearance_builders!();
 
+    /// Supplies an alternate icon displayed when `selected` is `true`.
     pub fn selected_icon(mut self, icon: impl IntoElement) -> Self {
         self.selected_icon = Some(icon.into_any_element());
         self
     }
 
+    /// Sets the visual emphasis variant. Defaults to [`IconButtonVariant::Standard`].
     pub fn variant(mut self, variant: IconButtonVariant) -> Self {
         self.variant = variant;
         self
     }
 
+    /// Sets the horizontal width preset. Defaults to [`IconButtonWidth::Uniform`].
     pub fn width(mut self, width: IconButtonWidth) -> Self {
         self.width = width;
         self
@@ -910,6 +947,7 @@ impl IconToggleButton {
         self
     }
 
+    /// Invoked with the requested next selected state when the icon toggle button is activated.
     pub fn on_change(mut self, handler: impl Fn(bool, &mut Window, &mut App) + 'static) -> Self {
         self.on_change = Some(Rc::new(handler));
         self

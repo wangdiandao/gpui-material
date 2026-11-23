@@ -7,19 +7,27 @@ use crate::SemanticTone;
 /// Alignment of the slots within one row.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ListItemAlignment {
+    /// Adapts automatically based on line count (centered for 1–2 lines, top-aligned for 3+ lines).
     #[default]
     Auto,
+    /// Aligns slots to the top edge of the row.
     Start,
+    /// Vertically centers slots within the row.
     Center,
+    /// Aligns slots to the bottom edge of the row.
     End,
 }
 
 /// Logical padding in pixels. Using the builder replaces the adaptive defaults.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ListItemPadding {
+    /// Leading-edge padding (left in LTR, right in RTL). Defaults to `16 px`.
     pub start: Pixels,
+    /// Trailing-edge padding (right in LTR, left in RTL). Defaults to `16 px`.
     pub end: Pixels,
+    /// Top padding in logical pixels. Defaults to `10 px`.
     pub top: Pixels,
+    /// Bottom padding in logical pixels. Defaults to `10 px`.
     pub bottom: Pixels,
 }
 
@@ -38,11 +46,17 @@ impl Default for ListItemPadding {
 /// shape, including the list's grouped corners.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ListItemShapes {
+    /// Corner shape while resting and unselected.
     pub resting: Option<CornerShape>,
+    /// Corner shape while selected.
     pub selected: Option<CornerShape>,
+    /// Corner shape while pressed.
     pub pressed: Option<CornerShape>,
+    /// Corner shape while keyboard focus is visible.
     pub focused: Option<CornerShape>,
+    /// Corner shape while hovered.
     pub hovered: Option<CornerShape>,
+    /// Corner shape while dragged.
     pub dragged: Option<CornerShape>,
 }
 
@@ -79,20 +93,30 @@ impl ListItemShapes {
 /// Independent colors inherited by the container and each slot in one state.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ListItemStateColors {
+    /// Row container background color.
     pub container: Option<Hsla>,
+    /// Primary headline text color.
     pub content: Option<Hsla>,
+    /// Leading slot foreground color.
     pub leading: Option<Hsla>,
+    /// Trailing slot foreground color.
     pub trailing: Option<Hsla>,
+    /// Overline text color.
     pub overline: Option<Hsla>,
+    /// Supporting text color.
     pub supporting: Option<Hsla>,
 }
 
 /// Per-row palette. Omitted colors use the current window's theme.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ListItemColors {
+    /// Colors in the default enabled, unselected state.
     pub normal: ListItemStateColors,
+    /// Colors when the row is disabled.
     pub disabled: ListItemStateColors,
+    /// Colors when the row is selected.
     pub selected: ListItemStateColors,
+    /// Colors when the row is dragged.
     pub dragged: ListItemStateColors,
 }
 
@@ -183,11 +207,17 @@ impl ListItemColors {
 /// Per-state shadow levels. Rows default to Level0, or Level4 while dragged.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct ListItemElevations {
+    /// Elevation while resting.
     pub resting: Option<Elevation>,
+    /// Elevation while hovered.
     pub hovered: Option<Elevation>,
+    /// Elevation while keyboard focus is visible.
     pub focused: Option<Elevation>,
+    /// Elevation while pressed.
     pub pressed: Option<Elevation>,
+    /// Elevation while dragged.
     pub dragged: Option<Elevation>,
+    /// Elevation while disabled.
     pub disabled: Option<Elevation>,
 }
 

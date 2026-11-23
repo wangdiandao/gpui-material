@@ -66,3 +66,14 @@ web-time = { workspace = true, optional = true }
 [target.'cfg(windows)'.dependencies]
 raw-window-handle = { version = "0.6.2", optional = true }
 windows = { version = "0.62.2", features = ["Win32_UI_WindowsAndMessaging"], optional = true }
+
+[package.metadata.docs.rs]
+features = [
+    "carousel",
+    "date-time",
+    "expressive-groups",
+    "search",
+    "toolbars",
+    "window-chrome",
+]
+rustdoc-args = ["--cfg", "docsrs"]

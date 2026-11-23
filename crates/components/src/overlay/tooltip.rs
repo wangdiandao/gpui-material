@@ -100,6 +100,7 @@ pub struct Tooltip {
 }
 
 impl Tooltip {
+    /// Creates a plain tooltip anchored to `trigger` with the given descriptive text.
     pub fn plain(
         id: impl Into<ElementId>,
         trigger: impl IntoElement,
@@ -133,6 +134,7 @@ impl Tooltip {
         }
     }
 
+    /// Creates a rich tooltip anchored to `trigger` with a title and body text.
     pub fn rich(
         id: impl Into<ElementId>,
         trigger: impl IntoElement,
@@ -170,12 +172,14 @@ impl Tooltip {
         self
     }
 
+    /// Replaces the rich tooltip title with custom content.
     pub fn title_content(mut self, content: impl IntoElement) -> Self {
         self.rich = true;
         self.title_content = Some(content.into_any_element());
         self
     }
 
+    /// Replaces the tooltip body text with custom content while keeping the constructor text as the accessible description.
     pub fn body_content(mut self, content: impl IntoElement) -> Self {
         self.body_content = Some(content.into_any_element());
         self
@@ -252,6 +256,7 @@ impl Tooltip {
         self
     }
 
+    /// Sets the preferred side relative to the trigger (default [`TooltipPlacement::Above`]).
     pub fn placement(mut self, placement: TooltipPlacement) -> Self {
         self.placement = placement;
         self
@@ -273,31 +278,37 @@ impl Tooltip {
         self
     }
 
+    /// Renders a pointer caret pointing toward the trigger.
     pub fn caret(mut self, caret: TooltipCaret) -> Self {
         self.appearance.caret = Some(caret);
         self
     }
 
+    /// Overrides the maximum width of the tooltip surface in logical pixels.
     pub fn max_width(mut self, width: Pixels) -> Self {
         self.appearance.max_width = Some(finite_length(width));
         self
     }
 
+    /// Overrides the corner shape of the tooltip surface.
     pub fn shape(mut self, shape: CornerShape) -> Self {
         self.appearance.shape = Some(shape);
         self
     }
 
+    /// Overrides the tooltip's container, content, title, and action colors.
     pub fn colors(mut self, colors: TooltipColors) -> Self {
         self.appearance.colors = colors;
         self
     }
 
+    /// Sets the tonal elevation used to tint the tooltip surface.
     pub fn tonal_elevation(mut self, elevation: Elevation) -> Self {
         self.appearance.tonal_elevation = elevation;
         self
     }
 
+    /// Overrides the shadow elevation cast by the tooltip surface.
     pub fn shadow_elevation(mut self, elevation: Elevation) -> Self {
         self.appearance.shadow_elevation = Some(elevation);
         self

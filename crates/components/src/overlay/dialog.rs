@@ -94,17 +94,24 @@ pub(super) fn modal_backdrop(
 /// An accepted transition from an open to a closed Material dialog.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DialogCloseReason {
+    /// Closed by activating the confirmation action.
     Confirm,
+    /// Closed by activating the cancel or close action.
     Cancel,
+    /// Closed by pressing the Escape key.
     Escape,
+    /// Closed by clicking the modal scrim outside the surface.
     OutsideClick,
+    /// Closed by the user closing a native dialog window.
     WindowClose,
+    /// Closed programmatically via [`DialogState::close`].
     Programmatic,
 }
 
 /// Window-relative presentation for a Material dialog.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum DialogVariant {
+    /// Standard centered modal dialog.
     #[default]
     Basic,
     /// Uses a full-screen task surface in compact windows and a basic dialog
@@ -115,7 +122,9 @@ pub enum DialogVariant {
 /// User dismissal routes for a Material dialog.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DialogProperties {
+    /// Whether pressing Escape requests dismissal (default `true`).
     pub dismiss_on_escape: bool,
+    /// Whether clicking the backdrop scrim requests dismissal (default `true`).
     pub dismiss_on_outside_click: bool,
 }
 
@@ -131,9 +140,13 @@ impl Default for DialogProperties {
 /// Local overrides for a dialog surface and its content slots.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct DialogColors {
+    /// Background color override for the dialog container.
     pub container: Option<Hsla>,
+    /// Foreground color override for the optional header icon.
     pub icon: Option<Hsla>,
+    /// Foreground color override for the dialog title.
     pub title: Option<Hsla>,
+    /// Foreground color override for the supporting description text.
     pub text: Option<Hsla>,
 }
 
@@ -200,6 +213,7 @@ pub struct Dialog {
 }
 
 impl Dialog {
+    /// Creates a basic Material dialog bound to `state` with the given accessible title.
     pub fn new(
         id: impl Into<ElementId>,
         state: &Entity<DialogState>,
@@ -330,11 +344,13 @@ impl Dialog {
         Ok(Some(window.into()))
     }
 
+    /// Sets the presentation variant (default [`DialogVariant::Basic`]).
     pub fn variant(mut self, variant: DialogVariant) -> Self {
         self.variant = variant;
         self
     }
 
+    /// Adds a decorative icon above the dialog title.
     pub fn icon(mut self, icon: impl IntoElement) -> Self {
         self.icon = Some(icon.into_any_element());
         self
@@ -346,16 +362,19 @@ impl Dialog {
         self
     }
 
+    /// Shows or hides the visible title while preserving the accessible dialog name.
     pub fn show_title(mut self, show: bool) -> Self {
         self.show_title = show;
         self
     }
 
+    /// Sets the supporting text displayed beneath the dialog title.
     pub fn description(mut self, description: impl Into<SharedString>) -> Self {
         self.description = Some(description.into());
         self
     }
 
+    /// Sets custom body content rendered inside the dialog's scrollable body region.
     pub fn body(mut self, body: impl IntoElement) -> Self {
         let body = body.into_any_element();
         self.body = Some(Box::new(|_, _| body));
@@ -431,6 +450,7 @@ impl Dialog {
         self
     }
 
+    /// Overrides the label of the default cancellation button (default `"Cancel"`).
     pub fn cancel_label(mut self, label: impl Into<SharedString>) -> Self {
         self.cancel = label.into();
         self
@@ -448,6 +468,7 @@ impl Dialog {
         self
     }
 
+    /// Configures Escape and outside-click dismissal behavior.
     pub fn properties(mut self, properties: DialogProperties) -> Self {
         self.properties = properties;
         self
@@ -471,11 +492,13 @@ impl Dialog {
         self
     }
 
+    /// Overrides the corner shape of the dialog surface.
     pub fn shape(mut self, shape: CornerShape) -> Self {
         self.shape = Some(shape);
         self
     }
 
+    /// Overrides the dialog's container, icon, title, and text colors.
     pub fn colors(mut self, colors: DialogColors) -> Self {
         self.colors = colors;
         self
@@ -487,11 +510,13 @@ impl Dialog {
         self
     }
 
+    /// Overrides the shadow elevation cast by the dialog surface.
     pub fn shadow_elevation(mut self, elevation: Elevation) -> Self {
         self.shadow_elevation = Some(elevation);
         self
     }
 
+    /// Overrides the backdrop scrim color.
     pub fn scrim_color(mut self, color: Hsla) -> Self {
         self.scrim_color = Some(color);
         self

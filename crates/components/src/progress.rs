@@ -23,17 +23,22 @@ const MAX_WAVES: f32 = 128.;
 /// Straight or Expressive wavy active progress indicator.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ProgressShape {
+    /// Standard flat bar or circular arc.
     #[default]
     Straight,
+    /// Expressive animated sine-wave active stroke.
     Wavy,
 }
 
 /// Shape at the ends of a progress stroke.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ProgressCap {
+    /// Semicircular stroke end caps (default).
     #[default]
     Round,
+    /// Flat stroke ends flush with the segment endpoints.
     Butt,
+    /// Square stroke ends extending half the stroke width past the endpoints.
     Square,
 }
 
@@ -41,17 +46,24 @@ pub enum ProgressCap {
 /// the window palette's active or track role.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ProgressStroke {
+    /// Stroke thickness in logical pixels. Defaults to `4 px`.
     pub width: Option<Pixels>,
+    /// Explicit stroke color overriding the theme or semantic tone role.
     pub color: Option<Hsla>,
+    /// End-cap geometry for this stroke.
     pub cap: ProgressCap,
 }
 
 /// Geometry and appearance passed to a linear determinate stop painter.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ProgressStop {
+    /// Clipped bounding box of the trailing stop indicator.
     pub bounds: Bounds<Pixels>,
+    /// Resolved active indicator color.
     pub color: Hsla,
+    /// Active stroke cap style.
     pub cap: ProgressCap,
+    /// Active layout direction (`Ltr` or `Rtl`).
     pub direction: Direction,
 }
 
@@ -339,10 +351,12 @@ impl LinearProgress {
 macro_rules! progress_api {
     ($name:ident, $circular:literal) => {
         impl $name {
+            /// Creates an indeterminate progress indicator with the given element ID and accessible name.
             pub fn new(id: impl Into<ElementId>, name: impl Into<SharedString>) -> Self {
                 Self(Progress::new(id, name))
             }
 
+            /// Sets determinate progress as a fraction in `0.0..=1.0` (clamped during render).
             pub fn value(mut self, value: f32) -> Self {
                 self.0.value = Some(value);
                 self
@@ -354,6 +368,7 @@ macro_rules! progress_api {
                 self
             }
 
+            /// Selects straight or Expressive wavy active stroke geometry.
             pub fn shape(mut self, shape: ProgressShape) -> Self {
                 self.0.shape = shape;
                 self
@@ -366,11 +381,13 @@ macro_rules! progress_api {
                 self
             }
 
+            /// Overrides the active indicator stroke width, color, and cap.
             pub fn active_stroke(mut self, stroke: ProgressStroke) -> Self {
                 self.0.active = stroke;
                 self
             }
 
+            /// Overrides the background track stroke width, color, and cap.
             pub fn track_stroke(mut self, stroke: ProgressStroke) -> Self {
                 self.0.track = stroke;
                 self

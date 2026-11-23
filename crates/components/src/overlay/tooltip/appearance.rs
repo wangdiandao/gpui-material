@@ -12,12 +12,18 @@ use crate::{button_style::finite_length, motion::OverlayMotion};
 /// Preferred tooltip side. Start and End resolve against the window's direction.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum TooltipPlacement {
+    /// Place the tooltip above the trigger.
     #[default]
     Above,
+    /// Place the tooltip below the trigger.
     Below,
+    /// Place the tooltip to the physical left of the trigger.
     Left,
+    /// Place the tooltip to the physical right of the trigger.
     Right,
+    /// Place the tooltip on the logical start side (left in LTR, right in RTL).
     Start,
+    /// Place the tooltip on the logical end side (right in LTR, left in RTL).
     End,
 }
 
@@ -39,9 +45,13 @@ impl TooltipPlacement {
 /// Window-theme color overrides for a tooltip's individual slots.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct TooltipColors {
+    /// Background color override for the tooltip container.
     pub container: Option<Hsla>,
+    /// Foreground color override for the tooltip body text.
     pub content: Option<Hsla>,
+    /// Foreground color override for the rich tooltip title.
     pub title_content: Option<Hsla>,
+    /// Foreground color override for rich tooltip action buttons and links.
     pub action_content: Option<Hsla>,
 }
 

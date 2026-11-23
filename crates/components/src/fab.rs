@@ -23,9 +23,12 @@ use crate::motion::OverlayMotion;
 /// Expressive FAB sizes. Small is the 56 dp FAB and Small Extended FAB.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum FabSize {
+    /// 56 dp height (default).
     #[default]
     Small,
+    /// 80 dp height.
     Medium,
+    /// 96 dp height.
     Large,
 }
 
@@ -54,29 +57,45 @@ impl FabSize {
     }
 }
 
+/// Material color mapping for [`Fab`] and [`ExtendedFab`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum FabColor {
+    /// `PrimaryContainer` / `OnPrimaryContainer` (default).
     #[default]
     Primary,
+    /// `SecondaryContainer` / `OnSecondaryContainer`.
     Secondary,
+    /// `TertiaryContainer` / `OnTertiaryContainer`.
     Tertiary,
+    /// High-contrast `Primary` / `OnPrimary`.
     PrimaryStrong,
+    /// High-contrast `Secondary` / `OnSecondary`.
     SecondaryStrong,
+    /// High-contrast `Tertiary` / `OnTertiary`.
     TertiaryStrong,
 }
 
 /// Logical pivot for the FAB's visibility transition.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum FabAlignment {
+    /// Top-leading corner (top-left in LTR, top-right in RTL).
     TopStart,
+    /// Top-center edge.
     TopCenter,
+    /// Top-trailing corner (top-right in LTR, top-left in RTL).
     TopEnd,
+    /// Vertical center, leading edge.
     CenterStart,
+    /// Center of the FAB footprint (default).
     #[default]
     Center,
+    /// Vertical center, trailing edge.
     CenterEnd,
+    /// Bottom-leading corner (bottom-left in LTR, bottom-right in RTL).
     BottomStart,
+    /// Bottom-center edge.
     BottomCenter,
+    /// Bottom-trailing corner (bottom-right in LTR, bottom-left in RTL).
     BottomEnd,
 }
 
@@ -107,6 +126,7 @@ impl FabAlignment {
 /// Appearance and disappearance motion for a controlled FAB.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FabVisibilityAnimation {
+    /// Logical anchor point about which the FAB scales during show/hide transitions.
     pub alignment: FabAlignment,
     /// The ending scale of a hide and the starting scale of a show.
     /// Negative, non-finite, or overflowing values use the default of 0.2.
@@ -329,11 +349,13 @@ impl FabAppearance {
 
 macro_rules! fab_builders {
     () => {
+        /// Sets the Expressive FAB size tier. Defaults to [`FabSize::Small`].
         pub fn size(mut self, size: FabSize) -> Self {
             self.content.size = size;
             self
         }
 
+        /// Sets the FAB color palette preset. Defaults to [`FabColor::Primary`].
         pub fn color(mut self, color: FabColor) -> Self {
             self.content.color = color;
             self
@@ -346,11 +368,13 @@ macro_rules! fab_builders {
             self
         }
 
+        /// Uses a caller-owned focus handle for keyboard traversal and focus state.
         pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
             self.content.focus = Some(focus.clone());
             self
         }
 
+        /// Invoked once when the FAB is activated via pointer, keyboard, or assistive technology.
         pub fn on_activate(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
             self.content.on_activate = Some(Rc::new(handler));
             self
@@ -405,6 +429,7 @@ pub struct Fab {
 }
 
 impl Fab {
+    /// Creates a floating action button with an element ID, required accessible name, and icon.
     pub fn new(
         id: impl Into<ElementId>,
         name: impl Into<SharedString>,
@@ -741,6 +766,7 @@ pub struct FloatingAction {
 }
 
 impl FloatingAction {
+    /// Anchors `action` to the viewport's logical bottom-end corner with a default 16 dp margin.
     pub fn new(action: impl IntoElement) -> Self {
         Self {
             action: action.into_any_element(),
@@ -748,6 +774,7 @@ impl FloatingAction {
         }
     }
 
+    /// Sets the inset from the viewport edges in logical pixels (clamped to non-negative values).
     pub fn margin(mut self, margin: gpui::Pixels) -> Self {
         self.margin = margin.max(px(0.));
         self

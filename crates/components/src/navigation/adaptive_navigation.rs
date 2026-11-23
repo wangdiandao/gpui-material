@@ -18,15 +18,20 @@ use super::{
 /// Current Material 3 Expressive navigation presentations.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AdaptiveNavigationType {
+    /// Compact bottom navigation bar with vertical icon-over-label items.
     ShortBarCompact,
+    /// Medium bottom navigation bar with horizontal icon-beside-label items.
     ShortBarMedium,
+    /// Collapsed side navigation rail.
     RailCollapsed,
+    /// Expanded side navigation rail with inline labels.
     RailExpanded,
     /// Leaves the scaffold's existing slots in place.
     None,
 }
 
 impl AdaptiveNavigationType {
+    /// Selects the default Material navigation presentation for the given available width.
     pub fn for_width(width: Pixels) -> Self {
         match WidthClass::from_width(width.into()) {
             WidthClass::Compact => Self::ShortBarCompact,
@@ -43,15 +48,21 @@ impl AdaptiveNavigationType {
 /// Available scaffold space for an application-supplied navigation policy.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AdaptiveNavigationInfo {
+    /// Bounded width and height available to the scaffold.
     pub available_size: Size<Pixels>,
+    /// Material width class derived from `available_size.width`.
     pub width_class: WidthClass,
+    /// Active layout direction from the window theme.
     pub direction: Direction,
 }
 
+/// Settled visibility of the adaptive navigation slot.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum AdaptiveNavigationVisibility {
+    /// The navigation bar or rail is visible.
     #[default]
     Shown,
+    /// The navigation bar or rail is hidden.
     Hidden,
 }
 
@@ -77,6 +88,7 @@ impl Default for AdaptiveNavigationState {
 }
 
 impl AdaptiveNavigationState {
+    /// Creates retained navigation visibility state starting at `initial` with a 240 ms default transition.
     pub fn new(initial: AdaptiveNavigationVisibility) -> Self {
         Self {
             current: initial,
@@ -87,6 +99,7 @@ impl AdaptiveNavigationState {
         }
     }
 
+    /// Sets the duration used when animating between shown and hidden states.
     pub fn transition_duration(mut self, duration: Duration) -> Self {
         self.duration = duration;
         self
@@ -97,10 +110,12 @@ impl AdaptiveNavigationState {
         self.current
     }
 
+    /// Visibility state currently settled at or transitioning toward.
     pub fn target_value(&self) -> AdaptiveNavigationVisibility {
         self.target
     }
 
+    /// Returns whether a show/hide transition is currently running.
     pub fn is_animating(&self) -> bool {
         self.transition.is_animating()
     }
@@ -110,14 +125,17 @@ impl AdaptiveNavigationState {
         self.fraction
     }
 
+    /// Animates the navigation slot to [`AdaptiveNavigationVisibility::Shown`].
     pub fn show(&mut self, cx: &mut Context<Self>) {
         self.animate_to(AdaptiveNavigationVisibility::Shown, cx);
     }
 
+    /// Animates the navigation slot to [`AdaptiveNavigationVisibility::Hidden`].
     pub fn hide(&mut self, cx: &mut Context<Self>) {
         self.animate_to(AdaptiveNavigationVisibility::Hidden, cx);
     }
 
+    /// Toggles the target visibility between shown and hidden.
     pub fn toggle(&mut self, cx: &mut Context<Self>) {
         match self.target {
             AdaptiveNavigationVisibility::Shown => self.hide(cx),
@@ -125,6 +143,7 @@ impl AdaptiveNavigationState {
         }
     }
 
+    /// Moves immediately to `value` without animation.
     pub fn snap_to(&mut self, value: AdaptiveNavigationVisibility, cx: &mut Context<Self>) {
         if self.current != value || self.target != value || self.is_animating() {
             self.target = value;
@@ -228,10 +247,12 @@ impl AdaptiveNavigation {
         self
     }
 
+    /// Forces a fixed navigation presentation regardless of available width.
     pub fn navigation_type(self, kind: AdaptiveNavigationType) -> Self {
         self.navigation_policy(move |_| kind)
     }
 
+    /// Supplies a custom policy that maps [`AdaptiveNavigationInfo`] to a presentation type.
     pub fn navigation_policy(
         mut self,
         policy: impl FnOnce(AdaptiveNavigationInfo) -> AdaptiveNavigationType + 'static,
@@ -240,6 +261,7 @@ impl AdaptiveNavigation {
         self
     }
 
+    /// Binds retained visibility state for animated showing and hiding of the navigation slot.
     pub fn state(mut self, state: &Entity<AdaptiveNavigationState>) -> Self {
         self.state = Some(state.clone());
         self
@@ -256,6 +278,7 @@ impl AdaptiveNavigation {
         self
     }
 
+    /// Customizes the generated [`NavigationBar`] when a bottom-bar presentation is active.
     pub fn navigation_bar(
         mut self,
         build: impl FnOnce(AdaptiveNavigationType, NavigationBar) -> NavigationBar + 'static,
@@ -264,6 +287,7 @@ impl AdaptiveNavigation {
         self
     }
 
+    /// Customizes the generated [`NavigationRail`] when a side-rail presentation is active.
     pub fn navigation_rail(
         mut self,
         build: impl FnOnce(AdaptiveNavigationType, NavigationRail) -> NavigationRail + 'static,

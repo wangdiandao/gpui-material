@@ -2,6 +2,8 @@
 //!
 //! The caller owns the theme and supplies current window metrics and system preferences.
 #![forbid(unsafe_code)]
+#![warn(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links)]
 
 mod color;
 #[cfg(feature = "dynamic-color")]
@@ -36,9 +38,13 @@ pub use typography::{FontFamilies, TypeRole, TypeStyle, Typeface, Typography, Ty
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MaterialTheme {
+    /// Semantic color roles and appearance for this theme.
     pub colors: ColorScheme,
+    /// Font families and type scale configuration.
     pub typography: Typography,
+    /// Spring motion scheme (`Standard` or `Expressive`).
     pub motion: MotionScheme,
+    /// Desktop density and layout direction policy.
     pub layout: LayoutPolicy,
 }
 
@@ -60,31 +66,37 @@ impl MaterialTheme {
         }
     }
 
+    /// Replaces the theme's [`ColorScheme`].
     pub fn with_colors(mut self, colors: ColorScheme) -> Self {
         self.colors = colors;
         self
     }
 
+    /// Replaces the theme's [`Typography`] configuration.
     pub fn with_typography(mut self, typography: Typography) -> Self {
         self.typography = typography;
         self
     }
 
+    /// Replaces the theme's [`MotionScheme`].
     pub fn with_motion(mut self, motion: MotionScheme) -> Self {
         self.motion = motion;
         self
     }
 
+    /// Replaces the theme's [`LayoutPolicy`].
     pub fn with_layout(mut self, layout: LayoutPolicy) -> Self {
         self.layout = layout;
         self
     }
 
+    /// Sets the desktop [`Density`] in [`Self::layout`].
     pub fn with_density(mut self, density: Density) -> Self {
         self.layout.density = density;
         self
     }
 
+    /// Sets the layout [`Direction`] in [`Self::layout`].
     pub fn with_direction(mut self, direction: Direction) -> Self {
         self.layout.direction = direction;
         self
@@ -95,19 +107,33 @@ impl MaterialTheme {
 /// resolve through the current [ColorScheme].
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TokenValue {
+    /// A literal packed sRGB color (`md.ref.palette.*` or resolved mode color).
     Color(Argb),
+    /// A semantic color role resolved against the active [`ColorScheme`].
     ColorRole(ColorRole),
+    /// A corner rounding specification (`CornerShape::Full` or four corner radii).
     Corners(CornerShape),
+    /// A non-negative logical dimension in density-independent pixels (`dp`).
     Dp(f32),
+    /// A signed logical offset in density-independent pixels (`dp`).
     DpOffset(f32),
+    /// A complete Material typographic style.
     TypeStyle(TypeStyle),
+    /// A cubic Bézier easing curve.
     Easing(CubicBezier),
+    /// A motion duration in milliseconds.
     Milliseconds(u16),
+    /// A normalized alpha or state-layer opacity in `0.0..=1.0`.
     Opacity(f32),
+    /// A Material 3 Expressive polygon shape specification.
     Polygon(PolygonSpec),
+    /// A typographic measurement in scale-independent pixels (`sp`).
     Sp(f32),
+    /// A unit-mass spring physics specification.
     Spring(Spring),
+    /// A logical typeface slot (`Brand` or `Plain`).
     Typeface(Typeface),
+    /// A CSS-style numeric font weight (`1..=1000`).
     Weight(u16),
 }
 

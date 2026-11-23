@@ -20,7 +20,9 @@ const DEFAULT_TEXT_LINE_HEIGHT: Pixels = px(16.);
 /// Defaults to `SurfaceContainerHigh` and `SurfaceContainerHighest`.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SkeletonColors {
+    /// Resting fill color of the skeleton placeholder.
     pub base: Option<Hsla>,
+    /// Peak pulse highlight color interpolated during animation.
     pub highlight: Option<Hsla>,
 }
 

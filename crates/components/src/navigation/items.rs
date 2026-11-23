@@ -16,20 +16,30 @@ use render::RowState;
 /// Placement of a navigation item's icon relative to its label.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NavigationItemIconPosition {
+    /// Place the icon above the label.
     Top,
+    /// Place the icon at the logical start of the label.
     Start,
 }
 
 /// Optional pigments for an Expressive navigation destination.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct NavigationItemColors {
+    /// Icon color when the destination is selected.
     pub selected_icon: Option<Hsla>,
+    /// Label color when selected and the icon is positioned above the label.
     pub selected_label_top: Option<Hsla>,
+    /// Label color when selected and the icon is positioned at the logical start.
     pub selected_label_start: Option<Hsla>,
+    /// Fill color for the selected destination pill indicator.
     pub selected_indicator: Option<Hsla>,
+    /// Icon color when the destination is unselected.
     pub unselected_icon: Option<Hsla>,
+    /// Label color when the destination is unselected.
     pub unselected_label: Option<Hsla>,
+    /// Icon color when the destination is disabled.
     pub disabled_icon: Option<Hsla>,
+    /// Label color when the destination is disabled.
     pub disabled_label: Option<Hsla>,
 }
 
@@ -48,6 +58,7 @@ pub struct NavigationItem {
 }
 
 impl NavigationItem {
+    /// Creates a navigation destination or tab with a unique ID and visible label.
     pub fn new(id: impl Into<SharedString>, label: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
@@ -63,11 +74,13 @@ impl NavigationItem {
         }
     }
 
+    /// Sets the destination's icon.
     pub fn icon(mut self, icon: Icon) -> Self {
         self.icon = Some(icon);
         self
     }
 
+    /// Disables pointer and keyboard activation for this destination.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
@@ -132,6 +145,7 @@ pub struct NavigationItems {
 }
 
 impl NavigationItems {
+    /// Creates a controlled navigation collection with an element ID, accessible landmark label, and items.
     pub fn new(
         id: impl Into<ElementId>,
         label: impl Into<SharedString>,
@@ -150,6 +164,7 @@ impl NavigationItems {
         }
     }
 
+    /// Sets the ID of the currently selected destination.
     pub fn selected(mut self, id: impl Into<SharedString>) -> Self {
         self.selected = Some(id.into());
         self
@@ -165,6 +180,7 @@ impl NavigationItems {
         self
     }
 
+    /// Multiplies item label typography scale by a positive finite factor (default `1.0`).
     pub fn font_scale(mut self, scale: f32) -> Self {
         self.font_scale = if scale.is_finite() && scale > 0. {
             scale
@@ -229,25 +245,32 @@ impl NavigationItems {
     }
 }
 
+/// Icon-and-label orientation for items inside a [`NavigationBar`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum NavigationBarLayout {
+    /// Stack the icon above the label.
     #[default]
     Vertical,
+    /// Place the icon beside the label at the logical start.
     Horizontal,
 }
 
 /// Distribution of the navigation items along the width of the bar.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum NavigationBarArrangement {
+    /// Distribute items evenly across the full width of the bar.
     #[default]
     EqualWeight,
+    /// Group items together centered along the bar.
     Centered,
 }
 
 /// Short navigation bar pigments. Item overrides take precedence over `content`.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct NavigationBarColors {
+    /// Background color override for the navigation bar container.
     pub container: Option<Hsla>,
+    /// Default foreground color override for bar item content.
     pub content: Option<Hsla>,
 }
 
@@ -261,6 +284,7 @@ pub struct NavigationBar {
 }
 
 impl NavigationBar {
+    /// Creates a short navigation bar displaying the given [`NavigationItems`].
     pub fn new(items: NavigationItems) -> Self {
         Self {
             items,
@@ -270,16 +294,19 @@ impl NavigationBar {
         }
     }
 
+    /// Sets the item icon-and-label layout (default [`NavigationBarLayout::Vertical`]).
     pub fn layout(mut self, layout: NavigationBarLayout) -> Self {
         self.layout = layout;
         self
     }
 
+    /// Sets how items are distributed across the bar width (default [`NavigationBarArrangement::EqualWeight`]).
     pub fn arrangement(mut self, arrangement: NavigationBarArrangement) -> Self {
         self.arrangement = arrangement;
         self
     }
 
+    /// Overrides container and default content colors for the bar.
     pub fn colors(mut self, colors: NavigationBarColors) -> Self {
         self.colors = colors;
         self

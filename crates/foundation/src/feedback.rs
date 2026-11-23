@@ -15,10 +15,15 @@ const FOCUS_RING_WIDTH: Pixels = px(3.);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct InteractionState {
+    /// Whether the control is currently disabled.
     pub disabled: bool,
+    /// Whether a pointer is hovering over the control.
     pub hovered: bool,
+    /// Whether the control holds visible keyboard focus.
     pub focus_visible: bool,
+    /// Whether the control is actively pressed.
     pub pressed: bool,
+    /// Whether the control is actively being dragged.
     pub dragged: bool,
 }
 
@@ -33,6 +38,8 @@ impl InteractionState {
         .layer()
     }
 
+    /// Resolves the highest-priority Material [`StateLayer`] for this interaction snapshot,
+    /// or `None` when disabled or idle.
     pub fn layer(self) -> Option<StateLayer> {
         if self.disabled {
             None
@@ -168,6 +175,8 @@ pub struct InteractionFeedback {
 }
 
 impl InteractionFeedback {
+    /// Creates an [`InteractionFeedback`] painter from the current interaction state,
+    /// state-layer/ripple ink color (`foreground`), and keyboard focus ring color (`focus`).
     pub fn new(state: InteractionState, foreground: Hsla, focus: Hsla) -> Self {
         Self {
             state,

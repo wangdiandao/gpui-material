@@ -118,6 +118,7 @@ impl ScrollFieldState {
         }
     }
 
+    /// Returns the total number of selectable options in this scroll field.
     pub fn item_count(&self) -> usize {
         self.item_count
     }
@@ -140,10 +141,12 @@ impl ScrollFieldState {
         (self.item_count > 0).then_some(self.target)
     }
 
+    /// Returns whether a scroll gesture or settling animation is currently active.
     pub fn is_scroll_in_progress(&self) -> bool {
         self.motion.is_some() || self.gesture_start.is_some()
     }
 
+    /// Returns the retained focus handle for this scroll field.
     pub fn focus_handle(&self) -> &FocusHandle {
         &self.focus
     }
@@ -345,11 +348,17 @@ impl ScrollFieldState {
 /// Optional overrides for the window theme's scroll field colors.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ScrollFieldColors {
+    /// Background fill color when enabled.
     pub container: Option<Hsla>,
+    /// Text color of non-selected rows when enabled.
     pub content: Option<Hsla>,
+    /// Text color of the centered selected row when enabled.
     pub selected_content: Option<Hsla>,
+    /// Background fill color when disabled.
     pub disabled_container: Option<Hsla>,
+    /// Text color of non-selected rows when disabled.
     pub disabled_content: Option<Hsla>,
+    /// Text color of the centered selected row when disabled.
     pub disabled_selected_content: Option<Hsla>,
 }
 
@@ -397,6 +406,7 @@ pub struct ScrollField {
 }
 
 impl ScrollField {
+    /// Creates a scroll field with an element `id`, accessible `name`, and caller-owned `state`.
     pub fn new(
         id: impl Into<ElementId>,
         name: impl Into<SharedString>,
@@ -416,11 +426,13 @@ impl ScrollField {
         }
     }
 
+    /// Disables pointer, scroll, keyboard, and accessibility interaction when `true`.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
+    /// Overrides the scroll field's local colors.
     pub fn colors(mut self, colors: ScrollFieldColors) -> Self {
         self.colors = colors;
         self
@@ -432,6 +444,7 @@ impl ScrollField {
         self
     }
 
+    /// Connects an [`InteractionSource`] to observe hover, press, drag, and focus states.
     pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
         self.source = Some(source.clone());
         self

@@ -138,14 +138,17 @@ pub struct ShapedText {
 }
 
 impl ShapedText {
+    /// Returns the underlying GPUI [`ShapedLine`].
     pub fn line(&self) -> &ShapedLine {
         &self.line
     }
 
+    /// Returns the resolved line height in logical pixels.
     pub fn line_height(&self) -> Pixels {
         self.line_height
     }
 
+    /// Paints the shaped text line at `origin` with the given horizontal alignment.
     pub fn paint(
         &self,
         origin: Point<Pixels>,

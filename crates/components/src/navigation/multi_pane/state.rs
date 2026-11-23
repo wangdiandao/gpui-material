@@ -8,9 +8,12 @@ use super::{PaneExpansionAnchor, PaneOverlayAlignment};
 /// Roles in a Material three-pane scaffold.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum PaneRole {
+    /// Main workspace or detail pane.
     #[default]
     Primary,
+    /// Supporting or master list pane.
     Secondary,
+    /// Auxiliary or extra pane.
     Tertiary,
 }
 
@@ -29,19 +32,26 @@ impl PaneRole {
 /// The strategy used when resolving a pane from navigation and the directive.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum PaneAdaptStrategy {
+    /// Hide the pane when horizontal partitions are exhausted.
     #[default]
     Hide,
+    /// Stack the pane beneath the specified anchor role in tall single-column viewports.
     Reflow(PaneRole),
+    /// Present the pane as a floating overlay aligned within the band.
     Levitate(PaneOverlayAlignment),
 }
 
 /// A pane's realized presentation.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum PanePlacement {
+    /// The pane is not displayed.
     #[default]
     Hidden,
+    /// The pane occupies a standard inline column.
     Expanded,
+    /// The pane is stacked vertically beneath the given anchor role.
     Reflow(PaneRole),
+    /// The pane floats as an overlay with the given alignment.
     Levitate(PaneOverlayAlignment),
 }
 
@@ -50,10 +60,12 @@ pub enum PanePlacement {
 pub struct PaneLayoutValue([PanePlacement; 3]);
 
 impl PaneLayoutValue {
+    /// Creates a layout value specifying the placement for each of the three pane roles.
     pub fn new(primary: PanePlacement, secondary: PanePlacement, tertiary: PanePlacement) -> Self {
         Self([primary, secondary, tertiary])
     }
 
+    /// Returns the realized placement for `role`.
     pub fn placement(self, role: PaneRole) -> PanePlacement {
         self[role]
     }
@@ -74,11 +86,14 @@ impl Index<PaneRole> for PaneLayoutValue {
 /// A history entry with an optional stable domain content key.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PaneDestination {
+    /// Target pane role for this history entry.
     pub role: PaneRole,
+    /// Optional domain content identifier used to distinguish entries within the same role.
     pub content_key: Option<ElementId>,
 }
 
 impl PaneDestination {
+    /// Creates a destination targeting `role` with no content key.
     pub fn new(role: PaneRole) -> Self {
         Self {
             role,
@@ -86,6 +101,7 @@ impl PaneDestination {
         }
     }
 
+    /// Attaches a stable domain content key to this destination.
     pub fn content_key(mut self, key: impl Into<ElementId>) -> Self {
         self.content_key = Some(key.into());
         self
@@ -95,10 +111,14 @@ impl PaneDestination {
 /// How many destinations a back operation can skip.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum PaneBackBehavior {
+    /// Pop exactly one destination from the history stack.
     PopLatest,
+    /// Pop until the resolved [`PaneLayoutValue`] changes.
     #[default]
     PopUntilScaffoldValueChange,
+    /// Pop until the active [`PaneRole`] changes.
     PopUntilCurrentDestinationChange,
+    /// Pop until either the content key or the resolved [`PaneLayoutValue`] changes.
     PopUntilContentChange,
 }
 
@@ -243,6 +263,7 @@ pub struct AdaptivePaneState {
 }
 
 impl AdaptivePaneState {
+    /// Creates retained multi-pane state seeded with an initial active destination.
     pub fn new(initial: PaneDestination) -> Self {
         let mut value = PaneLayoutValue::default();
         value.set(initial.role, PanePlacement::Expanded);
@@ -261,16 +282,19 @@ impl AdaptivePaneState {
         }
     }
 
+    /// Returns the most recent destination on the navigation stack.
     pub fn current_destination(&self) -> &PaneDestination {
         self.history
             .last()
             .expect("initial destination is retained")
     }
 
+    /// Returns the full navigation history stack in chronological order.
     pub fn history(&self) -> &[PaneDestination] {
         &self.history
     }
 
+    /// Controls whether prior history entries influence which secondary panes remain visible (default `true`).
     pub fn set_history_aware(&mut self, aware: bool, cx: &mut Context<Self>) {
         if self.history_aware != aware {
             self.history_aware = aware;
@@ -278,6 +302,7 @@ impl AdaptivePaneState {
         }
     }
 
+    /// Pushes `destination` onto the navigation history (if different from current) and follows navigation.
     pub fn navigate_to(&mut self, destination: PaneDestination, cx: &mut Context<Self>) {
         if self.current_destination() != &destination {
             self.history.push(destination);
@@ -286,14 +311,17 @@ impl AdaptivePaneState {
         self.follow_navigation(cx);
     }
 
+    /// Returns whether navigating back with `behavior` has a valid target in history.
     pub fn can_navigate_back(&self, behavior: PaneBackBehavior) -> bool {
         self.back_index(behavior).is_some()
     }
 
+    /// Computes the [`PaneLayoutValue`] that a back navigation with `behavior` would produce.
     pub fn previous_value(&self, behavior: PaneBackBehavior) -> Option<PaneLayoutValue> {
         self.back_index(behavior).map(|ix| self.history_value(ix))
     }
 
+    /// Pops history according to `behavior`. Returns `false` if back navigation is unavailable.
     pub fn navigate_back(&mut self, behavior: PaneBackBehavior, cx: &mut Context<Self>) -> bool {
         let Some(ix) = self.back_index(behavior) else {
             return false;
@@ -318,10 +346,12 @@ impl AdaptivePaneState {
         true
     }
 
+    /// Returns the last settled layout value.
     pub fn current_value(&self) -> PaneLayoutValue {
         self.current
     }
 
+    /// Returns the layout value currently settled at or transitioning toward.
     pub fn target_value(&self) -> PaneLayoutValue {
         self.target
     }
@@ -331,22 +361,27 @@ impl AdaptivePaneState {
         self.progress
     }
 
+    /// Snaps immediately to `value` without animation, overriding navigation projection until [`Self::follow_navigation`].
     pub fn snap_to(&mut self, value: PaneLayoutValue, cx: &mut Context<Self>) {
         self.request(Intent::Snap(value), cx);
     }
 
+    /// Animates to `value`, overriding navigation projection until [`Self::follow_navigation`].
     pub fn animate_to(&mut self, value: PaneLayoutValue, cx: &mut Context<Self>) {
         self.request(Intent::Animate(value), cx);
     }
 
+    /// Seeks partway (`progress` in `0.0..=1.0`) toward `value`.
     pub fn seek_to(&mut self, value: PaneLayoutValue, progress: f32, cx: &mut Context<Self>) {
         self.request(Intent::Seek(value, fraction(progress)), cx);
     }
 
+    /// Resumes projecting pane placements automatically from navigation history and viewport directives.
     pub fn follow_navigation(&mut self, cx: &mut Context<Self>) {
         self.request(Intent::Navigate, cx);
     }
 
+    /// Returns the saved split anchor between `start` and `end`, if any.
     pub fn expansion(&self, start: PaneRole, end: PaneRole) -> Option<PaneExpansionAnchor> {
         self.expansion[start.index() * 3 + end.index()]
     }
@@ -364,6 +399,7 @@ impl AdaptivePaneState {
         }
     }
 
+    /// Clears any saved split anchor between `start` and `end`, restoring default sizing.
     pub fn clear_expansion(&mut self, start: PaneRole, end: PaneRole, cx: &mut Context<Self>) {
         self.replace_expansion(start, end, None, cx);
     }

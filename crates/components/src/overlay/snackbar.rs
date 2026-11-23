@@ -23,7 +23,9 @@ type HostRenderer = Box<dyn Fn(&Snackbar, SnackbarParts, &mut Window, &mut App) 
 /// How a current snackbar left its host's queue.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SnackbarResult {
+    /// The snackbar's action button was activated.
     ActionPerformed,
+    /// The snackbar timed out, was dismissed by the user, or was dismissed programmatically.
     Dismissed,
 }
 
@@ -37,17 +39,24 @@ pub struct SnackbarId {
 /// Optional per-region colors. Omitted fields use the window's inverse palette.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SnackbarColors {
+    /// Background color override for the snackbar container.
     pub container: Option<Hsla>,
+    /// Foreground color override for the message text.
     pub content: Option<Hsla>,
+    /// Foreground color override for the action button.
     pub action: Option<Hsla>,
+    /// Foreground color override for the dismiss button.
     pub dismiss: Option<Hsla>,
 }
 
 /// Host-owned status and activation elements for a custom layout.
 #[non_exhaustive]
 pub struct SnackbarParts {
+    /// The rendered message element.
     pub message: AnyElement,
+    /// The optional rendered action control.
     pub action: Option<AnyElement>,
+    /// The optional rendered dismiss control.
     pub dismiss: Option<AnyElement>,
     /// Scale to apply to dimensions in the custom container.
     pub scale: f32,
@@ -72,6 +81,7 @@ pub struct Snackbar {
 }
 
 impl Snackbar {
+    /// Creates a snackbar with the given message text and a default four-second timeout.
     pub fn new(message: impl Into<SharedString>) -> Self {
         Self {
             message: message.into(),
@@ -172,6 +182,7 @@ impl Snackbar {
         self
     }
 
+    /// Overrides the corner shape of the snackbar container.
     pub fn shape(mut self, shape: CornerShape) -> Self {
         self.shape = shape;
         self
@@ -187,6 +198,7 @@ impl Snackbar {
         self
     }
 
+    /// Overrides the snackbar's container, content, action, and dismiss colors.
     pub fn colors(mut self, colors: SnackbarColors) -> Self {
         self.colors = colors;
         self

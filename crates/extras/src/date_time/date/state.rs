@@ -159,6 +159,7 @@ pub struct DatePickerState {
 }
 
 impl DatePickerState {
+    /// Creates a new date picker state with default bounds (`1900-01-01` through `2100-12-31`).
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let limits = DateLimits {
             bounds: NaiveDate::from_ymd_opt(1900, 1, 1).unwrap()
@@ -244,10 +245,12 @@ impl DatePickerState {
         &self.trigger
     }
 
+    /// Returns whether the docked popup or modal dialog is currently open.
     pub fn is_open(&self, cx: &App) -> bool {
         self.docked_open || self.dialog.read(cx).is_open()
     }
 
+    /// Returns the reason the picker was most recently closed, if any.
     pub fn last_close_reason(&self, cx: &App) -> Option<DialogCloseReason> {
         if self.variant == DatePickerVariant::Docked {
             self.docked_reason
@@ -267,6 +270,7 @@ impl DatePickerState {
         }
     }
 
+    /// Returns the first day of the month currently shown by the calendar cursor.
     pub fn displayed_month(&self) -> NaiveDate {
         first_of_month(self.cursor)
     }
@@ -290,6 +294,7 @@ impl DatePickerState {
         })
     }
 
+    /// Reads the current in-progress draft from the active display mode.
     pub fn draft(&self, cx: &App) -> DatePickerDraft {
         if self.input_mode {
             self.input_draft(cx).into()
@@ -326,6 +331,7 @@ impl DatePickerState {
         true
     }
 
+    /// Returns the active display mode (`Calendar` or `Input`).
     pub fn display_mode(&self) -> DatePickerDisplayMode {
         if self.input_mode {
             DatePickerDisplayMode::Input

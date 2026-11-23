@@ -116,6 +116,8 @@ impl Global for ThemeAnimator {}
 pub struct MaterialRoot;
 
 impl MaterialRoot {
+    /// Initializes `gpui-base`, refreshes installed fonts, and installs the application-wide
+    /// Material theme. Call once at startup before opening windows.
     pub fn init(theme: MaterialTheme, cx: &mut App) {
         gpui_base::init(cx);
         if cx.has_global::<ThemeAnimator>() {

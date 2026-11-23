@@ -32,9 +32,13 @@ type DisplacedFocus = Rc<RefCell<Option<(SharedString, FocusHandle)>>>;
 /// `OnSurface` for the current item, and `OnSurface` at 38% opacity for disabled items.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BreadcrumbsColors {
+    /// Foreground color override for clickable ancestor segments.
     pub ancestor: Option<Hsla>,
+    /// Foreground color override for the current (trailing) segment.
     pub current: Option<Hsla>,
+    /// Foreground color override for separators between segments.
     pub separator: Option<Hsla>,
+    /// Foreground color override for disabled segments.
     pub disabled: Option<Hsla>,
 }
 
@@ -74,6 +78,7 @@ pub struct BreadcrumbItem {
 }
 
 impl BreadcrumbItem {
+    /// Creates a breadcrumb segment with a unique ID and visible label.
     pub fn new(id: impl Into<SharedString>, label: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
@@ -111,6 +116,7 @@ pub struct Breadcrumbs {
 }
 
 impl Breadcrumbs {
+    /// Creates a breadcrumb navigation strip with the given element ID and ordered path segments.
     pub fn new(id: impl Into<ElementId>, items: impl IntoIterator<Item = BreadcrumbItem>) -> Self {
         Self {
             id: id.into(),

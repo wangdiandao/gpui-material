@@ -16,13 +16,19 @@ pub use actions::{AppBarColumn, AppBarItem, AppBarMenuState, AppBarRow};
 use scroll::length;
 pub use scroll::{AppBarScrollBehavior, AppBarScrollState};
 
+/// Layout and typography variant for a Material top [`AppBar`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum AppBarVariant {
+    /// Single-row bar with start-aligned title.
     #[default]
     Small,
+    /// Single-row bar with centered title.
     Centered,
+    /// Collapsible two-row bar with medium expanded headline typography.
     MediumFlexible,
+    /// Collapsible two-row bar with large expanded display typography.
     LargeFlexible,
+    /// Two-row bar supporting a custom second row below the expanded heading.
     TwoRows,
 }
 
@@ -56,9 +62,12 @@ impl AppBarVariant {
 /// Logical alignment for a title or subtitle.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum AppBarAlignment {
+    /// Align to the logical start edge (left in LTR, right in RTL).
     #[default]
     Start,
+    /// Center horizontally.
     Center,
+    /// Align to the logical end edge (right in LTR, left in RTL).
     End,
 }
 
@@ -75,20 +84,30 @@ impl AppBarAlignment {
 /// Per-instance pigments. Missing fields use the window theme.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct AppBarColors {
+    /// Container background color when not scrolled.
     pub container: Option<Hsla>,
+    /// Container background color when content is scrolled beneath the bar.
     pub scrolled_container: Option<Hsla>,
+    /// Foreground tint for the leading navigation icon slot.
     pub navigation: Option<Hsla>,
+    /// Foreground color for the title text.
     pub title: Option<Hsla>,
+    /// Foreground color for the subtitle text.
     pub subtitle: Option<Hsla>,
+    /// Foreground tint for trailing action controls.
     pub actions: Option<Hsla>,
 }
 
 /// Logical insets within each app bar row.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct AppBarPadding {
+    /// Top padding in logical pixels.
     pub top: Pixels,
+    /// Logical end padding in logical pixels.
     pub end: Pixels,
+    /// Bottom padding in logical pixels.
     pub bottom: Pixels,
+    /// Logical start padding in logical pixels.
     pub start: Pixels,
 }
 
@@ -205,6 +224,7 @@ pub struct AppBar {
 }
 
 impl AppBar {
+    /// Creates a small top app bar with the given element ID and title.
     pub fn new(id: impl Into<ElementId>, title: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
@@ -232,11 +252,13 @@ impl AppBar {
         }
     }
 
+    /// Sets the app bar layout variant (default [`AppBarVariant::Small`]).
     pub fn variant(mut self, variant: AppBarVariant) -> Self {
         self.variant = variant;
         self
     }
 
+    /// Sets the secondary subtitle text displayed beneath the title.
     pub fn subtitle(mut self, subtitle: impl Into<SharedString>) -> Self {
         self.subtitle.text = Some(subtitle.into());
         self.subtitle.content = None;
@@ -248,6 +270,7 @@ impl AppBar {
         self.title_for_rows(move |_| content)
     }
 
+    /// Replaces the subtitle with custom content.
     pub fn subtitle_content(self, content: impl IntoElement + 'static) -> Self {
         self.subtitle_for_rows(move |_| content)
     }
@@ -270,31 +293,37 @@ impl AppBar {
         self
     }
 
+    /// Overrides the logical horizontal alignment of the title.
     pub fn title_alignment(mut self, alignment: AppBarAlignment) -> Self {
         self.title.alignment = Some(alignment);
         self
     }
 
+    /// Overrides the logical horizontal alignment of the subtitle.
     pub fn subtitle_alignment(mut self, alignment: AppBarAlignment) -> Self {
         self.subtitle.alignment = Some(alignment);
         self
     }
 
+    /// Sets the maximum line count for plain title text (clamped to at least 1).
     pub fn title_max_lines(mut self, lines: usize) -> Self {
         self.title.max_lines = Some(lines.max(1));
         self
     }
 
+    /// Sets the maximum line count for plain subtitle text (clamped to at least 1).
     pub fn subtitle_max_lines(mut self, lines: usize) -> Self {
         self.subtitle.max_lines = Some(lines.max(1));
         self
     }
 
+    /// Places a leading navigation control (such as a back or menu button) at the start of the bar.
     pub fn navigation(mut self, element: impl IntoElement) -> Self {
         self.navigation = Some(element.into_any_element());
         self
     }
 
+    /// Places trailing action controls (such as an [`AppBarRow`]) at the end of the bar.
     pub fn actions(mut self, element: impl IntoElement) -> Self {
         self.actions = Some(element.into_any_element());
         self
@@ -306,6 +335,7 @@ impl AppBar {
         self
     }
 
+    /// Places a brand logo element alongside the title.
     pub fn logo(mut self, element: impl IntoElement) -> Self {
         self.logo = Some(element.into_any_element());
         self
@@ -317,41 +347,49 @@ impl AppBar {
         self
     }
 
+    /// Overrides container, heading, navigation, and action colors.
     pub fn colors(mut self, colors: AppBarColors) -> Self {
         self.colors = colors;
         self
     }
 
+    /// Sets explicit logical padding applied to each app bar row.
     pub fn content_padding(mut self, padding: AppBarPadding) -> Self {
         self.padding = Some(padding);
         self
     }
 
+    /// Overrides the collapsed height of the top row in logical pixels (default 64 px).
     pub fn collapsed_height(mut self, height: Pixels) -> Self {
         self.collapsed_height = length(height).filter(|height| *height > 0.);
         self
     }
 
+    /// Overrides the fully expanded height of a two-row bar in logical pixels.
     pub fn expanded_height(mut self, height: Pixels) -> Self {
         self.expanded_height = length(height).filter(|height| *height > 0.);
         self
     }
 
+    /// Links a GPUI [`ScrollHandle`] to drive scroll-under color and collapse behavior.
     pub fn track_scroll(mut self, handle: &ScrollHandle) -> Self {
         self.scroll = Some(handle.clone());
         self
     }
 
+    /// Binds a caller-owned [`AppBarScrollState`] entity for reading or controlling scroll collapse.
     pub fn scroll_state(mut self, state: &Entity<AppBarScrollState>) -> Self {
         self.scroll_state = Some(state.clone());
         self
     }
 
+    /// Sets how scrolling affects the app bar's height (default [`AppBarScrollBehavior::Pinned`]).
     pub fn scroll_behavior(mut self, behavior: AppBarScrollBehavior) -> Self {
         self.scroll_behavior = Some(behavior);
         self
     }
 
+    /// Enables or disables scroll-driven collapse updates (default `true`).
     pub fn scroll_enabled(mut self, enabled: bool) -> Self {
         self.scroll_enabled = enabled;
         self
@@ -363,6 +401,7 @@ impl AppBar {
         self
     }
 
+    /// Multiplies the heading typography scale by a positive finite factor (default `1.0`).
     pub fn font_scale(mut self, scale: f32) -> Self {
         self.font_scale = if scale.is_finite() && scale > 0. {
             scale

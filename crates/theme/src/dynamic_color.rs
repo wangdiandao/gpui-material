@@ -17,9 +17,13 @@ use crate::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CustomColorGroup {
+    /// Accent color for high-emphasis custom fills and outlines.
     pub color: Argb,
+    /// Foreground color paired with [`Self::color`].
     pub on_color: Argb,
+    /// Tonal container fill derived from the custom seed.
     pub color_container: Argb,
+    /// Foreground color paired with [`Self::color_container`].
     pub on_color_container: Argb,
 }
 
@@ -53,13 +57,20 @@ pub fn harmonize_color(design: Argb, source: Argb) -> Argb {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum DynamicVariant {
+    /// Default Material 3 balanced tonal palette with moderate chroma.
     #[default]
     TonalSpot,
+    /// High-chroma accent palette with bold secondary and tertiary hues.
     Vibrant,
+    /// Detached, playful hue rotation for expressive Material 3 palettes.
     Expressive,
+    /// Preserves the seed color closely in the primary palette.
     Fidelity,
+    /// Derives accents faithful to source content colors.
     Content,
+    /// Achromatic grayscale palette.
     Monochrome,
+    /// Low-chroma near-neutral palette.
     Neutral,
 }
 
@@ -67,8 +78,10 @@ pub enum DynamicVariant {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum SpecVersion {
+    /// Material Color Utilities 2021 specification (default).
     #[default]
     Spec2021,
+    /// Material Color Utilities 2025 specification (applies to `TonalSpot`, `Vibrant`, `Expressive`, and `Neutral`).
     Spec2025,
 }
 
@@ -216,28 +229,47 @@ impl MaterialTheme {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ThemePreset {
+    /// Standard Material 3 baseline purple palette (default).
     #[default]
     Baseline,
+    /// Tonal Spot dynamic scheme derived from the baseline seed.
     TonalSpot,
+    /// Vibrant dynamic scheme derived from the baseline seed.
     Vibrant,
+    /// Expressive dynamic scheme derived from the baseline seed.
     Expressive,
+    /// Fidelity dynamic scheme derived from the baseline seed.
     Fidelity,
+    /// Content dynamic scheme derived from the baseline seed.
     Content,
+    /// Monochrome grayscale dynamic scheme.
     Monochrome,
+    /// Low-chroma neutral dynamic scheme.
     Neutral,
+    /// High-contrast (`contrast = 1.0`) Tonal Spot scheme derived from the baseline seed.
     HighContrast,
+    /// Deep ocean blue Tonal Spot palette.
     Ocean,
+    /// Forest green Tonal Spot palette.
     Forest,
+    /// Bright spring green Tonal Spot palette.
     Spring,
+    /// Warm sunset orange Tonal Spot palette.
     Sunset,
+    /// Earthy desert ochre Tonal Spot palette.
     Desert,
+    /// Clear summer sky blue Tonal Spot palette.
     Summer,
+    /// Warm brown and beige Tonal Spot palette.
     BrownBeige,
+    /// Muted sage and ivory Tonal Spot palette.
     SageIvory,
+    /// Deep teal and caramel Tonal Spot palette.
     TealCaramel,
 }
 
 impl ThemePreset {
+    /// All bundled presets in display order.
     pub const ALL: [Self; 18] = [
         Self::Baseline,
         Self::TonalSpot,
@@ -291,6 +323,7 @@ impl ThemePreset {
         )
     }
 
+    /// Builds a complete [`MaterialTheme`] using this preset's colors and default typography, motion, and layout.
     pub fn theme(self, appearance: Appearance) -> MaterialTheme {
         MaterialTheme {
             colors: self.colors(appearance),

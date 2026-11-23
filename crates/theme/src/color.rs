@@ -7,43 +7,53 @@ use crate::{ColorRole, generated::*};
 pub struct Argb(u32);
 
 impl Argb {
+    /// Creates an [`Argb`] from a packed `0xAARRGGBB` integer.
     pub const fn from_u32(argb: u32) -> Self {
         Self(argb)
     }
 
+    /// Creates an opaque (`alpha = 255`) sRGB color.
     pub const fn from_rgb(red: u8, green: u8, blue: u8) -> Self {
         Self(u32::from_be_bytes([255, red, green, blue]))
     }
 
+    /// Creates an sRGB color from explicit red, green, blue, and alpha channels.
     pub const fn from_rgba(red: u8, green: u8, blue: u8, alpha: u8) -> Self {
         Self(u32::from_be_bytes([alpha, red, green, blue]))
     }
 
+    /// Returns a copy of this color with its alpha channel replaced.
     pub const fn with_alpha(self, alpha: u8) -> Self {
         let [_, red, green, blue] = self.channels();
         Self::from_rgba(red, green, blue, alpha)
     }
 
+    /// Returns the packed `0xAARRGGBB` representation.
     pub const fn to_u32(self) -> u32 {
         self.0
     }
 
+    /// Returns the color channels in `[alpha, red, green, blue]` order.
     pub const fn channels(self) -> [u8; 4] {
         self.0.to_be_bytes()
     }
 
+    /// Returns the 8-bit alpha channel.
     pub const fn alpha(self) -> u8 {
         self.channels()[0]
     }
 
+    /// Returns the 8-bit red channel.
     pub const fn red(self) -> u8 {
         self.channels()[1]
     }
 
+    /// Returns the 8-bit green channel.
     pub const fn green(self) -> u8 {
         self.channels()[2]
     }
 
+    /// Returns the 8-bit blue channel.
     pub const fn blue(self) -> u8 {
         self.channels()[3]
     }
@@ -93,15 +103,19 @@ impl ColorRole {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Appearance {
+    /// Light mode (default).
     #[default]
     Light,
+    /// Dark mode.
     Dark,
 }
 
 /// Resolved foreground and background colors for a Material pairing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ColorPair {
+    /// Foreground content color (text, icons, indicators).
     pub foreground: Argb,
+    /// Background container or surface color.
     pub background: Argb,
 }
 
@@ -165,6 +179,7 @@ impl Default for ColorScheme {
 }
 
 impl ColorScheme {
+    /// Returns the baseline Material 3 color scheme for the given [`Appearance`].
     pub const fn baseline(appearance: Appearance) -> Self {
         Self {
             appearance,
@@ -175,10 +190,12 @@ impl ColorScheme {
         }
     }
 
+    /// Returns the [`Appearance`] (light or dark) associated with this scheme.
     pub const fn appearance(&self) -> Appearance {
         self.appearance
     }
 
+    /// Resolves a semantic [`ColorRole`] to its packed [`Argb`] value.
     pub const fn color(&self, role: ColorRole) -> Argb {
         self.colors[role as usize]
     }
@@ -279,16 +296,23 @@ impl ColorScheme {
 /// The six Material elevation levels. The renderer supplies the shadow.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Elevation {
+    /// Resting elevation (`0 dp`, default).
     #[default]
     Level0,
+    /// Low elevation (`1 dp`).
     Level1,
+    /// Medium-low elevation (`3 dp`).
     Level2,
+    /// Medium elevation (`6 dp`).
     Level3,
+    /// Medium-high elevation (`8 dp`).
     Level4,
+    /// Highest elevation (`12 dp`).
     Level5,
 }
 
 impl Elevation {
+    /// Returns the Material elevation height in density-independent pixels (`dp`).
     pub const fn dp(self) -> f32 {
         match self {
             Self::Level0 => MD_SYS_ELEVATION_LEVEL_0,
@@ -304,13 +328,18 @@ impl Elevation {
 /// Material state layer opacities.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StateLayer {
+    /// Pointer hover state layer.
     Hover,
+    /// Keyboard or programmatic focus state layer.
     Focus,
+    /// Active press state layer.
     Pressed,
+    /// Active drag state layer.
     Dragged,
 }
 
 impl StateLayer {
+    /// Returns the normalized Material state-layer opacity (`0.0..=1.0`).
     pub const fn opacity(self) -> f32 {
         match self {
             Self::Hover => MD_SYS_STATE_HOVER_STATE_LAYER_OPACITY,

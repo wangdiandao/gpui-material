@@ -1,20 +1,28 @@
 use crate::{TypeStyle, generated::*};
 
+/// Logical horizontal reading and layout direction.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Direction {
+    /// Left-to-right layout direction (default).
     #[default]
     Ltr,
+    /// Right-to-left layout direction.
     Rtl,
 }
 
 /// Material window width classes, based on available logical width.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WidthClass {
+    /// Compact width (`< 600 dp`).
     Compact,
+    /// Medium width (`600..840 dp`).
     Medium,
+    /// Expanded width (`840..1200 dp`).
     Expanded,
+    /// Large desktop width (`1200..1600 dp`).
     Large,
+    /// Extra-large desktop width (`>= 1600 dp`).
     ExtraLarge,
 }
 
@@ -42,13 +50,19 @@ impl WidthClass {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Density {
+    /// Tighter visual spacing for dense desktop layouts.
     Compact,
+    /// Default Material visual density.
     #[default]
     Standard,
+    /// Roomier visual spacing.
     Comfortable,
 }
 
 impl Density {
+    /// Applies this density's delta to a baseline visual size in logical units.
+    ///
+    /// Non-finite or non-positive baselines return `0.0`.
     pub fn visual_size(self, baseline: f32) -> f32 {
         let delta = match self {
             Self::Compact => MD_SYS_LAYOUT_DENSITY_COMPACT,
@@ -72,7 +86,9 @@ impl Density {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LayoutPolicy {
+    /// Visual density setting for component sizing.
     pub density: Density,
+    /// Logical horizontal layout direction (`Ltr` or `Rtl`).
     pub direction: Direction,
 }
 

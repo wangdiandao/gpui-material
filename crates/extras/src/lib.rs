@@ -1,4 +1,6 @@
 //! Optional composite Material components for GPUI desktop applications.
+#![warn(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links)]
 
 #[cfg(feature = "carousel")]
 mod carousel;

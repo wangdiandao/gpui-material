@@ -1,4 +1,6 @@
 //! Material 3 components built on the pinned GPUI and Base interaction primitives.
+#![warn(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links)]
 
 #[cfg(any(feature = "actions", feature = "selection", feature = "surfaces"))]
 #[cfg_attr(

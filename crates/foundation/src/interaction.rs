@@ -20,7 +20,9 @@ pub struct InteractionSource {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct InteractionUpdate {
+    /// Window containing the observed control.
     pub window: WindowId,
+    /// Element identifier of the observed control within [`Self::window`].
     pub id: ElementId,
     /// `None` means the control was detached from this source.
     pub state: Option<InteractionState>,

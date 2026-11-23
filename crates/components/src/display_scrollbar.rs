@@ -14,9 +14,13 @@ use web_time::Instant;
 /// Display scrollbar colors and dimensions. Lengths are in logical pixels.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DisplayScrollbarStyle {
+    /// Explicit thumb fill color; defaults to `Outline` at 70% opacity.
     pub thumb_color: Option<Hsla>,
+    /// Explicit track fill color; defaults to transparent.
     pub track_color: Option<Hsla>,
+    /// Cross-axis thickness of the scrollbar track and thumb. Defaults to `4 px`.
     pub thickness: Pixels,
+    /// Minimum thumb length along the scroll axis. Defaults to `24 px`.
     pub thumb_min_length: Pixels,
     /// Maximum as a fraction of the track length after main-axis insets.
     pub thumb_max_length_fraction: f32,
@@ -43,8 +47,11 @@ impl Default for DisplayScrollbarStyle {
 /// Shows the indicator after a scroll offset change, then fades it out.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DisplayScrollbarFade {
+    /// Whether auto-hiding fade behavior is enabled; when `false`, the indicator stays visible.
     pub enabled: bool,
+    /// Delay after the last scroll offset change before fading begins. Defaults to 400 ms.
     pub delay: Duration,
+    /// Duration of the fade-out transition. Defaults to 250 ms.
     pub duration: Duration,
 }
 
@@ -88,6 +95,7 @@ impl DisplayScrollbar {
         }
     }
 
+    /// Sets the visual colors and geometry for the scrollbar track and thumb.
     pub fn style(mut self, style: DisplayScrollbarStyle) -> Self {
         self.style = style;
         self
@@ -99,6 +107,7 @@ impl DisplayScrollbar {
         self
     }
 
+    /// Configures auto-hide delay and fade-out timing after scroll activity.
     pub fn fade(mut self, fade: DisplayScrollbarFade) -> Self {
         self.fade = fade;
         self

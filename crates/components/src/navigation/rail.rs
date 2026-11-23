@@ -18,32 +18,46 @@ use super::items::{NavigationItems, Presentation};
 mod state;
 pub use state::NavigationRailState;
 
+/// Presentation mode of a docked [`NavigationRail`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum RailMode {
+    /// Narrow rail showing stacked icons and labels.
     #[default]
     Collapsed,
+    /// Wide rail showing inline icons beside labels.
     Expanded,
+    /// Hidden rail occupying zero width.
     Hidden,
 }
 
 /// Distribution of standard destinations along the vertical axis.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum NavigationRailArrangement {
+    /// Pack destinations at the top.
     #[default]
     Start,
+    /// Center destinations vertically.
     Center,
+    /// Pack destinations at the bottom.
     End,
+    /// Distribute destinations with equal space between them.
     SpaceBetween,
+    /// Distribute destinations with equal space around each item.
     SpaceAround,
+    /// Distribute destinations with equal space between and around them.
     SpaceEvenly,
 }
 
 /// Logical insets in pixels, also used inside a destination's indicator.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct NavigationRailPadding {
+    /// Logical start inset in pixels.
     pub start: Pixels,
+    /// Logical end inset in pixels.
     pub end: Pixels,
+    /// Top inset in pixels.
     pub top: Pixels,
+    /// Bottom inset in pixels.
     pub bottom: Pixels,
 }
 
@@ -61,29 +75,43 @@ impl NavigationRailPadding {
 /// Per-mode shape overrides. Omitted values use the default docked or sheet shape.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct NavigationRailShapes {
+    /// Corner shape override when the rail is collapsed.
     pub collapsed: Option<CornerShape>,
+    /// Corner shape override when the rail is expanded.
     pub expanded: Option<CornerShape>,
+    /// Corner shape override when the rail is presented as a modal sheet.
     pub modal: Option<CornerShape>,
 }
 
 /// Independent local colors and scrim opacity.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct NavigationRailColors {
+    /// Background color override for the docked rail container.
     pub container: Option<Hsla>,
+    /// Default foreground color override for docked rail content.
     pub content: Option<Hsla>,
+    /// Background color override for the modal rail sheet container.
     pub modal_container: Option<Hsla>,
+    /// Default foreground color override for modal rail sheet content.
     pub modal_content: Option<Hsla>,
+    /// Color override for the modal backdrop scrim.
     pub scrim: Option<Hsla>,
+    /// Opacity override for the modal backdrop scrim.
     pub scrim_opacity: Option<f32>,
 }
 
 /// Window-local side-sheet policy for the optional modal rail.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct RailModalOptions {
+    /// Escape and outside-click dismissal rules for the modal sheet.
     pub properties: DialogProperties,
+    /// Stacking layer for nested modals.
     pub layer: usize,
+    /// Whether the modal side sheet is docked or detached.
     pub placement: SheetPlacement,
+    /// Logical margins applied when [`SheetPlacement::Detached`] is active.
     pub margins: SheetMargins,
+    /// When `true`, hides the docked rail (zero width) while collapsed if a modal state is bound.
     pub hide_on_collapse: bool,
 }
 
@@ -126,6 +154,7 @@ pub struct NavigationRail {
 }
 
 impl NavigationRail {
+    /// Creates a collapsed navigation rail with the given element ID and controlled [`NavigationItems`].
     pub fn new(id: impl Into<ElementId>, items: NavigationItems) -> Self {
         Self {
             id: id.into(),
@@ -152,6 +181,7 @@ impl NavigationRail {
         }
     }
 
+    /// Sets the docked rail mode (default [`RailMode::Collapsed`]). Ignored when [`Self::state`] is bound.
     pub fn mode(mut self, mode: RailMode) -> Self {
         self.mode = mode;
         self
@@ -163,21 +193,25 @@ impl NavigationRail {
         self
     }
 
+    /// Sets the accessible title used for the rail and its optional modal sheet (default `"Navigation"`).
     pub fn title(mut self, title: impl Into<SharedString>) -> Self {
         self.title = Some(title.into());
         self
     }
 
+    /// Places a custom header element at the top of the rail (such as a menu toggle button).
     pub fn header(mut self, header: impl IntoElement) -> Self {
         self.header = Some(header.into_any_element());
         self
     }
 
+    /// Places a floating action button below the header.
     pub fn fab(mut self, fab: impl IntoElement) -> Self {
         self.fab = Some(fab.into_any_element());
         self
     }
 
+    /// Sets the expanded rail width in logical pixels, clamped to `220..=360` px (default 240 px).
     pub fn expanded_width(mut self, width: Pixels) -> Self {
         if f32::from(width).is_finite() {
             self.expanded_width = width.clamp(px(220.), px(360.));
@@ -205,36 +239,43 @@ impl NavigationRail {
         self
     }
 
+    /// Sets how destinations are vertically distributed within the rail (default [`NavigationRailArrangement::Start`]).
     pub fn arrangement(mut self, arrangement: NavigationRailArrangement) -> Self {
         self.arrangement = arrangement;
         self
     }
 
+    /// Sets the vertical gap between destinations in logical pixels (default 4 px).
     pub fn destination_spacing(mut self, spacing: Pixels) -> Self {
         self.destination_spacing = length(spacing);
         self
     }
 
+    /// Overrides the logical inner padding of the rail container.
     pub fn content_padding(mut self, padding: NavigationRailPadding) -> Self {
         self.content_padding = Some(padding);
         self
     }
 
+    /// Sets the vertical spacing below the header and FAB slots (default 4 px).
     pub fn header_spacing(mut self, spacing: Pixels) -> Self {
         self.header_spacing = length(spacing);
         self
     }
 
+    /// Sets extra top padding above the header when the rail is expanded.
     pub fn expanded_header_top_padding(mut self, padding: Pixels) -> Self {
         self.expanded_header_top_padding = length(padding);
         self
     }
 
+    /// Overrides corner shapes for collapsed, expanded, and modal presentations.
     pub fn shapes(mut self, shapes: NavigationRailShapes) -> Self {
         self.shapes = shapes;
         self
     }
 
+    /// Overrides container, content, and modal scrim colors.
     pub fn colors(mut self, colors: NavigationRailColors) -> Self {
         self.colors = colors;
         self
@@ -246,11 +287,13 @@ impl NavigationRail {
         self
     }
 
+    /// Configures side-sheet presentation and dismissal policy for the modal rail.
     pub fn modal_options(mut self, options: RailModalOptions) -> Self {
         self.modal_options = options;
         self
     }
 
+    /// Intercepts user-initiated modal dismissal requests; return `false` to veto closing.
     pub fn on_dismiss_request(
         mut self,
         callback: impl Fn(DialogCloseReason, &mut Window, &mut App) -> bool + 'static,
@@ -259,6 +302,7 @@ impl NavigationRail {
         self
     }
 
+    /// Invoked once when an accepted modal dismissal closes the rail sheet.
     pub fn on_modal_close(
         mut self,
         callback: impl Fn(DialogCloseReason, &mut Window, &mut App) + 'static,

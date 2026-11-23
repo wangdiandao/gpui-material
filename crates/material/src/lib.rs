@@ -3,6 +3,8 @@
 //! Initialize [MaterialRoot] and call [init_components] before opening windows.
 //! Compose controls with GPUI elements and keep controlled selection and
 //! command outcomes in the application. Sliders use a retained `SliderState` entity.
+#![warn(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links)]
 
 pub use gpui_material_components::*;
 #[cfg(feature = "date-time")]

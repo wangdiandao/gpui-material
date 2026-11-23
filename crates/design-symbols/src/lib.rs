@@ -4,6 +4,8 @@
 //! `embed-assets` feature also provides bundled fonts. Browser apps can
 //! asynchronously fetch a TrueType asset with `SymbolFont::fetch`.
 //! Pass the generated SVG bytes to `gpui_material::Icon::svg_data` or GPUI's SVG element.
+#![warn(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links)]
 
 mod font;
 #[cfg(target_arch = "wasm32")]
@@ -55,9 +57,12 @@ include!("catalog.rs");
 /// The three Material Symbols font families.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub enum SymbolStyle {
+    /// Material Symbols Outlined (the default family).
     #[default]
     Outlined,
+    /// Material Symbols Rounded.
     Rounded,
+    /// Material Symbols Sharp.
     Sharp,
 }
 
@@ -66,8 +71,11 @@ pub enum SymbolStyle {
 pub struct Weight(u16);
 
 impl Weight {
+    /// Minimum supported weight (`100`).
     pub const THIN: Self = Self(100);
+    /// Default regular weight (`400`).
     pub const REGULAR: Self = Self(400);
+    /// Maximum supported weight (`700`).
     pub const BOLD: Self = Self(700);
 
     /// Create a weight, returning `None` for values outside 100–700.
@@ -79,6 +87,7 @@ impl Weight {
         }
     }
 
+    /// Returns the numeric weight value in the inclusive range 100–700.
     pub const fn get(self) -> u16 {
         self.0
     }
@@ -112,15 +121,18 @@ impl SymbolAxes {
         self
     }
 
+    /// Sets the variable font weight axis (`wght`).
     pub const fn weight(mut self, weight: Weight) -> Self {
         self.weight = weight;
         self
     }
 
+    /// Returns `true` when the `FILL` axis is set to `1`.
     pub const fn is_filled(self) -> bool {
         self.filled
     }
 
+    /// Returns the configured variable font weight.
     pub const fn get_weight(self) -> Weight {
         self.weight
     }

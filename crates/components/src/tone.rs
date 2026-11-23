@@ -6,11 +6,16 @@ use gpui_material_theme::ColorRole;
 /// semantic tone defaults, and disabled states keep their disabled appearance.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum SemanticTone {
+    /// Component default theme palette (no semantic override).
     #[default]
     Default,
+    /// Destructive or error semantic palette (`Error` / `ErrorContainer`).
     Danger,
+    /// Positive or confirmation semantic palette (`Success` / `SuccessContainer`).
     Success,
+    /// Cautionary semantic palette (`Warning` / `WarningContainer`).
     Warning,
+    /// Informational semantic palette (`Info` / `InfoContainer`).
     Info,
 }
 

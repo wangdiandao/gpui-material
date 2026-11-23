@@ -48,6 +48,7 @@ pub(in crate::navigation) struct ScrollPosition {
 }
 
 impl AppBarScrollState {
+    /// Creates an app bar scroll state initialized at zero scroll offset.
     pub fn new() -> Self {
         Self::default()
     }
@@ -94,6 +95,7 @@ impl AppBarScrollState {
         }
     }
 
+    /// Returns the last observed content scroll distance from the top.
     pub fn content_offset(&self) -> Pixels {
         px(self.metrics.content)
     }
@@ -103,10 +105,12 @@ impl AppBarScrollState {
         px(self.metrics.height)
     }
 
+    /// Returns the maximum negative height offset (zero when the bar cannot collapse).
     pub fn height_offset_limit(&self) -> Pixels {
         px(self.metrics.limit)
     }
 
+    /// Returns the current collapse progress in `0.0..=1.0`.
     pub fn collapsed_fraction(&self) -> f32 {
         if self.metrics.limit < 0. {
             self.metrics.height / self.metrics.limit
@@ -115,6 +119,7 @@ impl AppBarScrollState {
         }
     }
 
+    /// Returns the fraction of scrolled-under overlap in `0.0..=1.0`, used for scrolled container color.
     pub fn overlapped_fraction(&self) -> f32 {
         self.metrics.overlapped
     }

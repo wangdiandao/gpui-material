@@ -34,6 +34,7 @@ pub struct SearchBar {
 }
 
 impl SearchBar {
+    /// Creates a search bar trigger paired with an expandable [`SearchView`] backed by `state`.
     pub fn new(
         id: impl Into<ElementId>,
         label: impl Into<SharedString>,
@@ -53,11 +54,13 @@ impl SearchBar {
         }
     }
 
+    /// Sets the expanded search view's presentation variant (`Docked`, `FullScreen`, or `FullScreenContained`).
     pub fn variant(mut self, variant: SearchViewVariant) -> Self {
         self.view.variant = variant;
         self
     }
 
+    /// Sets localized accessibility and status labels for closing, loading, empty results, and idle prompt.
     pub fn labels(
         mut self,
         close: impl Into<SharedString>,
@@ -78,41 +81,49 @@ impl SearchBar {
         self
     }
 
+    /// Places a leading slot element before the search trigger button.
     pub fn leading(mut self, element: impl IntoElement) -> Self {
         self.leading = Some(element.into_any_element());
         self
     }
 
+    /// Places a trailing slot element after the search trigger button.
     pub fn trailing(mut self, element: impl IntoElement) -> Self {
         self.trailing = Some(element.into_any_element());
         self
     }
 
+    /// Replaces the visible content inside the trigger button while retaining its accessible label.
     pub fn trigger_content(mut self, element: impl IntoElement) -> Self {
         self.trigger_content = Some(element.into_any_element());
         self
     }
 
+    /// Applies visual style overrides to both the trigger and the expanded search view.
     pub fn style(mut self, style: SearchStyle) -> Self {
         self.view.style = style;
         self
     }
 
+    /// Configures expand and collapse animation durations.
     pub fn motion(mut self, motion: SearchMotion) -> Self {
         self.view.motion = motion;
         self
     }
 
+    /// Customizes the inner [`SearchView`] directly via a builder closure.
     pub fn expanded_view(mut self, configure: impl FnOnce(SearchView) -> SearchView) -> Self {
         self.view = configure(self.view);
         self
     }
 
+    /// Connects a [`SearchScrollState`] to hide and reveal the collapsed bar on scroll.
     pub fn scroll_behavior(mut self, state: &Entity<SearchScrollState>) -> Self {
         self.scroll = Some(state.clone());
         self
     }
 
+    /// Links a GPUI [`ScrollHandle`] whose vertical offset drives [`Self::scroll_behavior`].
     pub fn track_scroll(mut self, handle: &ScrollHandle) -> Self {
         self.linked_scroll = Some(handle.clone());
         self

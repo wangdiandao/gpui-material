@@ -17,18 +17,26 @@ use super::{focus_style, row, selection_label, tone};
 /// Optional pigments for one switch state. Omitted fields use the window theme.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SwitchStateColors {
+    /// Background fill color of the 52 × 32 dp switch track.
     pub track: Option<Hsla>,
+    /// Outline stroke color of the switch track (visible when unchecked).
     pub border: Option<Hsla>,
+    /// Fill color of the circular switch thumb.
     pub thumb: Option<Hsla>,
+    /// Foreground tint for thumb icons or custom thumb content.
     pub content: Option<Hsla>,
 }
 
 /// Per-instance colors for enabled and disabled switches in either checked state.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SwitchColors {
+    /// Colors when enabled and unchecked.
     pub unchecked: SwitchStateColors,
+    /// Colors when enabled and checked.
     pub checked: SwitchStateColors,
+    /// Colors when disabled and unchecked.
     pub disabled_unchecked: SwitchStateColors,
+    /// Colors when disabled and checked.
     pub disabled_checked: SwitchStateColors,
 }
 
@@ -131,6 +139,7 @@ pub struct Switch {
 }
 
 impl Switch {
+    /// Creates a controlled switch with an element ID, accessible/visible label, and current checked state.
     pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>, checked: bool) -> Self {
         Self {
             id: id.into(),
@@ -169,16 +178,19 @@ impl Switch {
         self
     }
 
+    /// Disables pointer, keyboard, and accessibility interaction when `true`.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
+    /// Sets an icon rendered inside the thumb when `checked` is `true`.
     pub fn checked_icon(mut self, icon: impl IntoElement) -> Self {
         self.checked_icon = Some(icon.into_any_element());
         self
     }
 
+    /// Sets an icon rendered inside the thumb when `checked` is `false`.
     pub fn unchecked_icon(mut self, icon: impl IntoElement) -> Self {
         self.unchecked_icon = Some(icon.into_any_element());
         self
@@ -191,6 +203,7 @@ impl Switch {
         self
     }
 
+    /// Overrides track, border, thumb, and thumb-content colors per switch state.
     pub fn colors(mut self, colors: SwitchColors) -> Self {
         self.colors = colors;
         self
@@ -208,6 +221,7 @@ impl Switch {
         self
     }
 
+    /// Invoked with the requested next checked state when toggled by pointer, keyboard, or assistive technology.
     pub fn on_change(mut self, handler: impl Fn(bool, &mut Window, &mut App) + 'static) -> Self {
         self.on_change = Some(Rc::new(handler));
         self

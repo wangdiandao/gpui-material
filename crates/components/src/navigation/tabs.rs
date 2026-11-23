@@ -10,49 +10,70 @@ use gpui_material_theme::{CornerShape, Direction, MotionKind, MotionSpec, Motion
 
 use super::items::{NavigationItems, Presentation};
 
+/// Visual hierarchy variant for Material [`Tabs`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TabVariant {
+    /// Top-level primary tabs with stacked icons and rounded active indicator.
     #[default]
     Primary,
+    /// Sub-level secondary tabs with inline layout and full-width active indicator.
     Secondary,
 }
 
 /// Optional tab row pigments. Per-tab overrides take precedence over `content`.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct TabsColors {
+    /// Background color override for the tab row container.
     pub container: Option<Hsla>,
+    /// Default foreground color override for tab labels and icons.
     pub content: Option<Hsla>,
+    /// Color override for the bottom divider line.
     pub divider: Option<Hsla>,
 }
 
 /// Width of the indicator relative to the selected tab.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum TabIndicatorWidth {
+    /// Use the Material default for the active [`TabVariant`] (content-fitted for Primary, tab-width for Secondary).
     #[default]
     Default,
+    /// Match the full width of the selected tab cell.
     Tab,
+    /// Match the width of the selected tab's label/icon content.
     Content,
+    /// Use an explicit fixed width in logical pixels.
     Fixed(Pixels),
 }
 
 /// Overrides for the indicator that tracks the selected tab.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct TabIndicatorStyle {
+    /// Width sizing mode for the active indicator.
     pub width: TabIndicatorWidth,
+    /// Height override for the indicator bar in logical pixels.
     pub height: Option<Pixels>,
+    /// Fill color override for the indicator.
     pub color: Option<Hsla>,
+    /// Corner shape override for the indicator.
     pub shape: Option<CornerShape>,
+    /// Motion specification used when animating the indicator between tabs.
     pub motion: Option<MotionSpec>,
 }
 
 /// Geometry and tint supplied to a decorative custom indicator.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TabIndicatorLayout {
+    /// ID of the currently selected tab.
     pub selected: SharedString,
+    /// Resolved bounds of the indicator within the tab strip.
     pub bounds: Bounds<Pixels>,
+    /// Bounds of the selected tab cell within the tab strip.
     pub tab_bounds: Bounds<Pixels>,
+    /// Measured width of the selected tab's content.
     pub content_width: Pixels,
+    /// Resolved indicator tint color.
     pub color: Hsla,
+    /// Active layout direction from the window theme.
     pub direction: Direction,
 }
 
@@ -92,6 +113,7 @@ pub struct Tabs {
 }
 
 impl Tabs {
+    /// Creates a fixed primary Material tab row from the given controlled [`NavigationItems`].
     pub fn new(items: NavigationItems) -> Self {
         Self {
             items,
@@ -101,11 +123,13 @@ impl Tabs {
         }
     }
 
+    /// Sets whether tabs use [`TabVariant::Primary`] (default) or [`TabVariant::Secondary`] styling.
     pub fn variant(mut self, variant: TabVariant) -> Self {
         self.variant = variant;
         self
     }
 
+    /// Enables or disables horizontal scrolling for long tab lists (default `false`).
     pub fn scrollable(mut self, scrollable: bool) -> Self {
         self.scrollable = scrollable;
         self
@@ -129,6 +153,7 @@ impl Tabs {
         self
     }
 
+    /// Overrides container, default content, and divider colors for the tab row.
     pub fn colors(mut self, colors: TabsColors) -> Self {
         self.options.colors = colors;
         self
@@ -140,6 +165,7 @@ impl Tabs {
         self
     }
 
+    /// Overrides the active indicator's width, height, color, shape, and motion.
     pub fn indicator_style(mut self, style: TabIndicatorStyle) -> Self {
         self.options.indicator_style = Some(style);
         self

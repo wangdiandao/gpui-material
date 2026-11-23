@@ -160,6 +160,7 @@ impl ItemSlots {
 }
 
 impl MenuItem {
+    /// Creates a standard action menu item with the given element ID and label.
     pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
@@ -173,6 +174,7 @@ impl MenuItem {
         }
     }
 
+    /// Creates a non-interactive section heading row that is skipped by keyboard navigation.
     pub fn group(id: impl Into<ElementId>, title: impl Into<SharedString>) -> Self {
         Self {
             kind: Kind::Heading,
@@ -247,21 +249,25 @@ impl MenuItem {
         self
     }
 
+    /// Turns this row into a submenu trigger containing the given child items.
     pub fn submenu(mut self, items: impl IntoIterator<Item = MenuItem>) -> Self {
         self.kind = Kind::Submenu(items.into_iter().collect());
         self
     }
 
+    /// Marks the item as disabled, preventing activation and applying disabled styling.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
+    /// Turns this row into a checkable menu item with the given caller-owned checked state.
     pub fn checked(mut self, checked: bool) -> Self {
         self.kind = Kind::Check(checked, self.action());
         self
     }
 
+    /// Turns this row into a selectable menu item with the given caller-owned selected state.
     pub fn selected(mut self, selected: bool) -> Self {
         self.kind = Kind::Select(selected, self.action());
         self
@@ -327,6 +333,7 @@ impl MenuItem {
         self.action()
     }
 
+    /// Registers a callback invoked when an action, checked, or selected row is activated.
     pub fn on_activate(mut self, action: impl Fn(&mut Window, &mut App) + 'static) -> Self {
         match &mut self.kind {
             Kind::Action(handler) | Kind::Check(_, handler) | Kind::Select(_, handler) => {
@@ -406,6 +413,7 @@ impl PopupBounds {
 }
 
 impl Menu {
+    /// Creates a menu anchored to `trigger` with eagerly constructed items.
     pub fn new(
         id: impl Into<ElementId>,
         trigger: impl IntoElement,
@@ -473,6 +481,7 @@ impl Menu {
         self
     }
 
+    /// Sets the anchor corner used to align the popup against its trigger (default [`Anchor::TopLeft`]).
     pub fn anchor(mut self, anchor: Anchor) -> Self {
         self.anchor = anchor;
         self

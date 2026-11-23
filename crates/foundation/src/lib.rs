@@ -1,4 +1,6 @@
 //! Material presentation and adapters for GPUI and Base.
+#![warn(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links)]
 
 mod root;
 mod surface;

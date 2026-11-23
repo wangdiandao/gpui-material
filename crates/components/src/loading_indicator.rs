@@ -48,6 +48,7 @@ static DETERMINATE_SHAPES: LazyLock<ShapeMorphSequence> = LazyLock::new(|| {
 pub struct LoadingIndicatorShape(ShapePolygon);
 
 impl LoadingIndicatorShape {
+    /// Creates a circular morph endpoint (`MaterialShape::Circle`).
     pub fn circle() -> Self {
         Self(ShapePolygon::material(MaterialShape::Circle))
     }
@@ -104,6 +105,7 @@ pub struct LoadingIndicator {
 }
 
 impl LoadingIndicator {
+    /// Creates an active, indeterminate loading indicator with the given element ID and accessible label.
     pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
@@ -118,6 +120,7 @@ impl LoadingIndicator {
         }
     }
 
+    /// Wraps the morphing shape in a filled `PrimaryContainer` background when `true`. Defaults to `false`.
     pub fn contained(mut self, contained: bool) -> Self {
         self.contained = contained;
         self

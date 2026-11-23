@@ -38,6 +38,7 @@ impl Default for NavigationRailState {
 }
 
 impl NavigationRailState {
+    /// Creates retained docked rail state starting in `initial` mode with a 240 ms default transition.
     pub fn new(initial: RailMode) -> Self {
         let weights = WidthWeights::for_mode(initial);
         Self {
@@ -61,10 +62,12 @@ impl NavigationRailState {
         self.current
     }
 
+    /// Returns the mode currently settled at or transitioning toward.
     pub fn target_value(&self) -> RailMode {
         self.target
     }
 
+    /// Returns whether a rail width transition is currently running.
     pub fn is_animating(&self) -> bool {
         self.collapsed.is_animating() || self.expanded.is_animating()
     }
@@ -74,14 +77,17 @@ impl NavigationRailState {
         self.progress
     }
 
+    /// Animates the rail to [`RailMode::Expanded`].
     pub fn expand(&mut self, cx: &mut Context<Self>) {
         self.animate_to(RailMode::Expanded, cx);
     }
 
+    /// Animates the rail to [`RailMode::Collapsed`].
     pub fn collapse(&mut self, cx: &mut Context<Self>) {
         self.animate_to(RailMode::Collapsed, cx);
     }
 
+    /// Toggles between [`RailMode::Expanded`] and [`RailMode::Collapsed`].
     pub fn toggle(&mut self, cx: &mut Context<Self>) {
         match self.target {
             RailMode::Expanded => self.collapse(cx),
@@ -89,10 +95,12 @@ impl NavigationRailState {
         }
     }
 
+    /// Animates the rail to [`RailMode::Hidden`].
     pub fn hide(&mut self, cx: &mut Context<Self>) {
         self.animate_to(RailMode::Hidden, cx);
     }
 
+    /// Moves immediately to `mode` without animation.
     pub fn snap_to(&mut self, mode: RailMode, cx: &mut Context<Self>) {
         if self.current != mode || self.target != mode || self.is_animating() {
             self.target = mode;
@@ -101,6 +109,7 @@ impl NavigationRailState {
         }
     }
 
+    /// Animates the rail to `mode`, respecting reduced-motion settings.
     pub fn animate_to(&mut self, mode: RailMode, cx: &mut Context<Self>) {
         if cx.reduce_motion() || self.duration.is_zero() {
             self.snap_to(mode, cx);

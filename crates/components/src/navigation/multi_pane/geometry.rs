@@ -8,11 +8,17 @@ use super::{PaneLayoutValue, PanePlacement, PaneRole};
 /// Available partitions and preferred pane sizes in logical pixels.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PaneLayoutDirective {
+    /// Maximum number of side-by-side horizontal pane columns (1 to 3).
     pub horizontal_partitions: usize,
+    /// Maximum number of stacked vertical partitions when reflowing in a single column.
     pub vertical_partitions: usize,
+    /// Horizontal gutter between adjacent columns in logical pixels.
     pub horizontal_gap: Pixels,
+    /// Vertical gutter between stacked panes in logical pixels.
     pub vertical_gap: Pixels,
+    /// Default preferred width for panes that do not specify one.
     pub preferred_width: Pixels,
+    /// Default preferred height for levitated panes that do not specify one.
     pub preferred_height: Pixels,
     /// Full-height excluded regions measured from logical start.
     pub excluded_widths: Vec<Range<Pixels>>,
@@ -53,9 +59,13 @@ impl PaneLayoutDirective {
 /// Pane margins in logical pixels.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct PaneMargins {
+    /// Logical start margin in pixels.
     pub start: Pixels,
+    /// Logical end margin in pixels.
     pub end: Pixels,
+    /// Top margin in pixels.
     pub top: Pixels,
+    /// Bottom margin in pixels.
     pub bottom: Pixels,
 }
 
@@ -70,8 +80,11 @@ pub(super) struct Measures {
 /// Anchors relative to the logical extent of one horizontal band excluding its gutters.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PaneExpansionAnchor {
+    /// Fraction of the band's usable width in `0.0..=1.0`.
     Proportion(f32),
+    /// Fixed offset measured from the logical start edge of the band.
     FromStart(Pixels),
+    /// Fixed offset measured inward from the logical end edge of the band.
     FromEnd(Pixels),
 }
 
@@ -90,15 +103,24 @@ impl PaneExpansionAnchor {
 /// Logical alignment of a levitated pane in its horizontal band and available height.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum PaneOverlayAlignment {
+    /// Top and logical start corner.
     TopStart,
+    /// Top edge, horizontally centered.
     TopCenter,
+    /// Top and logical end corner.
     TopEnd,
+    /// Vertically centered on the logical start edge.
     CenterStart,
+    /// Centered both horizontally and vertically.
     #[default]
     Center,
+    /// Vertically centered on the logical end edge.
     CenterEnd,
+    /// Bottom and logical start corner.
     BottomStart,
+    /// Bottom edge, horizontally centered.
     BottomCenter,
+    /// Bottom and logical end corner.
     BottomEnd,
 }
 

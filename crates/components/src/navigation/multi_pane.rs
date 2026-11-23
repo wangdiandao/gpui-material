@@ -37,6 +37,7 @@ pub struct AdaptivePane {
 }
 
 impl AdaptivePane {
+    /// Creates an adaptive pane with a stable element ID and body content.
     pub fn new(id: impl Into<ElementId>, content: impl IntoElement) -> Self {
         Self {
             id: id.into(),
@@ -49,26 +50,31 @@ impl AdaptivePane {
         }
     }
 
+    /// Sets the pane's preferred width in logical pixels.
     pub fn preferred_width(mut self, width: Pixels) -> Self {
         self.measures.preferred_width = Some(width);
         self
     }
 
+    /// Sets the pane's preferred height in logical pixels (used for levitated or stacked presentations).
     pub fn preferred_height(mut self, height: Pixels) -> Self {
         self.measures.preferred_height = Some(height);
         self
     }
 
+    /// Sets the minimum width below which the pane will not shrink.
     pub fn minimum_width(mut self, width: Pixels) -> Self {
         self.measures.minimum_width = width;
         self
     }
 
+    /// Sets logical outer margins around the pane.
     pub fn margins(mut self, margins: PaneMargins) -> Self {
         self.measures.margins = margins;
         self
     }
 
+    /// Sets a fixed adaptation strategy when the pane cannot be shown as an inline column.
     pub fn adapt(mut self, strategy: PaneAdaptStrategy) -> Self {
         self.adapt = Some(strategy);
         self.rule = None;
@@ -90,6 +96,7 @@ impl AdaptivePane {
         self
     }
 
+    /// Sets the focus target focused when this pane opens as an active or levitated overlay.
     pub fn entry_focus(mut self, focus: &FocusHandle) -> Self {
         self.entry_focus = Some(focus.clone());
         self
@@ -115,6 +122,7 @@ pub struct PaneSeparator {
 }
 
 impl PaneSeparator {
+    /// Creates a resize separator with the given accessible label and an 8 px default keyboard step.
     pub fn new(label: impl Into<SharedString>) -> Self {
         Self {
             label: label.into(),
@@ -124,11 +132,13 @@ impl PaneSeparator {
         }
     }
 
+    /// Sets snap anchors offered when dragging or stepping across the split boundary.
     pub fn anchors(mut self, anchors: impl IntoIterator<Item = PaneExpansionAnchor>) -> Self {
         self.anchors = anchors.into_iter().collect();
         self
     }
 
+    /// Sets the logical pixel distance moved per arrow-key press (default 8 px).
     pub fn keyboard_step(mut self, step: Pixels) -> Self {
         self.keyboard_step = step;
         self
@@ -163,6 +173,7 @@ pub struct AdaptivePaneLayout {
 }
 
 impl AdaptivePaneLayout {
+    /// Creates an adaptive multi-pane layout for the given viewport size and retained [`AdaptivePaneState`].
     pub fn new(
         id: impl Into<ElementId>,
         viewport: Size<Pixels>,
@@ -180,11 +191,13 @@ impl AdaptivePaneLayout {
         }
     }
 
+    /// Assigns an [`AdaptivePane`] to the given logical role slot.
     pub fn pane(mut self, role: PaneRole, pane: AdaptivePane) -> Self {
         self.panes[role.index()] = Some(pane);
         self
     }
 
+    /// Overrides the [`PaneLayoutDirective`] derived from the viewport size.
     pub fn directive(mut self, directive: PaneLayoutDirective) -> Self {
         self.directive = Some(directive);
         self
@@ -198,11 +211,13 @@ impl AdaptivePaneLayout {
         self
     }
 
+    /// Registers a resize separator between two adjacent logical pane roles.
     pub fn separator(mut self, start: PaneRole, end: PaneRole, separator: PaneSeparator) -> Self {
         self.separators[pair_index(start, end)] = Some(separator);
         self
     }
 
+    /// Sets the animation duration used for pane layout transitions (default 240 ms).
     pub fn transition_duration(mut self, duration: Duration) -> Self {
         self.duration = duration;
         self

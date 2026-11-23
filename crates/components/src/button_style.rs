@@ -5,11 +5,16 @@ use gpui_material_theme::{CornerShape, Elevation};
 /// Material Expressive sizes, from extra small to extra large.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ControlSize {
+    /// Extra-small control tier (32 dp height).
     ExtraSmall,
+    /// Small control tier (40 dp height, default).
     #[default]
     Small,
+    /// Medium control tier (56 dp height).
     Medium,
+    /// Large control tier (96 dp height).
     Large,
+    /// Extra-large control tier (136 dp height).
     ExtraLarge,
 }
 
@@ -17,8 +22,11 @@ pub enum ControlSize {
 /// bottom-start order. Unspecified states keep their size and shape presets.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ButtonShapes {
+    /// Corner shape while resting and unselected.
     pub resting: Option<CornerShape>,
+    /// Corner shape while pressed.
     pub pressed: Option<CornerShape>,
+    /// Corner shape while checked/selected on toggle buttons.
     pub checked: Option<CornerShape>,
 }
 
@@ -26,11 +34,17 @@ pub struct ButtonShapes {
 /// that state. Checked colors apply to enabled toggles.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ButtonColors {
+    /// Enabled container background color.
     pub container: Option<Hsla>,
+    /// Enabled foreground label and icon color.
     pub content: Option<Hsla>,
+    /// Disabled container background color.
     pub disabled_container: Option<Hsla>,
+    /// Disabled foreground label and icon color.
     pub disabled_content: Option<Hsla>,
+    /// Enabled container background color when a toggle button is selected.
     pub checked_container: Option<Hsla>,
+    /// Enabled foreground label and icon color when a toggle button is selected.
     pub checked_content: Option<Hsla>,
 }
 
@@ -55,16 +69,22 @@ impl ButtonColors {
 /// A stroke for any button variant. A zero width removes its outline.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ButtonBorder {
+    /// Stroke thickness in logical pixels.
     pub width: Pixels,
+    /// Stroke color.
     pub color: Hsla,
 }
 
 /// Insets around the label or custom content, including leading and trailing icons.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ButtonPadding {
+    /// Top padding in logical pixels.
     pub top: Pixels,
+    /// Trailing-edge padding (right in LTR, left in RTL).
     pub end: Pixels,
+    /// Bottom padding in logical pixels.
     pub bottom: Pixels,
+    /// Leading-edge padding (left in LTR, right in RTL).
     pub start: Pixels,
 }
 
@@ -72,10 +92,15 @@ pub struct ButtonPadding {
 /// pressed, keyboard focus, hover and rest.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ButtonElevations {
+    /// Elevation level while resting.
     pub resting: Option<Elevation>,
+    /// Elevation level while pressed.
     pub pressed: Option<Elevation>,
+    /// Elevation level while keyboard focus is visible.
     pub focused: Option<Elevation>,
+    /// Elevation level while hovered.
     pub hovered: Option<Elevation>,
+    /// Elevation level while disabled.
     pub disabled: Option<Elevation>,
 }
 

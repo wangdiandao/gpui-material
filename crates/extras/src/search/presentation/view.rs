@@ -47,6 +47,7 @@ pub struct SearchView {
 }
 
 impl SearchView {
+    /// Creates an expanded search view bound to `state` with default English status labels.
     pub fn new(
         id: impl Into<ElementId>,
         label: impl Into<SharedString>,
@@ -75,11 +76,13 @@ impl SearchView {
         }
     }
 
+    /// Sets the presentation variant (`Docked`, `FullScreen`, or `FullScreenContained`).
     pub fn variant(mut self, variant: SearchViewVariant) -> Self {
         self.variant = variant;
         self
     }
 
+    /// Overrides the close-button label and the loading, empty-result, and idle prompt messages.
     pub fn labels(
         mut self,
         close: SharedString,
@@ -103,6 +106,7 @@ impl SearchView {
         self
     }
 
+    /// Places a filter bar or chip row directly above the search results list.
     pub fn filters(mut self, content: impl IntoElement) -> Self {
         self.filters = Some(content.into_any_element());
         self
@@ -128,11 +132,13 @@ impl SearchView {
         self
     }
 
+    /// Sets the maximum width of the search input editor in logical pixels.
     pub fn focused_width(mut self, width: Pixels) -> Self {
         self.focused_width = valid_dimension(width);
         self
     }
 
+    /// Sets the preferred width and height of the docked popup panel. Defaults to `440px x 424px`.
     pub fn docked_size(mut self, width: Pixels, height: Pixels) -> Self {
         self.docked_dimensions = (
             valid_dimension(width).unwrap_or(px(440.)),
@@ -141,26 +147,31 @@ impl SearchView {
         self
     }
 
+    /// Adds a vertical gap between the input header and results surface in [`SearchViewVariant::Docked`].
     pub fn result_gap(mut self, gap: Pixels) -> Self {
         self.gap = length(gap);
         self
     }
 
+    /// Applies visual style overrides to the search view surfaces and editor.
     pub fn style(mut self, style: SearchStyle) -> Self {
         self.style = style;
         self
     }
 
+    /// Configures expand and collapse transition durations.
     pub fn motion(mut self, motion: SearchMotion) -> Self {
         self.motion = motion;
         self
     }
 
+    /// Configures popup anchoring, dismissal, focus trapping, and scrim for [`SearchViewVariant::Docked`].
     pub fn popup_options(mut self, options: SearchPopupOptions) -> Self {
         self.popup = options;
         self
     }
 
+    /// Configures overlay insets, dismissal, and scrim for full-screen variants.
     pub fn window_options(mut self, options: SearchWindowOptions) -> Self {
         self.window = options;
         self

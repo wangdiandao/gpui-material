@@ -20,6 +20,7 @@ impl Default for SearchScrollState {
 }
 
 impl SearchScrollState {
+    /// Creates a scroll state starting fully visible (`hidden_fraction() == 0.0`).
     pub fn new() -> Self {
         Self::default()
     }
@@ -33,6 +34,7 @@ impl SearchScrollState {
         }
     }
 
+    /// Returns the fraction of the search bar currently hidden (`0.0` visible to `1.0` hidden).
     pub fn hidden_fraction(&self) -> f32 {
         if self.limit > px(0.) {
             self.hidden / self.limit
@@ -41,6 +43,7 @@ impl SearchScrollState {
         }
     }
 
+    /// Sets the hidden fraction directly, clamped to `0.0..=1.0`.
     pub fn set_hidden_fraction(&mut self, fraction: f32, cx: &mut Context<Self>) {
         if fraction.is_finite() {
             let next = self.limit * fraction.clamp(0., 1.);
@@ -51,6 +54,7 @@ impl SearchScrollState {
         }
     }
 
+    /// Snaps the bar either fully visible or fully hidden based on scroll `velocity` or midpoint.
     pub fn settle(&mut self, velocity: Pixels, cx: &mut Context<Self>) {
         let hide = if velocity == px(0.) || !f32::from(velocity).is_finite() {
             self.hidden_fraction() >= 0.5

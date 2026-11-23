@@ -484,6 +484,7 @@ fn write_roles(rust: &mut String, roles: &[&Token], tokens: &Tokens<'_>) -> Resu
     )?;
     writeln!(rust, "pub enum ColorRole {{")?;
     for token in roles {
+        writeln!(rust, "    /// The `{}` Material color role.", token.name)?;
         writeln!(rust, "    {},", variant(role_name(token)?))?;
     }
     writeln!(rust, "}}\n")?;

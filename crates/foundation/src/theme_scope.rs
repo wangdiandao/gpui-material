@@ -74,6 +74,7 @@ pub struct ThemeScope {
 }
 
 impl ThemeScope {
+    /// Wraps `child` in a theme scope that inherits the surrounding theme until overridden.
     pub fn new(child: impl IntoElement) -> Self {
         Self {
             child: child.into_any_element(),
@@ -83,16 +84,19 @@ impl ThemeScope {
         }
     }
 
+    /// Replaces the entire [`MaterialTheme`] for this subtree.
     pub fn theme(mut self, theme: MaterialTheme) -> Self {
         self.theme = Some(Rc::new(theme));
         self
     }
 
+    /// Overrides the layout [`Direction`] for this subtree.
     pub fn direction(mut self, direction: Direction) -> Self {
         self.direction = Some(direction);
         self
     }
 
+    /// Overrides the visual [`Density`] for this subtree.
     pub fn density(mut self, density: Density) -> Self {
         self.density = Some(density);
         self

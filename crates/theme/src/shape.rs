@@ -3,7 +3,9 @@ use crate::{Direction, generated::*};
 /// Logical rounded corners in top-start, top-end, bottom-end, bottom-start order.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CornerShape {
+    /// Explicit logical corner radii `[top_start, top_end, bottom_end, bottom_start]` in `dp`.
     Radii([f32; 4]),
+    /// Pill / stadium rounding using half of the shorter side.
     Full,
 }
 
@@ -71,26 +73,43 @@ fn nonnegative(value: f32) -> f32 {
     }
 }
 
+/// Semantic Material 3 corner-radius scale tokens.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CornerRole {
+    /// Sharp corners (`0 dp`).
     None,
+    /// Extra-small uniform rounding (`4 dp`).
     ExtraSmall,
+    /// Extra-small rounding on the top corners only (`4 dp` top, `0 dp` bottom).
     ExtraSmallTop,
+    /// Small uniform rounding (`8 dp`).
     Small,
+    /// Medium uniform rounding (`12 dp`).
     Medium,
+    /// Large uniform rounding (`16 dp`).
     Large,
+    /// Large rounding on the logical start corners only.
     LargeStart,
+    /// Large rounding on the logical end corners only.
     LargeEnd,
+    /// Large rounding on the top corners only.
     LargeTop,
+    /// Increased large uniform rounding (`20 dp`).
     LargeIncreased,
+    /// Extra-large uniform rounding (`28 dp`).
     ExtraLarge,
+    /// Extra-large rounding on the top corners only.
     ExtraLargeTop,
+    /// Increased extra-large uniform rounding (`32 dp`).
     ExtraLargeIncreased,
+    /// Extra-extra-large uniform rounding (`48 dp`).
     ExtraExtraLarge,
+    /// Full pill/circle rounding.
     Full,
 }
 
 impl CornerRole {
+    /// Resolves this corner role to its Material [`CornerShape`] token value.
     pub const fn shape(self) -> CornerShape {
         match self {
             Self::None => MD_SYS_SHAPE_CORNER_NONE,
@@ -116,32 +135,52 @@ impl CornerRole {
 /// are source coordinates before path generation and normalization.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PolygonSpec {
-    /// The final circle radius, as in AndroidX RoundedPolygon.circle.
-    Circle { vertices: u8, radius: f32 },
+    /// The final circle radius, as in AndroidX `RoundedPolygon.circle`.
+    Circle {
+        /// Number of polygon vertices approximating the circle (`>= 3`).
+        vertices: u8,
+        /// Target circle radius in source units.
+        radius: f32,
+    },
+    /// A rounded rectangle in source coordinates.
     Rectangle {
+        /// Rectangle width in source units.
         width: f32,
+        /// Rectangle height in source units.
         height: f32,
+        /// Corner rounding radius in source units.
         rounding_radius: f32,
+        /// Corner smoothing factor in `0.0..=1.0`.
         smoothing: f32,
     },
     /// The circumradius of the unrounded regular polygon.
     Regular {
+        /// Number of polygon vertices (`>= 3`).
         vertices: u8,
+        /// Circumradius of the unrounded polygon.
         radius: f32,
+        /// Corner rounding radius in source units.
         rounding_radius: f32,
+        /// Corner smoothing factor in `0.0..=1.0`.
         smoothing: f32,
+        /// Rotation angle in degrees.
         rotation_degrees: f32,
     },
 }
 
+/// Basic semantic polygon tokens bundled in `tokens/material.json`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PolygonRole {
+    /// Circular polygon token.
     Circle,
+    /// Rounded square polygon token.
     Square,
+    /// Rounded triangle polygon token.
     Triangle,
 }
 
 impl PolygonRole {
+    /// Resolves this polygon role to its source [`PolygonSpec`].
     pub const fn spec(self) -> PolygonSpec {
         match self {
             Self::Circle => MD_SYS_SHAPE_POLYGON_CIRCLE,
@@ -155,40 +194,75 @@ impl PolygonRole {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum MaterialShape {
+    /// Circle shape (`circle`).
     Circle,
+    /// Rounded square shape (`square`).
     Square,
+    /// Slanted rounded square shape (`slanted`).
     Slanted,
+    /// Arch shape (`arch`).
     Arch,
+    /// Quarter-circle fan shape (`fan`).
     Fan,
+    /// Rounded arrow / chevron shape (`arrow`).
     Arrow,
+    /// Semi-circle shape (`semi-circle`).
     SemiCircle,
+    /// Oval / ellipse shape (`oval`).
     Oval,
+    /// Stadium / pill shape (`pill`).
     Pill,
+    /// Rounded triangle shape (`triangle`).
     Triangle,
+    /// Rounded diamond shape (`diamond`).
     Diamond,
+    /// Clam-shell shape (`clam-shell`).
     ClamShell,
+    /// Rounded pentagon shape (`pentagon`).
     Pentagon,
+    /// Six-sided gem shape (`gem`).
     Gem,
+    /// Eight-pointed sunny shape (`sunny`).
     Sunny,
+    /// Twelve-pointed very-sunny shape (`very-sunny`).
     VerySunny,
+    /// Four-sided scalloped cookie shape (`cookie-4-sided`).
     Cookie4Sided,
+    /// Six-sided scalloped cookie shape (`cookie-6-sided`).
     Cookie6Sided,
+    /// Seven-sided scalloped cookie shape (`cookie-7-sided`).
     Cookie7Sided,
+    /// Nine-sided scalloped cookie shape (`cookie-9-sided`).
     Cookie9Sided,
+    /// Twelve-sided scalloped cookie shape (`cookie-12-sided`).
     Cookie12Sided,
+    /// Ghost-like organic shape (`ghostish`).
     Ghostish,
+    /// Four-leaf clover shape (`clover-4-leaf`).
     Clover4Leaf,
+    /// Eight-leaf clover shape (`clover-8-leaf`).
     Clover8Leaf,
+    /// Sharp starburst shape (`burst`).
     Burst,
+    /// Softened starburst shape (`soft-burst`).
     SoftBurst,
+    /// Comic-style boom shape (`boom`).
     Boom,
+    /// Softened boom shape (`soft-boom`).
     SoftBoom,
+    /// Scalloped flower shape (`flower`).
     Flower,
+    /// Puffy cloud-like shape (`puffy`).
     Puffy,
+    /// Puffy diamond shape (`puffy-diamond`).
     PuffyDiamond,
+    /// Stepped pixel-art circle shape (`pixel-circle`).
     PixelCircle,
+    /// Stepped pixel-art triangle shape (`pixel-triangle`).
     PixelTriangle,
+    /// Stacked bun shape (`bun`).
     Bun,
+    /// Rounded heart shape (`heart`).
     Heart,
 }
 

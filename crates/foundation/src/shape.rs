@@ -157,6 +157,7 @@ impl Shape {
         })
     }
 
+    /// Returns the laid-out bounds that this shape was fitted into.
     pub fn bounds(&self) -> Bounds<Pixels> {
         self.outline.bounds
     }
@@ -309,6 +310,7 @@ impl Shape {
         }
     }
 
+    /// Paints the tessellated fill mesh with `color`.
     pub fn paint(&self, color: Hsla, window: &mut Window) {
         window.paint_path(self.fill.clone(), color);
     }

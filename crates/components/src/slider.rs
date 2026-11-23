@@ -15,9 +15,13 @@ pub use gpui_material_foundation::RangeThumb;
 /// Optional track dimensions in logical pixels.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SliderTrackStyle {
+    /// Cross-axis thickness of the slider track.
     pub thickness: Option<Pixels>,
+    /// Corner radius at the outer ends of the track.
     pub outer_radius: Option<Pixels>,
+    /// Corner radius at the inner track edges adjacent to the thumb gap.
     pub inner_radius: Option<Pixels>,
+    /// Gap between the thumb handle and the active/inactive track segments.
     pub thumb_gap: Option<Pixels>,
 }
 
@@ -28,23 +32,36 @@ pub struct SliderThumbStyle {
     pub size: Option<Size<Pixels>>,
     /// The dimension along the slider axis while the handle is pressed.
     pub pressed_width: Option<Pixels>,
+    /// Handle fill color when enabled.
     pub color: Option<Hsla>,
+    /// Handle fill color when disabled.
     pub disabled_color: Option<Hsla>,
+    /// Handle fill color when keyboard focus is visible.
     pub focused_color: Option<Hsla>,
 }
 
 /// Optional slider colors. Unspecified fields use the window theme.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SliderColors {
+    /// Enabled handle fill color.
     pub thumb: Option<Hsla>,
+    /// Enabled active track fill color.
     pub active_track: Option<Hsla>,
+    /// Enabled inactive track fill color.
     pub inactive_track: Option<Hsla>,
+    /// Enabled tick and stop marker color on the active track segment.
     pub active_tick: Option<Hsla>,
+    /// Enabled tick and stop marker color on the inactive track segment.
     pub inactive_tick: Option<Hsla>,
+    /// Disabled handle fill color.
     pub disabled_thumb: Option<Hsla>,
+    /// Disabled active track fill color.
     pub disabled_active_track: Option<Hsla>,
+    /// Disabled inactive track fill color.
     pub disabled_inactive_track: Option<Hsla>,
+    /// Disabled tick and stop marker color on the active track segment.
     pub disabled_active_tick: Option<Hsla>,
+    /// Disabled tick and stop marker color on the inactive track segment.
     pub disabled_inactive_tick: Option<Hsla>,
 }
 
@@ -52,8 +69,11 @@ pub struct SliderColors {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct SliderMarker {
+    /// Center point of the marker in window coordinates.
     pub center: Point<Pixels>,
+    /// Default marker diameter in logical pixels.
     pub diameter: Pixels,
+    /// Resolved marker color for the active or inactive track segment.
     pub color: Hsla,
 }
 
@@ -85,10 +105,13 @@ fn thumb_id(id: &ElementId, which: RangeThumb) -> ElementId {
         .into()
 }
 
+/// Origin of the active track fill for a single-value [`Slider`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum SliderKind {
+    /// Active track extends from the start of the range to the handle (default).
     #[default]
     Standard,
+    /// Active track extends symmetrically from the midpoint of the range to the handle.
     Centered,
 }
 
@@ -119,6 +142,7 @@ pub struct Slider {
 }
 
 impl Slider {
+    /// Creates a horizontal single-value slider bound to `state` with an element ID and accessible name.
     pub fn new(
         id: impl Into<ElementId>,
         name: impl Into<SharedString>,
@@ -160,11 +184,13 @@ impl Slider {
         slider
     }
 
+    /// Selects standard start-anchored or centered active track geometry.
     pub fn kind(mut self, kind: SliderKind) -> Self {
         self.kind = kind;
         self
     }
 
+    /// Sets the slider orientation (`Axis::Horizontal` by default).
     pub fn axis(mut self, axis: Axis) -> Self {
         self.axis = axis;
         self
@@ -182,6 +208,7 @@ impl Slider {
         self
     }
 
+    /// Disables pointer dragging, keyboard adjustment, and focus traversal when `true`.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
@@ -194,6 +221,7 @@ impl Slider {
         self
     }
 
+    /// Places an optional decorative icon inside the active track on medium and larger sizes.
     pub fn icon(mut self, icon: impl IntoElement) -> Self {
         self.icon = Some(icon.into_any_element());
         self
@@ -223,6 +251,7 @@ impl Slider {
         self
     }
 
+    /// Overrides enabled and disabled track, thumb, and tick colors.
     pub fn colors(mut self, colors: SliderColors) -> Self {
         self.colors = colors;
         self
@@ -278,6 +307,7 @@ impl Slider {
         self
     }
 
+    /// Controls whether endpoint stop dots are drawn on the track. Defaults to `true`.
     pub fn show_stop_indicators(mut self, show: bool) -> Self {
         self.show_stop_indicators = show;
         self

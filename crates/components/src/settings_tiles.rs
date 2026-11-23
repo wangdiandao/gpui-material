@@ -35,6 +35,7 @@ mod switch_tile {
     }
 
     impl SwitchTile {
+        /// Creates a switch settings row with an element ID, headline label, and controlled checked state.
         pub fn new(
             id: impl Into<ElementId>,
             label: impl Into<SharedString>,
@@ -57,51 +58,61 @@ mod switch_tile {
             }
         }
 
+        /// Sets secondary supporting text displayed below the headline.
         pub fn supporting(mut self, text: impl Into<SharedString>) -> Self {
             self.supporting = Some(text.into());
             self
         }
 
+        /// Sets overline text displayed above the headline.
         pub fn overline(mut self, text: impl Into<SharedString>) -> Self {
             self.overline = Some(text.into());
             self
         }
 
+        /// Sets an optional leading icon or graphic.
         pub fn leading(mut self, leading: impl IntoElement) -> Self {
             self.leading = Some(leading.into_any_element());
             self
         }
 
+        /// Disables row interaction and dims the switch when `true`.
         pub fn disabled(mut self, disabled: bool) -> Self {
             self.disabled = disabled;
             self
         }
 
+        /// Sets standalone row styling (`Standard` or `Segmented`).
         pub fn variant(mut self, variant: ListVariant) -> Self {
             self.variant = variant;
             self
         }
 
+        /// Overrides container and slot colors on the underlying [`ListItem`].
         pub fn colors(mut self, colors: ListItemColors) -> Self {
             self.colors = colors;
             self
         }
 
+        /// Overrides track, thumb, border, and content colors on the decorative [`Switch`].
         pub fn switch_colors(mut self, colors: SwitchColors) -> Self {
             self.switch_colors = colors;
             self
         }
 
+        /// Uses a caller-owned focus handle for this tile.
         pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
             self.focus = Some(focus.clone());
             self
         }
 
+        /// Reports hover, focus, press, and disabled states through a caller-owned source.
         pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
             self.source = Some(source.clone());
             self
         }
 
+        /// Invoked with the requested next checked state when the tile is toggled.
         pub fn on_change(
             mut self,
             handler: impl Fn(bool, &mut Window, &mut App) + 'static,
@@ -212,6 +223,7 @@ mod checkbox_tile {
     }
 
     impl CheckboxTile {
+        /// Creates a checkbox settings row with an element ID, headline label, and controlled [`CheckboxState`].
         pub fn new(
             id: impl Into<ElementId>,
             label: impl Into<SharedString>,
@@ -254,16 +266,19 @@ mod checkbox_tile {
             )
         }
 
+        /// Sets secondary supporting text displayed below the headline.
         pub fn supporting(mut self, text: impl Into<SharedString>) -> Self {
             self.supporting = Some(text.into());
             self
         }
 
+        /// Sets overline text displayed above the headline.
         pub fn overline(mut self, text: impl Into<SharedString>) -> Self {
             self.overline = Some(text.into());
             self
         }
 
+        /// Sets an optional leading icon or graphic when the checkbox is in the trailing slot.
         pub fn leading(mut self, leading: impl IntoElement) -> Self {
             self.leading = Some(leading.into_any_element());
             self
@@ -282,41 +297,49 @@ mod checkbox_tile {
             self
         }
 
+        /// Marks the checkbox tile as invalid, applying error styling and `aria-invalid` semantics.
         pub fn error(mut self, error: bool) -> Self {
             self.error = error;
             self
         }
 
+        /// Disables row interaction and dims the checkbox when `true`.
         pub fn disabled(mut self, disabled: bool) -> Self {
             self.disabled = disabled;
             self
         }
 
+        /// Sets standalone row styling (`Standard` or `Segmented`).
         pub fn variant(mut self, variant: ListVariant) -> Self {
             self.variant = variant;
             self
         }
 
+        /// Overrides container and slot colors on the underlying [`ListItem`].
         pub fn colors(mut self, colors: ListItemColors) -> Self {
             self.colors = colors;
             self
         }
 
+        /// Overrides checkmark, box, and border colors on the decorative [`Checkbox`].
         pub fn checkbox_colors(mut self, colors: CheckboxColors) -> Self {
             self.checkbox_colors = colors;
             self
         }
 
+        /// Uses a caller-owned focus handle for this tile.
         pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
             self.focus = Some(focus.clone());
             self
         }
 
+        /// Reports hover, focus, press, and disabled states through a caller-owned source.
         pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
             self.source = Some(source.clone());
             self
         }
 
+        /// Invoked with the requested next [`CheckboxState`] when the tile is toggled.
         pub fn on_change(
             mut self,
             handler: impl Fn(CheckboxState, &mut Window, &mut App) + 'static,
@@ -444,6 +467,7 @@ mod radio_tile {
     }
 
     impl RadioTile {
+        /// Creates a radio settings row with an element ID, headline label, and controlled selected state.
         pub fn new(
             id: impl Into<ElementId>,
             label: impl Into<SharedString>,
@@ -468,16 +492,19 @@ mod radio_tile {
             }
         }
 
+        /// Sets secondary supporting text displayed below the headline.
         pub fn supporting(mut self, text: impl Into<SharedString>) -> Self {
             self.supporting = Some(text.into());
             self
         }
 
+        /// Sets overline text displayed above the headline.
         pub fn overline(mut self, text: impl Into<SharedString>) -> Self {
             self.overline = Some(text.into());
             self
         }
 
+        /// Sets an optional leading icon or graphic when the radio indicator is in the trailing slot.
         pub fn leading(mut self, leading: impl IntoElement) -> Self {
             self.leading = Some(leading.into_any_element());
             self
@@ -496,36 +523,43 @@ mod radio_tile {
             self
         }
 
+        /// Disables row interaction and dims the radio indicator when `true`.
         pub fn disabled(mut self, disabled: bool) -> Self {
             self.disabled = disabled;
             self
         }
 
+        /// Sets standalone row styling (`Standard` or `Segmented`).
         pub fn variant(mut self, variant: ListVariant) -> Self {
             self.variant = variant;
             self
         }
 
+        /// Overrides container and slot colors on the underlying [`ListItem`].
         pub fn colors(mut self, colors: ListItemColors) -> Self {
             self.colors = colors;
             self
         }
 
+        /// Overrides indicator colors on the decorative [`Radio`].
         pub fn radio_colors(mut self, colors: RadioColors) -> Self {
             self.radio_colors = colors;
             self
         }
 
+        /// Uses a caller-owned focus handle for this tile.
         pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
             self.focus = Some(focus.clone());
             self
         }
 
+        /// Reports hover, focus, press, and disabled states through a caller-owned source.
         pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
             self.source = Some(source.clone());
             self
         }
 
+        /// Invoked when an unselected radio tile is activated.
         pub fn on_select(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
             self.on_select = Some(Rc::new(handler));
             self
@@ -677,6 +711,7 @@ mod slider_tile {
     }
 
     impl SliderTile {
+        /// Creates a slider settings row with an element ID, headline label, and caller-owned [`SliderState`].
         pub fn new(
             id: impl Into<ElementId>,
             label: impl Into<SharedString>,
@@ -699,31 +734,37 @@ mod slider_tile {
             }
         }
 
+        /// Sets secondary supporting text displayed below the headline.
         pub fn supporting(mut self, text: impl Into<SharedString>) -> Self {
             self.supporting = Some(text.into());
             self
         }
 
+        /// Sets overline text displayed above the headline.
         pub fn overline(mut self, text: impl Into<SharedString>) -> Self {
             self.overline = Some(text.into());
             self
         }
 
+        /// Sets an optional leading icon or graphic.
         pub fn leading(mut self, leading: impl IntoElement) -> Self {
             self.leading = Some(leading.into_any_element());
             self
         }
 
+        /// Disables the embedded slider and dims the tile when `true`.
         pub fn disabled(mut self, disabled: bool) -> Self {
             self.disabled = disabled;
             self
         }
 
+        /// Sets standalone row styling (`Standard` or `Segmented`).
         pub fn variant(mut self, variant: ListVariant) -> Self {
             self.variant = variant;
             self
         }
 
+        /// Overrides container and slot colors on the underlying [`ListItem`].
         pub fn colors(mut self, colors: ListItemColors) -> Self {
             self.colors = colors;
             self
@@ -860,6 +901,7 @@ mod choice_tile {
     }
 
     impl ChoiceOption {
+        /// Creates a selectable choice option with a stable identifier and visible label.
         pub fn new(id: impl Into<SharedString>, label: impl Into<SharedString>) -> Self {
             Self {
                 id: id.into(),
@@ -870,6 +912,7 @@ mod choice_tile {
             }
         }
 
+        /// Sets optional supporting text shown below the option label in the popup menu.
         pub fn supporting(mut self, text: impl Into<SharedString>) -> Self {
             self.supporting = Some(text.into());
             self
@@ -881,6 +924,7 @@ mod choice_tile {
             self
         }
 
+        /// Disables selecting this option in the popup menu when `true`.
         pub fn disabled(mut self, disabled: bool) -> Self {
             self.disabled = disabled;
             self
@@ -909,6 +953,7 @@ mod choice_tile {
     }
 
     impl ChoiceTile {
+        /// Creates a choice settings row with an element ID, headline label, available options, and currently selected option ID.
         pub fn new(
             id: impl Into<ElementId>,
             label: impl Into<SharedString>,
@@ -934,46 +979,55 @@ mod choice_tile {
             }
         }
 
+        /// Sets secondary supporting text displayed below the headline.
         pub fn supporting(mut self, text: impl Into<SharedString>) -> Self {
             self.supporting = Some(text.into());
             self
         }
 
+        /// Sets overline text displayed above the headline.
         pub fn overline(mut self, text: impl Into<SharedString>) -> Self {
             self.overline = Some(text.into());
             self
         }
 
+        /// Sets an optional leading icon or graphic.
         pub fn leading(mut self, leading: impl IntoElement) -> Self {
             self.leading = Some(leading.into_any_element());
             self
         }
 
+        /// Sets fallback text shown on the trailing side when `selected` matches no option.
         pub fn placeholder(mut self, text: impl Into<SharedString>) -> Self {
             self.placeholder = Some(text.into());
             self
         }
 
+        /// Disables opening the menu and dims the tile when `true`.
         pub fn disabled(mut self, disabled: bool) -> Self {
             self.disabled = disabled;
             self
         }
 
+        /// Sets standalone row styling (`Standard` or `Segmented`).
         pub fn variant(mut self, variant: ListVariant) -> Self {
             self.variant = variant;
             self
         }
 
+        /// Overrides container and slot colors on the underlying [`ListItem`].
         pub fn colors(mut self, colors: ListItemColors) -> Self {
             self.colors = colors;
             self
         }
 
+        /// Uses a caller-owned focus handle for this tile.
         pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
             self.focus = Some(focus.clone());
             self
         }
 
+        /// Reports hover, focus, press, and disabled states through a caller-owned source.
         pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
             self.source = Some(source.clone());
             self
@@ -1214,15 +1268,21 @@ mod list_section {
 
     /// Any list row or settings tile that can participate in a [`ListSection`].
     pub enum ListSectionItem {
+        /// A standard [`ListItem`] row.
         Row(ListItem),
+        /// A [`SwitchTile`] settings row.
         #[cfg(feature = "selection")]
         Switch(SwitchTile),
+        /// A [`CheckboxTile`] settings row.
         #[cfg(feature = "selection")]
         Checkbox(CheckboxTile),
+        /// A [`RadioTile`] settings row.
         #[cfg(feature = "selection")]
         Radio(RadioTile),
+        /// A [`SliderTile`] settings row.
         #[cfg(feature = "selection")]
         Slider(SliderTile),
+        /// A [`ChoiceTile`] settings row.
         #[cfg(feature = "feedback")]
         Choice(ChoiceTile),
     }
@@ -1375,6 +1435,7 @@ mod list_section {
     }
 
     impl ListSection {
+        /// Creates an empty [`ListVariant::Standard`] list section with the given element ID.
         pub fn new(id: impl Into<ElementId>) -> Self {
             Self {
                 id: id.into(),
@@ -1389,21 +1450,25 @@ mod list_section {
             Self::new(id).variant(ListVariant::Segmented)
         }
 
+        /// Sets an optional section heading displayed above the list and used as the list's accessible name.
         pub fn title(mut self, title: impl Into<SharedString>) -> Self {
             self.title = Some(title.into());
             self
         }
 
+        /// Sets the section layout variant (`Standard` or `Segmented`).
         pub fn variant(mut self, variant: ListVariant) -> Self {
             self.variant = variant;
             self
         }
 
+        /// Appends a single [`ListItem`] or settings tile to the section.
         pub fn item(mut self, item: impl Into<ListSectionItem>) -> Self {
             self.items.push(item.into());
             self
         }
 
+        /// Appends multiple rows or settings tiles from an iterator.
         pub fn items<I>(mut self, items: impl IntoIterator<Item = I>) -> Self
         where
             I: Into<ListSectionItem>,

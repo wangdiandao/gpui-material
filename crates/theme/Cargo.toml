@@ -19,3 +19,7 @@ serde = { version = "1.0.229", features = ["derive"], optional = true }
 
 [dev-dependencies]
 serde_json = "1.0.154"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

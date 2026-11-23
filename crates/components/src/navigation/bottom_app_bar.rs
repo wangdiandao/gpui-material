@@ -14,7 +14,9 @@ use super::app_bar::{AppBarScrollBehavior, AppBarScrollState};
 /// Optional pigment overrides for [`BottomAppBar`]. Omitted fields use the window theme.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BottomAppBarColors {
+    /// Background color override for the bottom app bar surface.
     pub container: Option<Hsla>,
+    /// Inherited foreground color override for bar actions and content.
     pub content: Option<Hsla>,
 }
 
@@ -22,9 +24,13 @@ pub struct BottomAppBarColors {
 /// Defaults follow Material 3 (4 dp leading icon inset, 16 dp trailing FAB inset, 12 dp vertical).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BottomAppBarPadding {
+    /// Logical start inset in pixels.
     pub start: Pixels,
+    /// Logical end inset in pixels.
     pub end: Pixels,
+    /// Top inset in pixels.
     pub top: Pixels,
+    /// Bottom inset in pixels.
     pub bottom: Pixels,
 }
 
@@ -56,8 +62,10 @@ pub struct BottomAppBar {
 }
 
 impl BottomAppBar {
+    /// Default Material 3 bottom app bar height (80 dp).
     pub const DEFAULT_HEIGHT: Pixels = px(80.);
 
+    /// Creates a bottom app bar with the given element ID and default Material 3 styling.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),

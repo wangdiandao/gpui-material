@@ -26,7 +26,9 @@ use state::parse_selection;
 /// A committed picker value. The empty variants preserve the selection kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DateSelection {
+    /// A single-date selection, or `None` when cleared.
     Single(Option<NaiveDate>),
+    /// An inclusive start-and-end date range, or `None` when cleared.
     Range(Option<(NaiveDate, NaiveDate)>),
 }
 
@@ -50,11 +52,15 @@ fn complete(draft: Date) -> Option<DateSelection> {
     }
 }
 
+/// Presentation style of a [`DatePicker`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum DatePickerVariant {
+    /// Anchors an inline text field with a popup calendar beneath it.
     Docked,
+    /// Opens a centered modal dialog starting in calendar mode.
     #[default]
     Modal,
+    /// Opens a centered modal dialog starting in text-input mode.
     ModalInput,
     /// Uses a full-screen dialog in compact windows.
     FullScreen,
@@ -63,7 +69,9 @@ pub enum DatePickerVariant {
 /// A draft can retain the first endpoint before the second is chosen.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DatePickerDraft {
+    /// Draft for a single-date picker.
     Single(Option<NaiveDate>),
+    /// Draft for a date-range picker with optional start and end endpoints.
     Range(Option<NaiveDate>, Option<NaiveDate>),
 }
 
@@ -101,38 +109,65 @@ impl From<DatePickerDraft> for Date {
 /// The visible editor in a date picker.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum DatePickerDisplayMode {
+    /// Interactive month grid and year selector.
     #[default]
     Calendar,
+    /// Direct text-field date entry.
     Input,
 }
 
 /// Local date picker and editor colors. Unset values use the active Material theme.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct DatePickerColors {
+    /// Background color of the picker surface or dialog container.
     pub container: Option<Hsla>,
+    /// Text color of the picker title.
     pub title: Option<Hsla>,
+    /// Text color of the selected-date headline.
     pub headline: Option<Hsla>,
+    /// Text color of weekday column headers.
     pub weekday: Option<Hsla>,
+    /// Text color of month and year subheadings.
     pub subheading: Option<Hsla>,
+    /// Icon and label color of month/year navigation controls.
     pub navigation: Option<Hsla>,
+    /// Text color of unselected year items.
     pub year: Option<Hsla>,
+    /// Text color of the current calendar year item.
     pub current_year: Option<Hsla>,
+    /// Text color of disabled year items.
     pub disabled_year: Option<Hsla>,
+    /// Text color of the selected year item.
     pub selected_year: Option<Hsla>,
+    /// Container fill color behind the selected year item.
     pub selected_year_container: Option<Hsla>,
+    /// Text color of a selected year item that is disabled.
     pub disabled_selected_year: Option<Hsla>,
+    /// Container fill color behind a disabled selected year item.
     pub disabled_selected_year_container: Option<Hsla>,
+    /// Text color of unselected enabled day cells.
     pub day: Option<Hsla>,
+    /// Text color of disabled day cells.
     pub disabled_day: Option<Hsla>,
+    /// Text color of selected day endpoints.
     pub selected_day: Option<Hsla>,
+    /// Container fill color behind selected day endpoints.
     pub selected_day_container: Option<Hsla>,
+    /// Text color of a selected day that is disabled.
     pub disabled_selected_day: Option<Hsla>,
+    /// Container fill color behind a disabled selected day.
     pub disabled_selected_day_container: Option<Hsla>,
+    /// Text color of today's date when not selected.
     pub today: Option<Hsla>,
+    /// Outline color drawn around today's date.
     pub today_outline: Option<Hsla>,
+    /// Text color of intermediate days inside a selected range.
     pub range_day: Option<Hsla>,
+    /// Background fill color connecting intermediate days in a selected range.
     pub range_container: Option<Hsla>,
+    /// Focus ring outline color for keyboard navigation.
     pub focus_outline: Option<Hsla>,
+    /// Color overrides applied to the date text input fields.
     pub input: Option<TextFieldColors>,
 }
 
@@ -185,6 +220,7 @@ impl DatePickerLocale {
             && Rc::ptr_eq(&self.parse, &other.parse)
     }
 
+    /// Sets the first day of the week shown in the calendar grid. Defaults to [`Weekday::Sun`].
     pub fn first_day(mut self, day: Weekday) -> Self {
         self.first_day = day;
         self
@@ -315,6 +351,10 @@ pub struct DatePicker {
 }
 
 impl DatePicker {
+    /// Creates a triggered date picker bound to `state` with the caller-owned committed `value`.
+    ///
+    /// Defaults to [`DatePickerVariant::Modal`], [`DatePickerLocale::default()`], and the mode
+    /// toggle visible.
     pub fn new(
         id: impl Into<ElementId>,
         label: impl Into<SharedString>,
@@ -372,11 +412,13 @@ impl DatePicker {
         }
     }
 
+    /// Sets the picker presentation variant.
     pub fn variant(mut self, variant: DatePickerVariant) -> Self {
         self.options.variant = variant;
         self
     }
 
+    /// Sets the locale formatting, parsing, and first-day-of-week rules.
     pub fn locale(mut self, locale: DatePickerLocale) -> Self {
         self.options.locale = locale;
         self
@@ -397,6 +439,7 @@ impl DatePicker {
         self
     }
 
+    /// Shows or hides the button that toggles between calendar and text-input display modes.
     pub fn show_mode_toggle(mut self, show: bool) -> Self {
         self.show_mode_toggle = show;
         self
@@ -414,6 +457,7 @@ impl DatePicker {
         self
     }
 
+    /// Customizes the confirm action control rendered in modal or docked dialogs.
     pub fn confirm_content<E: IntoElement>(
         mut self,
         build: impl FnOnce(DialogAction) -> E + 'static,
@@ -422,6 +466,7 @@ impl DatePicker {
         self
     }
 
+    /// Customizes the dismiss action control rendered in modal or docked dialogs.
     pub fn dismiss_content<E: IntoElement>(
         mut self,
         build: impl FnOnce(DialogAction) -> E + 'static,
@@ -430,6 +475,7 @@ impl DatePicker {
         self
     }
 
+    /// Registers a callback invoked with the committed [`DateSelection`] when confirmed.
     pub fn on_confirm(
         mut self,
         callback: impl Fn(DateSelection, &mut Window, &mut App) + 'static,
@@ -438,11 +484,13 @@ impl DatePicker {
         self
     }
 
+    /// Configures escape and outside-click dismissal behavior for modal and docked popups.
     pub fn properties(mut self, properties: DialogProperties) -> Self {
         self.properties = properties;
         self
     }
 
+    /// Registers a gate callback called before dismissing; return `false` to keep the picker open.
     pub fn on_dismiss_request(
         mut self,
         callback: impl Fn(DialogCloseReason, &mut Window, &mut App) -> bool + 'static,
@@ -451,6 +499,7 @@ impl DatePicker {
         self
     }
 
+    /// Registers a callback invoked after the picker closes, with the [`DialogCloseReason`].
     pub fn on_close(
         mut self,
         callback: impl Fn(DialogCloseReason, &mut Window, &mut App) + 'static,
@@ -459,6 +508,7 @@ impl DatePicker {
         self
     }
 
+    /// Overrides the picker's local color palette.
     pub fn colors(mut self, colors: DatePickerColors) -> Self {
         self.colors = colors;
         self

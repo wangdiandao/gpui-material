@@ -8,7 +8,9 @@ use gpui_base::slider::{SliderState, SliderValue};
 /// Identifies the Base slider value represented by a semantic node.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RangeThumb {
+    /// Lower-bound thumb of a range slider (or the single thumb of a continuous slider).
     Start,
+    /// Upper-bound thumb of a range slider.
     End,
 }
 

@@ -17,35 +17,48 @@ use super::dialog::{
 mod gesture;
 mod render;
 
+/// Edge of the window or layout container to which a [`Sheet`] attaches.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum SheetEdge {
+    /// Attach to the bottom edge.
     #[default]
     Bottom,
+    /// Attach to the logical start edge (left in LTR, right in RTL).
     Start,
+    /// Attach to the logical end edge (right in LTR, left in RTL).
     End,
 }
 
+/// Interaction mode of a [`Sheet`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum SheetMode {
+    /// Non-blocking docked sheet that participates in parent layout.
     #[default]
     Standard,
+    /// Blocking overlay sheet presented above a scrim with modal focus trapping.
     Modal,
 }
 
 /// Placement of a side sheet relative to its window edge or layout slot.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum SheetPlacement {
+    /// Flush against the window or container edge.
     #[default]
     Docked,
+    /// Inset from the edges using [`SheetMargins`] with rounded corners on all sides.
     Detached,
 }
 
 /// Logical detached margins in pixels. The default is 16 px on each side.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SheetMargins {
+    /// Top inset in logical pixels.
     pub top: Pixels,
+    /// Bottom inset in logical pixels.
     pub bottom: Pixels,
+    /// Logical start inset in logical pixels.
     pub start: Pixels,
+    /// Logical end inset in logical pixels.
     pub end: Pixels,
 }
 
@@ -99,10 +112,15 @@ fn fit_margins(a: Pixels, b: Pixels, available: Pixels) -> (Pixels, Pixels) {
 /// Optional local colors for the sheet and its adornments.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SheetColors {
+    /// Background color override for the sheet container.
     pub container: Option<Hsla>,
+    /// Foreground color override for the sheet body content.
     pub content: Option<Hsla>,
+    /// Foreground color override for the sheet header title.
     pub header: Option<Hsla>,
+    /// Color override for header, footer, and edge dividers.
     pub divider: Option<Hsla>,
+    /// Color override for the modal backdrop scrim.
     pub scrim: Option<Hsla>,
 }
 
@@ -195,6 +213,7 @@ pub struct Sheet {
 }
 
 impl Sheet {
+    /// Creates a sheet bound to a [`DialogState`] with the given accessible title and body content.
     pub fn new(
         id: impl Into<ElementId>,
         state: &Entity<DialogState>,
@@ -298,11 +317,13 @@ impl Sheet {
         self
     }
 
+    /// Enables or disables pointer drag resizing on a retained bottom sheet (default `true`).
     pub fn drag_enabled(mut self, enabled: bool) -> Self {
         self.drag_enabled = enabled;
         self
     }
 
+    /// Sets the distance and velocity thresholds used when settling a released drag.
     pub fn drag_thresholds(mut self, thresholds: BottomSheetThresholds) -> Self {
         self.thresholds = thresholds.normalized();
         self
@@ -332,6 +353,7 @@ impl Sheet {
         self
     }
 
+    /// Sets which edge the sheet attaches to (default [`SheetEdge::Bottom`]). Ignored for retained bottom sheets.
     pub fn edge(mut self, edge: SheetEdge) -> Self {
         if matches!(self.state, SheetBinding::Immediate(_)) {
             self.edge = edge;
@@ -339,6 +361,7 @@ impl Sheet {
         self
     }
 
+    /// Sets whether the sheet is standard (docked) or modal (default [`SheetMode::Standard`]).
     pub fn mode(mut self, mode: SheetMode) -> Self {
         self.mode = mode;
         self
@@ -360,11 +383,13 @@ impl Sheet {
         self
     }
 
+    /// Sets whether a side sheet is docked to the edge or detached with margins (default [`SheetPlacement::Docked`]).
     pub fn placement(mut self, placement: SheetPlacement) -> Self {
         self.placement = placement;
         self
     }
 
+    /// Sets the logical inset margins used when [`SheetPlacement::Detached`] is active.
     pub fn margins(mut self, margins: SheetMargins) -> Self {
         self.margins = margins;
         self
@@ -402,16 +427,19 @@ impl Sheet {
         self
     }
 
+    /// Replaces the leading back button with custom content.
     pub fn back_content(mut self, back: impl IntoElement) -> Self {
         self.back = Some(back.into_any_element());
         self
     }
 
+    /// Overrides the accessible label of the default close button (default `"Close"`).
     pub fn close_label(mut self, label: impl Into<SharedString>) -> Self {
         self.close_label = label.into();
         self
     }
 
+    /// Shows or hides the default close button in the sheet header (default `true`).
     pub fn show_close(mut self, show: bool) -> Self {
         self.show_close = show;
         self
@@ -426,11 +454,13 @@ impl Sheet {
         self
     }
 
+    /// Adds a fixed footer slot at the bottom of the sheet.
     pub fn footer(mut self, actions: impl IntoElement) -> Self {
         self.footer = Some(actions.into_any_element());
         self
     }
 
+    /// Shows or hides a horizontal divider above the sheet footer (default `false`).
     pub fn footer_divider(mut self, visible: bool) -> Self {
         self.footer_divider = visible;
         self
@@ -442,6 +472,7 @@ impl Sheet {
         self
     }
 
+    /// Configures Escape and outside-click dismissal behavior for modal sheets.
     pub fn properties(mut self, properties: DialogProperties) -> Self {
         self.properties = properties;
         self
@@ -471,31 +502,37 @@ impl Sheet {
         self
     }
 
+    /// Overrides the corner shape of the sheet container.
     pub fn shape(mut self, shape: CornerShape) -> Self {
         self.shape = Some(shape);
         self
     }
 
+    /// Overrides the theme [`ColorRole`] used for the sheet container background.
     pub fn container_role(mut self, role: ColorRole) -> Self {
         self.container_role = Some(role);
         self
     }
 
+    /// Overrides the theme [`ColorRole`] used for the sheet foreground content.
     pub fn content_role(mut self, role: ColorRole) -> Self {
         self.content_role = Some(role);
         self
     }
 
+    /// Overrides the sheet's container, content, header, divider, and scrim colors.
     pub fn colors(mut self, colors: SheetColors) -> Self {
         self.colors = colors;
         self
     }
 
+    /// Sets the tonal elevation applied to the sheet surface.
     pub fn tonal_elevation(mut self, elevation: Elevation) -> Self {
         self.tonal_elevation = elevation;
         self
     }
 
+    /// Overrides the shadow elevation cast by the sheet surface.
     pub fn shadow_elevation(mut self, elevation: Elevation) -> Self {
         self.shadow_elevation = Some(elevation);
         self
@@ -508,6 +545,7 @@ impl Sheet {
         self
     }
 
+    /// Sets the modal backdrop scrim opacity, clamped to 0–1. `NaN` falls back to the default (`0.32`).
     pub fn scrim_opacity(mut self, opacity: f32) -> Self {
         self.scrim_opacity = if opacity.is_nan() {
             0.32

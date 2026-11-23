@@ -22,12 +22,18 @@ type SvgCacheSlot = Option<((u32, SymbolAxes), Arc<[u8]>)>;
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum SymbolError {
+    /// The supplied bytes could not be parsed as a valid TrueType/OpenType font face.
     InvalidFont,
+    /// The font does not cover the required `FILL` (`0..=1`) and `wght` (`100..=700`) variation axes.
     UnsupportedAxes,
+    /// The requested symbol's Unicode code point is not present in the loaded font.
     MissingGlyph(Symbol),
+    /// The font contained the glyph index but produced no outline path.
     InvalidOutline(Symbol),
+    /// Fetching the font asset from the browser failed.
     #[cfg(target_arch = "wasm32")]
     Fetch(String),
+    /// The browser fetch request returned a non-OK HTTP status code.
     #[cfg(target_arch = "wasm32")]
     HttpStatus(u16),
 }

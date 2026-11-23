@@ -12,12 +12,18 @@ use gpui_material_theme::{ColorRole, CornerShape, TypeRole, TypographyEmphasis};
 /// Material avatar diameter presets and custom logical-pixel sizing.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum AvatarSize {
+    /// 24 dp diameter.
     ExtraSmall,
+    /// 32 dp diameter.
     Small,
+    /// 40 dp diameter (default).
     #[default]
     Medium,
+    /// 48 dp diameter.
     Large,
+    /// 64 dp diameter.
     ExtraLarge,
+    /// Explicit diameter in logical pixels; non-positive or non-finite values fall back to `Medium` (40 px).
     Custom(Pixels),
 }
 
@@ -65,16 +71,21 @@ impl AvatarSize {
 /// Outer clipping shape for an [`Avatar`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum AvatarShape {
+    /// Circular clipping (radius equal to half the diameter).
     #[default]
     Circle,
+    /// Rounded rectangle clipped to the given logical corner shape.
     Rounded(CornerShape),
 }
 
 /// Optional per-instance pigments for an [`Avatar`]. Omitted fields use the configured color roles.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct AvatarColors {
+    /// Background fill color of the avatar container.
     pub container: Option<Hsla>,
+    /// Foreground color for initials, icons, or inherited custom content.
     pub content: Option<Hsla>,
+    /// Stroke color when an inner border is enabled via [`Avatar::border`].
     pub border: Option<Hsla>,
 }
 

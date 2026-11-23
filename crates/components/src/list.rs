@@ -20,10 +20,13 @@ pub use style::{
     ListItemStateColors,
 };
 
+/// Layout and corner-grouping style for [`List`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ListVariant {
+    /// Contiguous rectangular rows without inter-row gaps (default).
     #[default]
     Standard,
+    /// Expressive segmented rows separated by a 2 px gap with rounded outer corners and 4 px inner corners.
     Segmented,
 }
 
@@ -95,6 +98,7 @@ pub struct ListItem {
 }
 
 impl ListItem {
+    /// Creates a list row with a stable element ID and primary headline label.
     pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
@@ -139,36 +143,43 @@ impl ListItem {
         self
     }
 
+    /// Sets secondary supporting text displayed below the headline.
     pub fn supporting_text(mut self, text: impl Into<SharedString>) -> Self {
         self.supporting = Some(Slot::Text(text.into()));
         self
     }
 
+    /// Sets custom supporting content displayed below the headline.
     pub fn supporting_content(mut self, content: impl IntoElement) -> Self {
         self.supporting = Some(Slot::Custom(content.into_any_element()));
         self
     }
 
+    /// Sets overline text displayed above the headline.
     pub fn overline(mut self, text: impl Into<SharedString>) -> Self {
         self.overline = Some(Slot::Text(text.into()));
         self
     }
 
+    /// Sets custom overline content displayed above the headline.
     pub fn overline_content(mut self, content: impl IntoElement) -> Self {
         self.overline = Some(Slot::Custom(content.into_any_element()));
         self
     }
 
+    /// Sets content in the leading slot (such as an icon, avatar, or selection control).
     pub fn leading(mut self, leading: impl IntoElement) -> Self {
         self.leading = Some(leading.into_any_element());
         self
     }
 
+    /// Sets content in the trailing slot (such as metadata text, an icon, or a switch).
     pub fn trailing(mut self, trailing: impl IntoElement) -> Self {
         self.trailing = Some(trailing.into_any_element());
         self
     }
 
+    /// Sets whether the row is visually highlighted as selected.
     pub fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
         self
@@ -203,6 +214,7 @@ impl ListItem {
         self
     }
 
+    /// Invoked with the requested next expanded state when the row is activated.
     pub fn on_expanded_change(
         mut self,
         handler: impl Fn(bool, &mut Window, &mut App) + 'static,
@@ -245,16 +257,19 @@ impl ListItem {
         self
     }
 
+    /// Disables row activation, focus, long-press, and interactive state layers when `true`.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
+    /// Invoked when the row's primary action is activated via pointer, keyboard, or assistive technology.
     pub fn on_activate(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
         self.activation = Some(Rc::new(handler));
         self
     }
 
+    /// Overrides logical corner shapes per interaction state.
     pub fn shapes(mut self, shapes: ListItemShapes) -> Self {
         self.shapes = shapes;
         self
@@ -267,21 +282,25 @@ impl ListItem {
         self
     }
 
+    /// Overrides container and slot pigments per state.
     pub fn colors(mut self, colors: ListItemColors) -> Self {
         self.colors = colors;
         self
     }
 
+    /// Overrides drop-shadow elevation levels per interaction state.
     pub fn elevations(mut self, elevations: ListItemElevations) -> Self {
         self.elevations = elevations;
         self
     }
 
+    /// Sets vertical alignment of leading, body, and trailing slots. Defaults to [`ListItemAlignment::Auto`].
     pub fn vertical_alignment(mut self, alignment: ListItemAlignment) -> Self {
         self.alignment = alignment;
         self
     }
 
+    /// Overrides the row's logical inner padding.
     pub fn content_padding(mut self, padding: ListItemPadding) -> Self {
         self.padding = Some(padding);
         self
@@ -293,6 +312,7 @@ impl ListItem {
         self
     }
 
+    /// Reports hover, focus, press, drag, and disabled states through a caller-owned source.
     pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
         self.source = Some(source.clone());
         self
@@ -447,6 +467,7 @@ pub struct List {
 }
 
 impl List {
+    /// Creates an empty [`ListVariant::Standard`] list container with the given element ID.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -456,6 +477,7 @@ impl List {
         }
     }
 
+    /// Sets the list layout variant (`Standard` or `Segmented`).
     pub fn variant(mut self, variant: ListVariant) -> Self {
         self.variant = variant;
         self
@@ -473,6 +495,7 @@ impl List {
         self
     }
 
+    /// Appends multiple [`ListItem`] rows from an iterator.
     pub fn items(mut self, items: impl IntoIterator<Item = ListItem>) -> Self {
         self.items.extend(items);
         self

@@ -32,6 +32,7 @@ pub struct FabMenuItem {
 }
 
 impl FabMenuItem {
+    /// Creates a FAB menu item with a stable `id`, accessible `label`, and Material `icon`.
     pub fn new(
         id: impl Into<SharedString>,
         label: impl Into<SharedString>,
@@ -65,6 +66,7 @@ impl FabMenuItem {
         }
     }
 
+    /// Sets a custom icon element for this menu item.
     pub fn icon(mut self, icon: impl IntoElement) -> Self {
         self.icon = Some(icon.into_any_element());
         self
@@ -76,16 +78,19 @@ impl FabMenuItem {
         self
     }
 
+    /// Overrides the container and content colors for this menu item.
     pub fn colors(mut self, colors: FabMenuItemColors) -> Self {
         self.colors = colors;
         self
     }
 
+    /// Disables activation and keyboard focus navigation on this menu item when `true`.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
+    /// Registers a callback invoked when this menu item is activated.
     pub fn on_activate(mut self, invoke: impl Fn(&mut Window, &mut App) + 'static) -> Self {
         self.invoke = Some(Rc::new(invoke));
         self
@@ -95,17 +100,24 @@ impl FabMenuItem {
 /// Optional colors for an individual FAB menu action.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FabMenuItemColors {
+    /// Background fill color when enabled.
     pub container: Option<Hsla>,
+    /// Icon and label color when enabled.
     pub content: Option<Hsla>,
+    /// Background fill color when disabled.
     pub disabled_container: Option<Hsla>,
+    /// Icon and label color when disabled.
     pub disabled_content: Option<Hsla>,
 }
 
 /// Horizontal alignment of a FAB menu relative to its trigger.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum FabMenuAlignment {
+    /// Aligns the menu stack with the leading edge of the trigger (mirrored in RTL).
     Start,
+    /// Centers the menu stack above the trigger.
     Center,
+    /// Aligns the menu stack with the trailing edge of the trigger (mirrored in RTL).
     #[default]
     End,
 }
@@ -124,18 +136,26 @@ impl FabMenuAlignment {
 /// Optional appearance of one endpoint of the FAB menu trigger transition.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FabMenuTriggerAppearance {
+    /// Trigger button side length in logical pixels.
     pub size: Option<Pixels>,
+    /// Corner shape of the trigger button.
     pub shape: Option<CornerShape>,
+    /// Icon size in logical pixels.
     pub icon_size: Option<Pixels>,
+    /// Background fill color of the trigger button.
     pub container_color: Option<Hsla>,
+    /// Foreground icon/content color of the trigger button.
     pub content_color: Option<Hsla>,
+    /// Shadow elevation of the trigger button.
     pub elevation: Option<Elevation>,
 }
 
 /// Interpolated collapsed and expanded trigger appearances.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FabMenuTriggerStyle {
+    /// Trigger appearance when the menu is collapsed.
     pub collapsed: FabMenuTriggerAppearance,
+    /// Trigger appearance when the menu is expanded.
     pub expanded: FabMenuTriggerAppearance,
 }
 
@@ -167,6 +187,7 @@ pub struct FabMenu {
 }
 
 impl FabMenu {
+    /// Creates a FAB menu with an element `id`, collapsed accessible `open_label`, `icon`, and `items`.
     pub fn new(
         id: impl Into<ElementId>,
         open_label: impl Into<SharedString>,
@@ -193,26 +214,32 @@ impl FabMenu {
         }
     }
 
+    /// Sets the accessible label used on the trigger button while the menu is expanded.
+    /// Defaults to `"Close actions"`.
     pub fn close_label(mut self, label: impl Into<SharedString>) -> Self {
         self.close_label = label.into();
         self
     }
 
+    /// Replaces the collapsed trigger icon with a custom icon element scaled to the trigger's icon size.
     pub fn open_icon(mut self, icon: impl IntoElement) -> Self {
         self.open_content = Some(TriggerContent::Icon(icon.into_any_element()));
         self
     }
 
+    /// Replaces the expanded close icon with a custom icon element scaled to the trigger's icon size.
     pub fn close_icon(mut self, icon: impl IntoElement) -> Self {
         self.close_content = Some(TriggerContent::Icon(icon.into_any_element()));
         self
     }
 
+    /// Replaces the collapsed trigger's inner content with arbitrary decorative artwork.
     pub fn open_content(mut self, content: impl IntoElement) -> Self {
         self.open_content = Some(TriggerContent::Custom(content.into_any_element()));
         self
     }
 
+    /// Replaces the expanded trigger's inner content with arbitrary decorative artwork.
     pub fn close_content(mut self, content: impl IntoElement) -> Self {
         self.close_content = Some(TriggerContent::Custom(content.into_any_element()));
         self
@@ -233,11 +260,13 @@ impl FabMenu {
         self
     }
 
+    /// Sets horizontal alignment of the expanded menu stack relative to the trigger.
     pub fn alignment(mut self, alignment: FabMenuAlignment) -> Self {
         self.alignment = alignment;
         self
     }
 
+    /// Overrides the collapsed and expanded appearance endpoints of the trigger button.
     pub fn trigger_style(mut self, style: FabMenuTriggerStyle) -> Self {
         self.trigger_style = style;
         self
@@ -249,16 +278,19 @@ impl FabMenu {
         self
     }
 
+    /// Sets the animation style used when toggling [`Self::visible`].
     pub fn visibility_animation(mut self, animation: FabVisibilityAnimation) -> Self {
         self.visibility_animation = animation;
         self
     }
 
+    /// Sets the collapsed [`FabSize`] preset (`Small`, `Medium`, or `Large`). Defaults to `Small`.
     pub fn size(mut self, size: FabSize) -> Self {
         self.size = size;
         self
     }
 
+    /// Sets the [`FabColor`] role preset for the trigger and default menu items. Defaults to `Primary`.
     pub fn color(mut self, color: FabColor) -> Self {
         self.color = color;
         self

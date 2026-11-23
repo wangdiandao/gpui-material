@@ -20,38 +20,54 @@ use crate::{
     button_style::finite_length,
 };
 
+/// Visual container style for [`Card`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum CardVariant {
+    /// Raised low-container surface with resting drop shadow.
     Elevated,
+    /// Solid `SurfaceContainerHighest` fill with no resting shadow (default).
     #[default]
     Filled,
+    /// `Surface` fill framed by a 1 px `OutlineVariant` border.
     Outlined,
 }
 
 /// The card's stroke. A zero-width border removes the stroke.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CardBorder {
+    /// Stroke thickness in logical pixels.
     pub width: Pixels,
+    /// Stroke color.
     pub color: Hsla,
 }
 
 /// Per-instance colors. Omitted fields keep their variant and window defaults.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct CardColors {
+    /// Enabled background color of the card surface.
     pub container: Option<Hsla>,
+    /// Enabled foreground text and icon color inherited by card children.
     pub content: Option<Hsla>,
+    /// Disabled background color of the card surface.
     pub disabled_container: Option<Hsla>,
+    /// Disabled foreground text and icon color inherited by card children.
     pub disabled_content: Option<Hsla>,
 }
 
 /// Shadow levels. Each omitted field keeps the variant default for its state.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CardElevations {
+    /// Elevation while resting.
     pub resting: Option<Elevation>,
+    /// Elevation while pressed.
     pub pressed: Option<Elevation>,
+    /// Elevation while keyboard focus is visible.
     pub focused: Option<Elevation>,
+    /// Elevation while hovered.
     pub hovered: Option<Elevation>,
+    /// Elevation while marked as dragged via [`Card::dragged`].
     pub dragged: Option<Elevation>,
+    /// Elevation while disabled.
     pub disabled: Option<Elevation>,
 }
 
@@ -99,6 +115,7 @@ pub struct Card {
 }
 
 impl Card {
+    /// Creates a static card with the default [`CardVariant::Filled`] style and 16 dp padding.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
@@ -134,16 +151,19 @@ impl Card {
         Self::new(id).variant(CardVariant::Outlined)
     }
 
+    /// Sets the visual container variant. Defaults to [`CardVariant::Filled`].
     pub fn variant(mut self, variant: CardVariant) -> Self {
         self.variant = variant;
         self
     }
 
+    /// Disables card activation, drag elevation, and interactive state layers.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
+    /// Makes the card a focusable, keyboard-operable action with the given accessible name and callback.
     pub fn on_activate(
         mut self,
         name: impl Into<SharedString>,
@@ -153,21 +173,25 @@ impl Card {
         self
     }
 
+    /// Sets the logical corner shape of the card surface. Defaults to `CornerRole::Medium`.
     pub fn shape(mut self, shape: CornerShape) -> Self {
         self.shape = shape;
         self
     }
 
+    /// Overrides the card's border width and color.
     pub fn border(mut self, border: CardBorder) -> Self {
         self.border = Some(border);
         self
     }
 
+    /// Overrides enabled and disabled container and content colors.
     pub fn colors(mut self, colors: CardColors) -> Self {
         self.colors = colors;
         self
     }
 
+    /// Overrides drop-shadow elevation levels per interaction state.
     pub fn elevations(mut self, elevations: CardElevations) -> Self {
         self.elevations = elevations;
         self
@@ -212,6 +236,7 @@ impl Card {
         self
     }
 
+    /// Reports hover, focus, press, drag, and disabled states through a caller-owned source.
     pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
         self.source = Some(source.clone());
         self

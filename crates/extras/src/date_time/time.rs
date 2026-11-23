@@ -15,26 +15,37 @@ mod panel;
 pub use dialog::{TimePicker, TimePickerDialog, TimePickerModeAction, VibrantTimePickerDialog};
 pub use panel::{TimePickerPanel, TimePickerSelectionColors, TimePickerStyle, TimeScroll};
 
+/// Hour display convention for a time picker.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TimeFormat {
+    /// 12-hour clock (`1`–`12`) with an AM/PM period selector.
     TwelveHour,
+    /// 24-hour clock (`00`–`23`) without a period selector.
     #[default]
     TwentyFourHour,
 }
 
+/// Interactive editor mode for a time picker.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TimePickerVariant {
+    /// Circular clock dial with clickable and draggable hands.
     #[default]
     Dial,
+    /// Direct numeric text fields for hours and minutes.
     Input,
+    /// Wrapping vertical scroll wheels for hours and minutes.
     Scroll,
 }
 
+/// Orientation of the dial relative to the time header in a time picker.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TimePickerLayout {
+    /// Switches to horizontal when the viewport is wide (`>= 600px`) and short (`< 650px`).
     #[default]
     Auto,
+    /// Always stacks the time header above the dial.
     Vertical,
+    /// Places the time header beside the dial when the viewport is at least `600px` wide.
     Horizontal,
 }
 
@@ -70,6 +81,7 @@ impl Default for TimePickerLocale {
 }
 
 impl TimePickerLocale {
+    /// Sets custom formatting and parsing functions for hour and minute numerals.
     pub fn numbers(
         mut self,
         format: impl Fn(u32) -> SharedString + 'static,
@@ -80,6 +92,7 @@ impl TimePickerLocale {
         self
     }
 
+    /// Sets localized labels for the hour field, minute field, separator, and AM/PM periods.
     pub fn labels(
         mut self,
         hour: impl Into<SharedString>,
@@ -96,16 +109,20 @@ impl TimePickerLocale {
         self
     }
 
+    /// Sets the error message shown when text input cannot be parsed as a valid time.
     pub fn validation_message(mut self, message: impl Into<SharedString>) -> Self {
         self.validation_message = message.into();
         self
     }
 }
 
+/// The time component currently targeted for editing.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TimePickerSegment {
+    /// Editing the hour component.
     #[default]
     Hour,
+    /// Editing the minute component.
     Minute,
 }
 
@@ -174,6 +191,7 @@ pub struct TimePickerState {
 }
 
 impl TimePickerState {
+    /// Creates a time picker state initialized to `00:00` in 24-hour dial mode.
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let hour = cx.new(|cx| TextFieldState::new(window, cx));
         let minute = cx.new(|cx| TextFieldState::new(window, cx));
@@ -252,38 +270,47 @@ impl TimePickerState {
         self.draft
     }
 
+    /// Returns the draft hour in 24-hour format (`0`–`23`).
     pub fn hour(&self) -> u32 {
         self.draft.hour()
     }
 
+    /// Returns the draft minute (`0`–`59`).
     pub fn minute(&self) -> u32 {
         self.draft.minute()
     }
 
+    /// Returns `true` when the draft hour is `12` or later.
     pub fn is_pm(&self) -> bool {
         self.hour() >= 12
     }
 
+    /// Returns the currently active editing segment ([`TimePickerSegment::Hour`] or [`TimePickerSegment::Minute`]).
     pub fn segment(&self) -> TimePickerSegment {
         self.segment
     }
 
+    /// Returns the active editor mode ([`TimePickerVariant`]).
     pub fn mode(&self) -> TimePickerVariant {
         self.mode
     }
 
+    /// Returns the active 12-hour or 24-hour [`TimeFormat`].
     pub fn format(&self) -> TimeFormat {
         self.format
     }
 
+    /// Returns the raw text currently in the hour input field.
     pub fn hour_input(&self, cx: &App) -> SharedString {
         self.hour.read(cx).value()
     }
 
+    /// Returns the raw text currently in the minute input field.
     pub fn minute_input(&self, cx: &App) -> SharedString {
         self.minute.read(cx).value()
     }
 
+    /// Replaces the text in the hour input field and updates the draft if valid.
     pub fn set_hour_input(
         &mut self,
         text: impl Into<SharedString>,
@@ -293,6 +320,7 @@ impl TimePickerState {
         self.set_input(TimePickerSegment::Hour, text.into(), window, cx);
     }
 
+    /// Replaces the text in the minute input field and updates the draft if valid.
     pub fn set_minute_input(
         &mut self,
         text: impl Into<SharedString>,
@@ -302,18 +330,22 @@ impl TimePickerState {
         self.set_input(TimePickerSegment::Minute, text.into(), window, cx);
     }
 
+    /// Returns whether the hour input field currently parses as a valid hour for the active format.
     pub fn is_hour_input_valid(&self, cx: &App) -> bool {
         self.valid_input(TimePickerSegment::Hour, cx)
     }
 
+    /// Returns whether the minute input field currently parses as a valid minute (`0`–`59`).
     pub fn is_minute_input_valid(&self, cx: &App) -> bool {
         self.valid_input(TimePickerSegment::Minute, cx)
     }
 
+    /// Returns whether both hour and minute input fields currently contain valid values.
     pub fn is_input_valid(&self, cx: &App) -> bool {
         self.invalid_segment(cx).is_none()
     }
 
+    /// Returns whether the picker's modal dialog is currently open.
     pub fn is_open(&self, cx: &App) -> bool {
         self.dialog.read(cx).is_open()
     }
@@ -347,6 +379,7 @@ impl TimePickerState {
         self.set_part(TimePickerSegment::Minute, minute, window, cx)
     }
 
+    /// Switches the active editing segment between hours and minutes.
     pub fn set_segment(&mut self, segment: TimePickerSegment, cx: &mut Context<Self>) {
         if segment != self.segment {
             self.segment = segment;
@@ -381,6 +414,7 @@ impl TimePickerState {
         }
     }
 
+    /// Switches between 12-hour and 24-hour display formats and resynchronizes editors and wheels.
     pub fn set_format(&mut self, format: TimeFormat, window: &mut Window, cx: &mut Context<Self>) {
         if format != self.format {
             self.format = format;
@@ -391,6 +425,7 @@ impl TimePickerState {
         }
     }
 
+    /// Replaces the locale hooks and reformats the hour and minute input fields.
     pub fn set_locale(
         &mut self,
         locale: TimePickerLocale,

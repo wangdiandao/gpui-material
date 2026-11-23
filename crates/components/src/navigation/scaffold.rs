@@ -14,8 +14,11 @@ use crate::{ScaffoldInsets, Sheet};
 /// Positions a scaffold's floating action within the usable content width.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ScaffoldFabPosition {
+    /// Align the floating action button to the logical start of the content area.
     Start,
+    /// Center the floating action button horizontally within the content area.
     Center,
+    /// Align the floating action button to the logical end of the content area.
     #[default]
     End,
     /// At the logical end of the scaffold, over the bottom bar.
@@ -31,6 +34,7 @@ pub struct ScaffoldContentLayout {
     pub occupied: ScaffoldInsets,
     /// Remaining insets for the body or a child inside its scroll area.
     pub padding: ScaffoldInsets,
+    /// Active layout direction from the window theme.
     pub direction: Direction,
 }
 
@@ -60,6 +64,7 @@ pub struct Scaffold {
 }
 
 impl Scaffold {
+    /// Creates a scaffold with the given element ID and primary body content.
     pub fn new(id: impl Into<ElementId>, content: impl IntoElement) -> Self {
         Self::with_content(id.into(), Content::Element(content.into_any_element()))
     }
@@ -93,16 +98,19 @@ impl Scaffold {
         }
     }
 
+    /// Places a top app bar above the content region.
     pub fn app_bar(mut self, element: impl IntoElement) -> Self {
         self.app_bar = Some(element.into_any_element());
         self
     }
 
+    /// Places a leading navigation rail or drawer at the logical start of the scaffold.
     pub fn rail(mut self, element: impl IntoElement) -> Self {
         self.rail = Some(element.into_any_element());
         self
     }
 
+    /// Places a bottom navigation bar or bottom app bar beneath the content region.
     pub fn bottom_bar(mut self, element: impl IntoElement) -> Self {
         self.bottom_bar = Some(element.into_any_element());
         self
@@ -114,16 +122,19 @@ impl Scaffold {
         self
     }
 
+    /// Anchors a floating action button within the scaffold according to [`Self::fab_position`].
     pub fn fab(mut self, element: impl IntoElement) -> Self {
         self.fab = Some(element.into_any_element());
         self
     }
 
+    /// Mounts a snackbar host anchored above bottom navigation and the floating action button.
     pub fn snackbar(mut self, element: impl IntoElement) -> Self {
         self.snackbar = Some(element.into_any_element());
         self
     }
 
+    /// Sets the horizontal and overlay placement of the floating action button (default [`ScaffoldFabPosition::End`]).
     pub fn fab_position(mut self, position: ScaffoldFabPosition) -> Self {
         self.fab_position = position;
         self

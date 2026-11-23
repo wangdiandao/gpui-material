@@ -6,15 +6,20 @@ use gpui_material_theme::{MotionKind, MotionScheme, MotionSpec, MotionSpeed};
 /// Logical edge toward which the toolbar exits. Start and End mirror in RTL.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ToolbarExitDirection {
+    /// Slides toward the leading horizontal edge (mirrored in RTL).
     Start,
+    /// Slides toward the trailing horizontal edge (mirrored in RTL).
     End,
+    /// Slides upward toward the top edge.
     Top,
+    /// Slides downward toward the bottom edge.
     Bottom,
 }
 
 /// Projects release velocity before choosing a toolbar endpoint.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ToolbarFling {
+    /// Time window over which release velocity is projected. Defaults to `150ms`.
     pub projection: Duration,
     /// Uses the snap motion when omitted.
     pub motion: Option<MotionSpec>,
@@ -32,10 +37,15 @@ impl Default for ToolbarFling {
 /// Controls the toolbar's expansion thresholds and optional slide away from its resting edge.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ToolbarScrollBehavior {
+    /// Edge toward which the toolbar slides as it collapses, or `None` to collapse in place.
     pub exit_direction: Option<ToolbarExitDirection>,
+    /// Upward scroll distance required to expand a collapsed toolbar. Defaults to `40px`.
     pub expand_threshold: Pixels,
+    /// Downward scroll distance required to collapse an expanded toolbar. Defaults to `40px`.
     pub collapse_threshold: Pixels,
+    /// Motion spec used when snapping to an endpoint without fling velocity.
     pub snap_motion: Option<MotionSpec>,
+    /// Fling velocity projection and motion settings.
     pub fling: ToolbarFling,
 }
 
@@ -117,6 +127,7 @@ pub(super) struct ScrollPosition {
 }
 
 impl ToolbarScrollState {
+    /// Creates a toolbar scroll state starting expanded at offset `0`.
     pub fn new() -> Self {
         Self::default()
     }
@@ -130,6 +141,7 @@ impl ToolbarScrollState {
         }
     }
 
+    /// Sets the target collapsed fraction directly (`0.0` expanded to `1.0` collapsed).
     pub fn set_collapsed_fraction(&mut self, fraction: f32, cx: &mut Context<Self>) {
         if fraction.is_finite() {
             let clamped = fraction.clamp(0., 1.);
@@ -160,6 +172,7 @@ impl ToolbarScrollState {
         }
     }
 
+    /// Returns the most recently observed content scroll offset in logical pixels.
     pub fn content_offset(&self) -> Pixels {
         px(self.metrics.content)
     }
@@ -169,10 +182,12 @@ impl ToolbarScrollState {
         px(self.metrics.offset)
     }
 
+    /// Returns the maximum slide travel distance in logical pixels for the current toolbar footprint.
     pub fn offset_limit(&self) -> Pixels {
         px(self.metrics.limit)
     }
 
+    /// Returns the current displayed collapsed fraction in `0.0..=1.0`.
     pub fn collapsed_fraction(&self) -> f32 {
         self.metrics.fraction
     }

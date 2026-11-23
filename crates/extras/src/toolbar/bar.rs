@@ -17,40 +17,55 @@ pub use layout::{ToolbarArrangement, ToolbarElevations, ToolbarPadding};
 use scroll::length;
 pub use scroll::{ToolbarExitDirection, ToolbarFling, ToolbarScrollBehavior, ToolbarScrollState};
 
+/// Surface layout mode for a [`Toolbar`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ToolbarPlacement {
+    /// Pill-shaped elevated toolbar floating above content, with optional adjacent FAB.
     #[default]
     Floating,
+    /// Edge-to-edge toolbar spanning the full width or height of its container.
     Docked,
 }
 
+/// Primary layout axis of a [`Toolbar`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ToolbarOrientation {
+    /// Arranges actions left-to-right (or right-to-left in RTL).
     #[default]
     Horizontal,
+    /// Arranges actions top-to-bottom.
     Vertical,
 }
 
+/// Material 3 color treatment preset for a [`Toolbar`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ToolbarColor {
+    /// Neutral surface container styling.
     #[default]
     Standard,
+    /// Expressive primary-container styling for high emphasis.
     Vibrant,
 }
 
 /// Optional toolbar pigments. The adjacent FAB uses its own palette.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ToolbarColors {
+    /// Background fill color for the toolbar strip.
     pub container: Option<Hsla>,
+    /// Foreground icon and text color for unselected actions.
     pub content: Option<Hsla>,
+    /// Background fill color for selected toggle actions.
     pub selected_container: Option<Hsla>,
+    /// Foreground icon and text color for selected toggle actions.
     pub selected_content: Option<Hsla>,
 }
 
 /// Places the FAB in logical order. Horizontal positions mirror in RTL.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ToolbarFabPosition {
+    /// Places the FAB before the toolbar strip (leading edge, mirrored in RTL).
     Start,
+    /// Places the FAB after the toolbar strip (trailing edge, mirrored in RTL).
     #[default]
     End,
 }
@@ -61,6 +76,7 @@ pub(super) enum ActionIcon {
     Custom(Rc<dyn Fn() -> AnyElement>),
 }
 
+/// One labeled command or toggle rendered inside a [`Toolbar`].
 pub struct ToolbarAction {
     id: SharedString,
     label: SharedString,
@@ -72,6 +88,7 @@ pub struct ToolbarAction {
 }
 
 impl ToolbarAction {
+    /// Creates a toolbar action with a stable `id`, accessible `label`, and Material `icon`.
     pub fn new(
         id: impl Into<SharedString>,
         label: impl Into<SharedString>,
@@ -106,6 +123,7 @@ impl ToolbarAction {
         }
     }
 
+    /// Disables activation for this action when `true`.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.enabled = !disabled;
         self
@@ -123,6 +141,7 @@ impl ToolbarAction {
         self
     }
 
+    /// Registers a callback invoked when the action is activated via pointer, keyboard, or accessibility.
     pub fn on_activate(mut self, invoke: impl Fn(&mut Window, &mut App) + 'static) -> Self {
         self.invoke = Some(std::rc::Rc::new(invoke));
         self
@@ -179,6 +198,7 @@ pub struct Toolbar {
 }
 
 impl Toolbar {
+    /// Creates a floating horizontal toolbar with an element `id`, accessible `label`, and `actions`.
     pub fn new(
         id: impl Into<ElementId>,
         label: impl Into<SharedString>,
@@ -216,16 +236,19 @@ impl Toolbar {
         }
     }
 
+    /// Sets whether the toolbar renders as [`ToolbarPlacement::Floating`] or [`ToolbarPlacement::Docked`].
     pub fn placement(mut self, placement: ToolbarPlacement) -> Self {
         self.placement = placement;
         self
     }
 
+    /// Sets the primary layout axis ([`ToolbarOrientation::Horizontal`] or [`ToolbarOrientation::Vertical`]).
     pub fn orientation(mut self, orientation: ToolbarOrientation) -> Self {
         self.orientation = orientation;
         self
     }
 
+    /// Sets the Material 3 color treatment ([`ToolbarColor::Standard`] or [`ToolbarColor::Vibrant`]).
     pub fn color(mut self, color: ToolbarColor) -> Self {
         self.color = color;
         self
@@ -260,11 +283,13 @@ impl Toolbar {
         self
     }
 
+    /// Overrides the adjacent FAB's Material color role preset.
     pub fn fab_color(mut self, color: FabColor) -> Self {
         self.fab_color = Some(color);
         self
     }
 
+    /// Overrides individual container and content colors on the adjacent FAB.
     pub fn fab_colors(mut self, colors: ButtonColors) -> Self {
         self.fab_colors = colors;
         self
@@ -276,21 +301,25 @@ impl Toolbar {
         self
     }
 
+    /// Adds an expandable leading slot before the main toolbar content.
     pub fn leading_content(mut self, element: impl IntoElement) -> Self {
         self.leading = Some(element.into_any_element());
         self
     }
 
+    /// Adds an expandable trailing slot after the main toolbar content.
     pub fn trailing_content(mut self, element: impl IntoElement) -> Self {
         self.trailing = Some(element.into_any_element());
         self
     }
 
+    /// Overrides whether the leading slot is expanded independently of the toolbar's expanded state.
     pub fn leading_expanded(mut self, expanded: bool) -> Self {
         self.leading_expanded = Some(expanded);
         self
     }
 
+    /// Overrides whether the trailing slot is expanded independently of the toolbar's expanded state.
     pub fn trailing_expanded(mut self, expanded: bool) -> Self {
         self.trailing_expanded = Some(expanded);
         self
@@ -302,6 +331,7 @@ impl Toolbar {
         self
     }
 
+    /// Sets the gap between toolbar items in logical pixels. Defaults to `4px`.
     pub fn spacing(mut self, spacing: Pixels) -> Self {
         self.spacing = px(length(spacing).unwrap_or(4.));
         self
@@ -313,21 +343,25 @@ impl Toolbar {
         self
     }
 
+    /// Overrides the logical content padding inside the toolbar strip.
     pub fn padding(mut self, padding: ToolbarPadding) -> Self {
         self.padding = Some(padding);
         self
     }
 
+    /// Overrides the corner shape of the toolbar strip.
     pub fn shape(mut self, shape: CornerShape) -> Self {
         self.shape = Some(shape);
         self
     }
 
+    /// Overrides the shadow elevations for expanded and collapsed states.
     pub fn elevations(mut self, elevations: ToolbarElevations) -> Self {
         self.elevations = elevations;
         self
     }
 
+    /// Overrides the toolbar's container, content, and selected-action colors.
     pub fn colors(mut self, colors: ToolbarColors) -> Self {
         self.colors = colors;
         self
@@ -346,16 +380,19 @@ impl Toolbar {
         self
     }
 
+    /// Attaches a caller-owned [`ToolbarScrollState`] entity for scroll-driven collapsing and exit.
     pub fn scroll_state(mut self, state: &Entity<ToolbarScrollState>) -> Self {
         self.scroll_state = Some(state.clone());
         self
     }
 
+    /// Configures scroll thresholds, exit direction, and snap/fling motion.
     pub fn scroll_behavior(mut self, behavior: ToolbarScrollBehavior) -> Self {
         self.scroll_behavior = Some(behavior);
         self
     }
 
+    /// Overrides the [`MotionSpec`] used for expanding and collapsing leading/trailing slots.
     pub fn transition_motion(mut self, motion: MotionSpec) -> Self {
         self.transition_motion = Some(motion);
         self
@@ -368,6 +405,7 @@ impl Toolbar {
         self
     }
 
+    /// Sets the accessible label for the collapsed overflow trigger button. Defaults to `"More actions"`.
     pub fn overflow_label(mut self, label: impl Into<SharedString>) -> Self {
         self.overflow_label = label.into();
         self

@@ -25,6 +25,7 @@ pub struct SearchRequest {
 }
 
 impl SearchRequest {
+    /// Returns the query string associated with this search request.
     pub fn query(&self) -> &SharedString {
         &self.query
     }
@@ -41,6 +42,7 @@ pub struct SearchResult {
 }
 
 impl SearchResult {
+    /// Creates a search result with a stable element `id` and primary `label`.
     pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
@@ -51,6 +53,7 @@ impl SearchResult {
         }
     }
 
+    /// Sets secondary supporting text displayed beneath the primary label.
     pub fn supporting(mut self, text: impl Into<SharedString>) -> Self {
         self.supporting = Some(text.into());
         self
@@ -62,19 +65,23 @@ impl SearchResult {
         self
     }
 
+    /// Sets an optional leading icon for this result row.
     pub fn icon(mut self, icon: IconName) -> Self {
         self.icon = Some(icon);
         self
     }
 
+    /// Returns the group heading assigned to this result, if any.
     pub fn group_label(&self) -> Option<&SharedString> {
         self.group.as_ref()
     }
 
+    /// Returns the stable element identifier of this result row.
     pub fn id(&self) -> &ElementId {
         &self.id
     }
 
+    /// Returns the primary display label of this result row.
     pub fn label(&self) -> &SharedString {
         &self.label
     }
@@ -83,7 +90,9 @@ impl SearchResult {
 /// Result from the application's search provider.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SearchOutcome {
+    /// Search completed with the supplied ordered list of results (possibly empty).
     Results(Vec<SearchResult>),
+    /// Search failed with a localized error message shown in an alert status region.
     Error(SharedString),
 }
 
@@ -91,8 +100,11 @@ pub enum SearchOutcome {
 /// are separate commands and the application owns their consequences.
 #[derive(Clone, Debug)]
 pub enum SearchEvent {
+    /// Emitted when the non-empty query changes and needs asynchronous resolution.
     Request(SearchRequest),
+    /// Emitted when the user presses Enter with a non-empty query.
     Submit(SharedString),
+    /// Emitted when the user activates a [`SearchResult`] row.
     Select(SearchResult),
 }
 
@@ -146,10 +158,13 @@ impl SearchResponse {
     }
 }
 
+/// Expansion endpoint of a [`SearchState`] presentation.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum SearchValue {
+    /// Search view is dismissed and only the collapsed trigger is visible.
     #[default]
     Collapsed,
+    /// Search view is presented and ready for query editing and result selection.
     Expanded,
 }
 
@@ -185,6 +200,7 @@ pub struct SearchState {
 impl EventEmitter<SearchEvent> for SearchState {}
 
 impl SearchState {
+    /// Creates a collapsed search state with an owned [`TextFieldState`] editor.
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input = cx.new(|cx| TextFieldState::new(window, cx));
         Self::with_editor(&input, window, cx)
@@ -239,14 +255,17 @@ impl SearchState {
         }
     }
 
+    /// Returns the latest committed query text.
     pub fn query(&self) -> &SharedString {
         &self.query
     }
 
+    /// Returns `true` when the target state is [`SearchValue::Expanded`].
     pub fn is_open(&self) -> bool {
         self.target == SearchValue::Expanded
     }
 
+    /// Returns the currently displayed state derived from [`Self::progress`].
     pub fn current_value(&self) -> SearchValue {
         if self.progress <= 0.02 {
             SearchValue::Collapsed
@@ -255,18 +274,22 @@ impl SearchState {
         }
     }
 
+    /// Returns the target endpoint ([`SearchValue::Collapsed`] or [`SearchValue::Expanded`]).
     pub fn target_value(&self) -> SearchValue {
         self.target
     }
 
+    /// Returns the current expansion fraction in `0.0..=1.0`.
     pub fn progress(&self) -> f32 {
         self.progress
     }
 
+    /// Returns whether an expand or collapse transition is currently animating.
     pub fn is_animating(&self) -> bool {
         self.animation.is_animating()
     }
 
+    /// Returns the retained [`TextFieldState`] backing the search input.
     pub fn editor(&self) -> &Entity<TextFieldState> {
         &self.input
     }
@@ -343,6 +366,7 @@ impl SearchState {
         cx.notify();
     }
 
+    /// Returns the latest completed [`SearchOutcome`], or `None` while idle or loading.
     pub fn results(&self) -> Option<&SearchOutcome> {
         match &self.response.results {
             Results::Ready(outcome) => Some(outcome),
@@ -371,6 +395,7 @@ impl SearchState {
         cx.emit(SearchEvent::Select(result));
     }
 
+    /// Returns the virtualized [`ListState`] used to scroll search results.
     pub fn scroll_state(&self) -> &ListState {
         &self.scroll
     }

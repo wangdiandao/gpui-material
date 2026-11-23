@@ -24,10 +24,15 @@ type Indicator = Box<dyn FnOnce(PullToRefreshProgress, &mut Window, &mut App) ->
 /// Readback supplied to a caller's indicator.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PullToRefreshProgress {
+    /// Pull progress relative to the refresh threshold (`0.0` hidden, `1.0` threshold, >`1.0` overshoot).
     pub distance_fraction: f32,
+    /// Current downward translation of the indicator in logical pixels.
     pub offset: Pixels,
+    /// Whether the caller-owned refreshing state is currently active.
     pub refreshing: bool,
+    /// Whether a refresh request has been emitted and is awaiting caller confirmation or rejection.
     pub refresh_pending: bool,
+    /// Whether the indicator is currently animating toward its resting or threshold position.
     pub animating: bool,
 }
 
@@ -71,6 +76,7 @@ impl Default for PullToRefreshState {
 }
 
 impl PullToRefreshState {
+    /// Creates an idle pull-to-refresh state with its own internal scroll handle.
     pub fn new() -> Self {
         Self::default()
     }
@@ -85,10 +91,12 @@ impl PullToRefreshState {
         self.fraction
     }
 
+    /// Returns `true` while the indicator is transitioning between positions.
     pub fn is_animating(&self) -> bool {
         self.motion.is_animating()
     }
 
+    /// Returns `true` when a refresh callback has been triggered and awaits a state update or [`Self::reject_refresh`].
     pub fn is_refresh_pending(&self) -> bool {
         self.pending
     }
@@ -110,10 +118,12 @@ impl PullToRefreshState {
         }
     }
 
+    /// Cancels any active gesture and animates the indicator to the refresh threshold (`1.0`).
     pub fn animate_to_threshold(&mut self, cx: &mut Context<Self>) {
         self.animate_to_fraction(1., cx);
     }
 
+    /// Cancels any active gesture and animates the indicator back to hidden (`0.0`).
     pub fn animate_to_hidden(&mut self, cx: &mut Context<Self>) {
         self.animate_to_fraction(0., cx);
     }
@@ -256,6 +266,7 @@ pub struct PullToRefresh {
 }
 
 impl PullToRefresh {
+    /// Creates a pull-to-refresh container bound to `state`, caller-owned `refreshing` status, and refresh callback.
     pub fn new(
         id: impl Into<ElementId>,
         state: &Entity<PullToRefreshState>,
@@ -278,11 +289,13 @@ impl PullToRefresh {
         }
     }
 
+    /// Enables or disables pull gestures and the accessible refresh action button. Defaults to `true`.
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self
     }
 
+    /// Sets the label used for both the accessible refresh button and default loading indicator. Defaults to `"Refresh"`.
     pub fn refresh_label(mut self, label: impl Into<SharedString>) -> Self {
         self.label = label.into();
         self

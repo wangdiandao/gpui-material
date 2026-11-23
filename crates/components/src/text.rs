@@ -96,6 +96,7 @@ pub struct Text {
 }
 
 impl Text {
+    /// Creates text with the default [`TypeRole::BodyLarge`] typography role.
     pub fn new(value: impl Into<SharedString>) -> Self {
         Self {
             value: value.into(),
@@ -112,62 +113,77 @@ impl Text {
         }
     }
 
+    /// Creates text styled with [`TypeRole::DisplayLarge`].
     pub fn display_large(value: impl Into<SharedString>) -> Self {
         Self::new(value).role(TypeRole::DisplayLarge)
     }
 
+    /// Creates text styled with [`TypeRole::DisplayMedium`].
     pub fn display_medium(value: impl Into<SharedString>) -> Self {
         Self::new(value).role(TypeRole::DisplayMedium)
     }
 
+    /// Creates text styled with [`TypeRole::DisplaySmall`].
     pub fn display_small(value: impl Into<SharedString>) -> Self {
         Self::new(value).role(TypeRole::DisplaySmall)
     }
 
+    /// Creates text styled with [`TypeRole::HeadlineLarge`].
     pub fn headline_large(value: impl Into<SharedString>) -> Self {
         Self::new(value).role(TypeRole::HeadlineLarge)
     }
 
+    /// Creates text styled with [`TypeRole::HeadlineMedium`].
     pub fn headline_medium(value: impl Into<SharedString>) -> Self {
         Self::new(value).role(TypeRole::HeadlineMedium)
     }
 
+    /// Creates text styled with [`TypeRole::HeadlineSmall`].
     pub fn headline_small(value: impl Into<SharedString>) -> Self {
         Self::new(value).role(TypeRole::HeadlineSmall)
     }
 
+    /// Creates text styled with [`TypeRole::TitleLarge`].
     pub fn title_large(value: impl Into<SharedString>) -> Self {
         Self::new(value).role(TypeRole::TitleLarge)
     }
 
+    /// Creates text styled with [`TypeRole::TitleMedium`].
     pub fn title_medium(value: impl Into<SharedString>) -> Self {
         Self::new(value).role(TypeRole::TitleMedium)
     }
 
+    /// Creates text styled with [`TypeRole::TitleSmall`].
     pub fn title_small(value: impl Into<SharedString>) -> Self {
         Self::new(value).role(TypeRole::TitleSmall)
     }
 
+    /// Creates text styled with [`TypeRole::BodyLarge`].
     pub fn body_large(value: impl Into<SharedString>) -> Self {
         Self::new(value).role(TypeRole::BodyLarge)
     }
 
+    /// Creates text styled with [`TypeRole::BodyMedium`].
     pub fn body_medium(value: impl Into<SharedString>) -> Self {
         Self::new(value).role(TypeRole::BodyMedium)
     }
 
+    /// Creates text styled with [`TypeRole::BodySmall`].
     pub fn body_small(value: impl Into<SharedString>) -> Self {
         Self::new(value).role(TypeRole::BodySmall)
     }
 
+    /// Creates text styled with [`TypeRole::LabelLarge`].
     pub fn label_large(value: impl Into<SharedString>) -> Self {
         Self::new(value).role(TypeRole::LabelLarge)
     }
 
+    /// Creates text styled with [`TypeRole::LabelMedium`].
     pub fn label_medium(value: impl Into<SharedString>) -> Self {
         Self::new(value).role(TypeRole::LabelMedium)
     }
 
+    /// Creates text styled with [`TypeRole::LabelSmall`].
     pub fn label_small(value: impl Into<SharedString>) -> Self {
         Self::new(value).role(TypeRole::LabelSmall)
     }
@@ -178,11 +194,13 @@ impl Text {
         self
     }
 
+    /// Sets the Material typography scale role. Defaults to [`TypeRole::BodyLarge`].
     pub fn role(mut self, role: TypeRole) -> Self {
         self.role = role;
         self
     }
 
+    /// Selects emphasized typography weight when `true`, or baseline weight when `false`.
     pub fn emphasized(mut self, emphasized: bool) -> Self {
         self.emphasis = if emphasized {
             TypographyEmphasis::Emphasized
@@ -192,11 +210,13 @@ impl Text {
         self
     }
 
+    /// Applies an additional font-size multiplier on top of the window theme's typography scale. Defaults to `1.0`.
     pub fn font_scale(mut self, scale: f32) -> Self {
         self.font_scale = scale;
         self
     }
 
+    /// Resolves the text color from the window theme's semantic color role.
     pub fn color(mut self, role: ColorRole) -> Self {
         self.color = Some(role);
         self.color_override = None;
@@ -226,6 +246,7 @@ impl Text {
         self
     }
 
+    /// Limits single-line text to `max_width` logical pixels, ellipsizing overflow and disabling wrapping.
     pub fn truncate(mut self, max_width: gpui::Pixels) -> Self {
         self.max_width = Some(max_width.max(px(0.)));
         self.wrap = false;

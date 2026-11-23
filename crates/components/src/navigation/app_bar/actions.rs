@@ -75,6 +75,7 @@ impl AppBarItem {
         }
     }
 
+    /// Disables the action in both its inline and overflow menu representations.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
@@ -167,16 +168,19 @@ pub struct AppBarMenuState {
 }
 
 impl AppBarMenuState {
+    /// Returns whether the overflow menu is currently open.
     pub fn is_showing(&self) -> bool {
         self.shown.get()
     }
 
+    /// Opens the overflow menu if any items are currently overflowed.
     pub fn show(&self, window: &mut Window, cx: &mut App) {
         if self.has_overflow.get() {
             self.set(true, window, cx);
         }
     }
 
+    /// Closes the overflow menu.
     pub fn dismiss(&self, window: &mut Window, cx: &mut App) {
         self.set(false, window, cx);
     }
@@ -229,6 +233,7 @@ pub struct AppBarColumn(Strip);
 macro_rules! action_strip {
     ($name:ident, $axis:expr) => {
         impl $name {
+            /// Creates an action strip with the given element ID and items.
             pub fn new(
                 id: impl Into<ElementId>,
                 items: impl IntoIterator<Item = AppBarItem>,
@@ -236,6 +241,7 @@ macro_rules! action_strip {
                 Self(Strip::new(id, items))
             }
 
+            /// Sets the accessible label of the action strip toolbar (default `"App bar actions"`).
             pub fn label(mut self, label: impl Into<SharedString>) -> Self {
                 self.0.label = label.into();
                 self
@@ -247,6 +253,7 @@ macro_rules! action_strip {
                 self
             }
 
+            /// Sets the accessible label of the overflow menu trigger button (default `"More actions"`).
             pub fn overflow_label(mut self, label: impl Into<SharedString>) -> Self {
                 self.0.overflow_label = label.into();
                 self

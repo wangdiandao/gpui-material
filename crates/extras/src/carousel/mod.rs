@@ -30,12 +30,18 @@ const WIDTH_TO_HEIGHT_MAX: f32 = 16. / 9.;
 /// Material carousel layouts. Full-screen pages scroll vertically.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum CarouselVariant {
+    /// Displays multiple sized items (large, medium, and small) across the viewport.
     #[default]
     MultiBrowse,
+    /// Scrolls uniform-width items freely without contained keyline shrinking.
     Uncontained,
+    /// Scrolls items freely with per-item aspect ratios clamped to Material bounds.
     UncontainedMultiAspectRatio,
+    /// Features one large hero item alongside smaller peeking items.
     Hero,
+    /// Centers the large hero item between smaller peeking items on both sides.
     CenteredHero,
+    /// Displays one full-bleed page at a time along the vertical axis.
     FullScreen,
 }
 
@@ -52,25 +58,34 @@ impl CarouselVariant {
 /// Resting alignment for Multi-browse, Hero, and Centered Hero keylines.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum CarouselAlignment {
+    /// Aligns the focal keyline toward the leading edge of the carousel.
     #[default]
     Start,
+    /// Centers the focal keyline within the carousel viewport.
     Center,
 }
 
 /// Padding in logical pixels. Start and end follow the window direction.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct CarouselPadding {
+    /// Leading-edge padding along the horizontal axis (respects RTL).
     pub start: Pixels,
+    /// Trailing-edge padding along the horizontal axis (respects RTL).
     pub end: Pixels,
+    /// Top-edge padding.
     pub top: Pixels,
+    /// Bottom-edge padding.
     pub bottom: Pixels,
 }
 
 /// Positions before and after a precise scroll gesture, in fractional item units.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CarouselFlingContext {
+    /// Fractional item position when the scroll gesture began.
     pub start: f32,
+    /// Fractional item position when the scroll gesture ended.
     pub position: f32,
+    /// Total number of items currently in the carousel.
     pub item_count: usize,
 }
 
@@ -91,6 +106,7 @@ pub enum CarouselFling {
 }
 
 impl CarouselFling {
+    /// Creates a [`CarouselFling::Custom`] strategy from a callback that chooses the target item index.
     pub fn custom(target: impl Fn(CarouselFlingContext) -> Option<usize> + 'static) -> Self {
         Self::Custom(Rc::new(target))
     }
@@ -118,6 +134,7 @@ pub struct CarouselItem {
 }
 
 impl CarouselItem {
+    /// Creates a carousel item with a stable `id`, accessible `label`, and custom element `content`.
     pub fn new(
         id: impl Into<SharedString>,
         label: impl Into<SharedString>,
@@ -156,6 +173,7 @@ impl CarouselItem {
         self
     }
 
+    /// Disables activation and state-layer feedback on this item when `true`.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
@@ -187,6 +205,10 @@ pub struct Carousel {
 }
 
 impl Carousel {
+    /// Creates a carousel with an element `id`, accessible region `label`, and initial `items`.
+    ///
+    /// Defaults to [`CarouselVariant::MultiBrowse`], a `220px` height, `192px` preferred item
+    /// width, and user scrolling enabled.
     pub fn new(
         id: impl Into<ElementId>,
         label: impl Into<SharedString>,
@@ -208,6 +230,7 @@ impl Carousel {
         }
     }
 
+    /// Sets the Material carousel layout strategy.
     pub fn variant(mut self, variant: CarouselVariant) -> Self {
         self.variant = variant;
         self
@@ -236,6 +259,7 @@ impl Carousel {
         self
     }
 
+    /// Overrides the resting keyline alignment for contained variants.
     pub fn alignment(mut self, alignment: CarouselAlignment) -> Self {
         self.layout_options.alignment = Some(alignment);
         self
@@ -247,6 +271,7 @@ impl Carousel {
         self
     }
 
+    /// Sets the content padding around the carousel viewport, clamping negative values to `0`.
     pub fn content_padding(mut self, padding: CarouselPadding) -> Self {
         self.layout_options.padding = Some(CarouselPadding {
             start: px(nonnegative(padding.start)),
@@ -284,6 +309,7 @@ impl Carousel {
         self
     }
 
+    /// Registers a callback invoked with the activated item's ID on click or accessibility click.
     pub fn on_activate(
         mut self,
         callback: impl Fn(&SharedString, &mut Window, &mut App) + 'static,

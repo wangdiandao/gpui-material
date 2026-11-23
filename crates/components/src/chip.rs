@@ -18,22 +18,32 @@ use crate::button_style::{
     ButtonBorder, ButtonElevations, ButtonPadding, ButtonShapes, finite_length,
 };
 
+/// Material 3 chip category controlling selection, avatar, and trailing-action behavior.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ChipVariant {
+    /// Action chip representing a smart or automated contextual action (default).
     #[default]
     Assist,
+    /// Toggleable chip for filtering content, with optional selection checkmark and removal action.
     Filter,
+    /// Compact representation of user input (such as a contact or tag) supporting an avatar and removal action.
     Input,
+    /// Action chip presenting dynamically generated suggestions.
     Suggestion,
 }
 
 /// Per-slot pigments for one chip state. Omitted fields retain the defaults.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ChipStateColors {
+    /// Container background color.
     pub container: Option<Hsla>,
+    /// Label text color.
     pub label: Option<Hsla>,
+    /// Leading icon tint color.
     pub leading: Option<Hsla>,
+    /// Trailing icon or remove-button tint color.
     pub trailing: Option<Hsla>,
+    /// Outline border color.
     pub border: Option<Hsla>,
 }
 
@@ -41,9 +51,13 @@ pub struct ChipStateColors {
 /// back to disabled overrides. Selection applies to Filter and Input chips.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ChipColors {
+    /// Colors when enabled and unselected.
     pub enabled: ChipStateColors,
+    /// Colors when enabled and selected.
     pub selected: ChipStateColors,
+    /// Colors when disabled and unselected.
     pub disabled: ChipStateColors,
+    /// Colors when disabled and selected.
     pub disabled_selected: ChipStateColors,
 }
 
@@ -68,11 +82,17 @@ impl ChipColors {
 /// press, keyboard focus, hover, and rest.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ChipElevations {
+    /// Elevation while resting.
     pub resting: Option<Elevation>,
+    /// Elevation while pressed.
     pub pressed: Option<Elevation>,
+    /// Elevation while keyboard focus is visible.
     pub focused: Option<Elevation>,
+    /// Elevation while hovered.
     pub hovered: Option<Elevation>,
+    /// Elevation while dragged.
     pub dragged: Option<Elevation>,
+    /// Elevation while disabled.
     pub disabled: Option<Elevation>,
 }
 
@@ -120,6 +140,7 @@ pub struct Chip {
 }
 
 impl Chip {
+    /// Creates a chip with the default [`ChipVariant::Assist`] variant.
     pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
@@ -170,6 +191,7 @@ impl Chip {
         Self::new(id, label).variant(ChipVariant::Suggestion)
     }
 
+    /// Sets the chip category. Defaults to [`ChipVariant::Assist`].
     pub fn variant(mut self, variant: ChipVariant) -> Self {
         self.variant = variant;
         self
@@ -182,16 +204,19 @@ impl Chip {
         self
     }
 
+    /// Sets the controlled selected state (used by [`ChipVariant::Filter`] and [`ChipVariant::Input`]).
     pub fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
         self
     }
 
+    /// Switches between flat outlined appearance (`false`, default) and elevated surface with shadow (`true`).
     pub fn elevated(mut self, elevated: bool) -> Self {
         self.elevated = elevated;
         self
     }
 
+    /// Disables pointer, keyboard, and removal interactions when `true`.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
@@ -209,6 +234,7 @@ impl Chip {
         self
     }
 
+    /// Sets a decorative leading icon in the chip's leading slot.
     pub fn leading_icon(mut self, icon: impl IntoElement) -> Self {
         self.leading = Some(icon.into_any_element());
         self
@@ -227,21 +253,25 @@ impl Chip {
         self
     }
 
+    /// Overrides state-specific corner shapes.
     pub fn shapes(mut self, shapes: ButtonShapes) -> Self {
         self.shapes = shapes;
         self
     }
 
+    /// Overrides container, label, icon, and border colors per state.
     pub fn colors(mut self, colors: ChipColors) -> Self {
         self.colors = colors;
         self
     }
 
+    /// Overrides the chip's outline stroke width and color.
     pub fn border(mut self, border: ButtonBorder) -> Self {
         self.border = Some(border);
         self
     }
 
+    /// Overrides drop-shadow elevation levels per interaction state.
     pub fn elevations(mut self, elevations: ChipElevations) -> Self {
         self.elevations = elevations;
         self
@@ -253,11 +283,13 @@ impl Chip {
         self
     }
 
+    /// Sets horizontal spacing between leading, label, and trailing slots in logical pixels. Defaults to `8 px`.
     pub fn spacing(mut self, spacing: Pixels) -> Self {
         self.spacing = finite_length(spacing);
         self
     }
 
+    /// Overrides logical inner padding around the chip's slots.
     pub fn content_padding(mut self, padding: ButtonPadding) -> Self {
         self.padding = Some(ButtonPadding {
             top: finite_length(padding.top),
@@ -285,11 +317,13 @@ impl Chip {
         self
     }
 
+    /// Invoked when an Assist or Suggestion chip is activated.
     pub fn on_activate(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
         self.on_activate = Some(Rc::new(handler));
         self
     }
 
+    /// Invoked with the requested next selected state when a Filter or Input chip is toggled.
     pub fn on_change(mut self, handler: impl Fn(bool, &mut Window, &mut App) + 'static) -> Self {
         self.on_change = Some(Rc::new(handler));
         self

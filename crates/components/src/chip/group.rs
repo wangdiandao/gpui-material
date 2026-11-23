@@ -71,6 +71,7 @@ pub struct ChipGroupItem {
 }
 
 impl ChipGroupItem {
+    /// Creates a chip entry with a stable group-unique identifier and visible label.
     pub fn new(id: impl Into<SharedString>, label: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
@@ -86,36 +87,43 @@ impl ChipGroupItem {
         }
     }
 
+    /// Sets an optional decorative leading icon on this chip.
     pub fn leading_icon(mut self, icon: impl IntoElement) -> Self {
         self.leading = Some(icon.into_any_element());
         self
     }
 
+    /// Sets an optional circular avatar (for Input chips) taking precedence over the leading icon.
     pub fn avatar(mut self, avatar: impl IntoElement) -> Self {
         self.avatar = Some(avatar.into_any_element());
         self
     }
 
+    /// Sets optional trailing visual content on this chip.
     pub fn trailing(mut self, trailing: impl IntoElement) -> Self {
         self.trailing = Some(trailing.into_any_element());
         self
     }
 
+    /// Disables this individual chip item.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
+    /// Overrides the group's tonal setting for this individual chip.
     pub fn tonal(mut self, tonal: bool) -> Self {
         self.tonal = Some(tonal);
         self
     }
 
+    /// Overrides the group's elevated setting for this individual chip.
     pub fn elevated(mut self, elevated: bool) -> Self {
         self.elevated = Some(elevated);
         self
     }
 
+    /// Applies a Material 3 semantic tone to this individual chip.
     pub fn tone(mut self, tone: SemanticTone) -> Self {
         self.tone = tone;
         self
@@ -153,6 +161,7 @@ pub struct ChipGroup {
 }
 
 impl ChipGroup {
+    /// Creates a chip group with an element ID, accessible listbox label, and member items.
     pub fn new(
         id: impl Into<ElementId>,
         name: impl Into<SharedString>,

@@ -14,15 +14,20 @@ mod render;
 /// Presentation mode for a standalone [`NavigationDrawer`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum NavigationDrawerMode {
+    /// Docked side drawer that participates in parent layout.
     #[default]
     Standard,
+    /// Modal overlay drawer presented above a scrim with focus trapping.
     Modal,
 }
 
 /// Ordered entry inside a [`NavigationDrawer`] destination list.
 pub enum NavigationDrawerEntry {
+    /// A selectable navigation destination.
     Item(Box<NavigationItem>),
+    /// A non-interactive section heading label.
     Header(SharedString),
+    /// A horizontal divider separating destination groups.
     Divider,
 }
 
@@ -41,11 +46,14 @@ impl From<NavigationItem> for NavigationDrawerEntry {
 
 /// Convenience section grouping an optional heading with a list of [`NavigationItem`]s.
 pub struct NavigationDrawerSection {
+    /// Optional section heading displayed above the items.
     pub header: Option<SharedString>,
+    /// Ordered navigation items belonging to this section.
     pub items: Vec<NavigationItem>,
 }
 
 impl NavigationDrawerSection {
+    /// Creates a drawer section containing the given navigation items and no heading.
     pub fn new(items: impl IntoIterator<Item = NavigationItem>) -> Self {
         Self {
             header: None,
@@ -53,6 +61,7 @@ impl NavigationDrawerSection {
         }
     }
 
+    /// Sets the section heading label.
     pub fn header(mut self, title: impl Into<SharedString>) -> Self {
         self.header = Some(title.into());
         self
@@ -62,14 +71,23 @@ impl NavigationDrawerSection {
 /// Per-instance pigment overrides for [`NavigationDrawer`]. Omitted fields use the window theme.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct NavigationDrawerColors {
+    /// Background color override for the drawer surface.
     pub container: Option<Hsla>,
+    /// Default foreground color override for drawer content.
     pub content: Option<Hsla>,
+    /// Foreground color override for section headings and the drawer headline.
     pub header: Option<Hsla>,
+    /// Color override for horizontal dividers.
     pub divider: Option<Hsla>,
+    /// Fill color override for the selected destination pill indicator.
     pub active_indicator: Option<Hsla>,
+    /// Foreground color override for the selected destination icon and label.
     pub active_content: Option<Hsla>,
+    /// Foreground color override for unselected destination icons and labels.
     pub inactive_content: Option<Hsla>,
+    /// Color override for the modal backdrop scrim.
     pub scrim: Option<Hsla>,
+    /// Opacity override for the modal backdrop scrim.
     pub scrim_opacity: Option<f32>,
 }
 
@@ -98,8 +116,10 @@ pub struct NavigationDrawer {
 }
 
 impl NavigationDrawer {
+    /// Default Material 3 navigation drawer width (360 dp).
     pub const DEFAULT_WIDTH: Pixels = px(360.);
 
+    /// Creates a standard navigation drawer with the given element ID and controlled [`NavigationItems`].
     pub fn new(id: impl Into<ElementId>, items: NavigationItems) -> Self {
         Self {
             id: id.into(),

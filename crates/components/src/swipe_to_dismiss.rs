@@ -18,9 +18,12 @@ const SWIPE_SLOP: Pixels = px(6.);
 /// The resting anchor or a logical dismissal direction.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum SwipeToDismissValue {
+    /// Resting, undismissed position.
     #[default]
     Settled,
+    /// Dismissed from leading edge toward trailing edge (left-to-right in LTR, right-to-left in RTL).
     StartToEnd,
+    /// Dismissed from trailing edge toward leading edge (right-to-left in LTR, left-to-right in RTL).
     EndToStart,
 }
 
@@ -138,6 +141,7 @@ impl Default for SwipeToDismissState {
 impl EventEmitter<Dismissed> for SwipeToDismissState {}
 
 impl SwipeToDismissState {
+    /// Creates a new swipe state settled at [`SwipeToDismissValue::Settled`].
     pub fn new() -> Self {
         Self::default()
     }
@@ -440,6 +444,7 @@ pub struct SwipeToDismiss {
 }
 
 impl SwipeToDismiss {
+    /// Creates a swipe-to-dismiss container wrapping `content` and bound to `state`.
     pub fn new(
         id: impl Into<ElementId>,
         state: &Entity<SwipeToDismissState>,
@@ -455,16 +460,19 @@ impl SwipeToDismiss {
         }
     }
 
+    /// Sets the background element revealed behind the foreground while swiping.
     pub fn background(mut self, background: impl IntoElement) -> Self {
         self.background = Some(background.into_any_element());
         self
     }
 
+    /// Enables or disables start-to-end dismissal gestures and programmatic dismissal. Defaults to `true`.
     pub fn enable_start_to_end(mut self, enabled: bool) -> Self {
         self.options.start_to_end = enabled;
         self
     }
 
+    /// Enables or disables end-to-start dismissal gestures and programmatic dismissal. Defaults to `true`.
     pub fn enable_end_to_start(mut self, enabled: bool) -> Self {
         self.options.end_to_start = enabled;
         self

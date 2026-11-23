@@ -7,19 +7,26 @@ mod render;
 /// Layout axis for a [`Stepper`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum StepperOrientation {
+    /// Arrange steps in a horizontal row with connectors between them.
     #[default]
     Horizontal,
+    /// Stack steps vertically with optional inline body content under the active step.
     Vertical,
 }
 
 /// Visual and semantic status of one step in a [`Stepper`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum StepStatus {
+    /// Step has not yet been reached.
     #[default]
     Upcoming,
+    /// Step is currently active.
     Active,
+    /// Step has been completed.
     Completed,
+    /// Step has a validation or processing error.
     Error,
+    /// Step is disabled and cannot be selected.
     Disabled,
 }
 
@@ -47,6 +54,7 @@ pub struct StepItem {
 }
 
 impl StepItem {
+    /// Creates a step entry with a unique ID and visible label.
     pub fn new(id: impl Into<SharedString>, label: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
@@ -103,17 +111,29 @@ impl StepItem {
 /// Per-instance pigment overrides for [`Stepper`]. Omitted fields use the window theme.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct StepperColors {
+    /// Indicator background color for the active step.
     pub active_container: Option<Hsla>,
+    /// Indicator foreground color for the active step.
     pub active_content: Option<Hsla>,
+    /// Indicator background color for completed steps.
     pub completed_container: Option<Hsla>,
+    /// Indicator foreground color for completed steps.
     pub completed_content: Option<Hsla>,
+    /// Indicator background color for upcoming steps.
     pub upcoming_container: Option<Hsla>,
+    /// Indicator foreground color for upcoming steps.
     pub upcoming_content: Option<Hsla>,
+    /// Indicator background color for error steps.
     pub error_container: Option<Hsla>,
+    /// Indicator foreground color for error steps.
     pub error_content: Option<Hsla>,
+    /// Connector line color between upcoming steps.
     pub connector: Option<Hsla>,
+    /// Connector line color along completed/active transitions.
     pub active_connector: Option<Hsla>,
+    /// Foreground color for step title labels.
     pub label: Option<Hsla>,
+    /// Foreground color for supporting subtitle labels.
     pub supporting: Option<Hsla>,
 }
 
@@ -133,6 +153,7 @@ pub struct Stepper {
 }
 
 impl Stepper {
+    /// Creates a horizontal linear stepper with the given element ID and ordered steps.
     pub fn new(id: impl Into<ElementId>, steps: impl IntoIterator<Item = StepItem>) -> Self {
         Self {
             id: id.into(),

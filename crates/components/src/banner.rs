@@ -21,11 +21,17 @@ use crate::{Button, ButtonColors, ControlSize, Icon, IconButton, IconName, Seman
 /// Explicit overrides always take precedence over [`SemanticTone`] defaults.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BannerColors {
+    /// Surface background color of the banner container.
     pub container: Option<Hsla>,
+    /// Text color of the optional title line.
     pub title: Option<Hsla>,
+    /// Text color of the banner message body.
     pub message: Option<Hsla>,
+    /// Tint color applied to the optional leading icon.
     pub icon: Option<Hsla>,
+    /// Color of the 1 px border surrounding the banner surface.
     pub border: Option<Hsla>,
+    /// Icon tint color for the optional trailing dismiss button.
     pub dismiss: Option<Hsla>,
 }
 

@@ -99,6 +99,7 @@ pub struct ExposedDropdownState {
 }
 
 impl ExposedDropdownState {
+    /// Creates dropdown state with an internal single-line editor initialized to `value`.
     pub fn new(
         value: impl Into<SharedString>,
         editable: bool,
@@ -183,10 +184,12 @@ impl ExposedDropdownState {
         self.reset_draft(window, cx);
     }
 
+    /// Returns `true` if the dropdown popup menu is currently open.
     pub fn is_open(&self) -> bool {
         self.open
     }
 
+    /// Returns the ID of the last committed dropdown option, if any.
     pub fn selected_option_id(&self) -> Option<&ElementId> {
         self.selected.as_ref()
     }

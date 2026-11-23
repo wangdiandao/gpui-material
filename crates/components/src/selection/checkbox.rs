@@ -19,22 +19,34 @@ type CheckboxChange = Rc<dyn Fn(CheckboxState, &mut Window, &mut App)>;
 /// Optional pigments for one checkbox state. Unset fields use the window theme.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct CheckboxStateColors {
+    /// Stroke color of the checkmark or indeterminate dash.
     pub checkmark: Option<Hsla>,
+    /// Interior fill color of the 18 dp checkbox square.
     pub box_color: Option<Hsla>,
+    /// Outline stroke color of the checkbox square.
     pub border: Option<Hsla>,
 }
 
 /// Per-instance checkbox colors. Disabled entries take precedence over error entries.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct CheckboxColors {
+    /// Colors when enabled and unchecked.
     pub unchecked: CheckboxStateColors,
+    /// Colors when enabled and checked.
     pub checked: CheckboxStateColors,
+    /// Colors when enabled and indeterminate (mixed).
     pub indeterminate: CheckboxStateColors,
+    /// Colors when enabled, in error state, and unchecked.
     pub error_unchecked: CheckboxStateColors,
+    /// Colors when enabled, in error state, and checked.
     pub error_checked: CheckboxStateColors,
+    /// Colors when enabled, in error state, and indeterminate.
     pub error_indeterminate: CheckboxStateColors,
+    /// Colors when disabled and unchecked.
     pub disabled_unchecked: CheckboxStateColors,
+    /// Colors when disabled and checked.
     pub disabled_checked: CheckboxStateColors,
+    /// Colors when disabled and indeterminate.
     pub disabled_indeterminate: CheckboxStateColors,
 }
 
@@ -78,6 +90,7 @@ pub struct Checkbox {
 }
 
 impl Checkbox {
+    /// Creates a controlled checkbox with an element ID, accessible/visible label, and current state.
     pub fn new(
         id: impl Into<ElementId>,
         label: impl Into<SharedString>,
@@ -120,16 +133,19 @@ impl Checkbox {
         self
     }
 
+    /// Marks the checkbox as invalid, applying error styling and `aria-invalid` semantics when enabled.
     pub fn error(mut self, error: bool) -> Self {
         self.error = error;
         self
     }
 
+    /// Disables pointer, keyboard, and accessibility interaction when `true`.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
+    /// Overrides checkmark, box fill, and border colors per checkbox state.
     pub fn colors(mut self, colors: CheckboxColors) -> Self {
         self.colors = colors;
         self
@@ -159,6 +175,7 @@ impl Checkbox {
         self
     }
 
+    /// Invoked with the requested next [`CheckboxState`] when toggled by pointer, keyboard, or assistive technology.
     pub fn on_change(
         mut self,
         handler: impl Fn(CheckboxState, &mut Window, &mut App) + 'static,

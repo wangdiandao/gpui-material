@@ -51,17 +51,24 @@ pub fn elevation_shadows(elevation: f32, scale: f32, shadow: Hsla) -> Vec<gpui::
 /// An outline in logical pixels, drawn around the surface's shape.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SurfaceBorder {
+    /// Stroke width in logical pixels.
     pub width: Pixels,
+    /// Stroke color in HSLA.
     pub color: Hsla,
 }
 
 /// Customizes the Material feedback painted by one interactive surface.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SurfaceFeedback {
+    /// Whether to paint hover, focus, and pressed state-layer tints (defaults to `true`).
     pub state_layer: bool,
+    /// Whether to paint pointer-originated ink ripples on press (defaults to `true`).
     pub ripple: bool,
+    /// Whether to paint a Material keyboard focus ring (defaults to `true`).
     pub focus_ring: bool,
+    /// Optional explicit ink color for state layers and ripples; defaults to the resolved content color.
     pub ink: Option<Hsla>,
+    /// Optional explicit focus ring color; defaults to the theme's secondary/focus token.
     pub focus_color: Option<Hsla>,
 }
 
@@ -120,6 +127,7 @@ pub struct Surface {
 }
 
 impl Surface {
+    /// Creates a passive (non-interactive) Material surface filled with `role`.
     pub fn new(role: ColorRole) -> Self {
         Self {
             style: StyleRefinement::default(),
@@ -146,6 +154,7 @@ impl Surface {
         }
     }
 
+    /// Creates an interactive clickable surface with button semantics and `on_activate` support.
     pub fn clickable(
         id: impl Into<ElementId>,
         label: impl Into<SharedString>,
@@ -191,6 +200,7 @@ impl Surface {
         }
     }
 
+    /// Registers the activation callback for clickable and selectable surfaces.
     pub fn on_activate(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
         if let Some(control) = &mut self.control {
             control.activate = Some(Rc::new(handler));
@@ -198,6 +208,8 @@ impl Surface {
         self
     }
 
+    /// Registers the toggled callback for surfaces constructed with [`Self::toggleable`],
+    /// passing the requested next checked state (`!checked`).
     pub fn on_checked_change(
         mut self,
         handler: impl Fn(bool, &mut Window, &mut App) + 'static,
@@ -210,21 +222,26 @@ impl Surface {
         self
     }
 
+    /// Disables pointer and keyboard interaction when `true`.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
+    /// Associates a caller-owned GPUI [`FocusHandle`] with this interactive surface.
     pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
         self.focus = Some(focus.clone());
         self
     }
 
+    /// Configures state-layer, ripple, and focus-ring feedback for this surface.
     pub fn feedback(mut self, feedback: SurfaceFeedback) -> Self {
         self.feedback = feedback;
         self
     }
 
+    /// Connects a shared [`InteractionSource`] entity so external views can observe
+    /// hover, focus, press, and drag states.
     pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
         self.interaction_source = Some(source.clone());
         self
@@ -248,6 +265,7 @@ impl Surface {
         self
     }
 
+    /// Applies a rounded-rectangle [`CornerShape`] to the surface, clearing any polygon shape.
     pub fn shape(mut self, shape: CornerShape) -> Self {
         self.shape = Some(shape);
         self.polygon = None;
@@ -289,16 +307,19 @@ impl Surface {
         self
     }
 
+    /// Draws an outline border around the resolved surface shape.
     pub fn border(mut self, border: SurfaceBorder) -> Self {
         self.border = Some(border);
         self
     }
 
+    /// Applies tonal surface-tint elevation (defaults to [`Elevation::Level0`]).
     pub fn tonal_elevation(mut self, elevation: Elevation) -> Self {
         self.tonal_elevation = elevation;
         self
     }
 
+    /// Applies drop-shadow elevation (defaults to [`Elevation::Level0`]).
     pub fn shadow_elevation(mut self, elevation: Elevation) -> Self {
         self.shadow_elevation = elevation;
         self

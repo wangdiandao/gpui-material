@@ -15,6 +15,7 @@ pub struct Label {
 }
 
 impl Label {
+    /// Creates an overlay label anchored to `anchor` with the given accessible description.
     pub fn new(
         id: impl Into<ElementId>,
         anchor: impl IntoElement,
@@ -49,21 +50,25 @@ impl Label {
         self
     }
 
+    /// Sets the preferred side relative to the anchor.
     pub fn placement(mut self, placement: TooltipPlacement) -> Self {
         self.tooltip = self.tooltip.placement(placement);
         self
     }
 
+    /// Sets the gap between the anchor and label surface in logical pixels.
     pub fn offset(mut self, offset: Pixels) -> Self {
         self.tooltip = self.tooltip.offset(offset);
         self
     }
 
+    /// Overrides the maximum width of the label surface in logical pixels.
     pub fn max_width(mut self, width: Pixels) -> Self {
         self.tooltip = self.tooltip.max_width(width);
         self
     }
 
+    /// Renders a pointer caret pointing toward the anchor.
     pub fn caret(mut self, caret: TooltipCaret) -> Self {
         self.tooltip = self.tooltip.caret(caret);
         self

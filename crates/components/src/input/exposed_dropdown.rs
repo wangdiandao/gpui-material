@@ -16,11 +16,14 @@ use state::Visibility;
 /// A selectable dropdown value. IDs remain stable when options are reordered.
 #[derive(Clone, PartialEq, Eq)]
 pub struct DropdownOption {
+    /// Stable option identifier used for selection tracking and list reconciliation.
     pub id: ElementId,
+    /// Visible and searchable option label.
     pub label: SharedString,
 }
 
 impl DropdownOption {
+    /// Creates a dropdown option with a stable ID and visible label.
     pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
@@ -68,6 +71,7 @@ pub struct ExposedDropdown {
 }
 
 impl ExposedDropdown {
+    /// Creates an exposed dropdown bound to `state` and populated from an iterator of [`DropdownOption`]s.
     pub fn new(
         id: impl Into<ElementId>,
         label: impl Into<SharedString>,
@@ -111,6 +115,7 @@ impl ExposedDropdown {
         self
     }
 
+    /// Enables or disables opening the popup menu from the primary text field anchor. Defaults to `true`.
     pub fn primary_anchor_enabled(mut self, enabled: bool) -> Self {
         self.primary_enabled = enabled;
         self
@@ -129,6 +134,7 @@ impl ExposedDropdown {
         self
     }
 
+    /// Enables or disables the secondary toggle anchor button. Defaults to `true`.
     pub fn secondary_anchor_enabled(mut self, enabled: bool) -> Self {
         self.secondary_enabled = enabled;
         self
@@ -151,11 +157,13 @@ impl ExposedDropdown {
         self
     }
 
+    /// Controls popup visibility externally instead of letting [`ExposedDropdownState`] toggle it automatically.
     pub fn open(mut self, open: bool) -> Self {
         self.visibility.controlled = Some(open);
         self
     }
 
+    /// Invoked whenever the dropdown requests opening (`true`) or closing (`false`).
     pub fn on_open_change(
         mut self,
         callback: impl Fn(bool, &mut Window, &mut App) + 'static,
@@ -164,11 +172,13 @@ impl ExposedDropdown {
         self
     }
 
+    /// Invoked when the open popup menu is dismissed without selecting an option.
     pub fn on_dismiss(mut self, callback: impl Fn(&mut Window, &mut App) + 'static) -> Self {
         self.visibility.dismiss = Some(Rc::new(callback));
         self
     }
 
+    /// Sizes the popup menu to match the anchor field's width when `true` (default), or uses [`Self::popup_width`] when `false`.
     pub fn match_anchor_width(mut self, matches: bool) -> Self {
         self.match_anchor_width = matches;
         self
@@ -182,16 +192,19 @@ impl ExposedDropdown {
         self
     }
 
+    /// Overrides the popup menu surface shape, elevation, padding, and border styling.
     pub fn appearance(mut self, appearance: MenuSurfaceStyle) -> Self {
         self.appearance = appearance;
         self
     }
 
+    /// Overrides the popup menu container background color directly.
     pub fn container_color(mut self, color: Hsla) -> Self {
         self.container_color = Some(color);
         self
     }
 
+    /// Invoked when the user commits an option via pointer click or keyboard Enter.
     pub fn on_select(
         mut self,
         on_select: impl Fn(&DropdownOption, &mut Window, &mut App) + 'static,

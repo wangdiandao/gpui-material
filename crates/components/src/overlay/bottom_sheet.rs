@@ -15,9 +15,12 @@ use super::{DialogState, SheetClose, SheetMode};
 /// Settled values for a retained bottom sheet.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum BottomSheetValue {
+    /// The sheet is dismissed and occupies zero height.
     #[default]
     Hidden,
+    /// The sheet is resting at its intermediate peek height.
     PartiallyExpanded,
+    /// The sheet is open to its full expanded extent.
     Expanded,
 }
 
@@ -108,6 +111,7 @@ pub struct BottomSheetState {
 }
 
 impl BottomSheetState {
+    /// Creates retained bottom-sheet state starting at the given settled stop.
     pub fn new(initial: BottomSheetValue, cx: &mut Context<Self>) -> Self {
         Self {
             dialog: cx.new(DialogState::new),
@@ -149,22 +153,27 @@ impl BottomSheetState {
         self
     }
 
+    /// Returns the enabled stops in ascending height order.
     pub fn available_values(&self) -> &[BottomSheetValue] {
         &self.enabled
     }
 
+    /// Returns the last settled stop.
     pub fn current_value(&self) -> BottomSheetValue {
         self.current
     }
 
+    /// Returns the stop the sheet is currently settled at or transitioning toward.
     pub fn target_value(&self) -> BottomSheetValue {
         self.target
     }
 
+    /// Returns whether the sheet is currently animating toward its target stop.
     pub fn is_animating(&self) -> bool {
         self.motion.is_animating()
     }
 
+    /// Returns the sheet's current visible height in logical pixels.
     pub fn visible_height(&self) -> Pixels {
         self.height
     }
@@ -175,6 +184,8 @@ impl BottomSheetState {
             .map_or(px(0.), |layout| layout.expanded - self.height)
     }
 
+    /// Animates the sheet to [`BottomSheetValue::PartiallyExpanded`] if enabled, or [`BottomSheetValue::Expanded`] otherwise.
+    /// Returns `false` if the target stop is unavailable or vetoed.
     pub fn show(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
         let value = if self.enabled.contains(&BottomSheetValue::PartiallyExpanded) {
             BottomSheetValue::PartiallyExpanded
@@ -184,18 +195,22 @@ impl BottomSheetState {
         self.animate_to(value, window, cx)
     }
 
+    /// Animates the sheet to [`BottomSheetValue::Expanded`]. Returns `false` if unavailable or vetoed.
     pub fn expand(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
         self.animate_to(BottomSheetValue::Expanded, window, cx)
     }
 
+    /// Animates the sheet to [`BottomSheetValue::PartiallyExpanded`]. Returns `false` if unavailable or vetoed.
     pub fn partial_expand(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
         self.animate_to(BottomSheetValue::PartiallyExpanded, window, cx)
     }
 
+    /// Animates the sheet to [`BottomSheetValue::Hidden`]. Returns `false` if unavailable or vetoed.
     pub fn hide(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
         self.animate_to(BottomSheetValue::Hidden, window, cx)
     }
 
+    /// Animates the sheet to `value`, respecting reduced-motion settings. Returns `false` if unavailable or vetoed.
     pub fn animate_to(
         &mut self,
         value: BottomSheetValue,
@@ -205,6 +220,7 @@ impl BottomSheetState {
         self.request(value, true, true, window, cx)
     }
 
+    /// Moves the sheet immediately to `value` without animation. Returns `false` if unavailable or vetoed.
     pub fn snap_to(
         &mut self,
         value: BottomSheetValue,

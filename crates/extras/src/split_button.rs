@@ -39,10 +39,15 @@ enum TrailingAction {
 /// and variant's defaults.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SplitButtonSegmentStyle {
+    /// Corner shape overrides for resting, pressed, and checked states.
     pub shapes: ButtonShapes,
+    /// Container and content color overrides.
     pub colors: ButtonColors,
+    /// Optional border override.
     pub border: Option<ButtonBorder>,
+    /// Elevation overrides across interaction states.
     pub elevations: ButtonElevations,
+    /// Optional content padding override.
     pub padding: Option<ButtonPadding>,
 }
 
@@ -87,6 +92,8 @@ pub struct SplitButton {
 }
 
 impl SplitButton {
+    /// Creates a split button with a primary `leading_name`, a `trailing_name` for the secondary
+    /// control, and default dropdown `menu` items.
     pub fn new(
         id: impl Into<ElementId>,
         leading_name: impl Into<SharedString>,
@@ -114,11 +121,13 @@ impl SplitButton {
         }
     }
 
+    /// Sets the [`ControlSize`] shared by both segments.
     pub fn size(mut self, size: ControlSize) -> Self {
         self.size = size;
         self
     }
 
+    /// Sets the [`ButtonVariant`] shared by both segments.
     pub fn variant(mut self, variant: ButtonVariant) -> Self {
         self.variant = variant;
         self
@@ -159,15 +168,18 @@ impl SplitButton {
         self
     }
 
+    /// Alias for [`Self::trailing_disabled`] when the trailing segment opens a menu.
     pub fn menu_disabled(self, disabled: bool) -> Self {
         self.trailing_disabled(disabled)
     }
 
+    /// Disables the trailing segment (menu trigger, command, or toggle) when `true`.
     pub fn trailing_disabled(mut self, disabled: bool) -> Self {
         self.trailing_disabled = disabled;
         self
     }
 
+    /// Registers a callback invoked when the leading primary segment is activated.
     pub fn on_activate(mut self, callback: impl Fn(&mut Window, &mut App) + 'static) -> Self {
         self.on_activate = Some(Rc::new(callback));
         self
@@ -195,11 +207,13 @@ impl SplitButton {
         self
     }
 
+    /// Displays an icon before the leading segment's label.
     pub fn leading_icon(mut self, icon: impl IntoElement) -> Self {
         self.leading_content = Leading::IconAndLabel(icon.into_any_element());
         self
     }
 
+    /// Renders the leading segment with an icon only, keeping `leading_name` as its accessible name.
     pub fn leading_icon_only(mut self, icon: impl IntoElement) -> Self {
         self.leading_content = Leading::Icon(icon.into_any_element());
         self
@@ -211,6 +225,7 @@ impl SplitButton {
         self
     }
 
+    /// Replaces the default dropdown arrow icon on the trailing segment.
     pub fn trailing_icon(mut self, icon: impl IntoElement) -> Self {
         self.trailing_content = Trailing::Icon(icon.into_any_element());
         self
@@ -222,21 +237,25 @@ impl SplitButton {
         self
     }
 
+    /// Applies appearance overrides to the leading segment.
     pub fn leading_style(mut self, style: SplitButtonSegmentStyle) -> Self {
         self.leading_style.style = style;
         self
     }
 
+    /// Applies appearance overrides to the trailing segment.
     pub fn trailing_style(mut self, style: SplitButtonSegmentStyle) -> Self {
         self.trailing_style.style = style;
         self
     }
 
+    /// Connects an [`InteractionSource`] to observe interaction states on the leading segment.
     pub fn leading_interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
         self.leading_style.source = Some(source.clone());
         self
     }
 
+    /// Connects an [`InteractionSource`] to observe interaction states on the trailing segment.
     pub fn trailing_interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
         self.trailing_style.source = Some(source.clone());
         self

@@ -9,7 +9,9 @@ use gpui_material_theme::{ColorRole, CornerRole, CornerShape};
 /// A stroke drawn inside the parallax mask in logical pixels.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CarouselBorder {
+    /// Border stroke thickness in logical pixels.
     pub width: Pixels,
+    /// Border stroke color.
     pub color: Hsla,
 }
 
@@ -28,6 +30,7 @@ pub struct CarouselParallax {
 }
 
 impl CarouselParallax {
+    /// Wraps `content` in a horizontal parallax mask using [`CornerRole::ExtraLarge`] corners.
     pub fn new(content: impl IntoElement) -> Self {
         Self {
             child: content.into_any_element(),
@@ -39,6 +42,7 @@ impl CarouselParallax {
         }
     }
 
+    /// Sets the scroll axis along which edge cropping and parallax translation apply.
     pub fn axis(mut self, axis: Axis) -> Self {
         self.axis = axis;
         self
@@ -50,11 +54,13 @@ impl CarouselParallax {
         self
     }
 
+    /// Sets the corner shape used to mask the cropped content.
     pub fn shape(mut self, shape: CornerShape) -> Self {
         self.shape = shape;
         self
     }
 
+    /// Draws an inner border stroke around the masked region.
     pub fn border(mut self, border: CarouselBorder) -> Self {
         self.border = Some(border);
         self

@@ -14,21 +14,31 @@ use super::{focus_handle, length};
 /// How a horizontal docked toolbar distributes unused width.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ToolbarArrangement {
+    /// Packs actions toward the leading edge (respects RTL).
     #[default]
     Start,
+    /// Centers actions horizontally within the toolbar strip.
     Center,
+    /// Packs actions toward the trailing edge (respects RTL).
     End,
+    /// Distributes remaining space evenly between actions.
     SpaceBetween,
+    /// Distributes remaining space around each action, with half-size outer margins.
     SpaceAround,
+    /// Distributes remaining space equally between actions and both outer edges.
     SpaceEvenly,
 }
 
 /// Logical insets in a toolbar's content area.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ToolbarPadding {
+    /// Top inset in logical pixels.
     pub top: Pixels,
+    /// Leading-edge inset in logical pixels (mirrored in RTL).
     pub start: Pixels,
+    /// Bottom inset in logical pixels.
     pub bottom: Pixels,
+    /// Trailing-edge inset in logical pixels (mirrored in RTL).
     pub end: Pixels,
 }
 
@@ -55,7 +65,9 @@ impl ToolbarPadding {
 /// Elevations of an expanded and collapsed toolbar strip.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ToolbarElevations {
+    /// Shadow elevation when the toolbar is expanded.
     pub expanded: Option<Elevation>,
+    /// Shadow elevation when the toolbar is collapsed.
     pub collapsed: Option<Elevation>,
 }
 

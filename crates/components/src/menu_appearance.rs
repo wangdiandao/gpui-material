@@ -15,8 +15,10 @@ use crate::motion::OverlayMotion;
 #[cfg_attr(not(feature = "feedback"), allow(dead_code))]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum MenuColor {
+    /// Neutral surface container palette (`SurfaceContainer` / `SurfaceContainerLow`).
     #[default]
     Standard,
+    /// Expressive tertiary container palette (`TertiaryContainer` / `OnTertiaryContainer`).
     Vibrant,
 }
 
@@ -25,12 +27,17 @@ pub enum MenuColor {
 pub struct MenuSurfaceStyle {
     /// The surface shape in logical corner order.
     pub shape: Option<CornerShape>,
+    /// Theme color role for the menu container background.
     pub container: Option<ColorRole>,
     /// The logical thickness and Material role of the outline.
     pub border: Option<(Pixels, ColorRole)>,
+    /// Tonal elevation applied when the container role is `ColorRole::Surface`.
     pub tonal_elevation: Elevation,
+    /// Drop-shadow elevation level. Defaults to `Elevation::Level2` for menus and `Elevation::Level0` for groups.
     pub shadow_elevation: Option<Elevation>,
+    /// Inner padding around menu items. Defaults to `8 px` vertical for menus and `4 px` vertical for groups.
     pub padding: Option<Edges<Pixels>>,
+    /// Vertical gap between child items or groups. Defaults to `0 px` for menus and `2 px` for groups.
     pub spacing: Option<Pixels>,
 }
 
@@ -65,14 +72,23 @@ impl MenuSurfaceStyle {
 #[cfg(feature = "feedback")]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct MenuItemStyle {
+    /// Logical corner shape for unselected menu rows.
     pub shape: Option<CornerShape>,
+    /// Logical corner shape for selected menu rows.
     pub selected_shape: Option<CornerShape>,
+    /// Inner padding of the menu row.
     pub padding: Option<Edges<Pixels>>,
+    /// Horizontal gap between leading, label, and trailing slots.
     pub spacing: Option<Pixels>,
+    /// Background color role for unselected rows.
     pub container: Option<ColorRole>,
+    /// Primary label and icon color role for unselected rows.
     pub content: Option<ColorRole>,
+    /// Supporting text and trailing metadata color role.
     pub supporting: Option<ColorRole>,
+    /// Background color role for selected rows.
     pub selected_container: Option<ColorRole>,
+    /// Primary label and icon color role for selected rows.
     pub selected_content: Option<ColorRole>,
 }
 

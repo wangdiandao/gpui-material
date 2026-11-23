@@ -12,11 +12,14 @@ const TARGET_EPSILON: f32 = 1e-5;
 /// Sample returned by [`animate_with_status`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MotionSample {
+    /// Current interpolated scalar value.
     pub value: f32,
+    /// Lifecycle status of the underlying animation.
     pub status: MotionStatus,
 }
 
 impl MotionSample {
+    /// Returns `true` while the animation is delayed or actively advancing.
     pub const fn is_running(self) -> bool {
         matches!(self.status, MotionStatus::Delayed | MotionStatus::Running)
     }
@@ -43,6 +46,8 @@ pub struct LoopClock {
 }
 
 impl LoopClock {
+    /// Advances the clock to `now` when `running`, pauses it when not running, or resets
+    /// it to zero when `reduced_motion` is `true`, returning the current elapsed duration.
     pub fn advance(&mut self, now: Instant, running: bool, reduced_motion: bool) -> Duration {
         if reduced_motion {
             *self = Self::default();
@@ -56,16 +61,19 @@ impl LoopClock {
         }
     }
 
+    /// Commits elapsed time up to `now` and suspends further advancement until resumed.
     pub fn pause(&mut self, now: Instant) {
         if let Some(epoch) = self.epoch.take() {
             self.elapsed += now.saturating_duration_since(epoch);
         }
     }
 
+    /// Resets the clock back to zero elapsed time and clears its active epoch.
     pub fn reset(&mut self) {
         *self = Self::default();
     }
 
+    /// Returns the accumulated paused elapsed duration.
     pub fn elapsed(&self) -> Duration {
         self.elapsed
     }
@@ -91,6 +99,7 @@ pub struct RetargetTransition {
 }
 
 impl RetargetTransition {
+    /// Creates a settled transition already resting at `value`.
     pub fn settled(value: f32) -> Self {
         Self {
             value,
@@ -99,24 +108,32 @@ impl RetargetTransition {
         }
     }
 
+    /// Returns the last sampled scalar value.
     pub fn value(&self) -> f32 {
         self.value
     }
 
+    /// Returns the current target scalar value.
     pub fn target(&self) -> f32 {
         self.target
     }
 
+    /// Returns `true` when an interpolation tween is currently in flight.
     pub fn is_animating(&self) -> bool {
         self.active.is_some()
     }
 
+    /// Immediately settles the transition at `value` and cancels any active tween.
     pub fn snap_to(&mut self, value: f32) {
         self.value = value;
         self.target = value;
         self.active = None;
     }
 
+    /// Starts or retargets an eased transition toward `target`.
+    ///
+    /// Reversing mid-flight proportionally shortens the duration; `reduced_motion` or a
+    /// zero duration snaps immediately to `target`.
     pub fn animate_to(
         &mut self,
         target: f32,
@@ -171,6 +188,7 @@ impl RetargetTransition {
         });
     }
 
+    /// Samples the transition at `now`, returning `(current_value, still_animating)`.
     pub fn sample(&mut self, now: Instant, reduced_motion: bool) -> (f32, bool) {
         let Some(active) = &self.active else {
             return (self.value, false);

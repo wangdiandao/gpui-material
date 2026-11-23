@@ -20,9 +20,13 @@ type RadioChange = Rc<dyn Fn(&ElementId, &mut Window, &mut App)>;
 /// Radio indicator pigments. Omitted values use the current window theme.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct RadioColors {
+    /// Ring and inner dot color when enabled and selected.
     pub selected: Option<Hsla>,
+    /// Ring color when enabled and unselected.
     pub unselected: Option<Hsla>,
+    /// Ring and inner dot color when disabled and selected.
     pub disabled_selected: Option<Hsla>,
+    /// Ring color when disabled and unselected.
     pub disabled_unselected: Option<Hsla>,
 }
 
@@ -55,6 +59,7 @@ pub struct Radio {
 }
 
 impl Radio {
+    /// Creates a radio option with an element ID and visible/accessible label.
     pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
@@ -90,16 +95,19 @@ impl Radio {
         self
     }
 
+    /// Sets the controlled selected state of a standalone radio button.
     pub fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
         self
     }
 
+    /// Disables selection and keyboard focus for this option when `true`.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 
+    /// Invoked when this standalone radio option is selected.
     pub fn on_select(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
         self.on_select = Some(Rc::new(handler));
         self
@@ -277,6 +285,7 @@ pub struct RadioGroup {
 }
 
 impl RadioGroup {
+    /// Creates an empty vertical radio group with an element ID and accessible group label.
     pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
@@ -288,21 +297,25 @@ impl RadioGroup {
         }
     }
 
+    /// Sets the ID of the currently selected option.
     pub fn selected(mut self, selected: impl Into<ElementId>) -> Self {
         self.selected = Some(selected.into());
         self
     }
 
+    /// Appends [`Radio`] options to the group.
     pub fn options(mut self, options: impl IntoIterator<Item = Radio>) -> Self {
         self.options.extend(options);
         self
     }
 
+    /// Sets the layout and arrow-key navigation axis (`Axis::Vertical` by default).
     pub fn axis(mut self, axis: Axis) -> Self {
         self.axis = axis;
         self
     }
 
+    /// Invoked with the selected option's ID when selection changes via click or arrow keys.
     pub fn on_select(
         mut self,
         handler: impl Fn(&ElementId, &mut Window, &mut App) + 'static,

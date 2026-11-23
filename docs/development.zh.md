@@ -76,11 +76,12 @@ git diff --check origin/main
 cargo xtask check
 ```
 
-修改 Rust 代码时运行格式、Clippy 与测试检查：
+修改 Rust 代码时运行格式、Clippy、Rustdoc 与测试检查：
 
 ```powershell
 cargo fmt --all --check
 cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+$env:RUSTDOCFLAGS = '-D warnings'; cargo doc --locked --workspace --no-deps --all-features
 cargo test --locked --workspace --all-features
 ```
 
@@ -149,7 +150,7 @@ npm --prefix website run build:wasm
 | `Documentation checks` | 文档和工程变更运行 `cargo xtask docs --check`。 |
 | `Website / Build documentation` | 网站源码或构建输入变更时构建带 WASM Gallery 的网站并检查链接。 |
 | `Repository checks` | 检查 Rust 格式、Token 生成物、三平台依赖图及默认工作区。 |
-| `Windows MSVC`、`macOS ARM64`、`Linux x64` | 运行 Clippy、工作区测试、Gallery 无头 UI 测试和原生 Gallery 构建。 |
+| `Windows MSVC`、`macOS ARM64`、`Linux x64` | 运行 Clippy、工作区测试、Gallery 无头 UI 测试、原生 Gallery 构建与 Rustdoc 检查（Linux x64）。 |
 | `CI required` | 核验选中的作业全部通过、未选中的作业均已跳过。 |
 
 Rust 构建缓存按平台隔离，由 `main` 保存并供 PR 复用。更新 `main` 须通过基于最新主线且 `CI required` 通过的 PR，详见[评审与合并规则](../CONTRIBUTING.zh.md#pr-评审与合并)。发版流程见[版本与发布](release.zh.md#prepare-and-publish)。

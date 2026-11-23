@@ -17,24 +17,38 @@ use super::platform::{
 /// the current window Material theme.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct CaptionButtonColors {
+    /// Glyph color for caption buttons when the window is active.
     pub active_foreground: Option<Hsla>,
+    /// Glyph color for caption buttons when the window is inactive.
     pub inactive_foreground: Option<Hsla>,
+    /// Background fill color when hovering Minimize or Maximize/Restore.
     pub hover_background: Option<Hsla>,
+    /// Glyph color when hovering Minimize or Maximize/Restore.
     pub hover_foreground: Option<Hsla>,
+    /// Background fill color while pressing Minimize or Maximize/Restore.
     pub pressed_background: Option<Hsla>,
+    /// Glyph color while pressing Minimize or Maximize/Restore.
     pub pressed_foreground: Option<Hsla>,
+    /// Background fill color when hovering the Close button. Defaults to `ColorRole::Error`.
     pub close_hover_background: Option<Hsla>,
+    /// Glyph color when hovering the Close button. Defaults to `ColorRole::OnError`.
     pub close_hover_foreground: Option<Hsla>,
+    /// Background fill color while pressing the Close button. Defaults to `ColorRole::ErrorContainer`.
     pub close_pressed_background: Option<Hsla>,
+    /// Glyph color while pressing the Close button. Defaults to `ColorRole::OnErrorContainer`.
     pub close_pressed_foreground: Option<Hsla>,
 }
 
 /// Localized accessible names for [`CaptionButtons`] and [`super::TitleBar`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CaptionButtonLabels {
+    /// Accessible label for the minimize button. Defaults to `"Minimize"`.
     pub minimize: SharedString,
+    /// Accessible label for the maximize button. Defaults to `"Maximize"`.
     pub maximize: SharedString,
+    /// Accessible label for the restore button when maximized. Defaults to `"Restore"`.
     pub restore: SharedString,
+    /// Accessible label for the close button. Defaults to `"Close"`.
     pub close: SharedString,
 }
 

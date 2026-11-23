@@ -23,6 +23,7 @@ pub struct Divider {
 impl Divider {
     const DEFAULT_THICKNESS: gpui::Pixels = px(1.);
 
+    /// Creates a full-width horizontal divider with 1 px default thickness and `OutlineVariant` color.
     pub fn horizontal() -> Self {
         Self {
             axis: Axis::Horizontal,
@@ -34,6 +35,7 @@ impl Divider {
         }
     }
 
+    /// Creates a full-height vertical divider with 1 px default thickness and `OutlineVariant` color.
     pub fn vertical() -> Self {
         Self {
             axis: Axis::Vertical,
@@ -65,6 +67,7 @@ impl Divider {
         self
     }
 
+    /// Sets logical start and end insets along the divider's main axis (clamped to non-negative values).
     pub fn inset(mut self, start: gpui::Pixels, end: gpui::Pixels) -> Self {
         self.start = start.max(px(0.));
         self.end = end.max(px(0.));
@@ -181,6 +184,7 @@ impl Badge {
         }
     }
 
+    /// Anchors a text badge to the host's upper trailing edge.
     pub fn label(host: impl IntoElement, text: impl Into<SharedString>) -> Self {
         Self {
             content: BadgeContent::Text(text.into()),
@@ -188,6 +192,7 @@ impl Badge {
         }
     }
 
+    /// Anchors a capped numeric badge to the host's upper trailing edge, displaying `"{maximum}+"` when `count > maximum`.
     pub fn count(host: impl IntoElement, count: usize, maximum: usize) -> Self {
         Self::label(host, format_badge_count(count, maximum))
     }

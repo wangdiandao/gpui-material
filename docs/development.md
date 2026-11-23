@@ -76,11 +76,12 @@ git diff --check origin/main
 cargo xtask check
 ```
 
-For Rust changes, run formatting, Clippy, and tests:
+For Rust changes, run formatting, Clippy, Rustdoc, and tests:
 
 ```powershell
 cargo fmt --all --check
 cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+$env:RUSTDOCFLAGS = '-D warnings'; cargo doc --locked --workspace --no-deps --all-features
 cargo test --locked --workspace --all-features
 ```
 
@@ -149,7 +150,7 @@ In repository settings, set **Settings → Pages → Build and deployment → So
 | `Documentation checks` | Runs `cargo xtask docs --check` for documentation and engineering changes. |
 | `Website / Build documentation` | Builds and link-checks the website with the WASM Gallery when website sources or build inputs change. |
 | `Repository checks` | Checks Rust formatting, generated tokens, three-platform dependency graphs, and the default workspace. |
-| `Windows MSVC`, `macOS ARM64`, `Linux x64` | Runs Clippy, workspace tests, headless Gallery UI tests, and native Gallery builds. |
+| `Windows MSVC`, `macOS ARM64`, `Linux x64` | Runs Clippy, workspace tests, headless Gallery UI tests, native Gallery builds, and Rustdoc checks (on Linux x64). |
 | `CI required` | Confirms the selected jobs passed and unselected jobs were skipped. |
 
 Rust build caches are isolated by platform, saved on `main`, and restored by PRs. Changes to `main` require a PR that is up to date with its base and passes `CI required` under the [review and merge rules](../CONTRIBUTING.md#pr-review-and-merge). For releases, see [versioning and releases](release.md#prepare-and-publish).

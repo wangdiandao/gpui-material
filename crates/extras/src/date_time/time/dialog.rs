@@ -33,6 +33,7 @@ pub struct TimePickerModeAction {
 }
 
 impl TimePickerModeAction {
+    /// Returns the [`TimePickerVariant`] that activating this action will switch to.
     pub fn target(&self) -> TimePickerVariant {
         self.target
     }
@@ -99,6 +100,7 @@ pub struct TimeDialog<const VIBRANT: bool> {
 }
 
 impl<const VIBRANT: bool> TimeDialog<VIBRANT> {
+    /// Creates a time picker dialog with an element `id`, accessible `name`, and caller-owned `state`.
     pub fn new(
         id: impl Into<ElementId>,
         name: impl Into<SharedString>,
@@ -126,36 +128,43 @@ impl<const VIBRANT: bool> TimeDialog<VIBRANT> {
         }
     }
 
+    /// Sets the dial layout orientation. Defaults to [`TimePickerLayout::Auto`].
     pub fn layout(mut self, layout: TimePickerLayout) -> Self {
         self.layout = layout;
         self
     }
 
+    /// Overrides the panel's appearance and color tokens.
     pub fn style(mut self, style: TimePickerStyle) -> Self {
         self.style = style;
         self
     }
 
+    /// Overrides the surrounding Material dialog container and action colors.
     pub fn colors(mut self, colors: DialogColors) -> Self {
         self.colors = colors;
         self
     }
 
+    /// Overrides the dialog container's corner shape.
     pub fn shape(mut self, shape: CornerShape) -> Self {
         self.shape = Some(shape);
         self
     }
 
+    /// Replaces the default [`TimePickerPanel`] body with a custom element.
     pub fn body(mut self, body: impl IntoElement) -> Self {
         self.body = Some(body.into_any_element());
         self
     }
 
+    /// Sets custom visible title content while keeping `name` as the accessible dialog title.
     pub fn title_content(mut self, content: impl IntoElement) -> Self {
         self.title = Some(content.into_any_element());
         self
     }
 
+    /// Customizes the button used to toggle between input and picker modes.
     pub fn mode_toggle_content<E: IntoElement>(
         mut self,
         content: impl FnOnce(TimePickerModeAction) -> E + 'static,
@@ -164,6 +173,7 @@ impl<const VIBRANT: bool> TimeDialog<VIBRANT> {
         self
     }
 
+    /// Customizes the dialog's confirm action button.
     pub fn confirm_content<E: IntoElement>(
         mut self,
         content: impl FnOnce(DialogAction) -> E + 'static,
@@ -172,6 +182,7 @@ impl<const VIBRANT: bool> TimeDialog<VIBRANT> {
         self
     }
 
+    /// Customizes the dialog's dismiss action button.
     pub fn dismiss_content<E: IntoElement>(
         mut self,
         content: impl FnOnce(DialogAction) -> E + 'static,
@@ -180,21 +191,25 @@ impl<const VIBRANT: bool> TimeDialog<VIBRANT> {
         self
     }
 
+    /// Shows or hides the mode-toggle button in the dialog footer.
     pub fn show_mode_toggle(mut self, show: bool) -> Self {
         self.show_toggle = show;
         self
     }
 
+    /// Shows or hides the dismiss action button in the dialog footer.
     pub fn show_dismiss(mut self, show: bool) -> Self {
         self.show_dismiss = show;
         self
     }
 
+    /// Configures escape and outside-click dismissal behavior for the dialog.
     pub fn properties(mut self, properties: DialogProperties) -> Self {
         self.properties = properties;
         self
     }
 
+    /// Registers a callback invoked with the confirmed [`NaiveTime`] when accepted.
     pub fn on_confirm(
         mut self,
         confirm: impl Fn(NaiveTime, &mut Window, &mut App) + 'static,
@@ -203,6 +218,7 @@ impl<const VIBRANT: bool> TimeDialog<VIBRANT> {
         self
     }
 
+    /// Registers a gate callback called before dismissing; return `false` to keep the dialog open.
     pub fn on_dismiss_request(
         mut self,
         request: impl Fn(DialogCloseReason, &mut Window, &mut App) -> bool + 'static,
@@ -211,6 +227,7 @@ impl<const VIBRANT: bool> TimeDialog<VIBRANT> {
         self
     }
 
+    /// Registers a callback invoked after the dialog closes, with the [`DialogCloseReason`].
     pub fn on_close(
         mut self,
         callback: impl Fn(DialogCloseReason, &mut Window, &mut App) + 'static,
@@ -362,6 +379,7 @@ pub struct TimePicker {
 }
 
 impl TimePicker {
+    /// Creates a triggered time picker bound to `state` with the caller-owned committed `value`.
     pub fn new(
         id: impl Into<ElementId>,
         label: impl Into<SharedString>,
@@ -390,46 +408,55 @@ impl TimePicker {
         }
     }
 
+    /// Sets the 12-hour or 24-hour clock format used when the trigger opens the dialog.
     pub fn format(mut self, format: TimeFormat) -> Self {
         self.options.format = format;
         self
     }
 
+    /// Sets the initial editor mode (`Dial`, `Input`, or `Scroll`) applied on open.
     pub fn variant(mut self, variant: TimePickerVariant) -> Self {
         self.options.variant = variant;
         self
     }
 
+    /// Sets the dial layout orientation.
     pub fn layout(mut self, layout: TimePickerLayout) -> Self {
         self.options.layout = layout;
         self
     }
 
+    /// Sets the locale formatting, parsing, and labels applied on open.
     pub fn locale(mut self, locale: TimePickerLocale) -> Self {
         self.options.locale = locale;
         self
     }
 
+    /// Overrides the panel's appearance and color tokens.
     pub fn style(mut self, style: TimePickerStyle) -> Self {
         self.style = style;
         self
     }
 
+    /// Overrides the dialog container and action colors.
     pub fn colors(mut self, colors: DialogColors) -> Self {
         self.colors = colors;
         self
     }
 
+    /// Shows or hides the mode-toggle button in the dialog footer.
     pub fn show_mode_toggle(mut self, show: bool) -> Self {
         self.show_mode_toggle = show;
         self
     }
 
+    /// Configures escape and outside-click dismissal behavior for the dialog.
     pub fn properties(mut self, properties: DialogProperties) -> Self {
         self.properties = properties;
         self
     }
 
+    /// Registers a gate callback called before dismissing; return `false` to keep the dialog open.
     pub fn on_dismiss_request(
         mut self,
         request: impl Fn(DialogCloseReason, &mut Window, &mut App) -> bool + 'static,
@@ -438,6 +465,7 @@ impl TimePicker {
         self
     }
 
+    /// Registers a callback invoked after the dialog closes, with the [`DialogCloseReason`].
     pub fn on_close(
         mut self,
         callback: impl Fn(DialogCloseReason, &mut Window, &mut App) + 'static,
@@ -452,6 +480,7 @@ impl TimePicker {
         self
     }
 
+    /// Registers a callback invoked with the confirmed [`NaiveTime`] when accepted.
     pub fn on_confirm(
         mut self,
         callback: impl Fn(NaiveTime, &mut Window, &mut App) + 'static,

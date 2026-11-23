@@ -178,6 +178,7 @@ impl ShapeMorphSequence {
         self.steps.len() + usize::from(self.wrap.is_some())
     }
 
+    /// Returns `true` when the sequence wraps from its last shape back to the first.
     pub fn is_looping(&self) -> bool {
         self.wrap.is_some()
     }
@@ -275,6 +276,7 @@ impl ShapeMorphSequence {
 pub struct PolygonMorph(ShapeMorph);
 
 impl PolygonMorph {
+    /// Creates a reusable morph between two Material [`PolygonRole`] endpoints.
     pub fn new(start: PolygonRole, end: PolygonRole) -> Self {
         Self(ShapeMorph::new(start, end))
     }

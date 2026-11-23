@@ -596,66 +596,127 @@ pub(crate) const MD_SYS_TYPESCALE_TITLE_SMALL_WEIGHT: u16 = MD_REF_TYPEFACE_WEIG
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ColorRole {
+    /// The `md.sys.color.background` Material color role.
     Background,
+    /// The `md.sys.color.error` Material color role.
     Error,
+    /// The `md.sys.color.error-container` Material color role.
     ErrorContainer,
+    /// The `md.sys.color.info` Material color role.
     Info,
+    /// The `md.sys.color.info-container` Material color role.
     InfoContainer,
+    /// The `md.sys.color.inverse-on-surface` Material color role.
     InverseOnSurface,
+    /// The `md.sys.color.inverse-primary` Material color role.
     InversePrimary,
+    /// The `md.sys.color.inverse-surface` Material color role.
     InverseSurface,
+    /// The `md.sys.color.on-background` Material color role.
     OnBackground,
+    /// The `md.sys.color.on-error` Material color role.
     OnError,
+    /// The `md.sys.color.on-error-container` Material color role.
     OnErrorContainer,
+    /// The `md.sys.color.on-info` Material color role.
     OnInfo,
+    /// The `md.sys.color.on-info-container` Material color role.
     OnInfoContainer,
+    /// The `md.sys.color.on-primary` Material color role.
     OnPrimary,
+    /// The `md.sys.color.on-primary-container` Material color role.
     OnPrimaryContainer,
+    /// The `md.sys.color.on-primary-fixed` Material color role.
     OnPrimaryFixed,
+    /// The `md.sys.color.on-primary-fixed-variant` Material color role.
     OnPrimaryFixedVariant,
+    /// The `md.sys.color.on-secondary` Material color role.
     OnSecondary,
+    /// The `md.sys.color.on-secondary-container` Material color role.
     OnSecondaryContainer,
+    /// The `md.sys.color.on-secondary-fixed` Material color role.
     OnSecondaryFixed,
+    /// The `md.sys.color.on-secondary-fixed-variant` Material color role.
     OnSecondaryFixedVariant,
+    /// The `md.sys.color.on-success` Material color role.
     OnSuccess,
+    /// The `md.sys.color.on-success-container` Material color role.
     OnSuccessContainer,
+    /// The `md.sys.color.on-surface` Material color role.
     OnSurface,
+    /// The `md.sys.color.on-surface-variant` Material color role.
     OnSurfaceVariant,
+    /// The `md.sys.color.on-tertiary` Material color role.
     OnTertiary,
+    /// The `md.sys.color.on-tertiary-container` Material color role.
     OnTertiaryContainer,
+    /// The `md.sys.color.on-tertiary-fixed` Material color role.
     OnTertiaryFixed,
+    /// The `md.sys.color.on-tertiary-fixed-variant` Material color role.
     OnTertiaryFixedVariant,
+    /// The `md.sys.color.on-warning` Material color role.
     OnWarning,
+    /// The `md.sys.color.on-warning-container` Material color role.
     OnWarningContainer,
+    /// The `md.sys.color.outline` Material color role.
     Outline,
+    /// The `md.sys.color.outline-variant` Material color role.
     OutlineVariant,
+    /// The `md.sys.color.primary` Material color role.
     Primary,
+    /// The `md.sys.color.primary-container` Material color role.
     PrimaryContainer,
+    /// The `md.sys.color.primary-fixed` Material color role.
     PrimaryFixed,
+    /// The `md.sys.color.primary-fixed-dim` Material color role.
     PrimaryFixedDim,
+    /// The `md.sys.color.scrim` Material color role.
     Scrim,
+    /// The `md.sys.color.secondary` Material color role.
     Secondary,
+    /// The `md.sys.color.secondary-container` Material color role.
     SecondaryContainer,
+    /// The `md.sys.color.secondary-fixed` Material color role.
     SecondaryFixed,
+    /// The `md.sys.color.secondary-fixed-dim` Material color role.
     SecondaryFixedDim,
+    /// The `md.sys.color.shadow` Material color role.
     Shadow,
+    /// The `md.sys.color.success` Material color role.
     Success,
+    /// The `md.sys.color.success-container` Material color role.
     SuccessContainer,
+    /// The `md.sys.color.surface` Material color role.
     Surface,
+    /// The `md.sys.color.surface-bright` Material color role.
     SurfaceBright,
+    /// The `md.sys.color.surface-container` Material color role.
     SurfaceContainer,
+    /// The `md.sys.color.surface-container-high` Material color role.
     SurfaceContainerHigh,
+    /// The `md.sys.color.surface-container-highest` Material color role.
     SurfaceContainerHighest,
+    /// The `md.sys.color.surface-container-low` Material color role.
     SurfaceContainerLow,
+    /// The `md.sys.color.surface-container-lowest` Material color role.
     SurfaceContainerLowest,
+    /// The `md.sys.color.surface-dim` Material color role.
     SurfaceDim,
+    /// The `md.sys.color.surface-tint` Material color role.
     SurfaceTint,
+    /// The `md.sys.color.surface-variant` Material color role.
     SurfaceVariant,
+    /// The `md.sys.color.tertiary` Material color role.
     Tertiary,
+    /// The `md.sys.color.tertiary-container` Material color role.
     TertiaryContainer,
+    /// The `md.sys.color.tertiary-fixed` Material color role.
     TertiaryFixed,
+    /// The `md.sys.color.tertiary-fixed-dim` Material color role.
     TertiaryFixedDim,
+    /// The `md.sys.color.warning` Material color role.
     Warning,
+    /// The `md.sys.color.warning-container` Material color role.
     WarningContainer,
 }
 

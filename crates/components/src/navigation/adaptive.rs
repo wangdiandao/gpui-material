@@ -9,10 +9,13 @@ use gpui_material_theme::{Direction, WidthClass};
 
 use super::{AdaptivePane, AdaptivePaneLayout, AdaptivePaneState, PaneAdaptStrategy, PaneRole};
 
+/// Which pane is visible in a single-pane [`ListDetail`] layout.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ListDetailPane {
+    /// Show the master list pane.
     #[default]
     List,
+    /// Show the detail pane.
     Detail,
 }
 
@@ -30,6 +33,7 @@ pub struct ListDetail {
 }
 
 impl ListDetail {
+    /// Creates a list-detail layout for the given available width, list pane, and detail pane.
     pub fn new(
         id: impl Into<ElementId>,
         width: Pixels,
@@ -69,16 +73,19 @@ impl ListDetail {
         self
     }
 
+    /// Selects which pane is displayed when the layout is in single-pane mode (default [`ListDetailPane::List`]).
     pub fn active_pane(mut self, pane: ListDetailPane) -> Self {
         self.active = pane;
         self
     }
 
+    /// Sets the preferred width of the list pane in two-pane mode (default 360 px, capped at half the available width).
     pub fn list_width(mut self, width: Pixels) -> Self {
         self.list_width = width.max(px(0.));
         self
     }
 
+    /// Returns whether `width` falls in a single-pane breakpoint (`Compact` or `Medium`).
     pub fn is_single_pane(width: Pixels) -> bool {
         matches!(
             WidthClass::from_width(width.into()),
@@ -139,6 +146,7 @@ pub struct SupportingPane {
 }
 
 impl SupportingPane {
+    /// Creates a supporting-pane layout for the given available width, primary pane, and supporting pane.
     pub fn new(
         id: impl Into<ElementId>,
         width: Pixels,
@@ -173,6 +181,7 @@ impl SupportingPane {
             .pane(PaneRole::Secondary, supporting)
     }
 
+    /// Controls whether the supporting pane is shown full-width in single-pane mode (default `false`).
     pub fn show_support(mut self, show_support: bool) -> Self {
         self.show_support = show_support;
         self
@@ -229,6 +238,7 @@ pub struct Feed {
 }
 
 impl Feed {
+    /// Creates a responsive multi-column feed bound to the caller's scroll handle.
     pub fn new(id: impl Into<ElementId>, width: Pixels, scroll: &gpui::ScrollHandle) -> Self {
         Self {
             id: id.into(),
@@ -245,6 +255,7 @@ impl Feed {
         self
     }
 
+    /// Returns the number of columns used for `width` according to Material width classes.
     pub fn columns(width: Pixels) -> usize {
         match WidthClass::from_width(width.into()) {
             WidthClass::Compact => 1,

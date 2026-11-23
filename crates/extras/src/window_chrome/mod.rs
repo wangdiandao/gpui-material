@@ -27,9 +27,13 @@ use platform::{CloseHandler, read_window_title, sanitize_nonnegative, sanitize_p
 /// current window Material theme.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct TitleBarColors {
+    /// Background fill color of the title bar strip. Defaults to `ColorRole::Surface`.
     pub background: Option<Hsla>,
+    /// Title text and foreground color when the window is active. Defaults to `ColorRole::OnSurface`.
     pub active_foreground: Option<Hsla>,
+    /// Title text and foreground color when the window is inactive. Defaults to `ColorRole::OnSurfaceVariant`.
     pub inactive_foreground: Option<Hsla>,
+    /// Optional 1px bottom border color separating the title bar from window content.
     pub border: Option<Hsla>,
 }
 

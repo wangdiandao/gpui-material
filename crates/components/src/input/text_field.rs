@@ -15,8 +15,10 @@ mod render;
 /// Material text field container treatment. The default is Filled.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum TextFieldVariant {
+    /// Filled container with top rounded corners and a bottom active indicator (default).
     #[default]
     Filled,
+    /// Transparent container framed by a rounded perimeter outline with a label cutout.
     Outlined,
 }
 
@@ -34,9 +36,12 @@ pub enum TextFieldLabelPosition {
 /// Horizontal label alignment. Start and End follow the Material theme direction.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum TextFieldLabelAlignment {
+    /// Aligned to the logical start edge (left in LTR, right in RTL; default).
     #[default]
     Start,
+    /// Horizontally centered.
     Center,
+    /// Aligned to the logical end edge (right in LTR, left in RTL).
     End,
 }
 
@@ -48,35 +53,54 @@ pub enum TextFieldLabelAlignment {
 /// renders and behaves as plain text.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum TextFieldObfuscationMode {
+    /// Masked with bullets (`•`), copy/cut disabled, and value omitted from accessibility (default).
     #[default]
     Hidden,
+    /// Rendered and exposed as ordinary plain text.
     Visible,
 }
 
 /// Optional colors for a single text field state. An unset role uses the window theme.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct TextFieldColorOverrides {
+    /// Field container background color.
     pub container: Option<Hsla>,
+    /// Input text color.
     pub text: Option<Hsla>,
+    /// Floating or resting label color.
     pub label: Option<Hsla>,
+    /// Placeholder hint text color.
     pub placeholder: Option<Hsla>,
+    /// Leading adornment color.
     pub leading: Option<Hsla>,
+    /// Trailing adornment color.
     pub trailing: Option<Hsla>,
+    /// Prefix text/element color.
     pub prefix: Option<Hsla>,
+    /// Suffix text/element color.
     pub suffix: Option<Hsla>,
+    /// Supporting or error text color below the field.
     pub supporting: Option<Hsla>,
+    /// Active indicator line (Filled) or perimeter outline (Outlined) color.
     pub indicator: Option<Hsla>,
+    /// Text cursor (caret) color.
     pub caret: Option<Hsla>,
+    /// Text selection highlight color.
     pub selection: Option<Hsla>,
 }
 
 /// Per-instance colors. Disabled takes precedence over invalid, then focused.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct TextFieldColors {
+    /// Colors when enabled, valid, and unfocused.
     pub unfocused: TextFieldColorOverrides,
+    /// Colors when enabled, valid, and focused.
     pub focused: TextFieldColorOverrides,
+    /// Colors when disabled.
     pub disabled: TextFieldColorOverrides,
+    /// Colors when enabled and marked invalid/error.
     pub invalid: TextFieldColorOverrides,
+    /// Indicator or outline color when hovered while unfocused and valid.
     pub hovered_indicator: Option<Hsla>,
 }
 
@@ -291,6 +315,7 @@ impl TextField {
         }
     }
 
+    /// Sets the text field container style (`Filled` or `Outlined`).
     pub fn variant(mut self, variant: TextFieldVariant) -> Self {
         self.variant = variant;
         self
@@ -426,6 +451,7 @@ impl TextField {
         self
     }
 
+    /// Displays helper text below the field and exposes it as the field's accessible description.
     pub fn supporting_text(mut self, text: impl Into<SharedString>) -> Self {
         self.supporting = Some(FieldDescription {
             text: text.into(),
@@ -449,6 +475,7 @@ impl TextField {
         self
     }
 
+    /// Overrides where the minimized label is positioned (`Inside`, `Cutout`, or `Above`).
     pub fn label_position(mut self, position: TextFieldLabelPosition) -> Self {
         self.label_position = Some(position);
         self

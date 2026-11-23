@@ -26,6 +26,7 @@ pub struct DialogState {
 }
 
 impl DialogState {
+    /// Creates a closed dialog state with freshly allocated focus and scroll handles.
     pub fn new(cx: &mut Context<Self>) -> Self {
         Self {
             focus: cx.focus_handle(),
@@ -40,6 +41,7 @@ impl DialogState {
         }
     }
 
+    /// Returns whether the dialog or sheet is currently open.
     pub fn is_open(&self) -> bool {
         self.open
     }

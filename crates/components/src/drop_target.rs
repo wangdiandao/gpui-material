@@ -21,14 +21,23 @@ type ActivateHandler = Rc<dyn Fn(&mut Window, &mut App)>;
 /// Per-instance pigments for idle, valid drag-over, and rejected drag-over states of a [`DropTarget`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct DropTargetColors {
+    /// Background color while idle. Defaults to `SurfaceContainerLowest`.
     pub container: Option<Hsla>,
+    /// Background color while an accepted payload is dragged over the target. Defaults to `PrimaryContainer`.
     pub active_container: Option<Hsla>,
+    /// Background color while a rejected payload is dragged over the target. Defaults to `ErrorContainer`.
     pub invalid_container: Option<Hsla>,
+    /// Dashed border color while idle. Defaults to `OutlineVariant`.
     pub border: Option<Hsla>,
+    /// Dashed border color while an accepted payload is dragged over the target. Defaults to `Primary`.
     pub active_border: Option<Hsla>,
+    /// Dashed border color while a rejected payload is dragged over the target. Defaults to `Error`.
     pub invalid_border: Option<Hsla>,
+    /// Foreground color for text and icons while idle. Defaults to `OnSurfaceVariant`.
     pub content: Option<Hsla>,
+    /// Foreground color while an accepted payload is dragged over the target. Defaults to `OnPrimaryContainer`.
     pub active_content: Option<Hsla>,
+    /// Foreground color while a rejected payload is dragged over the target. Defaults to `OnErrorContainer`.
     pub invalid_content: Option<Hsla>,
 }
 

@@ -2,7 +2,7 @@ use gpui::QuitMode;
 use gpui_material::foundation::set_material_theme;
 use gpui_material::theme::{Appearance, MaterialTheme};
 
-use gpui_material_story::{GALLERY_TITLE, Story, init_gallery, open_gallery};
+use gpui_material_story::{GALLERY_TITLE, GalleryPage, init_gallery, open_gallery_page};
 
 #[cfg(feature = "frame-profile")]
 mod frame_profile;
@@ -19,10 +19,10 @@ fn main() {
         eprintln!("--frame-profile requires the frame-profile feature and a single window");
         std::process::exit(2);
     }
-    let initial_story = arguments
+    let initial_page = arguments
         .iter()
         .find(|arg| !arg.starts_with('-'))
-        .and_then(|name| Story::find(name))
+        .and_then(|name| GalleryPage::find(name))
         .unwrap_or_default();
     gpui_platform::application()
         .with_quit_mode(QuitMode::LastWindowClosed)
@@ -42,9 +42,9 @@ fn main() {
             if reduced_motion {
                 cx.set_reduce_motion(true);
             }
-            let result = open_gallery(cx, false, initial_story, window_chrome).and_then(|_| {
+            let result = open_gallery_page(cx, false, initial_page, window_chrome).and_then(|_| {
                 if two_windows {
-                    open_gallery(cx, true, initial_story, window_chrome)?;
+                    open_gallery_page(cx, true, initial_page, window_chrome)?;
                 }
                 Ok(())
             });

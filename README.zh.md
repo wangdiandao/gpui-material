@@ -10,7 +10,7 @@
 
 ## 体验 Gallery
 
-从源码运行 Gallery。你可以在侧栏搜索组件、操作示例，并切换浅色和深色主题。在 Adaptive layout 页面调整窗口大小，可以观察导航和内容窗格如何随可用空间变化。
+从源码运行 Gallery。你可以从 Overview 首页浏览组件概览，在顶栏切换 Components、Styles（Color、Typography、Shape、Motion）和 Examples 分区，在分组侧栏中搜索过滤，并切换内置主题预设及浅色/深色外观。在 Adaptive layout 页面调整窗口大小，可以观察导航和内容窗格如何随可用空间变化。
 
 ```sh
 git clone https://github.com/wangdiandao/gpui-material.git

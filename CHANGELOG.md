@@ -34,6 +34,11 @@ See [versioning and releases](docs/release.md) for the release process.
 - Add `Snackbar::dismiss_label(...)`, `SnackbarHost::pending_len()`, `SnackbarHost::clear_queue(cx)`, and pause timed snackbar auto-dismiss while hovered or focused.
 - Add `Tooltip::show_delay(Duration)` and `Tooltip::hide_delay(Duration)` overrides.
 
+### Gallery
+
+- Reorganize the Gallery around top-level `Components`, `Styles`, and `Examples` sections with a grouped Material 3 sidebar catalog, an interactive Overview landing page (hero shapes, live theme preset swatches, interactive controls, and grouped component cards), dedicated `Color` (with click-to-copy hex swatches), `Typography`, `Shape` (with interactive 35-shape inspector), and `Motion` style reference pages, and a status bar displaying the active theme and package version while keeping existing `Story` IDs compatible.
+- Redesign all 50 component pages around a `Live preview | Specs` layout with a local `ThemeScope` preview canvas, declarative `Configuration` card (scenarios, controls, and reset), live Rust `Code` snippet card with copy action, and lazy-loaded full `Specs` views, plus a live breakpoint badge on the `Adaptive layout` example page.
+
 ### Performance
 
 - Guard no-op state updates against redundant `cx.notify()` and `window.refresh()` calls across Foundation theme updates (`set_material_theme`, `set_window_material_theme`), Components (`PullToRefreshState`, `SwipeToDismissState`, `BottomSheetState`, `Tooltip`, `ExposedDropdownState`, `AppBarScrollState`), and Extras (`SearchScrollState`, `ToolbarScrollState`, `ScrollFieldState`, `DatePickerState`, `TimePickerState`).

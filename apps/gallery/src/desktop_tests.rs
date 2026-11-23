@@ -15,7 +15,7 @@ fn click(cx: &mut TestAppContext, handle: WindowHandle<Root>, id: ElementId) {
         window.refresh();
         window.draw(cx).clear(cx);
         let target = find(window, &[], &id).unwrap();
-        assert!(target.visible());
+        assert!(target.visible(), "target {id:?} not visible");
         let position = target.bounds().center();
         for input in [
             gpui::MouseDownEvent {
@@ -134,7 +134,7 @@ fn catalog_filters_and_opens_a_story_on_a_compact_window(cx: &mut TestAppContext
     cx.update_window(handle.into(), |_, window, cx| {
         window.refresh();
         window.draw(cx).clear(cx);
-        let level = ElementId::from((ElementId::from("level"), "end"));
+        let level = ElementId::from((ElementId::from("pg-slider"), "end"));
         let slider = find(window, &[], &level).unwrap();
         assert_eq!(slider.role(), Some(Role::Slider));
         assert!(slider.visible());
@@ -160,8 +160,15 @@ fn catalog_filters_and_opens_a_story_on_a_compact_window(cx: &mut TestAppContext
     cx.update_window(handle.into(), |_, window, cx| {
         window.refresh();
         window.draw(cx).clear(cx);
-        assert!(find(window, &[], &("action-variant", 0_usize).into()).is_some());
+        assert!(find(window, &[], &"pg-button".into()).is_some());
         assert!(find(window, &[], &"gallery-search".into()).is_none());
+    })
+    .unwrap();
+    click(cx, handle, "page-tab-specs".into());
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert!(find(window, &[], &("action-variant", 0_usize).into()).is_some());
     })
     .unwrap();
 
@@ -286,14 +293,11 @@ fn projects_theme_and_paints_status_in_two_windows(cx: &mut TestAppContext) {
         .unwrap();
         click(cx, handle, id);
     };
-    assert!(label(cx, first, "display-scale").starts_with("Display scale "));
+    let expected_version = format!("v{}", env!("CARGO_PKG_VERSION"));
+    assert_eq!(label(cx, first, "gallery-version"), expected_version);
     assert_eq!(label(cx, first, "window-theme"), "Window theme Light");
     assert_eq!(label(cx, second, "window-theme"), "Window theme Dark");
-    cx.simulate_window_scale_factor_change(second.into(), 1.5);
-    assert_eq!(label(cx, second, "display-scale"), "Display scale 150%");
-    assert_eq!(label(cx, second, "window-theme"), "Window theme Dark");
-    cx.simulate_window_scale_factor_change(second.into(), 1.);
-    assert_eq!(label(cx, second, "display-scale"), "Display scale 100%");
+    assert_eq!(label(cx, second, "gallery-version"), expected_version);
     for (handle, appearance) in [(first, Appearance::Light), (second, Appearance::Dark)] {
         cx.update_window(handle.into(), |_, window, cx| {
             let theme = window_material_theme(window, cx);
@@ -386,8 +390,8 @@ fn gallery_lazy_loads_stories_and_preserves_visited_views(cx: &mut TestAppContex
         assert!(g.story_view_id(Story::Button).is_none());
     });
 
-    let adaptive_story = ElementId::from((ElementId::from("gallery-story"), "adaptive-layout"));
-    click(cx, handle, (adaptive_story.clone(), "activate").into());
+    let examples_section = ElementId::from((ElementId::from("top-section"), "examples"));
+    click(cx, handle, examples_section.clone());
     let adaptive_view_id = cx.update(|cx| {
         let g = gallery.read(cx);
         assert_eq!(g.loaded_story_count(), 1);
@@ -405,6 +409,8 @@ fn gallery_lazy_loads_stories_and_preserves_visited_views(cx: &mut TestAppContex
     })
     .unwrap();
 
+    let components_section = ElementId::from((ElementId::from("top-section"), "components"));
+    click(cx, handle, components_section);
     let button_story = ElementId::from((ElementId::from("gallery-story"), "button"));
     click(cx, handle, (button_story, "activate").into());
     let button_view_id = cx.update(|cx| {
@@ -418,7 +424,7 @@ fn gallery_lazy_loads_stories_and_preserves_visited_views(cx: &mut TestAppContex
             .expect("button story view loaded")
     });
 
-    click(cx, handle, (adaptive_story, "activate").into());
+    click(cx, handle, examples_section);
     cx.update(|cx| {
         let g = gallery.read(cx);
         assert_eq!(g.loaded_story_count(), 2);
@@ -501,13 +507,18 @@ fn gallery_virtualizes_catalog_and_skips_noop_navigation_notifications(cx: &mut 
 
     // Re-activating the already-selected story in two-pane mode must not notify Gallery.
     notifications.set(0);
-    let button_story = ElementId::from((ElementId::from("gallery-story"), "button"));
-    click(cx, handle, (button_story.clone(), "activate").into());
+    cx.update_window(handle.into(), |_, window, cx| {
+        gallery.update(cx, |g, cx| g.navigate_story(Story::Button, window, cx));
+    })
+    .unwrap();
+    cx.run_until_parked();
     assert_eq!(notifications.get(), 0);
 
-    // Focus the selected catalog row, then press End to reveal and focus the last story.
-    let last_story = *Story::ALL.last().expect("catalog is non-empty");
-    let last_id = ElementId::from((ElementId::from("gallery-story"), last_story.id()));
+    // Focus the selected catalog row, then press End to reveal and focus the last catalog entry.
+    let last_entry = crate::catalog::CATALOG
+        .last()
+        .expect("catalog is non-empty");
+    let last_id = ElementId::from((ElementId::from("gallery-story"), last_entry.page.id()));
     cx.update_window(handle.into(), |_, window, cx| {
         let focus = gallery
             .read(cx)
@@ -524,8 +535,8 @@ fn gallery_virtualizes_catalog_and_skips_noop_navigation_notifications(cx: &mut 
         let last = find(window, &[], &(last_id, "activate").into());
         assert!(
             last.is_some(),
-            "expected End key to reveal last story {}",
-            last_story.id()
+            "expected End key to reveal last entry {}",
+            last_entry.page.id()
         );
     })
     .unwrap();
@@ -703,5 +714,150 @@ impl gpui::Render for EmptyView {
         _: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         gpui::div()
+    }
+}
+
+#[gpui::test]
+fn reorganized_gallery_sections_overview_and_styles_work(cx: &mut TestAppContext) {
+    let handle = cx.update(|cx| {
+        init_gallery(cx);
+        cx.set_reduce_motion(true);
+        open_gallery(cx, false, Story::Introduction, false).unwrap()
+    });
+    cx.simulate_window_resize(handle.into(), size(px(1400.), px(1600.)));
+
+    // Overview home renders by default with interactive theme swatches.
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert!(find(window, &[], &"gallery-overview".into()).is_some());
+    })
+    .unwrap();
+
+    let baseline_primary = cx.update(|cx| material_theme(cx).colors.color(ColorRole::Primary));
+    let ocean_swatch = ElementId::from((ElementId::from("overview-swatch"), "Ocean"));
+    click(cx, handle, ocean_swatch);
+    let ocean_primary = cx.update(|cx| material_theme(cx).colors.color(ColorRole::Primary));
+    assert_ne!(ocean_primary, baseline_primary);
+
+    // Top-level Styles section opens Color and lets the user visit Typography, Shape, and Motion.
+    let styles_section = ElementId::from((ElementId::from("top-section"), "styles"));
+    click(cx, handle, styles_section);
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let title = find(window, &[], &"story-title".into()).unwrap();
+        assert_eq!(title.label(), Some("Color"));
+    })
+    .unwrap();
+
+    for (id, expected_title) in [
+        ("typography", "Typography"),
+        ("shape", "Shape"),
+        ("motion", "Motion"),
+    ] {
+        let entry = ElementId::from((ElementId::from("gallery-story"), id));
+        click(cx, handle, (entry, "activate").into());
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            let title = find(window, &[], &"story-title".into()).unwrap();
+            assert_eq!(title.label(), Some(expected_title));
+        })
+        .unwrap();
+    }
+
+    // Clicking the brand mark returns to Overview.
+    click(cx, handle, "gallery-brand".into());
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert!(find(window, &[], &"gallery-overview".into()).is_some());
+    })
+    .unwrap();
+
+    // Clicking an overview component card navigates to that component's Live preview playground.
+    let button_card = ElementId::from((ElementId::from("overview-card"), "button"));
+    click(cx, handle, button_card);
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let title = find(window, &[], &"story-title".into()).unwrap();
+        assert_eq!(title.label(), Some("Button"));
+        assert!(find(window, &[], &"component-page-preview".into()).is_some());
+    })
+    .unwrap();
+
+    // Clicking a Configuration option chip and Scenario chip updates the playground live.
+    let outlined_opt = ElementId::from((
+        ElementId::from((ElementId::from("cfg-opt"), "variant-3")),
+        "activate",
+    ));
+    click(cx, handle, outlined_opt.clone());
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert_eq!(
+            find(window, &[], &outlined_opt).unwrap().checked(),
+            Some(true)
+        );
+    })
+    .unwrap();
+
+    let scenario_tonal = ElementId::from((
+        ElementId::from(("playground-scenario", 1_usize)),
+        "activate",
+    ));
+    click(cx, handle, scenario_tonal.clone());
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert_eq!(
+            find(window, &[], &scenario_tonal).unwrap().checked(),
+            Some(true)
+        );
+    })
+    .unwrap();
+
+    // Switching to Specs renders the full story view.
+    click(cx, handle, "page-tab-specs".into());
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        assert!(find(window, &[], &"component-page-specs".into()).is_some());
+    })
+    .unwrap();
+}
+
+#[gpui::test]
+fn all_component_playgrounds_render_without_panicking(cx: &mut TestAppContext) {
+    let (handle, gallery) = cx.update(|cx| {
+        init_gallery(cx);
+        cx.set_reduce_motion(true);
+        let mut gallery = None;
+        let handle = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let view = cx.new(|cx| Gallery::new(Story::Button, window, cx));
+            gallery = Some(view.clone());
+            view
+        })
+        .unwrap();
+        (handle, gallery.unwrap())
+    });
+    cx.simulate_window_resize(handle.into(), size(px(1280.), px(860.)));
+
+    for &story in Story::ALL {
+        if matches!(story, Story::Introduction | Story::AdaptiveLayout) {
+            continue;
+        }
+        cx.update_window(handle.into(), |_, window, cx| {
+            gallery.update(cx, |g, cx| g.navigate_story(story, window, cx));
+            window.refresh();
+            window.draw(cx).clear(cx);
+            assert!(
+                find(window, &[], &"component-page-preview".into()).is_some(),
+                "expected Live preview for Story::{story:?}"
+            );
+        })
+        .unwrap();
     }
 }

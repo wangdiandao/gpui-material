@@ -7,6 +7,7 @@ English | [中文](index.zh.md)
 ## Getting started and components
 
 - [Downstream integration](integration.md) covers setup, the public facade, supported platforms, and version migrations.
+- [Cookbook](cookbook.md) provides practical recipes for state ownership, forms, theming, layouts, focus, custom controls, and slim builds.
 - [Material Symbols](integration.md#material-symbols) covers the full icon catalog and desktop and browser loading.
 - [Components](component.md) lists supported controls, variants, desktop layouts, and optional features.
 

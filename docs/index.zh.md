@@ -7,6 +7,7 @@
 ## 使用与组件
 
 - [下游集成](integration.zh.md)说明接入方式、公开门面、支持平台和版本迁移。
+- [实战手册](cookbook.zh.md)提供状态所有权、表单校验、主题覆盖、自适应布局、焦点交互、自定义控件与精简构建的实用范例。
 - [Material Symbols](integration.zh.md#material-symbols)介绍完整图标目录以及桌面和浏览器加载方式。
 - [组件](component.zh.md)列出受支持的控件、变体、桌面布局及可选特性。
 

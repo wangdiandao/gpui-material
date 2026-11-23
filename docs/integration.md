@@ -102,4 +102,4 @@ Enable `window-chrome` to use a [cross-platform custom title bar](component.md#w
 | macOS 15 ARM64 | Built and tested in CI; native desktop integration in progress. |
 | Ubuntu 24.04 x64 | Built and tested in CI; native desktop integration in progress. |
 
-[Design sources](design-sources.md) · [Versioning and releases](release.md)
+[Cookbook](cookbook.md) · [Design sources](design-sources.md) · [Versioning and releases](release.md)

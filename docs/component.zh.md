@@ -532,7 +532,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 使用 `.leading_icon(|| ...)` 在标签旁加入图标，用 `.icon_only(|| ...)` 以图标替代标签，或通过 `.content(width, || ...)` 提供带首选逻辑宽度的装饰内容。构造器名称用于无障碍和默认溢出菜单行。`.icon_width(IconButtonWidth)` 选择纯图标尺寸。`.appearance(ButtonVariant)` 和 `.style(ButtonGroupItemStyle)` 分别覆盖成员的外观预设，以及静止、按下、选中形状、配色、描边、阴影和逻辑内边距。通过 `.shape(ButtonShape::Square)` 可将默认 Round 外侧形状改为方形。`.connected_shapes(ButtonGroupConnectedShapes)` 为首段、中间段、尾段和单一段设置各状态形状。成员设置的形状字段优先。
 
-`.weight(weight)` 按比例分配非加权成员与最小目标宽度剩余的空间。默认权重为零。`.expanded_ratio(ratio)` 默认为 `0.15`。按下的成员向左右可见邻项借用宽度。`.compression_limit(px(...))` 限制成员可让出的宽度，默认保留至少 24 个逻辑像素。`.interaction_source(&source)` 使用 `ElementId::from((group_id, item_id))` 观察可见成员，宽度动画读取同一按压状态。减少动态效果时立即应用目标宽度。
+`.weight(weight)` 按比例分配非加权成员与最小目标宽度剩余的空间。默认权重为零。`.expanded_ratio(ratio)` 默认为 `0.15`，仅作用于 `Standard` 按钮组：按下的成员会向左右可见邻项借用宽度，而 `Connected` 按钮组保持各段宽度不变。`.compression_limit(px(...))` 限制成员可让出的宽度，默认保留至少 24 个逻辑像素。带内置标签的按钮被压缩窄于首选宽度时，会优先收缩左右水平内边距（每侧至少保留 4 个逻辑像素，或调用方设定的更小值），空间仍不足时再单行省略。`.interaction_source(&source)` 使用 `ElementId::from((group_id, item_id))` 观察可见成员，宽度动画读取同一按压状态。减少动态效果时立即应用目标宽度。
 
 无法显示的成员进入溢出菜单，保留各自的名称、可用与选中状态以及回调。`.overflow_trigger(width, |open| ...)` 替换触发器的显示内容，`.overflow_label(...)` 保留其无障碍名称。`.overflow_content(|| ...)` 在自动生成的菜单行之前添加装饰内容，`.overflow_item_content(|| ...)` 自定义对应成员的菜单行。使用 `.overflow_open(open)` 时由应用持有显示状态，并应用 `.on_overflow_open_change(...)` 的请求。省略打开值时，由按钮组管理菜单显示。
 

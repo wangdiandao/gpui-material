@@ -24,7 +24,9 @@ use super::{
     ButtonGroup, ButtonGroupAlignment, ButtonGroupItem, ButtonGroupSelection, ButtonGroupVariant,
     ButtonGroupVerticalAlignment, Command, ItemBehavior, ItemContent, SelectionChange,
     ToggleChange,
-    layout::{nonnegative, pressed_widths, visible_count, weighted_widths},
+    layout::{
+        effective_expanded_ratio, nonnegative, pressed_widths, visible_count, weighted_widths,
+    },
 };
 
 struct LabelWidthEntry {
@@ -507,7 +509,8 @@ impl RenderOnce for ButtonGroup {
         let occupied =
             (if overflow { overflow_width } else { px(0.) }) + gap * count.saturating_sub(1) as f32;
         let widths = weighted_widths(&preferred[..shown], &weights, available - occupied);
-        let targets = pressed_widths(&widths, &limits, active, self.expanded_ratio);
+        let ratio = effective_expanded_ratio(self.variant, self.expanded_ratio);
+        let targets = pressed_widths(&widths, &limits, active, ratio);
         let mut hidden = Vec::new();
         for (index, item) in self.items.into_iter().enumerate() {
             let selected_state = item.selected(self.selection, &selected);

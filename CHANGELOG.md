@@ -4,6 +4,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Components
+
+- Prevent `ButtonGroupVariant::Connected` from borrowing neighbor width on press, and shrink horizontal button padding (down to 4 dp per side) before ellipsizing labels when a fixed-width button is compressed below its preferred width.
+
 ## 0.3.1 - 2026-11-23
 
 Changes since [v0.3.0](https://github.com/wangdiandao/gpui-material/releases/tag/v0.3.0).

@@ -74,6 +74,20 @@ impl Interaction {
         self.request(Some(false), self.primary, window, cx);
     }
 
+    fn dismiss_outside(&self, window: &mut Window, cx: &mut App) {
+        let editor_focused = self
+            .state
+            .read(cx)
+            .input
+            .read(cx)
+            .focus_handle(cx)
+            .is_focused(window);
+        if editor_focused {
+            window.blur(cx);
+        }
+        self.dismiss(window, cx);
+    }
+
     fn keys(&self, event: &KeyDownEvent, window: &mut Window, cx: &mut App) {
         let key = event.keystroke.key.as_str();
         if event.keystroke.modifiers.modified()
@@ -432,7 +446,7 @@ fn build_popup_content(
                 .capture_key_down(move |event, window, cx| popup_keys.keys(event, window, cx))
                 .on_mouse_down_out(move |event, window, cx| {
                     if !bounds.get().contains(&event.position) {
-                        outside.dismiss(window, cx);
+                        outside.dismiss_outside(window, cx);
                     }
                 })
         })

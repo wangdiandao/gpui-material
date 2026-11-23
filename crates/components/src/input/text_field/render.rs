@@ -839,7 +839,17 @@ fn build_trailing_controls(
                 editor_a11y.replace_all(SharedString::default(), window, cx);
                 focus_a11y.focus(window, cx);
             })
-            .child(crate::Icon::new(crate::IconName::Close).size(px(20.)));
+            .child(
+                div()
+                    .size_full()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .on_mouse_down(MouseButton::Left, |_, window, _| {
+                        window.prevent_default();
+                    })
+                    .child(crate::Icon::new(crate::IconName::Close).size(px(20.))),
+            );
         items.push(clear_btn.into_any_element());
     }
 
@@ -877,7 +887,19 @@ fn build_trailing_controls(
             .border_2()
             .border_color(gpui::transparent_black())
             .focus_visible(move |style| style.border_color(focus_ring))
-            .child(crate::Icon::new(icon).size(px(20.)));
+            .child(
+                div()
+                    .size_full()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .when(!disabled, |icon_slot| {
+                        icon_slot.on_mouse_down(MouseButton::Left, |_, window, _| {
+                            window.prevent_default();
+                        })
+                    })
+                    .child(crate::Icon::new(icon).size(px(20.))),
+            );
         if !disabled {
             let on_toggle = toggle.on_toggle;
             let bound = Rc::new(ThemeScope::bind_action(
@@ -933,8 +955,10 @@ fn build_supporting_row(
     error: bool,
     disabled: bool,
     rtl: bool,
-) -> gpui::Div {
+) -> impl IntoElement {
     div()
+        .id("supporting")
+        .test_support()
         .pl(padding.left)
         .pr(padding.right)
         .text_size(px(caption_style.size))
@@ -953,6 +977,15 @@ fn build_supporting_row(
         .gap(px(8.))
         .justify_between()
         .when(rtl, Styled::flex_row_reverse)
+        .on_mouse_down(MouseButton::Left, |_, window, _| {
+            window.prevent_default();
+        })
+        .on_mouse_down(MouseButton::Right, |_, window, _| {
+            window.prevent_default();
+        })
+        .on_mouse_down(MouseButton::Middle, |_, window, _| {
+            window.prevent_default();
+        })
         .child(div().flex_1().min_w_0().children(support.map(|support| {
             support
                 .content
@@ -973,6 +1006,14 @@ impl RenderOnce for TextField {
         let disabled = presentation.is_disabled();
         let readonly = presentation.is_readonly();
         let focus = presentation.focus_handle().clone();
+        if disabled && focus.is_focused(window) {
+            let blur_focus = focus.clone();
+            window.defer(cx, move |window, cx| {
+                if blur_focus.is_focused(window) {
+                    window.blur(cx);
+                }
+            });
+        }
         let focused = !disabled && focus.is_focused(window);
         let filled = self.variant == TextFieldVariant::Filled;
         let label_position = self.label_position.unwrap_or(if filled {
@@ -1274,46 +1315,62 @@ impl RenderOnce for TextField {
                     node.set_required();
                 }
             })
-            .children(above_label)
             .child(
                 div()
-                    .id("container")
-                    .test_support()
-                    .relative()
+                    .w_full()
+                    .min_w_0()
                     .flex()
                     .flex_col()
-                    .when_else(
-                        label_inside || presentation.is_multi_line(),
-                        Styled::justify_end,
-                        Styled::justify_center,
-                    )
-                    .min_h(metrics.minimum_height)
-                    .pt(metrics.editor_top_padding)
-                    .pr(metrics.padding.right)
-                    .pb(metrics.editor_bottom_padding)
-                    .pl(metrics.padding.left)
-                    .when(!disabled, |field| {
-                        field.on_hover(move |hovering, window, cx| {
-                            if hover.replace(*hovering) != *hovering {
-                                if let Some(tracker) = &tracker {
-                                    tracker.record(
-                                        interaction_state(
-                                            false,
-                                            *hovering,
-                                            focus.is_focused(window)
-                                                && window.last_input_was_keyboard(),
-                                        ),
-                                        cx,
-                                    );
-                                }
-                                window.refresh();
+                    .gap(px(4.))
+                    .when(!disabled && self.expanded != Some(true), |region| {
+                        let blur_focus = focus.clone();
+                        region.on_mouse_down_out(move |_, window, cx| {
+                            if blur_focus.is_focused(window) {
+                                window.blur(cx);
                             }
                         })
                     })
-                    .child(outline_canvas)
-                    .when(rtl, |field| field.text_align(TextAlign::Right))
-                    .child(editor_row)
-                    .children(attached_label),
+                    .children(above_label)
+                    .child(
+                        div()
+                            .id("container")
+                            .test_support()
+                            .relative()
+                            .flex()
+                            .flex_col()
+                            .when_else(
+                                label_inside || presentation.is_multi_line(),
+                                Styled::justify_end,
+                                Styled::justify_center,
+                            )
+                            .min_h(metrics.minimum_height)
+                            .pt(metrics.editor_top_padding)
+                            .pr(metrics.padding.right)
+                            .pb(metrics.editor_bottom_padding)
+                            .pl(metrics.padding.left)
+                            .when(!disabled, |field| {
+                                field.on_hover(move |hovering, window, cx| {
+                                    if hover.replace(*hovering) != *hovering {
+                                        if let Some(tracker) = &tracker {
+                                            tracker.record(
+                                                interaction_state(
+                                                    false,
+                                                    *hovering,
+                                                    focus.is_focused(window)
+                                                        && window.last_input_was_keyboard(),
+                                                ),
+                                                cx,
+                                            );
+                                        }
+                                        window.refresh();
+                                    }
+                                })
+                            })
+                            .child(outline_canvas)
+                            .when(rtl, |field| field.text_align(TextAlign::Right))
+                            .child(editor_row)
+                            .children(attached_label),
+                    ),
             )
             .when(support.is_some() || count.is_some(), |field| {
                 field.child(build_supporting_row(

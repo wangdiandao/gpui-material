@@ -7,6 +7,7 @@ See [versioning and releases](docs/release.md) for the release process.
 ### Components
 
 - Prevent `ButtonGroupVariant::Connected` from borrowing neighbor width on press, and shrink horizontal button padding (down to 4 dp per side) before ellipsizing labels when a fixed-width button is compressed below its preferred width.
+- Blur focused `TextField` editors on outside clicks (including supporting text and non-focusable areas) and when disabled, keep focus without transient blur when pressing the built-in clear button, and blur focused `ExposedDropdown` editors on outside dismissal.
 
 ## 0.3.1 - 2026-11-23
 

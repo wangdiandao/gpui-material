@@ -2,28 +2,38 @@
 
 English | [中文](release.zh.md)
 
+<a id="版本规则"></a>
+
 ## Version policy
 
-The latest release is 0.3.0. The Material crates and Gallery share the version in the root `[workspace.package]`. The [public facade and supported integration contract](integration.md#api-and-migration) define compatibility, including documented features, upstream types in public signatures, and supported platform behavior.
+The latest release is 0.3.1. The Material crates and Gallery share the version in the root `[workspace.package]`. The [public facade and integration contract](integration.md#api-and-migration) define compatibility, including documented features, upstream types in public signatures, and supported platform behavior.
 
-- Before `1.0.0`, use a patch bump for backward-compatible fixes and a minor bump for backward-compatible features or breaking changes. A minor bump resets the patch number to zero. If a release includes several kinds of changes, use the highest applicable bump.
-- The repository owner decides when to declare the API stable with `1.0.0`. From `1.0.0` onward use [SemVer](https://semver.org/). Incompatible public API changes increment major, compatible features and public deprecations increment minor, and compatible fixes increment patch.
-- Record every breaking change and its migration steps, including before `1.0.0`.
+- Before `1.0.0`, use a patch bump for backward-compatible fixes and a minor bump for backward-compatible features or breaking changes (resetting patch to zero). If a release mixes several change types, use the highest applicable bump.
+- From `1.0.0` onward, follow [SemVer](https://semver.org/): incompatible public API changes increment major, compatible features and deprecations increment minor, and compatible fixes increment patch.
+- Document every breaking change and its migration steps, including before `1.0.0`.
+
+<a id="变更日志"></a>
 
 ## Changelog
 
-Record user-visible changes to the Material crates and Gallery under `Unreleased` in [CHANGELOG.md](../CHANGELOG.md) as they merge. Include features, observable fixes, accessibility and performance improvements, changes to supported platforms or dependencies that affect integration, and migrations. Exclude website and documentation changes, including when they accompany changes to the crates or Gallery. Group entries by affected area and summarize their impact. Credit contributors where applicable. Keep implementation and verification references in the corresponding issue or PR. Use the [GPUI Kit v0.9.1 release](https://github.com/longbridge/gpui-kit/releases/tag/v0.9.1) as the format reference.
+Record user-visible changes to the Material crates and Gallery under `Unreleased` in [CHANGELOG.md](../CHANGELOG.md) as they merge—features, observable fixes, accessibility and performance improvements, platform or dependency changes affecting integration, and migrations. Exclude website and documentation changes, even when submitted alongside code changes. Group entries by area, summarize user impact, and credit contributors where applicable. Format reference: [GPUI Kit v0.9.1 release](https://github.com/longbridge/gpui-kit/releases/tag/v0.9.1).
 
-When the repository owner selects a version and release cutoff, review the full change range from the previous release tag to that cutoff. Use `v0.0.4`, the last Gallery pre-release, as the baseline for `0.1.0`. Reconcile the entries against the range, move the changes for this release to the new version heading with the publication date, and keep an `Unreleased` heading for subsequent work. The version section is the GitHub Release body. Include a contributor list where applicable and a `Full Changelog` link comparing the previous and new tags.
+When preparing a release, reconcile `Unreleased` against the full commit range since the previous release tag, move the entries under the new version heading with the release date, and keep an empty `Unreleased` heading. The version section becomes the GitHub Release body (with a contributor list where applicable and a `Full Changelog` comparison link).
+
+<a id="准备与发布"></a>
 
 ## Prepare and publish
 
-GitHub Releases provide release notes and GitHub-generated source archives. Run the Gallery from a source checkout with `cargo gallery`.
+GitHub Releases provide release notes and source archives. Run Gallery from a source checkout with `cargo gallery`.
 
-1. The repository owner selects the version, scope, and timing. Prepare a release PR with the workspace version, exact internal dependency versions, `Cargo.lock`, and changelog for that scope. Update the documented latest version and dependency examples. Add migration instructions for breaking changes.
-2. Verify the facade from a downstream crate on the minimum supported Rust toolchain, including affected feature combinations and public dependency types. Require green `CI required` on the release commit on `main`. Apply the [native platform acceptance criteria](verification.md) and record the environments, scenarios, and coverage limits in the release issue or PR.
-3. Run the manual [Release workflow](../.github/workflows/release.yml) on `main` with `version` set to `X.Y.Z` and `publish: false` (dry-run) to confirm workspace manifests, changelog extraction, and packaging before publication. The verification job packages all six library crates (`gpui-material-theme`, `gpui-material-foundation`, `gpui-material-components`, `gpui-material-extras`, `gpui-material`, and `gpui-material-design-symbols`) and checks the unpacked archives from independent downstream crates on the workspace MSRV: `gpui-material` with default features and `--all-features`, and `gpui-material-design-symbols` with and without `embed-assets`.
-4. After native acceptance and explicit owner approval, run the [Release workflow](../.github/workflows/release.yml) on `main` with `version` set to `X.Y.Z` and `publish: true`. After the `release` environment approval, the workflow authenticates to crates.io via Trusted Publishing (OIDC), publishes the facade dependencies in order (`gpui-material-theme`, `gpui-material-foundation`, `gpui-material-components`, `gpui-material-extras`), then `gpui-material`, and finally `gpui-material-design-symbols`, waiting for each version to appear in the crates.io sparse index before publishing dependents and verifying registry checksums. In the same run, it creates the annotated `vX.Y.Z` tag and GitHub Release from the matching changelog section, and verifies the generated source archives and comparison link.
+1. **Release PR**: Update the shared workspace version, exact internal dependency versions, `Cargo.lock`, `CHANGELOG.md`, and documented version/migration notes.
+2. **CI & desktop smoke check**: Ensure `CI required` is green on `main`, and run a quick Windows 11 x64 smoke check on the release commit:
+   - `cargo gallery`: confirm window title/icon, narrow-to-compact layout switch, status bar theme/version, and affected stories (including Microsoft Pinyin IME and Narrator for input/overlay changes).
+   - `cargo gallery --window-chrome`: confirm title-bar drag, double-click maximize/restore, Windows Snap Layouts on Maximize hover, **Block close** toggle, and clean process exit when closing the last window.
+3. **Dry run**: Trigger the manual [Release workflow](../.github/workflows/release.yml) on `main` with `version = X.Y.Z` and `publish: false`. It checks manifests, changelog extraction, and packages all six library crates (`gpui-material-theme`, `gpui-material-foundation`, `gpui-material-components`, `gpui-material-extras`, `gpui-material`, `gpui-material-design-symbols`) from independent downstream crates on the workspace MSRV.
+4. **Publish**: After owner approval, run the [Release workflow](../.github/workflows/release.yml) on `main` with `version = X.Y.Z` and `publish: true`. After `release` environment approval, it authenticates to crates.io via Trusted Publishing (OIDC), publishes the six crates in dependency order (waiting for each to appear in the sparse index), and creates the annotated `vX.Y.Z` tag and GitHub Release.
+
+<a id="发布工作流配置"></a>
 
 ### Release workflow setup
 

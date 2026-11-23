@@ -4,7 +4,7 @@ default-members = ["crates/theme", "xtask"]
 resolver = "3"
 
 [workspace.package]
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 rust-version = "1.95.0"
 license = "Apache-2.0"
@@ -16,10 +16,10 @@ publish = false
 [workspace.dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.12" }
 gpui-base = "=0.10.0"
-gpui-material-components = { version = "=0.3.0", path = "crates/components", default-features = false }
-gpui-material-extras = { version = "=0.3.0", path = "crates/extras" }
-gpui-material-foundation = { version = "=0.3.0", path = "crates/foundation" }
-gpui-material-theme = { version = "=0.3.0", path = "crates/theme" }
+gpui-material-components = { version = "=0.3.1", path = "crates/components", default-features = false }
+gpui-material-extras = { version = "=0.3.1", path = "crates/extras" }
+gpui-material-foundation = { version = "=0.3.1", path = "crates/foundation" }
+gpui-material-theme = { version = "=0.3.1", path = "crates/theme" }
 web-time = "1.1.0"
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features = [
     "font-kit",

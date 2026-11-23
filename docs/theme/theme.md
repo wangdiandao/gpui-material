@@ -12,7 +12,7 @@ English | [中文](theme.zh.md)
 | Shape | `CornerShape` (`uniform`, `top`, `bottom`, `start`, `end`, `Radii`, `Full`) uses logical corner order, maps it by direction, and limits adjacent corner sums. Fully rounded corners use half the shorter side. `MaterialShape` names the 35 Expressive rounded polygons matching Compose `MaterialShapes`, and `PolygonRole` retains the three token-backed Circle, Square, and Triangle source specs. The rendering layer owns normalization, contour interpolation, drawing, clipping, and hit testing. |
 | Motion | Standard is the default and Expressive is optional. Spatial and effects motion each have Fast, Default, and Slow springs. Effects springs are critically damped. Reduced motion resolves to immediate completion. Query fixed durations and Bézier curves through tokens. |
 | Layout | Available-width thresholds are 600, 840, 1200, and 1600 logical units. Exact thresholds use the larger class. Logical start and end map by LTR or RTL. `LayoutPolicy::scale_text` converts text metrics using a supplied multiplier. |
-| Density | The desktop policy adjusts visual component sizes by Compact −4, Standard 0, or Comfortable +4 logical units. Interactive size keeps a minimum of 48 logical units. Verify layout and hit testing when changing component density. |
+| Density | The desktop policy adjusts visual component sizes by Compact −4, Standard 0, or Comfortable +4 logical units. Interactive size keeps a minimum of 48 logical units. |
 | Serialization | `serde` independently enables serialization of theme values. Color overrides use semantic role keys. Missing roles resolve from the current appearance's baseline. |
 
 With `dynamic-color`, `ColorScheme::from_seed_with` takes a `DynamicVariant` and `SpecVersion`. Spec2025 applies to Tonal Spot, Vibrant, Expressive, and Neutral. Fidelity, Content, and Monochrome use the upstream Spec2021 fallback. `ThemePreset` provides the baseline, named dynamic variants, high contrast, and seed-based palettes inspired by [md3.io](https://md3.io/docs/theming/#the-shipped-themes).
@@ -23,7 +23,7 @@ Info, Success, and Warning each expose a foreground pair and a container pair. S
 
 ## Token data
 
-The [single numeric source](../../tokens/material.json) groups data by pinned source. The [generated index](token-index.md) retains Material names, Rust constants, and exact upstream symbols. Tables that expose only Kotlin symbols in Compose map to Material's three-layer naming convention. Static color tables keep light/dark keys under each role. Filled Button and Small Button keys verify Component coverage for color, shape, size, and state. When extending a component family, add its pinned token data here.
+The [single numeric source](../../tokens/material.json) groups data by pinned source. The [generated index](token-index.md) retains Material names, Rust constants, and exact upstream symbols. Tables that expose only Kotlin symbols in Compose map to Material's three-layer naming convention. Static color tables keep light/dark keys under each role. When extending a component family, add its pinned token data here.
 
 Reference holds foundational values such as palettes and font families. System defines semantics and shared scales. Component can refer to System or Reference. Color references retain `ColorRole` and resolve against the caller's current theme. Same-layer aliases support static colors and composite typography. The generator checks duplicate names, Rust identifier collisions, units, ranges, layer rules, missing targets, and cycles.
 

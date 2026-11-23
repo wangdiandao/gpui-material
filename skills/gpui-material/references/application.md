@@ -13,7 +13,7 @@ edition = "2024"
 [dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.12" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui-material = "0.3.0"
+gpui-material = "0.3.1"
 ```
 
 ## `src/main.rs`

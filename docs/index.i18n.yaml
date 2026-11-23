@@ -1,4 +1,13 @@
 # Section fingerprints for the English and Chinese pages.
 /documentation-index:
-  en: "57aa5ada72b5cbc3"
-  zh: "49d900bc66720a5a"
+  en: "dbae247a9e9cf1c7"
+  zh: "ce99abece6de51b4"
+/documentation-index/getting-started-and-components:
+  en: "ee9a3098468bbfdd"
+  zh: "c5f5138d17bbae36"
+/documentation-index/theme-and-architecture:
+  en: "14863c78997435e1"
+  zh: "ed3966d9e849bc7d"
+/documentation-index/development-and-releases:
+  en: "814eefb64f80c171"
+  zh: "e8b8db8cc1a12189"

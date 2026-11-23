@@ -1,16 +1,16 @@
 # Section fingerprints for the English and Chinese pages.
 /versioning-and-releases:
-  en: "4fe63728dba46183"
+  en: "6156407e4ffec2c7"
   zh: "10f2a4d61a1d30f7"
 /versioning-and-releases/version-policy:
-  en: "0c8a30271ae5da2d"
-  zh: "04579c101f8bc938"
+  en: "21da1df88e50c376"
+  zh: "b7c60c3ae038b63c"
 /versioning-and-releases/changelog:
-  en: "936bcdac5c5bdb88"
-  zh: "0b58d80af5f60d61"
+  en: "95a93a18501c2040"
+  zh: "32d6927e28c32080"
 /versioning-and-releases/prepare-and-publish:
-  en: "655c012aaee06070"
-  zh: "735d9a91c9ddf6d8"
+  en: "da1ad0a8e12ade7c"
+  zh: "d9efd2c51bd43977"
 /versioning-and-releases/prepare-and-publish/release-workflow-setup:
   en: "12c68b6cd123621c"
   zh: "3b7e33462f62c486"

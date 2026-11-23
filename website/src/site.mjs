@@ -144,8 +144,7 @@ export function sidebar(lang, kind) {
       items: [
         { label: lang === 'zh' ? '架构与依赖' : 'Architecture and dependencies', route: 'docs/architecture' },
         { label: lang === 'zh' ? '设计依据' : 'Design sources', route: 'docs/design-sources' },
-        { label: lang === 'zh' ? '平台与质量要求' : 'Platforms and quality', route: 'docs/verification' },
-        { label: lang === 'zh' ? '开发与验证' : 'Development', route: 'docs/development' },
+        { label: lang === 'zh' ? '开发指南' : 'Development', route: 'docs/development' },
         { label: t.releases, route: 'docs/release' },
       ],
     },

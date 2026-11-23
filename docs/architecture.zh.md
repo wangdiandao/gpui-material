@@ -36,7 +36,7 @@ Dropdown 在 Base Input 和 Popup 之上保留处理 IME 的窄键盘适配层�
 - 调用者拥有业务值和稳定标识。Base 持有交互所需的状态、输入、选择和焦点。Material 持有主题、状态呈现策略及新增组合状态。受控组件通过同一路径请求变更，文档注明回调的执行次序及同步重入边界。
 - 组件按语义公开 variant、size、disabled、selected、on_change 等必要契约，开放与组成部分对应的 slot。共享接口以具体类型为主，第三方颜色/形状类型留在适配层。
 - `MaterialTheme` 是项目的主题源。固定版本的 Base `Theme` 通过 App `Global` 读取，包含 appearance、语义 Token、滚动条、分割调整、plot 与光标闪烁默认值。`project_base_theme` / `current_base_theme` 提供统一的 Material→Base 投影（色彩、排版、圆角、阴影、滚动条样式和分隔手柄），同时服务于应用级 Base 全局投影与窗口/子树作用域内的局部 Base 样式。Material 在元素布局时解析窗口和子树主题，为多行 `TextField` 编辑器接入局部 Material 滚动条，并将当前作用域传递到浮层内容和绑定回调，而不篡改 Base 全局主题。
-- foundation 将 Base 交互状态映射为 Material 呈现。禁用会压制 hover 和 active 样式。改动时验证禁用、取消、键盘和焦点可见行为。
+- foundation 将 Base 交互状态映射为 Material 呈现。禁用会压制 hover 和 active 样式。
 - Token 用受控数据文件作唯一数值源。xtask 生成 Rust 表和索引并提交生成物，日常构建使用仓库内数据。Foundation 统一封装 `polymorpher` 以提供全部 35 种 Expressive Material 形状、通用变形、几何裁剪、外部遮罩与形状感知命中检测，使各组件共享同一套形状管线而无需直接依赖 `polymorpher`。
 
 Foundation 为各组件族共享排版、涟漪反馈和桌面阴影投影。按压涟漪与悬停、焦点、拖动状态层分离；减少动效时使用静态按压提示。单行文字用同一份含字距的字形布局测量和绘制。换行文字将断行交给 GPUI，应用 Material 字体族、字重、字号和行高；固定版本的原生换行接口不开放自定义字距。GPUI 的双层阴影投影属于桌面适配，并非逐像素复刻 Android 的平台阴影渲染器。
@@ -45,26 +45,24 @@ Foundation 为各组件族共享排版、涟漪反馈和桌面阴影投影。按
 
 ## 依赖规则
 
-按[版本基线](design-sources.zh.md#gpui-and-base)锁定 Base 与 GPUI。提议变更依赖时，在 Issue 或 PR 记录用途、启用的 feature、解析后的依赖图、维护情况、许可、替换边界和验证结果。
+按[设计依据](design-sources.zh.md#gpui-and-base)锁定 Base 与 GPUI。提议变更依赖时，在 Issue 或 PR 记录用途、启用的 feature、解析后的依赖图、维护情况、许可和替换边界。
 
-| 依赖或候选 | 用途与约束 | 验证与替换边界 |
+| 依赖或候选 | 用途与约束 | 封装与替换边界 |
 | --- | --- | --- |
-| `gpui-base =0.10.0` / `gpui-pre =0.3.12` / `gpui-pre-platform =0.3.12` | 固定 crates.io 来源，沿用上游平台的 font-kit、x11、wayland、runtime_shaders 配对；test-support 供验收，inspector 可选。Apache-2.0。 | `cargo metadata` 和 feature 图核对单一核心/平台身份，更新锁定版本时执行相关[平台检查](verification.zh.md)。Base 公共接口通过 foundation 封装。 |
-| [`material-color-utils 0.1.3`][mcu-rust] | HCT、色板和动态语义色。关闭默认 feature，避免 image、serde、rayon；直接依赖 bon、indexmap、papaya、thiserror。发布元数据使用 license-file，包内 LICENSE 为 Apache-2.0。 | 库类型由 theme 内部适配。 |
-| [`polymorpher 0.1.4`][polymorpher] | 圆角多边形和 morph，保留默认空 feature，只使用基础几何；直接依赖 euclid。Apache-2.0。 | 对照 AndroidX，检查输出曲线、边界、拓扑、裁剪、命中和性能。GPUI 路径转换集中在 foundation。 |
-| [Material Symbols][symbols] | 使用固定版本的必要资源，应用可替换图标。Apache-2.0。 | 验证资源映射、图标 fallback 与 RTL。逐项登记分发资产和许可证。 |
-| `chrono 0.4.45` 与 [Base Calendar][calendar] | `date-time` 特性在 extras 中启用直接 chrono 依赖，并关闭其默认特性。该依赖与现有 Base 和 GPUI 依赖图解析到同一个包。MIT 或 Apache-2.0。 | Base 管理日历及日期范围的草稿状态。Chrono 提供有边界检查的日历运算和日期时间类型。应用通过格式化和解析接口控制本地化显示与输入。 |
-| [`rust-i18n 4.2.4`][i18n] | 可选应用适配。MIT。初始项目使用可覆盖文案和 formatter，候选引入宏与 support crate。 | 评估编译成本和依赖图，验证字符串覆盖及真实布局。翻译库类型由应用适配封装。 |
+| `gpui-base =0.10.0` / `gpui-pre =0.3.12` / `gpui-pre-platform =0.3.12` | 固定 crates.io 来源，沿用上游平台的 `font-kit`、`x11`、`wayland`、`runtime_shaders` 配对；`test-support` 供测试，`inspector` 可选。Apache-2.0。 | Base 公共接口通过 foundation 封装，确保解析出单一的 GPUI 核心与平台包身份。 |
+| [`material-color-utils 0.1.3`][mcu-rust] | HCT、色板和动态语义色。关闭默认 feature，避免 `image`、`serde`、`rayon`；直接依赖 `bon`、`indexmap`、`papaya`、`thiserror`。包内 LICENSE 为 Apache-2.0。 | 库类型由 `theme` 内部适配。 |
+| [`polymorpher 0.1.4`][polymorpher] | 圆角多边形和 morph，保留默认空 feature，只使用基础几何；直接依赖 `euclid`。Apache-2.0。 | GPUI 路径转换与几何适配集中在 foundation。 |
+| [Material Symbols][symbols] | 使用固定版本的必要资源，应用可替换图标。Apache-2.0。 | 逐项登记分发资产和许可证。 |
+| `chrono 0.4.45` 与 [Base Calendar][calendar] | `date-time` 特性在 extras 中启用直接 `chrono` 依赖并关闭其默认特性，与 Base/GPUI 解析到同一包。MIT 或 Apache-2.0。 | Base 管理日历及日期范围的草稿状态；`chrono` 提供边界检查的日历运算与日期时间类型；应用通过格式化和解析接口控制本地化显示与输入。 |
+| [`rust-i18n 4.2.4`][i18n] | 可选应用适配，MIT。项目默认使用可覆盖文案和格式化器，该候选会引入宏与支持库。 | 翻译库类型由应用适配封装。 |
 
-extras 按实际需要定义 expressive-groups、search、date-time、carousel 等组件族。主题支持静态数据，dynamic-color 与 serde 按需启用，图片提色优先留在工具层。组件所需键盘、语义和动效属于完整行为。
+extras 按实际需要定义 `expressive-groups`、`search`、`date-time`、`carousel` 等组件族。主题支持静态数据，`dynamic-color` 与 `serde` 按需启用，图片提色优先留在工具层。组件所需键盘、语义和动效属于完整行为。
 
-CI 和日常开发用包级命令隔离主题、组件及 Gallery。依据构建计时和运行测量调整架构，优先使用具体内部类型及按需的类型擦除。
+CI 和日常开发用包级命令隔离主题、组件及 Gallery，优先使用具体内部类型及按需的类型擦除。
 
 <a id="desktop-adapter-boundaries"></a>
 
 ## 桌面适配边界
-
-验证适配边界时使用锁定的 Base 和 GPUI 版本。[foundation 形状测试](../crates/foundation/src/shape.rs)随 Workspace 测试运行，验证 Material 几何。
 
 | 机制 | 适配与边界 |
 | --- | --- |

@@ -1,37 +1,34 @@
 # Section fingerprints for the English and Chinese pages.
-/development-and-verification:
-  en: "eb985aa3f4a3c789"
-  zh: "06af984e56990aaa"
-/development-and-verification/contribution-workflow-and-branch-naming:
-  en: "ec9cb06f32fe4f93"
-  zh: "27d025e8137e3843"
-/development-and-verification/workspace-and-component-development:
-  en: "3ef5a3295efcc86b"
-  zh: "263333b842e194a5"
-/development-and-verification/coding-conventions:
-  en: "b70af08decd82b37"
-  zh: "e7e6facd965a9269"
-/development-and-verification/testing-conventions:
-  en: "03e1102176091410"
-  zh: "bcf11ac2845e3309"
-/development-and-verification/upstream-contributions:
-  en: "bc9d06b568603e1e"
-  zh: "09acaf110232cf52"
-/development-and-verification/development-environment:
-  en: "8784074212ff63bd"
-  zh: "415920bac89588f4"
-/development-and-verification/rendering-performance:
-  en: "3b5f74820d1a72b8"
-  zh: "32e332cb26a817d2"
-/development-and-verification/local-checks:
-  en: "e5ab2757c1d2c44f"
-  zh: "4562b577512df125"
-/development-and-verification/documentation-website:
-  en: "e6ae341975b8c00e"
-  zh: "41e28a79ed460203"
-/development-and-verification/cold-and-warm-build-baseline:
-  en: "1a227e066babc8aa"
-  zh: "647c513a2c5be1a6"
-/development-and-verification/ci-and-merging:
-  en: "a7d39aa3cc6f6cfe"
-  zh: "ccb0ca3273b936f5"
+/development:
+  en: "defdcf625706d443"
+  zh: "c0e0b5322a93c579"
+/development/contribution-workflow-and-branch-naming:
+  en: "2c71b995d827534f"
+  zh: "94684847fb818f6f"
+/development/workspace-and-component-development:
+  en: "ad4cbf7add694db2"
+  zh: "937994c68f541036"
+/development/coding-conventions:
+  en: "ea55b2615528a58b"
+  zh: "68d5d33e58600d26"
+/development/testing-conventions:
+  en: "e5209eaa3d3822a5"
+  zh: "aa15dfc6be766dec"
+/development/upstream-contributions:
+  en: "8a54d3f49e98496d"
+  zh: "9bb3f8cf4469fb25"
+/development/development-environment:
+  en: "e8971e75c06b4003"
+  zh: "6d13d8015854676e"
+/development/local-checks:
+  en: "838fc05719bd7c39"
+  zh: "dd7777e2735dd0f9"
+/development/performance-and-build-tools:
+  en: "3a3cd96de4571951"
+  zh: "908b29799ecc6348"
+/development/documentation-website:
+  en: "6f0bb115e4e58390"
+  zh: "03e8909dc0ccabba"
+/development/ci-and-merging:
+  en: "7288392b61094f5b"
+  zh: "273ac0a16a2ecebc"

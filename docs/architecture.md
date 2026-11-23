@@ -36,7 +36,7 @@ The dropdown keeps a narrow IME-aware keyboard adapter over Base Input and Popup
 - Callers own business values and stable identifiers. Base owns interaction state, input, selection, and focus. Material owns the theme, state presentation policy, and additional composition state. Controlled components request changes through a common path. Document callback order and synchronous reentrancy boundaries.
 - Expose semantic contracts such as variant, size, disabled, selected, and on_change, along with slots for component parts. Prefer concrete types for shared interfaces. Keep third-party color and shape types inside adapters.
 - `MaterialTheme` is the project theme source. The pinned Base `Theme` is an app `Global` with appearance, semantic tokens, and defaults for scrollbars, split resizing, plots, and caret blinking. `project_base_theme` / `current_base_theme` provide a single canonical Material-to-Base projection (colors, typography, radii, shadows, scrollbar styles, and resize handles) used for both the application Base global and local Base styling inside window or subtree scopes. Material resolves window and subtree themes during element layout, attaches local Material scrollbars to multiline `TextField` editors, and carries the active scope into floating content and bound actions without mutating the Base global.
-- Foundation maps Base interaction state to Material presentation. Disabled suppresses hover and active styles. Verify changes to disabled, cancellation, keyboard, and focus-visible behavior.
+- Foundation maps Base interaction state to Material presentation. Disabled suppresses hover and active styles.
 - A managed data file is the sole numeric source for tokens. xtask generates the Rust tables and index, which are checked in for ordinary builds. Foundation owns `polymorpher` adapters for all 35 Expressive Material shapes, general morphing, geometric clipping, exterior masking, and shape-aware hit testing so components share one shape pipeline without depending on `polymorpher` directly.
 
 Foundation shares typography, ripple feedback, and the desktop shadow projection across component families. Press ripples are separate from hover, focus, and drag state layers; reduced motion uses a static press indication. Single-line text shares tracked glyph measurement and drawing. Wrapping text delegates line breaking to GPUI with Material font families, weight, size, and line height; the pinned native wrapping API does not expose custom letter spacing. GPUI's two-layer shadow projection is a desktop adaptation, not a pixel-identical reproduction of Android's platform shadow renderer.
@@ -45,26 +45,24 @@ Foundation shares typography, ripple feedback, and the desktop shadow projection
 
 ## Dependency policy
 
-Pin Base and GPUI as described in the [version baseline](design-sources.md#gpui-and-base). For dependency proposals, record the purpose, enabled features, resolved graph, maintenance, licensing, replacement boundaries, and verification results in the issue or PR.
+Pin Base and GPUI as listed in [design sources](design-sources.md#gpui-and-base). For dependency proposals, record the purpose, enabled features, resolved graph, maintenance, licensing, and replacement boundaries in the issue or PR.
 
-| Dependency or candidate | Purpose and constraints | Verification and replacement boundary |
+| Dependency or candidate | Purpose and constraints | Replacement boundary |
 | --- | --- | --- |
-| `gpui-base =0.10.0` / `gpui-pre =0.3.12` / `gpui-pre-platform =0.3.12` | Pin crates.io sources and retain the upstream pairing of font-kit, x11, wayland, and runtime_shaders. Use test-support for acceptance. Inspector is optional. Apache-2.0. | Use `cargo metadata` and feature graphs to check a single core and platform identity. Apply the relevant [platform checks](verification.md) when updating the pins. Foundation wraps public Base APIs. |
-| [`material-color-utils 0.1.3`][mcu-rust] | HCT, tonal palettes, and dynamic semantic colors. Disable default features to avoid image, serde, and rayon. Direct dependencies are bon, indexmap, papaya, and thiserror. Published metadata uses license-file. The bundled license is Apache-2.0. | Adapt library types inside theme. |
-| [`polymorpher 0.1.4`][polymorpher] | Rounded polygons and morphing. Retain the empty default feature set and use basic geometry. Directly depends on euclid. Apache-2.0. | Compare curves, bounds, topology, clipping, hit testing, and performance against AndroidX. Foundation owns GPUI path conversion. |
-| [Material Symbols][symbols] | Pin the necessary assets and let applications replace icons. Apache-2.0. | Verify asset mapping, icon fallback, and RTL. Record distributed assets and licenses individually. |
-| `chrono 0.4.45` and [Base Calendar][calendar] | The `date-time` feature enables a direct chrono dependency in extras with its default features disabled. It resolves to the same package as the existing Base and GPUI graph. MIT or Apache-2.0. | Base owns calendar and range draft transitions. Chrono supplies checked calendar arithmetic and typed dates and times. Application formatters and parsers control locale presentation and entry. |
-| [`rust-i18n 4.2.4`][i18n] | Optional application adapter, MIT. Start with overridable text and formatters. The candidate introduces a macro and support crate. | Measure build cost and dependency graph. Verify string coverage and actual layout. Keep translation library types inside the application adapter. |
+| `gpui-base =0.10.0` / `gpui-pre =0.3.12` / `gpui-pre-platform =0.3.12` | Pin crates.io sources and retain the upstream pairing of `font-kit`, `x11`, `wayland`, and `runtime_shaders`. `test-support` is for tests; `inspector` is optional. Apache-2.0. | Foundation wraps public Base APIs; keep a single resolved GPUI core and platform package identity. |
+| [`material-color-utils 0.1.3`][mcu-rust] | HCT, tonal palettes, and dynamic semantic colors. Disable default features to avoid `image`, `serde`, and `rayon`. Direct dependencies are `bon`, `indexmap`, `papaya`, and `thiserror`. Bundled license is Apache-2.0. | Adapt library types inside `theme`. |
+| [`polymorpher 0.1.4`][polymorpher] | Rounded polygons and morphing. Retain the empty default feature set and use basic geometry. Directly depends on `euclid`. Apache-2.0. | Foundation owns GPUI path conversion and geometry adaptation. |
+| [Material Symbols][symbols] | Pin the necessary assets and let applications replace icons. Apache-2.0. | Record distributed assets and licenses individually. |
+| `chrono 0.4.45` and [Base Calendar][calendar] | The `date-time` feature enables a direct `chrono` dependency in extras with default features disabled, resolving to the same package as Base and GPUI. MIT or Apache-2.0. | Base owns calendar and range draft transitions; `chrono` supplies checked calendar arithmetic and typed dates/times; application formatters and parsers control locale presentation. |
+| [`rust-i18n 4.2.4`][i18n] | Optional application adapter, MIT. The project uses overridable text and formatters by default; this candidate introduces a macro and support crate. | Keep translation library types inside the application adapter. |
 
-Extras define families such as expressive-groups, search, date-time, and carousel as needed. Theme supports static data with dynamic-color and serde on demand. Keep image-based color extraction in tooling where possible. Required keyboard, semantics, and motion are part of complete component behavior.
+Extras define families such as `expressive-groups`, `search`, `date-time`, and `carousel` as needed. Theme supports static data with `dynamic-color` and `serde` on demand. Keep image-based color extraction in tooling where possible. Required keyboard, semantics, and motion are part of complete component behavior.
 
-Use package-level commands in CI and development to isolate theme, components, and Gallery. Use build timings and runtime measurements to guide architecture changes. Prefer concrete internal types with type erasure where needed.
+Use package-level commands in CI and development to isolate theme, components, and Gallery. Prefer concrete internal types with type erasure where needed.
 
 <a id="桌面适配边界"></a>
 
 ## Desktop adapter boundaries
-
-Use the pinned Base and GPUI versions when verifying these boundaries. The [foundation shape tests](../crates/foundation/src/shape.rs) exercise Material geometry in the workspace test suite.
 
 | Mechanism | Adapter and boundary |
 | --- | --- |

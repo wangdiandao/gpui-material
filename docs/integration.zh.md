@@ -12,10 +12,10 @@
 [dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.12" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui-material = "0.3.0"
+gpui-material = "0.3.1"
 ```
 
-应用直接使用 Base 时也应固定 `gpui-base = "=0.10.0"`。从源码集成时，使用 `{ path = "../gpui-material/crates/material" }` 并固定检出提交。升级后运行 `cargo tree -d` 检查重复版本，并验证应用所依赖的平台和输入行为。
+应用直接使用 Base 时也应固定 `gpui-base = "=0.10.0"`。从源码集成时，使用 `{ path = "../gpui-material/crates/material" }` 并固定检出提交。升级后运行 `cargo tree -d` 检查是否存在重复包版本。
 
 ```rust
 use gpui::{AppContext, Context, IntoElement, QuitMode, Render, Window, WindowOptions};
@@ -47,7 +47,7 @@ fn main() {
 
 ## Material Symbols
 
-需要完整图标目录时，在 `gpui-material` 之外添加 `gpui-material-design-symbols = "0.3.0"`。从源码集成时使用 `gpui-material-design-symbols = { path = "../gpui-material/crates/design-symbols" }`。图标目录包含固定版本的全部 4,304 个名称，包括别名。通过 `Symbol::ALL` 遍历，或通过 `Symbol::from_name("favorite")` 查找上游名称。[上游码点表和字体资源](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
+需要完整图标目录时，在 `gpui-material` 之外添加 `gpui-material-design-symbols = "0.3.1"`。从源码集成时使用 `gpui-material-design-symbols = { path = "../gpui-material/crates/design-symbols" }`。图标目录包含固定版本的全部 4,304 个名称，包括别名。通过 `Symbol::ALL` 遍历，或通过 `Symbol::from_name("favorite")` 查找上游名称。[上游码点表和字体资源](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
 
 桌面端为 `gpui-material-design-symbols` 启用 `embed-assets`，调用 `SymbolFont::embedded` 加载 Outlined、Rounded 或 Sharp 字体。字体保留 `FILL` 和 `wght`，grade 固定为 0，光学尺寸固定为 24。`SymbolAxes::default()`（在 `const` 上下文中可使用 `SymbolAxes::new()`）使用未填充样式和 400 字重。`.filled(true)` 选择 FILL=1，`Weight::new(550)` 可指定 100–700 范围内的任意整数值，`is_filled()` 和 `get_weight()` 可读取已配置的轴值。
 
@@ -98,10 +98,10 @@ Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID �
 
 启用 `window-chrome` 即可在 Windows、macOS 和 Linux 上为指定窗口使用[跨平台自绘标题栏](component.zh.md#window-chrome)。创建窗口时调用 `title_bar_window_options`，并在现有应用根视图下挂载 `TitleBar`。
 
-| 目标 | 范围 |
+| 目标 | 状态 |
 | --- | --- |
-| Windows 11 x64、MSVC、DirectX | 首发支持。原生键盘、指针、鼠标滚轮、微软拼音、UI Automation 和讲述人采用 Windows 验收场景。分发包为独立 ZIP。 |
-| macOS 15 ARM64 | CI 构建与自动测试。原生支持仍在探索。 |
-| Ubuntu 24.04 x64 | CI 构建与自动测试。原生支持仍在探索。 |
+| Windows 11 x64（MSVC、DirectX） | 主要支持的桌面平台，覆盖原生键盘/指针/滚轮、微软拼音 IME、UI Automation 与讲述人。 |
+| macOS 15 ARM64 | 纳入 CI 构建与自动化测试，原生桌面适配持续推进。 |
+| Ubuntu 24.04 x64 | 纳入 CI 构建与自动化测试，原生桌面适配持续推进。 |
 
-[平台验收场景](verification.zh.md) · [固定来源](design-sources.zh.md) · [版本与发布](release.zh.md)
+[设计依据](design-sources.zh.md) · [版本与发布](release.zh.md)

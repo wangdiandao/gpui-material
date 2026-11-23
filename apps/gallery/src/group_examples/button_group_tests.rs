@@ -316,14 +316,8 @@ fn button_group_mixes_commands_toggles_and_selection_with_stable_press_feedback(
     );
     pointer(cx, handle, at, true);
     cx.update_window(handle, |_, window, cx| {
-        assert_eq!(
-            member(window, "send").bounds().size.width,
-            send_width - px(4.)
-        );
-        assert_eq!(
-            member(window, "details").bounds().size.width,
-            details_width + px(4.)
-        );
+        assert_eq!(member(window, "send").bounds().size.width, send_width);
+        assert_eq!(member(window, "details").bounds().size.width, details_width);
         let detail_quad = window
             .painted_quads()
             .into_iter()
@@ -730,6 +724,44 @@ fn button_group_and_item_tone_applies_to_visible_and_overflow_items(cx: &mut Tes
     cx.update_window(handle, |_, window, _| {
         assert!(menu_row(window, "Warn").is_some());
         assert!(menu_row(window, "Delete").is_some());
+    })
+    .unwrap();
+}
+
+#[gpui::test]
+fn standard_button_group_borrows_neighbor_width_on_press(cx: &mut TestAppContext) {
+    let (handle, _) = open(
+        cx,
+        ButtonGroupSelection::MultipleRequired,
+        ButtonGroupVariant::Standard,
+    );
+    let (at, send_width, details_width) = cx
+        .update_window(handle, |_, window, _| {
+            let send = member(window, "send");
+            let details = member(window, "details");
+            (
+                details.bounds().center(),
+                send.bounds().size.width,
+                details.bounds().size.width,
+            )
+        })
+        .unwrap();
+    pointer(cx, handle, at, true);
+    cx.update_window(handle, |_, window, _| {
+        assert_eq!(
+            member(window, "send").bounds().size.width,
+            send_width - px(4.)
+        );
+        assert_eq!(
+            member(window, "details").bounds().size.width,
+            details_width + px(4.)
+        );
+    })
+    .unwrap();
+    pointer(cx, handle, at, false);
+    cx.update_window(handle, |_, window, _| {
+        assert_eq!(member(window, "send").bounds().size.width, send_width);
+        assert_eq!(member(window, "details").bounds().size.width, details_width);
     })
     .unwrap();
 }

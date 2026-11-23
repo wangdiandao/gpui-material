@@ -270,6 +270,37 @@ macro_rules! common_builders {
     };
 }
 
+const MIN_COMPRESSED_HORIZONTAL_PADDING: f32 = 4.;
+
+fn compress_horizontal_padding(
+    left: Pixels,
+    right: Pixels,
+    width: Pixels,
+    icon_extent: Pixels,
+    natural_label_width: Pixels,
+) -> (Pixels, Pixels, Pixels) {
+    let mut left_pad = finite_length(left);
+    let mut right_pad = finite_length(right);
+    let available = (width - left_pad - right_pad - icon_extent).max(px(0.));
+    let deficit = (natural_label_width - available).max(px(0.));
+    if deficit > px(0.) {
+        let floor_left = left_pad.min(px(MIN_COMPRESSED_HORIZONTAL_PADDING));
+        let floor_right = right_pad.min(px(MIN_COMPRESSED_HORIZONTAL_PADDING));
+        let slack_left = (left_pad - floor_left).max(px(0.));
+        let slack_right = (right_pad - floor_right).max(px(0.));
+        let total_slack = slack_left + slack_right;
+        let absorb = deficit.min(total_slack);
+        if absorb > px(0.) && total_slack > px(0.) {
+            let left_cut = absorb * (f32::from(slack_left) / f32::from(total_slack));
+            let right_cut = absorb - left_cut;
+            left_pad -= left_cut;
+            right_pad -= right_cut;
+        }
+    }
+    let label_width = (width - left_pad - right_pad - icon_extent).max(px(0.));
+    (left_pad, right_pad, label_width)
+}
+
 #[derive(Default)]
 struct Slots {
     leading: Option<AnyElement>,
@@ -307,18 +338,43 @@ impl Slots {
             bottom: px(4.),
             start: horizontal,
         });
-        let (left, right) = if direction == Direction::Rtl {
-            (end, start)
+        let (mut left_pad, mut right_pad) = if direction == Direction::Rtl {
+            (finite_length(end), finite_length(start))
         } else {
-            (start, end)
+            (finite_length(start), finite_length(end))
         };
         let icons = usize::from(self.leading.is_some()) + usize::from(self.trailing.is_some());
+        let icon_extent = px((metrics.icon + metrics.gap) * icons as f32);
+        let mut shaped_label = None;
         let label_width = self.width.map(|width| {
-            (width
-                - finite_length(left)
-                - finite_length(right)
-                - px((metrics.icon + metrics.gap) * icons as f32))
-            .max(px(0.))
+            if self.content.is_none() {
+                let shaped = crate::text::shape_single_line(
+                    label.clone(),
+                    typography,
+                    scale,
+                    tint,
+                    window,
+                    cx,
+                );
+                let natural_width = if scale.is_finite() && scale > 0. {
+                    shaped.1.line().width.ceil() / scale
+                } else {
+                    shaped.1.line().width.ceil()
+                };
+                let (next_left, next_right, next_label_width) = compress_horizontal_padding(
+                    left_pad,
+                    right_pad,
+                    width,
+                    icon_extent,
+                    natural_width,
+                );
+                left_pad = next_left;
+                right_pad = next_right;
+                shaped_label = Some(shaped);
+                next_label_width
+            } else {
+                (width - left_pad - right_pad - icon_extent).max(px(0.))
+            }
         });
         let row_typography = current_material_theme(window, cx)
             .typography
@@ -330,8 +386,8 @@ impl Slots {
             .min_w_0()
             .max_w_full()
             .gap(px(metrics.gap * scale))
-            .pl(finite_length(left) * scale)
-            .pr(finite_length(right) * scale)
+            .pl(left_pad * scale)
+            .pr(right_pad * scale)
             .pt(finite_length(top) * scale)
             .pb(finite_length(bottom) * scale)
             .text_size(px(row_typography.size * scale))
@@ -347,15 +403,27 @@ impl Slots {
                 .map(|icon| icon_slot(icon, metrics.icon * scale)),
         )
         .child(self.content.unwrap_or_else(|| {
-            crate::text::single_line(
-                label,
-                typography,
-                scale,
-                tint,
-                (label_width, 1., 1.),
-                window,
-                cx,
-            )
+            if let Some(shaped) = shaped_label {
+                crate::text::single_line_with_shaped(
+                    shaped,
+                    typography,
+                    scale,
+                    tint,
+                    (label_width, 1., 1.),
+                    window,
+                    cx,
+                )
+            } else {
+                crate::text::single_line(
+                    label,
+                    typography,
+                    scale,
+                    tint,
+                    (label_width, 1., 1.),
+                    window,
+                    cx,
+                )
+            }
             .into_any_element()
         }))
         .children(
@@ -1070,5 +1138,36 @@ mod tests {
 
         let tone: ButtonTone = crate::SemanticTone::Danger;
         assert_eq!(tone, ButtonTone::Danger);
+    }
+
+    #[test]
+    fn compressed_button_shrinks_horizontal_padding_before_truncating_label() {
+        // Resting width 60px = 28px label + 16px*2 padding; compressed by 6px -> 54px.
+        let (left, right, label_width) =
+            compress_horizontal_padding(px(16.), px(16.), px(54.), px(0.), px(28.));
+        assert_eq!(left, px(13.));
+        assert_eq!(right, px(13.));
+        assert_eq!(label_width, px(28.));
+
+        // Sufficient width leaves padding untouched.
+        let (left, right, label_width) =
+            compress_horizontal_padding(px(16.), px(16.), px(72.), px(0.), px(28.));
+        assert_eq!(left, px(16.));
+        assert_eq!(right, px(16.));
+        assert_eq!(label_width, px(40.));
+
+        // Severe compression stops at 4px floor per side and only then shrinks label width.
+        let (left, right, label_width) =
+            compress_horizontal_padding(px(16.), px(16.), px(30.), px(0.), px(28.));
+        assert_eq!(left, px(4.));
+        assert_eq!(right, px(4.));
+        assert_eq!(label_width, px(22.));
+
+        // Caller padding smaller than 4px is preserved without expanding.
+        let (left, right, label_width) =
+            compress_horizontal_padding(px(2.), px(10.), px(30.), px(0.), px(28.));
+        assert_eq!(left, px(2.));
+        assert_eq!(right, px(4.));
+        assert_eq!(label_width, px(24.));
     }
 }

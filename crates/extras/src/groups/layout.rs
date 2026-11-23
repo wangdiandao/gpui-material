@@ -1,7 +1,16 @@
 use gpui::{Pixels, px};
 
+use super::ButtonGroupVariant;
+
 pub(super) fn nonnegative(value: Pixels) -> Option<Pixels> {
     (f32::from(value).is_finite() && value >= px(0.)).then_some(value)
+}
+
+pub(super) fn effective_expanded_ratio(variant: ButtonGroupVariant, ratio: f32) -> f32 {
+    match variant {
+        ButtonGroupVariant::Standard if ratio.is_finite() && ratio > 0. => ratio,
+        ButtonGroupVariant::Standard | ButtonGroupVariant::Connected => 0.,
+    }
 }
 
 pub(super) fn visible_count(
@@ -44,6 +53,9 @@ pub(super) fn pressed_widths(
     ratio: f32,
 ) -> Vec<Pixels> {
     let mut resolved = widths.to_vec();
+    if !ratio.is_finite() || ratio <= 0. {
+        return resolved;
+    }
     let Some(active) = active.filter(|&index| index < widths.len()) else {
         return resolved;
     };
@@ -113,5 +125,17 @@ mod tests {
             pressed_widths(&widths, &[Some(px(4.)), None, Some(px(0.))], Some(1), 0.5),
             [px(64.), px(112.), px(60.)]
         );
+    }
+
+    #[test]
+    fn connected_variant_disables_press_width_borrowing() {
+        let widths = [px(60.), px(90.), px(80.)];
+        assert_eq!(
+            effective_expanded_ratio(ButtonGroupVariant::Standard, 0.15),
+            0.15
+        );
+        let ratio = effective_expanded_ratio(ButtonGroupVariant::Connected, 0.15);
+        assert_eq!(ratio, 0.);
+        assert_eq!(pressed_widths(&widths, &[None; 3], Some(1), ratio), widths);
     }
 }

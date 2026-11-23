@@ -6,48 +6,59 @@ use gpui::{
     Render, Role, ScrollHandle, Size, StatefulInteractiveElement, Styled, Subscription, Window,
     div, list, point, prelude::FluentBuilder, px, svg,
 };
-use gpui_base::{TestSupportExt, TextView, TextViewStyle};
+use gpui_base::TestSupportExt;
 use gpui_material::{
-    ControlSize, Fab, FabColor, FloatingAction, Icon, IconButton, IconName, ListDetail,
-    ListDetailPane, ListItem, ListItemShapes, Text, TextField, TextFieldEvent, TextFieldState,
-    TextFieldVariant, ToggleButton, ToggleButtonVariant, Tooltip,
+    Button, ButtonVariant, ControlSize, Fab, FabColor, FloatingAction, Icon, IconButton, IconName,
+    ListDetail, ListDetailPane, ListItem, ListItemShapes, Text, TextField, TextFieldEvent,
+    TextFieldState, TextFieldVariant, ToggleButton, ToggleButtonVariant, Tooltip,
     foundation::{
-        Surface, color, set_material_theme, set_window_material_theme, text_style,
-        window_material_theme,
+        Surface, color, set_material_theme, set_window_material_theme, window_material_theme,
     },
     theme::{
-        Appearance, ColorRole, CornerRole, CornerShape, Direction, TypeRole, TypographyEmphasis,
+        Appearance, ColorRole, CornerRole, CornerShape, Direction, ThemePreset, TypeRole,
         WidthClass,
     },
 };
 
-use crate::story::{Story, stack};
+use crate::{
+    catalog::{
+        CATALOG, CatalogRow, GalleryPage, StylePage, TopSection, entry_index, filter_catalog_rows,
+        first_of, section_of,
+    },
+    overview::OverviewView,
+    playground::ComponentPageView,
+    playgrounds::playground_for,
+    story::{Story, stack},
+    styles_examples::StylesExamples,
+};
 
 gpui::actions!(gallery, [CloseCatalog]);
 
 const COMPACT_MARGIN: Pixels = px(16.);
 const PANE_SPACING: Pixels = px(24.);
 const STORY_MAX_WIDTH: Pixels = px(1120.);
-const README_MAX_WIDTH: Pixels = px(840.);
 const REPOSITORY_URL: &str = "https://github.com/wangdiandao/gpui-material";
-const README: &str = include_str!("../../../README.md");
 
-/// The full Gallery view with a searchable catalog and retained example state.
+/// The full Gallery view with grouped navigation, top-level sections, Overview home,
+/// Styles reference pages, and retained example state.
 pub struct Gallery {
     local_theme: bool,
+    preset: ThemePreset,
     catalog_collapsed: bool,
     single_pane_catalog_open: bool,
-    current: Story,
+    current: GalleryPage,
     search: Entity<TextFieldState>,
     search_has_value: bool,
     catalog_list: ListState,
     catalog_focus_handles: Rc<[FocusHandle]>,
-    filtered_stories: Rc<[usize]>,
+    filtered_rows: Rc<[CatalogRow]>,
     catalog_focus: FocusHandle,
     content_scroll: ScrollHandle,
     content_focus: FocusHandle,
     last_viewport: Size<Pixels>,
+    overview: Option<Entity<OverviewView>>,
     stories: Vec<(Story, AnyView)>,
+    styles: Vec<(StylePage, AnyView)>,
     _search: Subscription,
     _bounds: Subscription,
 }
@@ -56,21 +67,29 @@ impl Gallery {
     /// Creates a Gallery in an existing GPUI window, starting at `initial_story`.
     /// The theme toggle updates the application's Material theme by default.
     pub fn new(initial_story: Story, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        Self::new_at_page(GalleryPage::Story(initial_story), window, cx)
+    }
+
+    pub(crate) fn new_at_page(
+        initial_page: GalleryPage,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
         let search = cx.new(|cx| TextFieldState::new(window, cx));
-        let catalog_list = ListState::new(Story::ALL.len(), ListAlignment::Top, px(200.));
-        let catalog_focus_handles: Rc<[FocusHandle]> = Story::ALL
+        let filtered_rows: Rc<[CatalogRow]> = filter_catalog_rows("").into();
+        let catalog_list = ListState::new(filtered_rows.len(), ListAlignment::Top, px(200.));
+        let catalog_focus_handles: Rc<[FocusHandle]> = CATALOG
             .iter()
             .map(|_| cx.focus_handle())
             .collect::<Vec<_>>()
             .into();
-        let filtered_stories: Rc<[usize]> = (0..Story::ALL.len()).collect::<Vec<_>>().into();
         let observe_search =
             cx.subscribe_in(
                 &search,
                 window,
                 move |this, _, event, window, cx| match event {
                     TextFieldEvent::Change => {
-                        this.refresh_filtered_stories(cx);
+                        this.refresh_filtered_rows(cx);
                     }
                     TextFieldEvent::PressEnter {
                         secondary: false,
@@ -80,8 +99,10 @@ impl Gallery {
                 },
             );
         let mut stories = Vec::new();
-        if let Some(view) = initial_story.new_view(window, cx) {
-            stories.push((initial_story, view));
+        if let GalleryPage::Story(story) = initial_page
+            && let Some(view) = Self::build_story_view(story, window, cx)
+        {
+            stories.push((story, view));
         }
         let bounds = cx.observe_window_bounds(window, |this, window, cx| {
             let viewport = window.viewport_size();
@@ -106,36 +127,39 @@ impl Gallery {
         });
         Self {
             local_theme: false,
+            preset: ThemePreset::Baseline,
             catalog_collapsed: false,
             single_pane_catalog_open: false,
-            current: initial_story,
+            current: initial_page,
             search,
             search_has_value: false,
             catalog_list,
             catalog_focus_handles,
-            filtered_stories,
+            filtered_rows,
             catalog_focus: cx.focus_handle(),
             content_scroll: ScrollHandle::new(),
             content_focus: cx.focus_handle(),
             last_viewport: window.viewport_size(),
+            overview: None,
             stories,
+            styles: Vec::new(),
             _search: observe_search,
             _bounds: bounds,
         }
     }
 
-    /// Scopes changes from the theme toggle to the current window when enabled.
+    /// Scopes changes from the theme controls to the current window when enabled.
     pub fn with_window_theme_toggle(mut self, enabled: bool) -> Self {
         self.local_theme = enabled;
         self
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "desktop", feature = "test-support"))]
     pub(crate) fn loaded_story_count(&self) -> usize {
         self.stories.len()
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "desktop", feature = "test-support"))]
     pub(crate) fn story_view_id(&self, story: Story) -> Option<gpui::EntityId> {
         self.stories
             .iter()
@@ -143,19 +167,143 @@ impl Gallery {
             .map(|(_, view)| view.entity_id())
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "desktop", feature = "test-support"))]
     pub(crate) fn catalog_story_focus(&self, story: Story) -> Option<FocusHandle> {
-        Story::ALL
-            .iter()
-            .position(|entry| *entry == story)
-            .map(|ix| self.catalog_focus_handles[ix].clone())
+        entry_index(GalleryPage::Story(story)).map(|ix| self.catalog_focus_handles[ix].clone())
+    }
+
+    #[cfg(all(test, feature = "desktop", feature = "test-support"))]
+    pub(crate) fn navigate_story(
+        &mut self,
+        story: Story,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.navigate(GalleryPage::Story(story), window, cx);
+    }
+
+    fn apply_theme_colors(
+        &mut self,
+        preset: ThemePreset,
+        appearance: Appearance,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.preset = preset;
+        let mut theme = window_material_theme(window, cx).clone();
+        theme.colors = preset.colors(appearance);
+        if self.local_theme {
+            set_window_material_theme(Some(theme), window, cx);
+        } else {
+            set_material_theme(theme, cx);
+        }
+        cx.notify();
+    }
+
+    fn select_preset(&mut self, preset: ThemePreset, window: &mut Window, cx: &mut Context<Self>) {
+        let appearance = window_material_theme(window, cx).colors.appearance();
+        self.apply_theme_colors(preset, appearance, window, cx);
+    }
+
+    fn set_appearance(
+        &mut self,
+        appearance: Appearance,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let preset = self.preset;
+        self.apply_theme_colors(preset, appearance, window, cx);
+    }
+
+    fn overview_view(&mut self, cx: &mut Context<Self>) -> AnyView {
+        if let Some(view) = &self.overview {
+            return view.clone().into();
+        }
+        let owner = cx.weak_entity();
+        let on_navigate = {
+            let owner = owner.clone();
+            Rc::new(
+                move |page: GalleryPage, window: &mut Window, cx: &mut App| {
+                    let _ = owner.update(cx, |this, cx| this.navigate(page, window, cx));
+                },
+            )
+        };
+        let active_preset = {
+            let owner = owner.clone();
+            Rc::new(move |cx: &App| {
+                owner
+                    .upgrade()
+                    .map(|gallery| gallery.read(cx).preset)
+                    .unwrap_or_default()
+            })
+        };
+        let on_select_preset = {
+            let owner = owner.clone();
+            Rc::new(
+                move |preset: ThemePreset, window: &mut Window, cx: &mut App| {
+                    let _ = owner.update(cx, |this, cx| this.select_preset(preset, window, cx));
+                },
+            )
+        };
+        let on_set_appearance = Rc::new(
+            move |appearance: Appearance, window: &mut Window, cx: &mut App| {
+                let _ = owner.update(cx, |this, cx| this.set_appearance(appearance, window, cx));
+            },
+        );
+        let view = cx.new(|cx| {
+            OverviewView::new(
+                on_navigate,
+                active_preset,
+                on_select_preset,
+                on_set_appearance,
+                cx,
+            )
+        });
+        self.overview = Some(view.clone());
+        view.into()
+    }
+
+    fn style_view(&mut self, style: StylePage, cx: &mut Context<Self>) -> AnyView {
+        if let Some((_, view)) = self.styles.iter().find(|(entry, _)| *entry == style) {
+            return view.clone();
+        }
+        let owner = cx.weak_entity();
+        let active_preset = {
+            let owner = owner.clone();
+            Rc::new(move |cx: &App| {
+                owner
+                    .upgrade()
+                    .map(|gallery| gallery.read(cx).preset)
+                    .unwrap_or_default()
+            })
+        };
+        let on_select_preset = Rc::new(
+            move |preset: ThemePreset, window: &mut Window, cx: &mut App| {
+                let _ = owner.update(cx, |this, cx| this.select_preset(preset, window, cx));
+            },
+        );
+        let view: AnyView = cx
+            .new(|_| StylesExamples::new(style, active_preset, on_select_preset))
+            .into();
+        self.styles.push((style, view.clone()));
+        view
+    }
+
+    fn build_story_view(story: Story, window: &mut Window, cx: &mut App) -> Option<AnyView> {
+        if let Some(playground) = playground_for(story) {
+            return Some(
+                cx.new(|cx| ComponentPageView::new(story, playground, window, cx))
+                    .into(),
+            );
+        }
+        story.new_view(window, cx)
     }
 
     fn story_view(&mut self, story: Story, window: &mut Window, cx: &mut App) -> Option<AnyView> {
         if let Some((_, view)) = self.stories.iter().find(|(entry, _)| *entry == story) {
             return Some(view.clone());
         }
-        let view = story.new_view(window, cx)?;
+        let view = Self::build_story_view(story, window, cx)?;
         self.stories.push((story, view.clone()));
         Some(view)
     }
@@ -172,20 +320,16 @@ impl Gallery {
         self.search.read(cx).value().trim().to_ascii_lowercase()
     }
 
-    fn refresh_filtered_stories(&mut self, cx: &mut Context<Self>) {
+    fn refresh_filtered_rows(&mut self, cx: &mut Context<Self>) {
         let has_value = !self.search.read(cx).value().is_empty();
         let query = self.query(cx);
-        let next: Vec<usize> = Story::ALL
-            .iter()
-            .enumerate()
-            .filter_map(|(ix, story)| story.matches(&query).then_some(ix))
-            .collect();
-        let list_changed = self.filtered_stories.as_ref() != next.as_slice();
+        let next = filter_catalog_rows(&query);
+        let list_changed = self.filtered_rows.as_ref() != next.as_slice();
         let clear_button_changed = self.search_has_value != has_value;
         self.search_has_value = has_value;
         if list_changed {
-            self.filtered_stories = next.into();
-            self.catalog_list.reset(self.filtered_stories.len());
+            self.filtered_rows = next.into();
+            self.catalog_list.reset(self.filtered_rows.len());
             self.catalog_list.scroll_to(ListOffset {
                 item_ix: 0,
                 offset_in_item: px(0.),
@@ -201,30 +345,62 @@ impl Gallery {
         if query.is_empty() {
             return;
         }
-        let result = Story::find(&query).or_else(|| {
-            Story::ALL
+        let result = GalleryPage::find(&query).or_else(|| {
+            CATALOG
                 .iter()
-                .copied()
-                .find(|story| story.matches(&query))
+                .find(|entry| entry.matches(&query))
+                .map(|entry| entry.page)
         });
-        if let Some(story) = result {
-            self.navigate(story, window, cx);
+        if let Some(page) = result {
+            self.navigate(page, window, cx);
             self.content_focus.focus(window, cx);
         }
     }
 
-    fn navigate(&mut self, story: Story, window: &mut Window, cx: &mut Context<Self>) {
-        let story_changed = self.current != story;
-        if story_changed {
-            self.current = story;
+    fn reveal_page_in_catalog(&self, page: GalleryPage) {
+        let Some(target_entry) = entry_index(page) else {
+            return;
+        };
+        let Some(row_ix) = self
+            .filtered_rows
+            .iter()
+            .position(|row| *row == CatalogRow::Entry(target_entry))
+        else {
+            return;
+        };
+        if self.catalog_list.bounds_for_item(row_ix).is_some() {
+            self.catalog_list.scroll_to_reveal_item(row_ix);
+        } else {
+            self.catalog_list.scroll_to(ListOffset {
+                item_ix: row_ix.saturating_sub(1),
+                offset_in_item: px(0.),
+            });
+        }
+    }
+
+    fn navigate(&mut self, page: GalleryPage, window: &mut Window, cx: &mut Context<Self>) {
+        let page_changed = self.current != page;
+        if page_changed {
+            self.current = page;
             self.content_scroll.set_offset(point(px(0.), px(0.)));
-            self.story_view(story, window, cx);
+            match page {
+                GalleryPage::Story(Story::Introduction) => {
+                    self.overview_view(cx);
+                }
+                GalleryPage::Story(story) => {
+                    self.story_view(story, window, cx);
+                }
+                GalleryPage::Style(style) => {
+                    self.style_view(style, cx);
+                }
+            }
+            self.reveal_page_in_catalog(page);
         }
         let closed_catalog = std::mem::take(&mut self.single_pane_catalog_open);
         if Self::single_pane(Self::width_class(window)) {
             self.content_focus.focus(window, cx);
         }
-        if story_changed || closed_catalog {
+        if page_changed || closed_catalog {
             cx.notify();
         }
     }
@@ -245,6 +421,41 @@ impl Gallery {
         cx.notify();
     }
 
+    fn render_section_tabs(
+        &self,
+        id_prefix: &'static str,
+        window: &Window,
+        cx: &Context<Self>,
+    ) -> impl IntoElement {
+        let active_section = section_of(self.current);
+        let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
+        let owner = cx.weak_entity();
+        div()
+            .id(id_prefix)
+            .role(Role::Navigation)
+            .aria_label("Sections")
+            .flex()
+            .items_center()
+            .gap_1()
+            .when(rtl, Styled::flex_row_reverse)
+            .children(TopSection::ALL.into_iter().map(|section| {
+                let selected = section == active_section;
+                let owner = owner.clone();
+                Button::new((ElementId::from(id_prefix), section.id()), section.title())
+                    .variant(if selected {
+                        ButtonVariant::FilledTonal
+                    } else {
+                        ButtonVariant::Text
+                    })
+                    .size(ControlSize::ExtraSmall)
+                    .on_activate(move |window, cx| {
+                        let _ = owner.update(cx, |this, cx| {
+                            this.navigate(first_of(section), window, cx);
+                        });
+                    })
+            }))
+    }
+
     fn render_catalog(
         &self,
         single_pane: bool,
@@ -253,15 +464,15 @@ impl Gallery {
         window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        let results = self.filtered_stories.clone();
+        let rows = self.filtered_rows.clone();
         let handles = self.catalog_focus_handles.clone();
-        let no_results = results.is_empty();
+        let no_results = rows.is_empty();
         let current = self.current;
         let theme = window_material_theme(window, cx);
         let rtl = theme.layout.direction == Direction::Rtl;
         let surface = color(theme.colors.color(ColorRole::Surface));
         let owner = cx.weak_entity();
-        let mut search = TextField::new("gallery-search", "Search components", &self.search)
+        let mut search = TextField::new("gallery-search", "Search catalog", &self.search)
             .variant(TextFieldVariant::Outlined);
         if self.search_has_value {
             let state = self.search.downgrade();
@@ -277,17 +488,29 @@ impl Gallery {
             );
         }
 
-        let tab_stop = results
+        let tab_stop = rows
             .iter()
-            .position(|&story_ix| handles[story_ix].is_focused(window))
-            .or_else(|| {
-                results
-                    .iter()
-                    .position(|&story_ix| Story::ALL[story_ix] == current)
+            .enumerate()
+            .find_map(|(row_ix, row)| match *row {
+                CatalogRow::Entry(entry_ix) if handles[entry_ix].is_focused(window) => Some(row_ix),
+                _ => None,
             })
-            .or_else(|| (!results.is_empty()).then_some(0));
+            .or_else(|| {
+                rows.iter()
+                    .enumerate()
+                    .find_map(|(row_ix, row)| match *row {
+                        CatalogRow::Entry(entry_ix) if CATALOG[entry_ix].page == current => {
+                            Some(row_ix)
+                        }
+                        _ => None,
+                    })
+            })
+            .or_else(|| {
+                rows.iter()
+                    .position(|row| matches!(row, CatalogRow::Entry(_)))
+            });
 
-        let nav_results = results.clone();
+        let nav_rows = rows.clone();
         let nav_handles = handles.clone();
         let nav_list = self.catalog_list.clone();
 
@@ -317,7 +540,9 @@ impl Gallery {
                     .px(inset)
                     .py_4()
                     .when(rtl, Styled::items_end)
-                    .child(Text::new("Components").role(TypeRole::TitleMedium))
+                    .when(single_pane, |header| {
+                        header.child(self.render_section_tabs("drawer-section", window, cx))
+                    })
                     .child(search),
             )
             .child(
@@ -343,8 +568,7 @@ impl Gallery {
                             )
                             .into_any_element()
                     } else {
-                        let last = results.len() - 1;
-                        let render_results = results;
+                        let render_rows = rows;
                         let render_handles = handles;
                         div()
                             .id("component-catalog")
@@ -354,13 +578,25 @@ impl Gallery {
                             .min_h_0()
                             .w_full()
                             .on_key_down(move |event, window, cx| {
-                                let Some(active) = nav_results
+                                let entry_positions: Vec<(usize, usize)> = nav_rows
                                     .iter()
-                                    .position(|&story_ix| nav_handles[story_ix].is_focused(window))
+                                    .enumerate()
+                                    .filter_map(|(row_ix, row)| match *row {
+                                        CatalogRow::Entry(entry_ix) => Some((row_ix, entry_ix)),
+                                        CatalogRow::GroupHeader(_) => None,
+                                    })
+                                    .collect();
+                                if entry_positions.is_empty() {
+                                    return;
+                                }
+                                let Some(active) =
+                                    entry_positions.iter().position(|&(_, entry_ix)| {
+                                        nav_handles[entry_ix].is_focused(window)
+                                    })
                                 else {
                                     return;
                                 };
-                                let count = nav_results.len();
+                                let count = entry_positions.len();
                                 let next = match event.keystroke.key.as_str() {
                                     "up" => Some((active + count - 1) % count),
                                     "down" => Some((active + 1) % count),
@@ -369,12 +605,13 @@ impl Gallery {
                                     _ => None,
                                 };
                                 if let Some(next) = next {
-                                    nav_handles[nav_results[next]].focus(window, cx);
-                                    if nav_list.bounds_for_item(next).is_some() {
-                                        nav_list.scroll_to_reveal_item(next);
+                                    let (row_ix, entry_ix) = entry_positions[next];
+                                    nav_handles[entry_ix].focus(window, cx);
+                                    if nav_list.bounds_for_item(row_ix).is_some() {
+                                        nav_list.scroll_to_reveal_item(row_ix);
                                     } else {
                                         nav_list.scroll_to(ListOffset {
-                                            item_ix: next,
+                                            item_ix: row_ix,
                                             offset_in_item: px(0.),
                                         });
                                     }
@@ -383,86 +620,78 @@ impl Gallery {
                                 }
                             })
                             .child(
-                                list(self.catalog_list.clone(), move |ix, _, _| {
-                                    let story_ix = render_results[ix];
-                                    let story = Story::ALL[story_ix];
-                                    let owner = owner.clone();
-                                    let top = if ix == 0 { 16. } else { 4. };
-                                    let bottom = if ix == last { 16. } else { 4. };
-                                    let shapes = ListItemShapes {
-                                        resting: Some(CornerShape::Radii([
-                                            top, top, bottom, bottom,
-                                        ])),
-                                        selected: Some(CornerRole::Large.shape()),
-                                        ..ListItemShapes::default()
-                                    };
-                                    div()
-                                        .w_full()
-                                        .px(inset)
-                                        .pb(if ix == last { px(16.) } else { px(2.) })
-                                        .child(
-                                            ListItem::new(
-                                                (ElementId::from("gallery-story"), story.id()),
-                                                story.name(),
+                                list(self.catalog_list.clone(), move |row_ix, _, _| {
+                                    match render_rows[row_ix] {
+                                        CatalogRow::GroupHeader(group) => div()
+                                            .id((ElementId::from("catalog-group"), group.id()))
+                                            .w_full()
+                                            .px(inset)
+                                            .pt(if row_ix == 0 { px(4.) } else { px(14.) })
+                                            .pb(px(6.))
+                                            .flex()
+                                            .when(rtl, Styled::justify_end)
+                                            .child(
+                                                Text::new(group.title())
+                                                    .role(TypeRole::LabelMedium)
+                                                    .color(ColorRole::OnSurfaceVariant),
                                             )
-                                            .shapes(shapes)
-                                            .selected(current == story)
-                                            .track_focus(
-                                                &render_handles[story_ix],
-                                                Some(ix) == tab_stop,
-                                            )
-                                            .on_activate(move |window, cx| {
-                                                let _ = owner.update(cx, |this, cx| {
-                                                    this.navigate(story, window, cx);
-                                                });
-                                            }),
-                                        )
-                                        .into_any_element()
+                                            .into_any_element(),
+                                        CatalogRow::Entry(entry_ix) => {
+                                            let entry = CATALOG[entry_ix];
+                                            let owner = owner.clone();
+                                            let is_first_in_group = row_ix == 0
+                                                || matches!(
+                                                    render_rows.get(row_ix.saturating_sub(1)),
+                                                    Some(CatalogRow::GroupHeader(_))
+                                                );
+                                            let is_last_in_group = row_ix + 1 == render_rows.len()
+                                                || matches!(
+                                                    render_rows.get(row_ix + 1),
+                                                    Some(CatalogRow::GroupHeader(_))
+                                                );
+                                            let top = if is_first_in_group { 16. } else { 4. };
+                                            let bottom = if is_last_in_group { 16. } else { 4. };
+                                            let shapes = ListItemShapes {
+                                                resting: Some(CornerShape::Radii([
+                                                    top, top, bottom, bottom,
+                                                ])),
+                                                selected: Some(CornerRole::Large.shape()),
+                                                ..ListItemShapes::default()
+                                            };
+                                            let is_last_row = row_ix + 1 == render_rows.len();
+                                            div()
+                                                .w_full()
+                                                .px(inset)
+                                                .pb(if is_last_row { px(16.) } else { px(2.) })
+                                                .child(
+                                                    ListItem::new(
+                                                        (
+                                                            ElementId::from("gallery-story"),
+                                                            entry.page.id(),
+                                                        ),
+                                                        entry.page.name(),
+                                                    )
+                                                    .shapes(shapes)
+                                                    .selected(current == entry.page)
+                                                    .track_focus(
+                                                        &render_handles[entry_ix],
+                                                        Some(row_ix) == tab_stop,
+                                                    )
+                                                    .on_activate(move |window, cx| {
+                                                        let _ = owner.update(cx, |this, cx| {
+                                                            this.navigate(entry.page, window, cx);
+                                                        });
+                                                    }),
+                                                )
+                                                .into_any_element()
+                                        }
+                                    }
                                 })
                                 .size_full(),
                             )
                             .into_any_element()
                     }),
             )
-    }
-
-    fn render_introduction(&self, window: &Window, cx: &App) -> impl IntoElement {
-        let scheme = &window_material_theme(window, cx).colors;
-        let tone = |role| color(scheme.color(role));
-        let style = TextViewStyle::default()
-            .with_dark(scheme.appearance() == Appearance::Dark)
-            .with_foreground(tone(ColorRole::OnSurface))
-            .with_muted_foreground(tone(ColorRole::OnSurfaceVariant))
-            .with_link(tone(ColorRole::Primary))
-            .with_border(tone(ColorRole::OutlineVariant))
-            .with_code_background(tone(ColorRole::SurfaceContainer))
-            .with_inline_code(gpui::HighlightStyle {
-                background_color: Some(tone(ColorRole::SurfaceContainer)),
-                ..Default::default()
-            })
-            .with_selection(tone(ColorRole::SecondaryContainer));
-        text_style(
-            div().w_full().max_w(README_MAX_WIDTH).mx_auto(),
-            TypeRole::BodyLarge.style(TypographyEmphasis::Baseline),
-            1.,
-            window,
-            cx,
-        )
-        .child(
-            TextView::markdown("gallery-readme", README)
-                .style(style)
-                .selectable(true)
-                .on_link_click(|url, event, _, cx| {
-                    if event.is_right_click() {
-                        return;
-                    }
-                    if url.starts_with("https://") || url.starts_with("http://") {
-                        cx.open_url(url);
-                    } else {
-                        cx.open_url(&format!("{REPOSITORY_URL}/blob/main/{url}"));
-                    }
-                }),
-        )
     }
 
     fn render_story(
@@ -473,14 +702,17 @@ impl Gallery {
         cx: &mut Context<Self>,
     ) -> impl IntoElement + use<> {
         let content = match self.current {
-            Story::Introduction => self.render_introduction(window, cx).into_any_element(),
-            story => self
+            GalleryPage::Story(Story::Introduction) => self.overview_view(cx).into_any_element(),
+            GalleryPage::Story(story) => self
                 .story_view(story, window, cx)
                 .expect("registered story")
                 .into_any_element(),
+            GalleryPage::Style(style) => self.style_view(style, cx).into_any_element(),
         };
         let theme = window_material_theme(window, cx);
         let rtl = theme.layout.direction == Direction::Rtl;
+        let show_header = !self.current.is_overview();
+        let is_adaptive = self.current == GalleryPage::Story(Story::AdaptiveLayout);
 
         div()
             .id((ElementId::from("gallery-story-pane"), self.current.id()))
@@ -493,7 +725,15 @@ impl Gallery {
             .min_w_0()
             .rounded(radius)
             .bg(color(theme.colors.color(ColorRole::Surface)))
-            .children((self.current != Story::Introduction).then(|| {
+            .children(show_header.then(|| {
+                let group_title = entry_index(self.current)
+                    .map(|ix| CATALOG[ix].group.title())
+                    .unwrap_or("Components");
+                let width_badge = is_adaptive.then(|| {
+                    let w: f32 = window.viewport_size().width.into();
+                    let class = Self::width_class(window);
+                    format!("{class:?} · {w:.0} px")
+                });
                 div()
                     .flex_none()
                     .border_b_1()
@@ -509,12 +749,48 @@ impl Gallery {
                             .when(rtl, Styled::items_end)
                             .child(
                                 div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .when(rtl, Styled::flex_row_reverse)
+                                    .child(
+                                        div()
+                                            .px_2()
+                                            .py(px(2.))
+                                            .rounded_full()
+                                            .bg(color(
+                                                theme.colors.color(ColorRole::SecondaryContainer),
+                                            ))
+                                            .text_xs()
+                                            .text_color(color(
+                                                theme.colors.color(ColorRole::OnSecondaryContainer),
+                                            ))
+                                            .child(group_title),
+                                    )
+                                    .children(width_badge.map(|badge| {
+                                        div()
+                                            .px_2()
+                                            .py(px(2.))
+                                            .rounded_full()
+                                            .bg(color(
+                                                theme.colors.color(ColorRole::TertiaryContainer),
+                                            ))
+                                            .text_xs()
+                                            .text_color(color(
+                                                theme.colors.color(ColorRole::OnTertiaryContainer),
+                                            ))
+                                            .child(badge)
+                                    })),
+                            )
+                            .child(
+                                div()
                                     .id("story-title")
                                     .role(Role::Heading)
                                     .aria_label(self.current.name())
                                     .test_support()
                                     .child(
                                         Text::new(self.current.name())
+                                            .id("story-title-text")
                                             .role(TypeRole::HeadlineSmall)
                                             .emphasized(true),
                                     ),
@@ -536,7 +812,7 @@ impl Gallery {
                     .overflow_y_scroll()
                     .flex_1()
                     .min_h_0()
-                    .child(if self.current == Story::AdaptiveLayout {
+                    .child(if is_adaptive {
                         div().size_full().min_h_0().overflow_hidden().child(content)
                     } else {
                         div()
@@ -551,8 +827,55 @@ impl Gallery {
             )
     }
 
+    fn render_brand(&self, window: &Window, cx: &Context<Self>) -> impl IntoElement {
+        let theme = window_material_theme(window, cx);
+        let rtl = theme.layout.direction == Direction::Rtl;
+        let owner = cx.weak_entity();
+        div()
+            .id("gallery-brand")
+            .role(Role::Button)
+            .aria_label("GPUI Material Overview")
+            .test_support()
+            .cursor_pointer()
+            .flex()
+            .items_center()
+            .gap_2()
+            .px_2()
+            .py_1()
+            .rounded(px(12.))
+            .when(rtl, Styled::flex_row_reverse)
+            .on_click(move |_, window, cx| {
+                let _ = owner.update(cx, |this, cx| {
+                    this.navigate(GalleryPage::Story(Story::Introduction), window, cx);
+                });
+            })
+            .child(
+                div()
+                    .size(px(28.))
+                    .rounded_full()
+                    .bg(color(theme.colors.color(ColorRole::Primary)))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .child(
+                        Text::new("m")
+                            .id("brand-mark")
+                            .role(TypeRole::TitleSmall)
+                            .emphasized(true)
+                            .color(ColorRole::OnPrimary),
+                    ),
+            )
+            .child(
+                Text::new("GPUI Material")
+                    .id("brand-title")
+                    .role(TypeRole::TitleSmall)
+                    .emphasized(true),
+            )
+    }
+
     fn render_app_bar(
         &self,
+        single_pane: bool,
         show_catalog: bool,
         theme_in_app_bar: bool,
         margin: Pixels,
@@ -578,18 +901,29 @@ impl Gallery {
             .justify_between()
             .gap_2()
             .when(rtl, Styled::flex_row_reverse)
-            .child(Tooltip::plain(
-                "browse-components-tooltip",
-                IconButton::new(
-                    "browse-components",
-                    label,
-                    Icon::new(icon).mirror_in_rtl(true),
-                )
-                .on_activate(move |window, cx| {
-                    let _ = owner.update(cx, |this, cx| this.toggle_catalog(window, cx));
-                }),
-                label,
-            ))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .when(rtl, Styled::flex_row_reverse)
+                    .child(Tooltip::plain(
+                        "browse-components-tooltip",
+                        IconButton::new(
+                            "browse-components",
+                            label,
+                            Icon::new(icon).mirror_in_rtl(true),
+                        )
+                        .on_activate(move |window, cx| {
+                            let _ = owner.update(cx, |this, cx| this.toggle_catalog(window, cx));
+                        }),
+                        label,
+                    ))
+                    .when(!single_pane, |left| {
+                        left.child(self.render_brand(window, cx))
+                            .child(self.render_section_tabs("top-section", window, cx))
+                    }),
+            )
             .child(
                 div()
                     .flex()
@@ -619,7 +953,7 @@ impl Gallery {
             )
     }
 
-    fn render_theme_toggle(&self, floating: bool, window: &Window, cx: &App) -> Tooltip {
+    fn render_theme_toggle(&self, floating: bool, window: &Window, cx: &Context<Self>) -> Tooltip {
         let (label, icon, appearance) = match window_material_theme(window, cx).colors.appearance()
         {
             Appearance::Light => ("Switch to dark theme", IconName::DarkMode, Appearance::Dark),
@@ -629,15 +963,11 @@ impl Gallery {
                 Appearance::Light,
             ),
         };
-        let local_theme = self.local_theme;
+        let owner = cx.weak_entity();
         let activate = move |window: &mut Window, cx: &mut App| {
-            let mut theme = window_material_theme(window, cx).clone();
-            theme.colors = gpui_material::theme::ColorScheme::baseline(appearance);
-            if local_theme {
-                set_window_material_theme(Some(theme), window, cx);
-            } else {
-                set_material_theme(theme, cx);
-            }
+            let _ = owner.update(cx, |this, cx| {
+                this.set_appearance(appearance, window, cx);
+            });
         };
         let icon = Icon::new(icon);
         let button = if floating {
@@ -657,7 +987,7 @@ impl Gallery {
         &self,
         show_story: bool,
         window: &Window,
-        cx: &App,
+        cx: &Context<Self>,
     ) -> FloatingAction {
         let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
         FloatingAction::new(
@@ -665,14 +995,16 @@ impl Gallery {
                 .flex()
                 .gap_2()
                 .when(rtl, Styled::flex_row_reverse)
-                .children((show_story && self.current == Story::Fab).then(|| {
-                    Fab::new(
-                        "floating-motion",
-                        "Toggle reduced motion",
-                        Icon::new(IconName::MotionPhotosOn),
-                    )
-                    .on_activate(|_, cx| cx.set_reduce_motion(!cx.reduce_motion()))
-                }))
+                .children(
+                    (show_story && self.current == GalleryPage::Story(Story::Fab)).then(|| {
+                        Fab::new(
+                            "floating-motion",
+                            "Toggle reduced motion",
+                            Icon::new(IconName::MotionPhotosOn),
+                        )
+                        .on_activate(|_, cx| cx.set_reduce_motion(!cx.reduce_motion()))
+                    }),
+                )
                 .child(self.render_theme_toggle(true, window, cx)),
         )
         .margin(px(52.))
@@ -682,7 +1014,7 @@ impl Gallery {
         let theme = window_material_theme(window, cx);
         let rtl = theme.layout.direction == Direction::Rtl;
         let appearance = theme.colors.appearance();
-        let status = format!("Display scale {:.0}%", window.scale_factor() * 100.);
+        let version = format!("v{}", env!("CARGO_PKG_VERSION"));
         let theme_status = format!("Window theme {appearance:?}");
         div()
             .w_full()
@@ -701,15 +1033,19 @@ impl Gallery {
                     .role(Role::Status)
                     .aria_label(theme_status.clone())
                     .test_support()
-                    .child(Text::new(theme_status).role(TypeRole::LabelMedium)),
+                    .child(
+                        Text::new(theme_status)
+                            .id("label")
+                            .role(TypeRole::LabelMedium),
+                    ),
             )
             .child(
                 div()
-                    .id("display-scale")
+                    .id("gallery-version")
                     .role(Role::Status)
-                    .aria_label(status.clone())
+                    .aria_label(version.clone())
                     .test_support()
-                    .child(Text::new(status).role(TypeRole::LabelMedium)),
+                    .child(Text::new(version).id("label").role(TypeRole::LabelMedium)),
             )
     }
 }
@@ -724,8 +1060,11 @@ impl Render for Gallery {
             !self.catalog_collapsed
         };
         let show_story = !single_pane || !show_catalog;
-        // Keep the document and the adaptive example unobstructed.
-        let theme_in_app_bar = matches!(self.current, Story::Introduction | Story::AdaptiveLayout);
+        // Keep Overview, Styles, and Adaptive layout unobstructed by floating actions.
+        let theme_in_app_bar = matches!(
+            self.current,
+            GalleryPage::Story(Story::Introduction | Story::AdaptiveLayout) | GalleryPage::Style(_)
+        );
         let margin = if width_class == WidthClass::Compact {
             COMPACT_MARGIN
         } else {
@@ -747,7 +1086,14 @@ impl Render for Gallery {
             .size_full()
             .flex()
             .flex_col()
-            .child(self.render_app_bar(show_catalog, theme_in_app_bar, margin, window, cx))
+            .child(self.render_app_bar(
+                single_pane,
+                show_catalog,
+                theme_in_app_bar,
+                margin,
+                window,
+                cx,
+            ))
             .child(
                 div()
                     .flex_1()

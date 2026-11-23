@@ -7,6 +7,8 @@
 mod action_examples;
 mod adaptive_examples;
 mod carousel_examples;
+#[cfg(not(target_arch = "wasm32"))]
+mod catalog;
 mod date_time_examples;
 #[cfg(all(
     not(target_arch = "wasm32"),
@@ -26,14 +28,22 @@ mod group_examples;
 mod input_examples;
 mod navigation_examples;
 mod overlay_examples;
+#[cfg(not(target_arch = "wasm32"))]
+mod overview;
 #[cfg(all(test, not(target_arch = "wasm32"), feature = "test-support"))]
 mod perf_bench;
+#[cfg(not(target_arch = "wasm32"))]
+mod playground;
+#[cfg(not(target_arch = "wasm32"))]
+mod playgrounds;
 #[cfg(all(test, feature = "test-support"))]
 mod scrim_tests;
 mod search_examples;
 mod selection_examples;
 mod slider_examples;
 mod story;
+#[cfg(not(target_arch = "wasm32"))]
+mod styles_examples;
 mod surface_examples;
 #[cfg(all(test, feature = "test-support"))]
 mod swipe_to_dismiss_tests;
@@ -64,6 +74,8 @@ use gpui_material::{
 use gallery::CloseCatalog;
 
 #[cfg(not(target_arch = "wasm32"))]
+pub use catalog::GalleryPage;
+#[cfg(not(target_arch = "wasm32"))]
 pub use gallery::Gallery;
 pub use story::Story;
 
@@ -92,6 +104,22 @@ pub fn open_gallery(
     initial_story: Story,
     window_chrome: bool,
 ) -> gpui::Result<WindowHandle<Root>> {
+    open_gallery_page(
+        cx,
+        local_dark,
+        GalleryPage::Story(initial_story),
+        window_chrome,
+    )
+}
+
+#[doc(hidden)]
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+pub fn open_gallery_page(
+    cx: &mut App,
+    local_dark: bool,
+    initial_page: GalleryPage,
+    window_chrome: bool,
+) -> gpui::Result<WindowHandle<Root>> {
     let options = WindowOptions {
         titlebar: Some(TitlebarOptions {
             title: Some(if local_dark {
@@ -111,7 +139,9 @@ pub fn open_gallery(
             theme.colors = ColorScheme::baseline(Appearance::Dark);
             set_window_material_theme(Some(theme), window, cx);
         }
-        cx.new(|cx| Gallery::new(initial_story, window, cx).with_window_theme_toggle(local_dark))
+        cx.new(|cx| {
+            Gallery::new_at_page(initial_page, window, cx).with_window_theme_toggle(local_dark)
+        })
     };
     if window_chrome {
         let options = gpui_material::window_chrome::title_bar_window_options(options);

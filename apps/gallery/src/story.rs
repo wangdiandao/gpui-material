@@ -362,14 +362,6 @@ impl Story {
         })
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn matches(self, query: &str) -> bool {
-        let name = self.name().to_ascii_lowercase();
-        query
-            .split_whitespace()
-            .all(|word| name.contains(word) || self.id().contains(word))
-    }
-
     /// Creates one example with fresh state for the given window.
     /// The Gallery renders [`Self::Introduction`] itself, so it returns `None`.
     pub fn new_view(self, window: &mut Window, cx: &mut App) -> Option<AnyView> {
@@ -454,39 +446,58 @@ impl ParentElement for StorySection {
 impl RenderOnce for StorySection {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = window_material_theme(window, cx);
-        let radius = CornerRole::Medium
+        let rtl = theme.layout.direction == Direction::Rtl;
+        let radius = CornerRole::Large
             .shape()
             .radii(100., 100., theme.layout.direction)[0];
-        stack()
+        let outline = color(theme.colors.color(ColorRole::OutlineVariant));
+        div()
             .id(self.title)
             .w_full()
-            .gap_2()
+            .min_w_0()
+            .rounded(px(radius))
+            .border_1()
+            .border_color(outline)
+            .bg(color(theme.colors.color(ColorRole::SurfaceContainerLow)))
+            .flex()
+            .flex_col()
             .child(
-                stack()
-                    .gap_1()
-                    .when(theme.layout.direction == Direction::Rtl, Styled::items_end)
+                div()
+                    .w_full()
+                    .px_4()
+                    .py_1p5()
+                    .border_b_1()
+                    .border_color(outline)
+                    .flex()
+                    .flex_col()
+                    .gap_0p5()
+                    .when(rtl, Styled::items_end)
                     .child(
                         div()
                             .id("section-title")
                             .role(Role::Heading)
                             .aria_label(self.title)
-                            .child(Text::new(self.title).role(TypeRole::TitleMedium).wrap()),
+                            .child(
+                                Text::new(self.title)
+                                    .id("title-text")
+                                    .role(TypeRole::TitleSmall)
+                                    .emphasized(true)
+                                    .wrap(),
+                            ),
                     )
                     .children(self.description.map(|description| {
                         Text::new(description)
                             .id("section-description")
-                            .role(TypeRole::BodyMedium)
+                            .role(TypeRole::BodySmall)
                             .color(ColorRole::OnSurfaceVariant)
                             .wrap()
                     })),
             )
             .child(
-                Surface::new(ColorRole::SurfaceContainerLow)
+                Surface::new(ColorRole::Surface)
                     .w_full()
                     .min_w_0()
-                    .rounded(px(radius))
-                    .border_1()
-                    .border_color(color(theme.colors.color(ColorRole::OutlineVariant)))
+                    .rounded_b(px(radius))
                     .p_4()
                     .flex()
                     .flex_col()

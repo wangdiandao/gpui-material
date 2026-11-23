@@ -18,11 +18,11 @@ cd gpui-material
 cargo gallery
 ```
 
-Windows 11 x64/MSVC 是主要支持环境。macOS ARM64 和 Linux x64 纳入 CI 构建和自动化测试。各平台的构建条件见[开发与验证](docs/development.zh.md)。
+Windows 11 x64/MSVC 是主要支持环境。macOS ARM64 和 Linux x64 纳入 CI 构建和自动化测试。各平台的构建条件见[开发指南](docs/development.zh.md)。
 
 ## 在应用中使用
 
-使用 Rust 1.95.0 或更高版本及 2024 Edition。添加依赖 `gpui-material = "0.3.0"`。[集成指南](docs/integration.zh.md)列出了匹配的 GPUI 包，并提供完整的窗口示例。
+使用 Rust 1.95.0 或更高版本及 2024 Edition。添加依赖 `gpui-material = "0.3.1"`。[集成指南](docs/integration.zh.md)列出了匹配的 GPUI 包，并提供完整的窗口示例。
 
 先初始化 `MaterialRoot` 并调用 `gpui_material::init_components`，再用 `MaterialRoot::open_window` 打开窗口。通过 `gpui_material` 门面组合界面，在应用中管理受控值和命令结果。
 

@@ -4,6 +4,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+## 0.3.1 - 2026-11-23
+
+Changes since [v0.3.0](https://github.com/wangdiandao/gpui-material/releases/tag/v0.3.0).
+
 ### Theme and foundation
 
 - Expose Material 3 custom colors and harmonization behind `dynamic-color` (`CustomColorGroup`, `harmonize_color`, `ColorScheme::custom_color`, and `ColorScheme::custom_color_with_contrast`).
@@ -43,6 +47,12 @@ See [versioning and releases](docs/release.md) for the release process.
 
 - Guard no-op state updates against redundant `cx.notify()` and `window.refresh()` calls across Foundation theme updates (`set_material_theme`, `set_window_material_theme`), Components (`PullToRefreshState`, `SwipeToDismissState`, `BottomSheetState`, `Tooltip`, `ExposedDropdownState`, `AppBarScrollState`), and Extras (`SearchScrollState`, `ToolbarScrollState`, `ScrollFieldState`, `DatePickerState`, `TimePickerState`).
 - Virtualize the Gallery component catalog with `gpui::list`, cache filtered catalog indices on search input changes, and skip no-op navigation and window-move notifications, cutting Gallery shell frame overhead by 58%–75% in the Release `perf_bench` suite.
+
+### Contributors
+
+- [@wangdiandao](https://github.com/wangdiandao)
+
+**Full Changelog** [`v0.3.0...v0.3.1`](https://github.com/wangdiandao/gpui-material/compare/v0.3.0...v0.3.1)
 
 ## 0.3.0 - 2026-11-22
 

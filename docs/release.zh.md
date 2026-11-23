@@ -6,30 +6,32 @@
 
 ## 版本规则
 
-最新版本为 0.3.0。Material 各库与 Gallery 统一使用根清单 `[workspace.package]` 的版本。[公开门面及受支持的集成契约](integration.zh.md#api-与迁移)界定兼容范围，包括文档列出的 feature、公开签名中的上游类型，以及受支持的平台行为。
+最新版本为 0.3.1。Material 各库与 Gallery 统一使用根清单 `[workspace.package]` 的版本。[公开门面及集成契约](integration.zh.md#api-与迁移)界定兼容范围，包括文档列出的 feature、公开签名中的上游类型及受支持的平台行为。
 
-- 在 `1.0.0` 之前，向后兼容的修复递增 patch，向后兼容的新功能或破坏性变更递增 minor。递增 minor 时将 patch 归零。同一版本包含不同类型的变更时，采用最高的适用级别。
-- 由仓库所有者决定何时以 `1.0.0` 承诺 API 稳定。从 `1.0.0` 起遵循 [SemVer](https://semver.org/lang/zh-CN/)。公开 API 的不兼容变更递增 major，兼容的新功能和公开 API 弃用递增 minor，兼容修复递增 patch。
-- 所有破坏性变更都要记录变更与迁移步骤，此要求也适用于 `1.0.0` 之前。
+- 在 `1.0.0` 之前，向后兼容的修复递增 patch，向后兼容的新功能或破坏性变更递增 minor（同时将 patch 归零）。同一版本包含多种变更时采用最高适用级别。
+- 从 `1.0.0` 起遵循 [SemVer](https://semver.org/lang/zh-CN/)：公开 API 不兼容变更递增 major，兼容新功能和公开弃用递增 minor，兼容修复递增 patch。
+- 所有破坏性变更都需记录迁移步骤，包括 `1.0.0` 之前。
 
 <a id="changelog"></a>
 
 ## 变更日志
 
-Material 各 crate 和 Gallery 中影响用户或下游应用的变更合并时，写入 [CHANGELOG.md](../CHANGELOG.md) 的 `Unreleased`。记录新功能、可感知的修复、无障碍和性能改进、影响集成的平台或依赖变化，以及迁移方式。网站和文档变更均不写入变更日志，包括与 crate 或 Gallery 改动一起提交的情况。按受影响的模块组织条目，说明实际影响，适用时注明贡献者。实现与验证记录放在对应 Issue 或 PR。格式参考 [GPUI Kit v0.9.1 Release](https://github.com/longbridge/gpui-kit/releases/tag/v0.9.1)。
+Material 各 crate 和 Gallery 中面向用户的变更合并时，写入 [CHANGELOG.md](../CHANGELOG.md) 的 `Unreleased`，包括新功能、可感知修复、无障碍与性能改进、影响集成的平台或依赖变化以及迁移方式。网站和文档变更均不写入变更日志，即使与代码改动一同提交。按受影响区域分组、简述影响并在适用时注明贡献者。格式参考 [GPUI Kit v0.9.1 Release](https://github.com/longbridge/gpui-kit/releases/tag/v0.9.1)。
 
-仓库所有者敲定版本号与发版范围后，核对上次发布 tag 到本次发版提交之间的全部变更。`0.1.0` 以最近的 Gallery 预发行版 `v0.0.4` 为基线。对照该范围补齐条目，将本次发布的变更移到带实际发布日期的版本标题下，并保留 `Unreleased` 收集后续变更。使用该版本条目作为 GitHub Release 正文，适用时列出贡献者，并附起止 tag 的 `Full Changelog` 比较链接。
+准备发版时，对照上一发布 tag 至今的全部提交核对 `Unreleased`，将本次变更移到带发布日期的新版本标题下，并保留空的 `Unreleased` 标题。该版本节即为 GitHub Release 正文（适用时附贡献者列表与 `Full Changelog` 比较链接）。
 
 <a id="prepare-and-publish"></a>
 
 ## 准备与发布
 
-GitHub Release 提供版本说明及 GitHub 生成的源码归档。检出源码后用 `cargo gallery` 运行 Gallery。
+GitHub Release 提供版本说明及源码归档。检出源码后用 `cargo gallery` 运行 Gallery。
 
-1. 仓库所有者敲定版本、范围和发布时间。准备发布 PR，更新共享版本、内部依赖的精确版本、`Cargo.lock` 和变更日志。同步更新文档中的最新版本和依赖示例。有破坏性变更时补充迁移说明。
-2. 使用最低支持的 Rust 工具链从下游 crate 验证门面，覆盖受影响的 feature 组合及公开的上游类型。发版提交合入 `main` 后须通过 `CI required`。按[实机验收标准](verification.zh.md)验证，在发布 Issue 或 PR 记录环境、场景及未覆盖范围。
-3. 在 `main` 上手动运行 [Release 工作流](../.github/workflows/release.yml)（填入 `version` 为 `X.Y.Z`，保持 `publish: false` 预演模式），在正式发布前核验工作区清单、变更日志提取与打包结果。验证作业会打包全部六个库（`gpui-material-theme`、`gpui-material-foundation`、`gpui-material-components`、`gpui-material-extras`、`gpui-material` 和 `gpui-material-design-symbols`），并在工作区 MSRV 下从独立下游 crate 检查解包后的归档：包括 `gpui-material` 的默认配置和 `--all-features`，以及 `gpui-material-design-symbols` 启用与禁用 `embed-assets` 的配置。
-4. 完成实机验收并获仓库所有者明确批准后，在 `main` 上运行 [Release 工作流](../.github/workflows/release.yml)（填入 `version` 为 `X.Y.Z` 并勾选 `publish: true`）。通过 `release` 环境审批后，工作流会通过 crates.io Trusted Publishing（OIDC）鉴权，按依赖顺序依次发布门面依赖（`gpui-material-theme`、`gpui-material-foundation`、`gpui-material-components`、`gpui-material-extras`）、`gpui-material` 与独立的 `gpui-material-design-symbols`，在发布下游前等待各版本出现在 crates.io sparse index 并校验 registry 校验和。随后在同一运行中基于对应变更日志节创建带附注的 `vX.Y.Z` tag 与 GitHub Release，并核对生成的源码归档和比较链接。
+1. **发布 PR**：更新共享工作区版本、内部依赖精确版本、`Cargo.lock`、`CHANGELOG.md` 以及文档中的最新版本与迁移说明。
+2. **CI 与桌面冒烟检查**：确认 `main` 上 `CI required` 通过，并在 Windows 11 x64 上对发版提交做快速检查：
+   - `cargo gallery`：确认窗口标题与图标、缩窄到紧凑布局的切换、状态栏主题与版本号，以及受影响的示例（涉及输入与浮层时附带检查微软拼音与讲述人）。
+   - `cargo gallery --window-chrome`：确认标题栏拖拽、双击最大化/还原、悬停最大化触发 Windows 贴靠布局、**Block close** 开关，以及关闭最后一个窗口后进程正常退出。
+3. **预演**：在 `main` 上手动触发 [Release 工作流](../.github/workflows/release.yml)（`version = X.Y.Z`，`publish: false`），核验工作区清单、变更日志提取，并在工作区 MSRV 下从独立下游 crate 检查全部六个库（`gpui-material-theme`、`gpui-material-foundation`、`gpui-material-components`、`gpui-material-extras`、`gpui-material`、`gpui-material-design-symbols`）的打包结果。
+4. **正式发布**：获仓库所有者批准后，在 `main` 上运行 [Release 工作流](../.github/workflows/release.yml)（`version = X.Y.Z`，`publish: true`）。通过 `release` 环境审批后，工作流经由 crates.io Trusted Publishing（OIDC）按依赖顺序发布全部六个库（等待各版本进入 sparse index），并创建带附注的 `vX.Y.Z` tag 与 GitHub Release。
 
 <a id="release-workflow-setup"></a>
 

@@ -126,7 +126,7 @@ Enable these features on `gpui-material`.
 
 ## Testing
 
-Use `cargo gallery text-field` to open the text field story, or pass the affected story name or ID. For automated interaction checks, follow existing `#[gpui::test]` cases that render production components and assert the interaction outcome, such as callback data, focus, or retained state. The Gallery suite runs with `cargo test --locked -p gpui-material-gallery --features test-support`. Select the relevant native checks separately when the change touches the OS bridge, IME, DPI, or assistive technology. [Local checks](../../docs/development.md#local-checks) · [Verification by layer](../../docs/verification.md#verification-by-layer)
+Use `cargo gallery text-field` to open the text field story, or pass the affected story name or ID. For automated interaction checks, follow existing `#[gpui::test]` cases that render production components and assert the interaction outcome, such as callback data, focus, or retained state. The Gallery suite runs with `cargo test --locked -p gpui-material-gallery --features test-support`. Select the relevant native checks separately when the change touches the OS bridge, IME, DPI, or assistive technology. [Local checks](../../docs/development.md#local-checks)
 
 ## GPUI and Base References
 

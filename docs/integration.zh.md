@@ -104,4 +104,4 @@ Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID �
 | macOS 15 ARM64 | 纳入 CI 构建与自动化测试，原生桌面适配持续推进。 |
 | Ubuntu 24.04 x64 | 纳入 CI 构建与自动化测试，原生桌面适配持续推进。 |
 
-[设计依据](design-sources.zh.md) · [版本与发布](release.zh.md)
+[实战手册](cookbook.zh.md) · [设计依据](design-sources.zh.md) · [版本与发布](release.zh.md)

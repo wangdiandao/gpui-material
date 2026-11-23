@@ -129,6 +129,7 @@ export function sidebar(lang, kind) {
       items: [
         { label: t.allGuides, route: 'docs' },
         { label: t.setup, route: 'docs/integration' },
+        { label: lang === 'zh' ? '实战手册' : 'Cookbook', route: 'docs/cookbook' },
         { label: lang === 'zh' ? '控件支持范围' : 'Component coverage', route: 'docs/component' },
       ],
     },

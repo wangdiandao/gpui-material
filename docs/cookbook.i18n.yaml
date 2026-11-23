@@ -1,0 +1,49 @@
+# Section fingerprints for the English and Chinese pages.
+/cookbook:
+  en: "95bd21dbd25f894b"
+  zh: "af57861f3d29af14"
+/cookbook/application-setup-and-state-ownership:
+  en: "a2f39a347ddd9154"
+  zh: "1809e8c38c3845d0"
+/cookbook/forms-and-validation:
+  en: "a98e06c4f926efef"
+  zh: "94b8d4e5d55b83d5"
+/cookbook/theming-dark-mode-dynamic-color-and-local-overrides:
+  en: "e0ac7ec32a98eb13"
+  zh: "8d6daeb18ec47433"
+/cookbook/theming-dark-mode-dynamic-color-and-local-overrides/switching-light-dark-and-dynamic-themes:
+  en: "4e097c6100676b3e"
+  zh: "a4b364ea1a2cd84b"
+/cookbook/theming-dark-mode-dynamic-color-and-local-overrides/semantic-tones:
+  en: "3dd8c6fe9a25605c"
+  zh: "204ad0c393b7ccbf"
+/cookbook/theming-dark-mode-dynamic-color-and-local-overrides/per-window-and-subtree-overrides:
+  en: "464b9b464c03e550"
+  zh: "afc5263a35aad8cc"
+/cookbook/layouts-adaptive-navigation-and-overlays:
+  en: "722b96fc9cc0d4ac"
+  zh: "dab7cbdd842b0adb"
+/cookbook/layouts-adaptive-navigation-and-overlays/scaffold-and-adaptive-navigation:
+  en: "6541a1c74993d7b1"
+  zh: "a51c9539872ee24e"
+/cookbook/layouts-adaptive-navigation-and-overlays/dialogs-sheets-menus-and-snackbars:
+  en: "f670b31d392fa1fb"
+  zh: "a72e9d4127efa231"
+/cookbook/focus-keyboard-navigation-interaction-observation-and-accessibility:
+  en: "84c838841879e497"
+  zh: "ebf3e022de87b768"
+/cookbook/focus-keyboard-navigation-interaction-observation-and-accessibility/focus-handles-and-roving-focus:
+  en: "2f9c1932dc1336b7"
+  zh: "0964d98c44c4b923"
+/cookbook/focus-keyboard-navigation-interaction-observation-and-accessibility/observing-interaction-state-with-interactionsource:
+  en: "1040159ab20b7fa4"
+  zh: "600e00f4956db769"
+/cookbook/focus-keyboard-navigation-interaction-observation-and-accessibility/rtl-mirroring-and-reduced-motion:
+  en: "069492101f23d0cb"
+  zh: "03328021dcea4e26"
+/cookbook/building-custom-material-controls:
+  en: "6a7e85d63d08b99c"
+  zh: "d9c4e9b56716bf62"
+/cookbook/feature-flags-and-slim-builds:
+  en: "0a57b410ee4de13b"
+  zh: "c55261a686b78222"

@@ -14,7 +14,7 @@ use gpui_material_theme::{
 };
 
 use crate::action::{
-    Action, ActionControl, ActionLayout, ActionStyle, Activate, Change, SegmentShape, icon_slot,
+    Action, ActionControl, ActionLayout, ActionStyle, Change, InvokeAction, SegmentShape, icon_slot,
 };
 use crate::button_style::{
     ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShapes, ButtonStyle,
@@ -509,7 +509,7 @@ pub struct Button {
     common: Common,
     variant: ButtonVariant,
     slots: Slots,
-    on_activate: Option<Activate>,
+    on_activate: Option<InvokeAction>,
     scale: f32,
 }
 
@@ -574,8 +574,25 @@ impl Button {
     }
 
     /// Invoked once when the button is activated via pointer click, keyboard Enter/Space, or assistive technology.
+    ///
+    /// Replaces any previously registered `.on_activate(...)` or `.on_accessible_activate(...)` handler.
     pub fn on_activate(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
-        self.on_activate = Some(Rc::new(handler));
+        self.on_activate = Some(InvokeAction::Full(Rc::new(handler)));
+        self
+    }
+
+    /// Registers only the accessibility click action (`AccessibleAction::Click`), leaving pointer
+    /// and keyboard activation to an enclosing trigger container such as `Menu::composed` or
+    /// `gpui_base::Popover`.
+    ///
+    /// Press feedback and focus remain active while avoiding `on_click` conflicts with container
+    /// `on_mouse_down` handlers. Replaces any previously registered `.on_activate(...)` or
+    /// `.on_accessible_activate(...)` handler.
+    pub fn on_accessible_activate(
+        mut self,
+        handler: impl Fn(&mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.on_activate = Some(InvokeAction::AccessibleOnly(Rc::new(handler)));
         self
     }
 }
@@ -806,7 +823,7 @@ pub struct IconButton {
     icon: AnyElement,
     variant: IconButtonVariant,
     width: IconButtonWidth,
-    on_activate: Option<Activate>,
+    on_activate: Option<InvokeAction>,
 }
 
 impl IconButton {
@@ -884,8 +901,25 @@ impl IconButton {
     }
 
     /// Invoked once when the icon button is activated via pointer, keyboard, or assistive technology.
+    ///
+    /// Replaces any previously registered `.on_activate(...)` or `.on_accessible_activate(...)` handler.
     pub fn on_activate(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
-        self.on_activate = Some(Rc::new(handler));
+        self.on_activate = Some(InvokeAction::Full(Rc::new(handler)));
+        self
+    }
+
+    /// Registers only the accessibility click action (`AccessibleAction::Click`), leaving pointer
+    /// and keyboard activation to an enclosing trigger container such as `Menu::composed` or
+    /// `gpui_base::Popover`.
+    ///
+    /// Press feedback and focus remain active while avoiding `on_click` conflicts with container
+    /// `on_mouse_down` handlers. Replaces any previously registered `.on_activate(...)` or
+    /// `.on_accessible_activate(...)` handler.
+    pub fn on_accessible_activate(
+        mut self,
+        handler: impl Fn(&mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.on_activate = Some(InvokeAction::AccessibleOnly(Rc::new(handler)));
         self
     }
 }
@@ -1138,6 +1172,35 @@ mod tests {
 
         let tone: ButtonTone = crate::SemanticTone::Danger;
         assert_eq!(tone, ButtonTone::Danger);
+    }
+
+    #[test]
+    fn button_and_icon_button_activation_modes_replace_each_other() {
+        let button = Button::new("b", "Open").on_accessible_activate(|_, _| {});
+        assert!(matches!(
+            button.on_activate,
+            Some(InvokeAction::AccessibleOnly(_))
+        ));
+        let button = button.on_activate(|_, _| {});
+        assert!(matches!(button.on_activate, Some(InvokeAction::Full(_))));
+        let button = button.on_accessible_activate(|_, _| {});
+        assert!(matches!(
+            button.on_activate,
+            Some(InvokeAction::AccessibleOnly(_))
+        ));
+
+        let icon = IconButton::new("i", "More", div()).on_accessible_activate(|_, _| {});
+        assert!(matches!(
+            icon.on_activate,
+            Some(InvokeAction::AccessibleOnly(_))
+        ));
+        let icon = icon.on_activate(|_, _| {});
+        assert!(matches!(icon.on_activate, Some(InvokeAction::Full(_))));
+        let icon = icon.on_accessible_activate(|_, _| {});
+        assert!(matches!(
+            icon.on_activate,
+            Some(InvokeAction::AccessibleOnly(_))
+        ));
     }
 
     #[test]

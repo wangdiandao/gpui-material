@@ -25,6 +25,8 @@
 
 构造 `IconButton::new(id, name, icon)`（或变体快捷构造器 `IconButton::standard`、`IconButton::filled`、`IconButton::tonal`、`IconButton::outlined`）或 `IconToggleButton::new(id, name, icon, selected)`（或 `IconToggleButton::standard`、`IconToggleButton::filled`、`IconToggleButton::tonal`、`IconToggleButton::outlined`）时传入无障碍名称和装饰性图标元素。图标按钮默认使用 Small 尺寸、Uniform 宽度、Round 形状和 Standard 配色。使用 `.shapes(ButtonShapes)` 设置静止和按下时的圆角，以及切换按钮选中时的圆角。使用 `.colors(ButtonColors)` 设置启用、禁用和选中状态下的容器与图标颜色。省略的字段沿用当前尺寸和变体的默认值。`.border(ButtonBorder)` 替换默认描边，宽度为零时移除描边。`IconToggleButton` 根据调用方传入的值渲染选中状态，并在选中时使用可选的 `.selected_icon(element)`。
 
+常规按钮与图标按钮使用 `.on_activate(handler)` 处理指针、键盘和无障碍激活。当 `Button` 或 `IconButton` 放在已接管指针激活的触发器容器内（如 `Menu::composed` 或 `gpui_base::Popover`）时，改用 `.on_accessible_activate(handler)`：仅注册 `AccessibleAction::Click` 而不挂载 `on_click`，既保留按压视觉反馈与无障碍激活，又避免与外层 `on_mouse_down` 冲突。由于 `.on_accessible_activate(...)` 会跳过按钮自身的 `on_click`，直接使用 `gpui_base::Popover` 且需要键盘 `Enter`/`Space` 触发时，应在外层触发器容器上处理 `Confirm` 动作（与 `Menu::composed` 一致）。`.on_activate(...)` 与 `.on_accessible_activate(...)` 互相覆盖先前注册的回调。
+
 调用方持有 `Entity<InteractionSource>`，通过 `.interaction_source(&source)` 观察按钮或图标按钮。同一窗口内共享一个源的控件应使用各自的元素 ID。用 `InteractionSource::state` 读取当前状态，或订阅 `InteractionUpdate` 逐次接收延后派发的变更，包括两次绘制之间发生的按下和释放。控件移除后，其状态快照会清除。Base 管理输入，应用持有切换值。
 
 ### 悬浮操作按钮
@@ -280,7 +282,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ### 菜单开关和菜单项内容
 
-`Menu::new` 默认自行管理显示状态，`Menu::new_with(id, trigger, |window, cx| ...)` 仅在菜单展开时延迟构造菜单项。任意 `IntoElement` 也可通过 `MaterialElementExt::context_menu(id, items)` 或延迟形式 `MaterialElementExt::context_menu_with(id, |window, cx| ...)` 以后缀方式附加右键上下文菜单。调用 `.context()` 后，右键点击会在指针坐标处弹出并自动限制在视口内（除非显式调用 `.position(...)`），在触发区域内再次右键会平滑更新位置，同时不劫持触发控件自身的 `Enter`/`Space` 主操作，并支持通过 `Shift+F10` 或 `ContextMenu` 键锚定触发控件打开。使用 `.disabled(true)` 可仅渲染触发控件而不启用菜单。使用 `.open(open)` 和 `.on_open_change(|requested, window, cx| ...)` 时，由调用者持有状态。调用者可接受请求、更新状态并重新渲染。调用者主动更新 `open` 会同步显示和焦点，不会触发变更回调。`.on_dismiss(|window, cx| ...)` 报告用户操作发出的关闭请求。`Menu::composed` 向自定义触发控件提供当前显示状态及激活回调。
+`Menu::new` 默认自行管理显示状态，`Menu::new_with(id, trigger, |window, cx| ...)` 仅在菜单展开时延迟构造菜单项。任意 `IntoElement` 也可通过 `MaterialElementExt::context_menu(id, items)` 或延迟形式 `MaterialElementExt::context_menu_with(id, |window, cx| ...)` 以后缀方式附加右键上下文菜单。调用 `.context()` 后，右键点击会在指针坐标处弹出并自动限制在视口内（除非显式调用 `.position(...)`），在触发区域内再次右键会平滑更新位置，同时不劫持触发控件自身的 `Enter`/`Space` 主操作，并支持通过 `Shift+F10` 或 `ContextMenu` 键锚定触发控件打开。使用 `.disabled(true)` 可仅渲染触发控件而不启用菜单。使用 `.open(open)` 和 `.on_open_change(|requested, window, cx| ...)` 时，由调用者持有状态。调用者可接受请求、更新状态并重新渲染。调用者主动更新 `open` 会同步显示和焦点，不会触发变更回调。`.on_dismiss(|window, cx| ...)` 报告用户操作发出的关闭请求。`Menu::composed` 向自定义触发控件提供当前显示状态及激活回调，可连接到 `Button::on_accessible_activate` 或 `IconButton::on_accessible_activate` 以提供 `AccessibleAction::Click` 而不与菜单的指针处理冲突。
 
 为每个 `MenuItem` 提供稳定的 ID 和无障碍标签。`.content`、`.leading`、`.supporting`、`.trailing` 和 `.selection_icon` 接收可重复创建视觉元素的闭包。可通过 `.tone(SemanticTone)` 或 `.destructive()`（`SemanticTone::Danger` 的快捷方法）以语义角色为标签和前置图标着色，同时保留禁用样式和显式 `MenuItemStyle` 的优先级。通过 `.shortcut(text)` 可在尾部插槽以 `LabelSmall` 与 `OnSurfaceVariant`（禁用时使用禁用色）渲染桌面快捷键提示，显式 `.trailing(...)` 优先。使用 `MenuItem::divider(id)` 可在平铺菜单中插入不参与交互和键盘导航的水平分隔线行。键盘和指针操作由菜单行处理。用 `.checked(value)` 提供勾选状态，通过 `.on_checked_change` 处理请求。选中项继续用 `.selected(value)` 和 `.on_activate`。
 

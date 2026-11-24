@@ -28,8 +28,28 @@ pub(crate) use gpui_material_foundation::control_feedback::{
 pub(crate) type Activate = Rc<dyn Fn(&mut Window, &mut App)>;
 pub(crate) type Change = Rc<dyn Fn(bool, &mut Window, &mut App)>;
 
+pub(crate) enum InvokeAction {
+    Full(Activate),
+    AccessibleOnly(Activate),
+}
+
+impl InvokeAction {
+    pub(crate) fn into_parts(self) -> (Activate, bool) {
+        match self {
+            Self::Full(callback) => (callback, false),
+            Self::AccessibleOnly(callback) => (callback, true),
+        }
+    }
+
+    pub(crate) fn into_callback(self) -> Activate {
+        match self {
+            Self::Full(callback) | Self::AccessibleOnly(callback) => callback,
+        }
+    }
+}
+
 pub(crate) enum Action {
-    Invoke(Option<Activate>),
+    Invoke(Option<InvokeAction>),
     Toggle {
         selected: bool,
         on_change: Option<Change>,
@@ -79,7 +99,6 @@ pub(crate) struct ActionLayout {
     pub(crate) segment: Option<SegmentShape>,
     pub(crate) width: Option<Pixels>,
     pub(crate) tab_stop: bool,
-    pub(crate) semantic_only: bool,
     pub(crate) decorative: bool,
     pub(crate) loading: bool,
     pub(crate) appearance: ButtonStyle,
@@ -583,7 +602,7 @@ fn render_invoke_control(
     disabled: bool,
     focus: FocusHandle,
     layout: ActionLayout,
-    on_activate: Option<Activate>,
+    on_activate: Option<InvokeAction>,
     content: impl IntoElement,
     feedback: Rc<RefCell<FeedbackState>>,
     foreground: Hsla,
@@ -604,7 +623,8 @@ fn render_invoke_control(
             })
         });
     let control = match on_activate {
-        Some(on_activate) if interactive => {
+        Some(action) if interactive => {
+            let (on_activate, semantic_only) = action.into_parts();
             let on_activate = Rc::new(ThemeScope::bind_action(
                 move |window, cx| on_activate(window, cx),
                 window,
@@ -618,7 +638,7 @@ fn render_invoke_control(
                     invoke(window, cx);
                 }
             });
-            control.when(!layout.semantic_only, |control| {
+            control.when(!semantic_only, |control| {
                 control.on_click(move |event, window, cx| {
                     cx.stop_propagation();
                     if !feedback.borrow().blocks_activation(event) {

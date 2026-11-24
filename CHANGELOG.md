@@ -4,6 +4,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Components
+
+- Expose `Button::on_accessible_activate` and `IconButton::on_accessible_activate` to register only `AccessibleAction::Click` without attaching `on_click`, preventing mouse-down/click conflicts when used as triggers for `Menu::composed` or `gpui_base::Popover`.
+
 ## 0.3.3 - 2026-11-24
 
 Changes since [v0.3.2](https://github.com/wangdiandao/gpui-material/releases/tag/v0.3.2).

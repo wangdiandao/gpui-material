@@ -30,6 +30,8 @@ jobs:
     outputs:
       docs: ${{ steps.scope.outputs.docs }}
       website: ${{ steps.scope.outputs.website }}
+      checks: ${{ steps.scope.outputs.checks }}
+      release_scripts: ${{ steps.scope.outputs.release_scripts }}
       native: ${{ steps.scope.outputs.native }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -44,24 +46,55 @@ jobs:
           PUSH_BEFORE: ${{ github.event.before }}
         run: bash .github/scripts/ci-scope.sh "${PR_BASE:-$PUSH_BEFORE}"
 
-  docs:
-    name: Documentation checks
+  repo-checks:
+    name: Repository checks
     needs: scope
-    if: needs.scope.outputs.docs == 'true'
+    if: needs.scope.outputs.docs == 'true' || needs.scope.outputs.checks == 'true' || needs.scope.outputs.release_scripts == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
 
+      - name: Install Linux platform dependencies
+        if: needs.scope.outputs.checks == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang pkg-config libfontconfig-dev libwayland-dev \
+            libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev libvulkan1
+
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        if: needs.scope.outputs.docs == 'true' || needs.scope.outputs.checks == 'true'
         with:
-          key: xtask-ubuntu-24.04
+          key: repo-checks-ubuntu-24.04
           save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
       - name: Check Markdown links and bilingual pairs
+        if: needs.scope.outputs.docs == 'true'
         run: cargo xtask docs --check
+
+      - name: Check formatting
+        if: needs.scope.outputs.checks == 'true'
+        run: cargo fmt --all --check
+
+      - name: Check generated tokens and dependency graphs
+        if: needs.scope.outputs.checks == 'true'
+        run: |
+          cargo xtask tokens --check
+          cargo xtask graph
+
+      - name: Check default workspace and default-feature Gallery
+        if: needs.scope.outputs.checks == 'true'
+        run: |
+          cargo check --locked
+          cargo check --locked -p gpui-material-gallery
+
+      - name: Validate release scripts
+        if: needs.scope.outputs.release_scripts == 'true'
+        run: |
+          python3 -m py_compile .github/scripts/release.py .github/scripts/test_release.py
+          python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 
   website:
     name: Website
@@ -72,33 +105,6 @@ jobs:
     permissions:
       contents: read
       pages: read
-
-  checks:
-    name: Repository checks
-    needs: scope
-    if: needs.scope.outputs.native == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          key: xtask-ubuntu-24.04
-          save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-
-      - name: Check formatting
-        run: cargo fmt --all --check
-
-      - name: Check generated tokens and dependency graphs
-        run: |
-          cargo xtask tokens --check
-          cargo xtask graph
-
-      - name: Check default workspace
-        run: cargo check --locked
 
   native:
     name: ${{ matrix.name }}
@@ -157,21 +163,20 @@ jobs:
         run: cargo test --locked --workspace --all-features
 
       - name: Build native Gallery
-        run: cargo build --locked -p gpui-material-gallery
+        run: cargo build --locked -p gpui-material-gallery --all-features
 
   required:
     name: CI required
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    needs: [scope, docs, website, checks, native]
+    needs: [scope, repo-checks, website, native]
     if: ${{ always() }}
     env:
       SCOPE_RESULT: ${{ needs.scope.result }}
-      DOCS_RESULT: ${{ needs.docs.result }}
+      REPO_CHECKS_RESULT: ${{ needs.repo-checks.result }}
       WEBSITE_RESULT: ${{ needs.website.result }}
-      REPOSITORY_RESULT: ${{ needs.checks.result }}
       NATIVE_RESULT: ${{ needs.native.result }}
-      EXPECTED_DOCS: ${{ needs.scope.outputs.docs == 'true' && 'success' || 'skipped' }}
+      EXPECTED_REPO_CHECKS: ${{ (needs.scope.outputs.docs == 'true' || needs.scope.outputs.checks == 'true' || needs.scope.outputs.release_scripts == 'true') && 'success' || 'skipped' }}
       EXPECTED_WEBSITE: ${{ needs.scope.outputs.website == 'true' && github.event_name != 'push' && 'success' || 'skipped' }}
       EXPECTED_NATIVE: ${{ needs.scope.outputs.native == 'true' && 'success' || 'skipped' }}
     steps:
@@ -182,7 +187,6 @@ jobs:
             [[ "$2" == "$3" ]]
           }
           require_result 'Change scope' "$SCOPE_RESULT" success
-          require_result 'Documentation checks' "$DOCS_RESULT" "$EXPECTED_DOCS"
+          require_result 'Repository checks' "$REPO_CHECKS_RESULT" "$EXPECTED_REPO_CHECKS"
           require_result 'Website' "$WEBSITE_RESULT" "$EXPECTED_WEBSITE"
-          require_result 'Repository checks' "$REPOSITORY_RESULT" "$EXPECTED_NATIVE"
           require_result 'Native matrix' "$NATIVE_RESULT" "$EXPECTED_NATIVE"

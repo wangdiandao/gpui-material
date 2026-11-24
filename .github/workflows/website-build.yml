@@ -18,6 +18,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: 0
       RUSTUP_TOOLCHAIN: nightly-2026-10-31
       WASM_BINDGEN_VERSION: 0.2.130
     steps:
@@ -52,7 +54,7 @@ jobs:
         id: wasm-bindgen-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          path: ~/.local/bin
+          path: ~/.local/bin/wasm-bindgen
           key: wasm-bindgen-${{ env.WASM_BINDGEN_VERSION }}-linux-x64
 
       - name: Install wasm-bindgen

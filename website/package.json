@@ -12,8 +12,8 @@
     "preview": "astro preview"
   },
   "dependencies": {
-    "@astrojs/markdown-remark": "7.3.9",
-    "astro": "7.4.12",
+    "@astrojs/markdown-remark": "7.3.10",
+    "astro": "7.4.13",
     "mdui": "2.1.5",
     "pagefind": "1.6.0",
     "unist-util-visit": "5.2.0"

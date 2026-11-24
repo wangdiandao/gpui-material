@@ -69,7 +69,7 @@ cargo gallery text-field
 
 ## 本地检查
 
-运行 `xtask` 前先暂存新增、重命名和删除的 Markdown 文件，使其进入 Git 索引。`cargo xtask check` 检查 Markdown 链接、标题锚点、双语配对、Token 生成物以及三平台 GPUI/Base 依赖图。
+运行 `xtask` 前先暂存新增、重命名和删除的 Markdown 文件，使其进入 Git 索引。`cargo xtask check` 按 Git 已跟踪和暂存文件校验 Markdown 链接、标题锚点、双语配对（汇总报告全部断链与过期记录）、Token 生成物以及三平台 GPUI/Base 依赖图。运行 `cargo xtask tokens` 时会自动刷新 `docs/theme/token-index.i18n.yaml`。
 
 ```powershell
 git diff --check origin/main
@@ -104,7 +104,7 @@ cargo test --locked --release -p gpui-material-gallery --features test-support -
 - `ripple_clip_benchmark` 单独测量预构建涟漪网格的裁剪耗时。
 - `--frame-profile` 对单个原生窗口预热 2 秒后采样 10 秒，输出 CPU 绘制耗时与平台帧提交间隔的 p50/p95/p99。
 
-如需测量冷/热构建耗时，将报告输出到新的目录：
+如需测量冷/热构建耗时，将报告输出到新的目录（工具会在热构建前更新叶节点源码时间戳，并在结束后自动清理临时 target 目录）：
 
 ```powershell
 cargo fetch --locked --target x86_64-pc-windows-msvc
@@ -136,7 +136,7 @@ cargo install wasm-bindgen-cli --version 0.2.130 --locked
 npm --prefix website run build:wasm
 ```
 
-在仓库设置中将 **Settings → Pages → Build and deployment → Source** 设为 **GitHub Actions**。修改网站源码或 WASM 构建输入的 PR 会运行网站构建；`main` 上更新网站、构建输入或 `docs/` 时会自动部署。
+在仓库设置中将 **Settings → Pages → Build and deployment → Source** 设为 **GitHub Actions**。`npm --prefix website run build:wasm` 支持通过 `RUSTUP_TOOLCHAIN` 覆盖工具链并校验 `wasm-bindgen --version`；`npm --prefix website run build` 还会校验 `website/component/catalog.mjs` 中的所有 `source` 仓内路径。修改网站源码、`docs/` 或 WASM 构建输入的 PR 会运行网站构建；`main` 上更新网站、构建输入或 `docs/` 时会自动部署。
 
 <a id="ci-and-merging"></a>
 
@@ -146,11 +146,10 @@ npm --prefix website run build:wasm
 
 | 作业 | 检查内容 |
 | --- | --- |
-| `Change scope` | 判断变更范围并检查差异空白。 |
-| `Documentation checks` | 文档和工程变更运行 `cargo xtask docs --check`。 |
-| `Website / Build documentation` | 网站源码或构建输入变更时构建带 WASM Gallery 的网站并检查链接。 |
-| `Repository checks` | 检查 Rust 格式、Token 生成物、三平台依赖图及默认工作区。 |
-| `Windows MSVC`、`macOS ARM64`、`Linux x64` | 运行 Clippy、工作区测试、Gallery 无头 UI 测试、原生 Gallery 构建与 Rustdoc 检查（Linux x64）。 |
+| `Change scope` | 判断变更范围（`docs`、`website`、`checks`、`release_scripts`、`native`）并检查差异空白。 |
+| `Repository checks` | 在单一作业内按需运行仓库级检查：`cargo xtask docs --check`、Rust 格式、Token 生成物、三平台依赖图、默认工作区与默认 feature Gallery 检查（`cargo check --locked -p gpui-material-gallery`）以及 `release.py` 语法与单元测试。 |
+| `Website / Build documentation` | 网站源码、`docs/` 或 WASM 构建输入变更时构建带 WASM Gallery 的网站并检查链接。 |
+| `Windows MSVC`、`macOS ARM64`、`Linux x64` | 运行 Clippy、工作区测试、Gallery 无头 UI 测试、原生 Gallery 构建（`--all-features`）与 Rustdoc 检查（Linux x64）。 |
 | `CI required` | 核验选中的作业全部通过、未选中的作业均已跳过。 |
 
 Rust 构建缓存按平台隔离，由 `main` 保存并供 PR 复用。更新 `main` 须通过基于最新主线且 `CI required` 通过的 PR，详见[评审与合并规则](../CONTRIBUTING.zh.md#pr-评审与合并)。发版流程见[版本与发布](release.zh.md#prepare-and-publish)。

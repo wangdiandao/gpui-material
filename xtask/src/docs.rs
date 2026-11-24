@@ -34,6 +34,8 @@ impl ParsedDoc {
 }
 
 pub(crate) fn check() -> Result {
+    let all_tracked = output("git", &["ls-files", "-z"])?;
+    let tracked_paths = collect_tracked_paths(&all_tracked);
     let files = output("git", &["ls-files", "-z", "--", "*.md"])?;
     let mut docs = BTreeMap::new();
     for name in files.split_terminator('\0') {
@@ -42,35 +44,64 @@ pub(crate) fn check() -> Result {
         docs.insert(path, doc);
     }
     let mut count = 0;
+    let mut errors = Vec::new();
     for name in files.split_terminator('\0') {
         let path = Path::new(name);
         let doc = &docs[path];
         visit_links(&doc.tree, &mut |url| {
-            if let Err(error) = check_link(path, url, &docs) {
-                return Err(format!("{name}: {url}: {error}").into());
+            if let Err(error) = check_link(path, url, &docs, &tracked_paths) {
+                errors.push(format!("{name}: {url}: {error}"));
             }
             count += 1;
-            Ok(())
-        })?;
+        });
     }
     println!("Checked {count} Markdown link destinations");
-    i18n::check(&files, &docs)
-}
-
-fn visit_links(node: &Node, visit: &mut impl FnMut(&str) -> Result) -> Result {
-    match node {
-        Node::Link(link) => visit(&link.url)?,
-        Node::Image(image) => visit(&image.url)?,
-        Node::Definition(definition) => visit(&definition.url)?,
-        _ => {}
-    }
-    for child in node.children().into_iter().flatten() {
-        visit_links(child, visit)?;
+    errors.extend(i18n::check(&files, &docs)?);
+    if !errors.is_empty() {
+        return Err(errors.join("\n").into());
     }
     Ok(())
 }
 
-fn check_link(source: &Path, url: &str, docs: &BTreeMap<PathBuf, ParsedDoc>) -> Result {
+fn collect_tracked_paths(git_ls_files_z: &str) -> BTreeSet<PathBuf> {
+    let mut paths = BTreeSet::new();
+    for name in git_ls_files_z.split_terminator('\0') {
+        if name.is_empty() {
+            continue;
+        }
+        let path = PathBuf::from(name);
+        let mut current = path.as_path();
+        while !current.as_os_str().is_empty() {
+            if !paths.insert(current.to_path_buf()) {
+                break;
+            }
+            match current.parent() {
+                Some(parent) => current = parent,
+                None => break,
+            }
+        }
+    }
+    paths
+}
+
+fn visit_links(node: &Node, visit: &mut impl FnMut(&str)) {
+    match node {
+        Node::Link(link) => visit(&link.url),
+        Node::Image(image) => visit(&image.url),
+        Node::Definition(definition) => visit(&definition.url),
+        _ => {}
+    }
+    for child in node.children().into_iter().flatten() {
+        visit_links(child, visit);
+    }
+}
+
+fn check_link(
+    source: &Path,
+    url: &str,
+    docs: &BTreeMap<PathBuf, ParsedDoc>,
+    tracked_paths: &BTreeSet<PathBuf>,
+) -> Result {
     if url.starts_with("//") || url.split('/').next().is_some_and(|part| part.contains(':')) {
         return Ok(());
     }
@@ -96,8 +127,8 @@ fn check_link(source: &Path, url: &str, docs: &BTreeMap<PathBuf, ParsedDoc>) -> 
         }
         path
     };
-    if !docs.contains_key(&path) && !path.exists() {
-        return Err(format!("missing path {}", path.display()).into());
+    if !docs.contains_key(&path) && !tracked_paths.contains(&path) {
+        return Err(format!("missing tracked path {}", path.display()).into());
     }
     if !fragment.is_empty()
         && path
@@ -191,6 +222,17 @@ fn decode(value: &str) -> Result<String> {
 mod tests {
     use super::*;
 
+    fn parsed(text: &str) -> ParsedDoc {
+        let tree = to_mdast(text, &ParseOptions::gfm()).unwrap();
+        let mut anchors = BTreeSet::new();
+        collect_anchors(&tree, &mut anchors);
+        ParsedDoc {
+            text: text.to_owned(),
+            tree,
+            anchors,
+        }
+    }
+
     #[test]
     fn handles_unicode_and_duplicate_headings() {
         let tree = to_mdast(
@@ -216,9 +258,63 @@ mod tests {
         let mut urls = Vec::new();
         visit_links(&tree, &mut |url| {
             urls.push(url.to_owned());
-            Ok(())
-        })
-        .unwrap();
+        });
         assert_eq!(urls, ["p.md"]);
+    }
+
+    #[test]
+    fn validates_links_against_tracked_files_and_directories() {
+        let tracked = collect_tracked_paths("docs/development.md\0website/package.json\0");
+        let mut docs = BTreeMap::new();
+        docs.insert(
+            PathBuf::from("docs/development.md"),
+            parsed("# Development\n\n## Local checks\n"),
+        );
+
+        assert!(
+            check_link(
+                Path::new("docs/development.md"),
+                "../website/",
+                &docs,
+                &tracked
+            )
+            .is_ok()
+        );
+        assert!(
+            check_link(
+                Path::new("docs/development.md"),
+                "#local-checks",
+                &docs,
+                &tracked
+            )
+            .is_ok()
+        );
+        assert!(
+            check_link(
+                Path::new("docs/development.md"),
+                "../untracked-local-file.txt",
+                &docs,
+                &tracked
+            )
+            .is_err()
+        );
+        assert!(
+            check_link(
+                Path::new("docs/development.md"),
+                "#missing-anchor",
+                &docs,
+                &tracked
+            )
+            .is_err()
+        );
+        assert!(
+            check_link(
+                Path::new("docs/development.md"),
+                "../../outside.md",
+                &docs,
+                &tracked
+            )
+            .is_err()
+        );
     }
 }

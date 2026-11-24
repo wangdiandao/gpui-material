@@ -150,6 +150,9 @@ pub(crate) fn run(check: bool) -> Result {
             fs::write(path, contents)?;
         }
     }
+    if !check {
+        crate::docs::write_records(&[INDEX])?;
+    }
     println!(
         "Material tokens verified ({})",
         if check { "check" } else { "generate" }

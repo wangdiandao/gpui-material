@@ -13,7 +13,7 @@ edition = "2024"
 [dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.14" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.14", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui-material = "0.3.2"
+gpui-material = "0.3.3"
 
 # Recommended for smooth dev-build rendering (see practices.md for the full list).
 [profile.dev.package]

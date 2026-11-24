@@ -15,7 +15,8 @@ use gpui_material_theme::{
 };
 
 use crate::action::{
-    Action, ActionControl, ActionLayout, ActionStyle, Activate, DisabledStyle, icon_slot,
+    Action, ActionControl, ActionLayout, ActionStyle, Activate, DisabledStyle, InvokeAction,
+    icon_slot,
 };
 use crate::button_style::{ButtonColors, ButtonElevations, ButtonStyle};
 use crate::motion::OverlayMotion;
@@ -279,7 +280,7 @@ impl FabContent {
             label: self.name,
             focus: self.focus,
             disabled: self.disabled,
-            action: Action::Invoke(self.on_activate),
+            action: Action::Invoke(self.on_activate.map(InvokeAction::Full)),
             content: content.into_any_element(),
         }
     }

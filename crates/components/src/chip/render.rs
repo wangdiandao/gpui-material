@@ -15,8 +15,8 @@ use gpui_material_theme::{
 };
 
 use crate::action::{
-    Action, ActionControl, ActionLayout, ActionStyle, Activate, DisabledStyle, SegmentShape,
-    icon_slot, interpolated_corners,
+    Action, ActionControl, ActionLayout, ActionStyle, Activate, DisabledStyle, InvokeAction,
+    SegmentShape, icon_slot, interpolated_corners,
 };
 use crate::button_style::{
     ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShapes, ButtonStyle,
@@ -423,7 +423,7 @@ fn render_split_chip(
         label: remove_label,
         focus: None,
         disabled,
-        action: Action::Invoke(Some(on_remove)),
+        action: Action::Invoke(Some(InvokeAction::Full(on_remove))),
         style: split_action_style(style, 32.),
         content: logical_edges(
             div().relative().pt(padding.top).pb(padding.bottom),
@@ -642,7 +642,7 @@ impl RenderOnce for Chip {
                     on_change: self.on_change,
                 }
             } else {
-                Action::Invoke(self.on_activate)
+                Action::Invoke(self.on_activate.map(InvokeAction::Full))
             },
             style: if split {
                 split_action_style(style, 0.)

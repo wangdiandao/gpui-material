@@ -18,14 +18,13 @@ pub struct ButtonPart {
     variant: ButtonVariant,
     selected: Option<bool>,
     presentation_selected: Option<bool>,
-    on_activate: Option<Activate>,
+    on_activate: Option<InvokeAction>,
     on_change: Option<Change>,
     segment: Option<Segment>,
     icon: Option<AnyElement>,
     slots: Slots,
     width: Option<Pixels>,
     tab_stop: bool,
-    semantic_only: bool,
     icon_width: Option<IconButtonWidth>,
 }
 
@@ -43,7 +42,6 @@ impl ButtonPart {
             slots: Slots::default(),
             width: Some(width),
             tab_stop: true,
-            semantic_only: false,
             icon_width: None,
         }
     }
@@ -99,7 +97,7 @@ impl ButtonPart {
     }
 
     pub fn on_activate(mut self, callback: impl Fn(&mut Window, &mut App) + 'static) -> Self {
-        self.on_activate = Some(Rc::new(callback));
+        self.on_activate = Some(InvokeAction::Full(Rc::new(callback)));
         self
     }
 
@@ -107,8 +105,7 @@ impl ButtonPart {
         mut self,
         callback: impl Fn(&mut Window, &mut App) + 'static,
     ) -> Self {
-        self.on_activate = Some(Rc::new(callback));
-        self.semantic_only = true;
+        self.on_activate = Some(InvokeAction::AccessibleOnly(Rc::new(callback)));
         self
     }
 }
@@ -220,7 +217,8 @@ impl RenderOnce for ButtonPart {
             Action::Toggle {
                 selected,
                 on_change: self.on_change.or_else(|| {
-                    self.on_activate.map(|callback| {
+                    self.on_activate.map(|action| {
+                        let callback = action.into_callback();
                         Rc::new(move |_, window: &mut Window, cx: &mut App| callback(window, cx))
                             as Change
                     })
@@ -244,7 +242,6 @@ impl RenderOnce for ButtonPart {
                 segment,
                 width: self.width,
                 tab_stop: self.tab_stop,
-                semantic_only: self.semantic_only,
                 appearance: self.common.appearance,
                 presentation_selected: self.presentation_selected,
                 ..Default::default()

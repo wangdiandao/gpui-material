@@ -10,14 +10,17 @@ publish = ["crates-io"]
 
 [features]
 default = []
-embed-assets = []
+embed-assets = ["embed-outlined", "embed-rounded", "embed-sharp"]
+embed-outlined = []
+embed-rounded = []
+embed-sharp = []
 
 [dependencies]
 ttf-parser = { version = "0.25.1", default-features = false, features = ["std", "variable-fonts"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-js-sys = "0.3.107"
-wasm-bindgen = "0.2.130"
+js-sys.workspace = true
+wasm-bindgen.workspace = true
 web-sys = { version = "0.3.107", features = ["Response", "Window"] }
 
 [package.metadata.docs.rs]

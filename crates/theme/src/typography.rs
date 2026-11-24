@@ -1,3 +1,5 @@
+use std::sync::{Arc, LazyLock};
+
 use crate::{
     LayoutPolicy,
     generated::{BASELINE_TYPE_STYLES, EMPHASIZED_TYPE_STYLES},
@@ -13,30 +15,94 @@ pub enum Typeface {
 }
 
 /// Family preference and ordered fallback for one typeface.
+///
+/// Uses shared [`Arc<str>`] storage so cloning [`crate::MaterialTheme`] does not
+/// allocate on the heap.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FontFamilies {
     /// Preferred primary font family name (defaults to `"Roboto"`).
-    pub primary: String,
+    pub primary: Arc<str>,
     /// Ordered fallback font family names tried when [`Self::primary`] is unavailable.
-    pub fallback: Vec<String>,
+    pub fallback: Arc<[Arc<str>]>,
+}
+
+impl FontFamilies {
+    /// Creates a font family stack from a primary family and ordered fallbacks.
+    pub fn new(
+        primary: impl Into<Arc<str>>,
+        fallback: impl IntoIterator<Item = impl Into<Arc<str>>>,
+    ) -> Self {
+        Self {
+            primary: primary.into(),
+            fallback: fallback.into_iter().map(Into::into).collect(),
+        }
+    }
+
+    /// Replaces the preferred primary font family name.
+    pub fn with_primary(mut self, primary: impl Into<Arc<str>>) -> Self {
+        self.primary = primary.into();
+        self
+    }
+
+    /// Replaces the ordered fallback font family names.
+    pub fn with_fallback(
+        mut self,
+        fallback: impl IntoIterator<Item = impl Into<Arc<str>>>,
+    ) -> Self {
+        self.fallback = fallback.into_iter().map(Into::into).collect();
+        self
+    }
 }
 
 impl Default for FontFamilies {
     fn default() -> Self {
-        Self {
-            primary: "Roboto".into(),
-            fallback: [
-                "SF Pro Text",
-                "Segoe UI",
-                "Noto Sans",
-                "PingFang SC",
-                "Microsoft YaHei UI",
-                "Noto Sans CJK SC",
-            ]
-            .map(str::to_owned)
-            .into(),
+        static DEFAULT: LazyLock<FontFamilies> = LazyLock::new(|| {
+            FontFamilies::new(
+                "Roboto",
+                [
+                    "SF Pro Text",
+                    "Segoe UI",
+                    "Noto Sans",
+                    "PingFang SC",
+                    "Microsoft YaHei UI",
+                    "Noto Sans CJK SC",
+                ],
+            )
+        });
+        DEFAULT.clone()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for FontFamilies {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[derive(serde::Serialize)]
+        #[serde(rename = "FontFamilies")]
+        struct SerializedFontFamilies<'a> {
+            primary: &'a str,
+            fallback: Vec<&'a str>,
         }
+
+        SerializedFontFamilies {
+            primary: self.primary.as_ref(),
+            fallback: self.fallback.iter().map(Arc::as_ref).collect(),
+        }
+        .serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for FontFamilies {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(serde::Deserialize)]
+        #[serde(rename = "FontFamilies")]
+        struct SerializedFontFamilies {
+            primary: String,
+            fallback: Vec<String>,
+        }
+
+        let raw = SerializedFontFamilies::deserialize(deserializer)?;
+        Ok(Self::new(raw.primary, raw.fallback))
     }
 }
 

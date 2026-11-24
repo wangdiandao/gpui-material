@@ -1,3 +1,5 @@
+use std::sync::{Arc, LazyLock};
+
 use gpui::{Bounds, Pixels, Point};
 use gpui_material_theme::{CornerShape, Direction, MaterialShape, PolygonRole, PolygonSpec};
 use polymorpher::{CornerRounding, Cubic, RoundedPolygon, geometry::Point as PolygonPoint, shapes};
@@ -9,21 +11,40 @@ use super::{Shape, ShapeFit};
 /// Third-party polygon types stay inside Foundation so components and applications
 /// share one shape pipeline across Expressive presets, rounded rectangles, custom
 /// polygons, and morph transitions.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct ShapePolygon {
     kind: PolygonKind,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 enum PolygonKind {
-    Rounded(RoundedPolygon),
-    Cubics(Vec<Cubic>),
+    Rounded(Arc<RoundedPolygon>),
+    Cubics(Arc<[Cubic]>),
 }
+
+impl PartialEq for ShapePolygon {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.kind, &other.kind) {
+            (PolygonKind::Rounded(a), PolygonKind::Rounded(b)) => Arc::ptr_eq(a, b) || a == b,
+            (PolygonKind::Cubics(a), PolygonKind::Cubics(b)) => Arc::ptr_eq(a, b) || a == b,
+            _ => false,
+        }
+    }
+}
+
+static MATERIAL_POLYGONS: LazyLock<[Arc<RoundedPolygon>; MaterialShape::ALL.len()]> =
+    LazyLock::new(|| MaterialShape::ALL.map(|shape| Arc::new(build_material_polygon(shape))));
 
 impl ShapePolygon {
     /// Constructs one of the 35 Material 3 Expressive shapes matching Compose `MaterialShapes`.
     pub fn material(shape: MaterialShape) -> Self {
-        Self::from_rounded(material_polygon(shape))
+        let index = MaterialShape::ALL
+            .iter()
+            .position(|candidate| *candidate == shape)
+            .unwrap_or(0);
+        Self {
+            kind: PolygonKind::Rounded(Arc::clone(&MATERIAL_POLYGONS[index])),
+        }
     }
 
     /// Constructs a regular rounded circle polygon with at least three vertices.
@@ -147,7 +168,7 @@ impl ShapePolygon {
             PolygonKind::Rounded(polygon) => {
                 let center = polygon.center;
                 Self::from_rounded(
-                    polygon
+                    (**polygon)
                         .clone()
                         .transformed(|p: PolygonPoint| rotate_point_around(p, center, sin, cos))
                         .normalized(),
@@ -226,19 +247,19 @@ impl ShapePolygon {
 
     fn from_rounded(polygon: RoundedPolygon) -> Self {
         Self {
-            kind: PolygonKind::Rounded(polygon),
+            kind: PolygonKind::Rounded(Arc::new(polygon)),
         }
     }
 
     pub(super) fn from_cubics(cubics: Vec<Cubic>) -> Self {
         Self {
-            kind: PolygonKind::Cubics(cubics),
+            kind: PolygonKind::Cubics(Arc::from(cubics)),
         }
     }
 
     pub(super) fn as_rounded(&self) -> Option<&RoundedPolygon> {
         match &self.kind {
-            PolygonKind::Rounded(polygon) => Some(polygon),
+            PolygonKind::Rounded(polygon) => Some(polygon.as_ref()),
             PolygonKind::Cubics(_) => None,
         }
     }
@@ -246,7 +267,7 @@ impl ShapePolygon {
     pub(super) fn cubics(&self) -> &[Cubic] {
         match &self.kind {
             PolygonKind::Rounded(polygon) => &polygon.cubics,
-            PolygonKind::Cubics(cubics) => cubics,
+            PolygonKind::Cubics(cubics) => cubics.as_ref(),
         }
     }
 
@@ -349,7 +370,7 @@ pub(super) fn rounded_rect_cubics(
     Some(cubics)
 }
 
-fn material_polygon(shape: MaterialShape) -> RoundedPolygon {
+fn build_material_polygon(shape: MaterialShape) -> RoundedPolygon {
     match shape {
         MaterialShape::Circle => shapes::circle(None),
         MaterialShape::Square => shapes::square(),

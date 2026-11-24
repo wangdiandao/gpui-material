@@ -577,11 +577,11 @@ fn render_visual_surface(
             }
 
             let feedback = paint_feedback.borrow();
-            if let Some(shape) = &feedback.shape {
+            if let Some(shape) = feedback.shape() {
                 InteractionFeedback::new(interaction, palette.foreground, palette.ring)
                     .paint_with_opacity(
                         shape,
-                        feedback.ripple.as_ref(),
+                        feedback.ripple(),
                         visuals.layer,
                         cx.background_executor().now(),
                         reduced,
@@ -835,7 +835,7 @@ pub(crate) fn ripple_ink(
         },
         move |_, _, window, cx| {
             let state = state.borrow();
-            if let (Some(shape), Some(ripple)) = (&state.shape, &state.ripple) {
+            if let (Some(shape), Some(ripple)) = (state.shape(), state.ripple()) {
                 ripple.paint(
                     shape,
                     tint,

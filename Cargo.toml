@@ -20,7 +20,12 @@ gpui-material-components = { version = "=0.3.3", path = "crates/components", def
 gpui-material-extras = { version = "=0.3.3", path = "crates/extras" }
 gpui-material-foundation = { version = "=0.3.3", path = "crates/foundation" }
 gpui-material-theme = { version = "=0.3.3", path = "crates/theme" }
+js-sys = "0.3.107"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+wasm-bindgen = "0.2.130"
 web-time = "1.1.0"
+windows = "0.62.2"
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.14", features = [
     "font-kit",
     "x11",
@@ -30,6 +35,14 @@ gpui_platform = { package = "gpui-pre-platform", version = "=0.3.14", features =
 
 [profile.dev]
 debug = 0
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = "s"
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = true
 
 # Optimize rendering and layout dependencies while keeping workspace code in the normal dev profile.
 [profile.dev.package]
@@ -41,12 +54,20 @@ gpui-pre-platform = { opt-level = 3 }
 gpui-pre-sum-tree = { opt-level = 3 }
 gpui-pre-wgpu = { opt-level = 3 }
 gpui-pre-windows = { opt-level = 3 }
+harfrust = { opt-level = 3 }
+image = { opt-level = 3 }
+kurbo = { opt-level = 3 }
 lyon_geom = { opt-level = 3 }
 lyon_path = { opt-level = 3 }
+material-color-utils = { opt-level = 3 }
+read-fonts = { opt-level = 3 }
 resvg = { opt-level = 3 }
 ropey = { opt-level = 3 }
 rustybuzz = { opt-level = 3 }
+skrifa = { opt-level = 3 }
 smol = { opt-level = 3 }
 taffy = { opt-level = 3 }
 tiny-skia = { opt-level = 3 }
 ttf-parser = { opt-level = 3 }
+usvg = { opt-level = 3 }
+zune-inflate = { opt-level = 3 }

@@ -1,3 +1,7 @@
+mod overlay;
+#[cfg(test)]
+mod tests;
+
 use std::time::Duration;
 
 use gpui::{App, Bounds, ElementId, Pixels, SpringConfig, SpringState, Window, px};
@@ -5,6 +9,8 @@ pub use gpui_base::motion::MotionStatus;
 use gpui_base::motion::{Easing, TransitionId};
 use gpui_material_theme::{CubicBezier, MotionSpec, Spring};
 use web_time::Instant;
+
+pub use overlay::{OverlayMotion, ScaledOverlay, sanitize_overlay_scale};
 
 const SPRING_EPSILON: f32 = 0.001;
 const TARGET_EPSILON: f32 = 1e-5;
@@ -89,6 +95,37 @@ struct ActiveTween {
     easing: Easing,
 }
 
+fn retarget_active_tween(
+    prev: &ActiveTween,
+    prev_target: f32,
+    target: f32,
+    base_duration: Duration,
+    now: Instant,
+) -> (f32, f32, f32, Duration) {
+    let elapsed = now.saturating_duration_since(prev.started_at);
+    let raw = if prev.duration.is_zero() {
+        1.0
+    } else {
+        (elapsed.as_secs_f32() / prev.duration.as_secs_f32()).clamp(0.0, 1.0)
+    };
+    let eased = prev.easing.sample(raw);
+    let current = prev.from + (prev_target - prev.from) * eased;
+    let reversing = raw < 1.0 && (target - prev.reversing_adjusted_start).abs() <= TARGET_EPSILON;
+    if reversing {
+        let factor = (eased * prev.reversing_factor + (1.0 - prev.reversing_factor))
+            .abs()
+            .clamp(0.0, 1.0);
+        (
+            current,
+            prev_target,
+            factor,
+            base_duration.mul_f64(f64::from(factor)),
+        )
+    } else {
+        (current, current, 1.0, base_duration)
+    }
+}
+
 /// Entity-owned transition supporting mid-flight interruption, proportional
 /// reverse-duration shortening, and immediate reduced-motion settlement.
 #[derive(Clone)]
@@ -99,8 +136,9 @@ pub struct RetargetTransition {
 }
 
 impl RetargetTransition {
-    /// Creates a settled transition already resting at `value`.
+    /// Creates a settled transition already resting at `value` (non-finite values fall back to `0.0`).
     pub fn settled(value: f32) -> Self {
+        let value = if value.is_finite() { value } else { 0.0 };
         Self {
             value,
             target: value,
@@ -123,17 +161,23 @@ impl RetargetTransition {
         self.active.is_some()
     }
 
-    /// Immediately settles the transition at `value` and cancels any active tween.
+    /// Immediately settles the transition at `value` (keeping current value if non-finite)
+    /// and cancels any active tween.
     pub fn snap_to(&mut self, value: f32) {
-        self.value = value;
-        self.target = value;
+        if value.is_finite() {
+            self.value = value;
+            self.target = value;
+        } else {
+            self.target = self.value;
+        }
         self.active = None;
     }
 
     /// Starts or retargets an eased transition toward `target`.
     ///
-    /// Reversing mid-flight proportionally shortens the duration; `reduced_motion` or a
-    /// zero duration snaps immediately to `target`.
+    /// Non-finite targets settle immediately at the current value. Reversing mid-flight
+    /// proportionally shortens the duration; `reduced_motion` or a zero duration snaps
+    /// immediately to `target`.
     pub fn animate_to(
         &mut self,
         target: f32,
@@ -143,6 +187,10 @@ impl RetargetTransition {
         reduced_motion: bool,
     ) {
         let (_, _) = self.sample(now, reduced_motion);
+        if !target.is_finite() {
+            self.snap_to(self.value);
+            return;
+        }
         if reduced_motion || duration.is_zero() || (self.value - target).abs() <= TARGET_EPSILON {
             self.snap_to(target);
             return;
@@ -150,33 +198,18 @@ impl RetargetTransition {
         if (self.target - target).abs() <= TARGET_EPSILON && self.active.is_some() {
             return;
         }
-        let current = self.value;
-        let (reversing_adjusted_start, reversing_factor, effective_duration) =
+        let (current, reversing_adjusted_start, reversing_factor, effective_duration) =
             if let Some(prev) = &self.active {
-                let elapsed = now.saturating_duration_since(prev.started_at);
-                let raw = if prev.duration.is_zero() {
-                    1.0
-                } else {
-                    (elapsed.as_secs_f32() / prev.duration.as_secs_f32()).clamp(0.0, 1.0)
-                };
-                let eased = prev.easing.sample(raw);
-                let reversing = (target - prev.reversing_adjusted_start).abs() <= TARGET_EPSILON;
-                if reversing {
-                    let factor = (eased * prev.reversing_factor + (1.0 - prev.reversing_factor))
-                        .abs()
-                        .clamp(0.0, 1.0);
-                    (self.target, factor, duration.mul_f64(f64::from(factor)))
-                } else {
-                    (current, 1.0, duration)
-                }
+                retarget_active_tween(prev, self.target, target, duration, now)
             } else {
-                (current, 1.0, duration)
+                (self.value, self.value, 1.0, duration)
             };
 
         if effective_duration.is_zero() {
             self.snap_to(target);
             return;
         }
+        self.value = current;
         self.target = target;
         self.active = Some(ActiveTween {
             from: current,
@@ -230,6 +263,7 @@ struct ChannelState {
 
 impl ChannelState {
     fn settled(target: f32) -> Self {
+        let target = if target.is_finite() { target } else { 0.0 };
         Self {
             value: target,
             target,
@@ -238,11 +272,16 @@ impl ChannelState {
     }
 
     fn settle(&mut self, target: f32) -> MotionSample {
-        self.value = target;
-        self.target = target;
+        let settled = if target.is_finite() {
+            target
+        } else {
+            self.value
+        };
+        self.value = settled;
+        self.target = settled;
         self.kind = ChannelKind::Settled;
         MotionSample {
-            value: target,
+            value: settled,
             status: MotionStatus::Finished,
         }
     }
@@ -254,6 +293,9 @@ impl ChannelState {
         now: Instant,
         reduced_motion: bool,
     ) -> MotionSample {
+        if !target.is_finite() {
+            return self.settle(self.value);
+        }
         if reduced_motion || matches!(spec, MotionSpec::Instant) {
             return self.settle(target);
         }
@@ -360,39 +402,16 @@ impl ChannelState {
         }
 
         // Retarget or hand off from current value.
-        let (current, reversing_adjusted_start, reversing_factor, effective_duration) = match &self
-            .kind
-        {
-            ChannelKind::Tween(prev) => {
-                let elapsed = now.saturating_duration_since(prev.started_at);
-                let raw = if prev.duration.is_zero() {
-                    1.0
-                } else {
-                    (elapsed.as_secs_f32() / prev.duration.as_secs_f32()).clamp(0.0, 1.0)
-                };
-                let eased = prev.easing.sample(raw);
-                let current = prev.from + (self.target - prev.from) * eased;
-                let reversing =
-                    raw < 1.0 && (target - prev.reversing_adjusted_start).abs() <= TARGET_EPSILON;
-                if reversing {
-                    let factor = (eased * prev.reversing_factor + (1.0 - prev.reversing_factor))
-                        .abs()
-                        .clamp(0.0, 1.0);
-                    (
-                        current,
-                        self.target,
-                        factor,
-                        base_duration.mul_f64(f64::from(factor)),
-                    )
-                } else {
-                    (current, current, 1.0, base_duration)
+        let (current, reversing_adjusted_start, reversing_factor, effective_duration) =
+            match &self.kind {
+                ChannelKind::Tween(prev) => {
+                    retarget_active_tween(prev, self.target, target, base_duration, now)
                 }
-            }
-            ChannelKind::Spring { state, .. } => {
-                (state.position, state.position, 1.0, base_duration)
-            }
-            ChannelKind::Settled => (self.value, self.value, 1.0, base_duration),
-        };
+                ChannelKind::Spring { state, .. } => {
+                    (state.position, state.position, 1.0, base_duration)
+                }
+                ChannelKind::Settled => (self.value, self.value, 1.0, base_duration),
+            };
 
         if effective_duration.is_zero() || (current - target).abs() <= TARGET_EPSILON {
             return self.settle(target);
@@ -447,7 +466,8 @@ pub(crate) fn spring_config(spec: Spring) -> Option<SpringConfig> {
 ///
 /// Uses one keyed state entity per channel, preserving velocity across spring
 /// retargets, shortening tween reversals proportionally, settling immediately
-/// under reduced motion, and suppressing frame requests while the window is hidden.
+/// under reduced motion or non-finite targets, and suppressing frame requests
+/// while the window is hidden.
 pub fn animate_with_status(
     id: impl Into<TransitionId>,
     target: f32,
@@ -462,6 +482,11 @@ pub fn animate_with_status(
     let state = window.use_keyed_state(id, cx, |_, _| ChannelState::settled(target));
     let now = cx.background_executor().now();
     let reduced = cx.reduce_motion();
+
+    // Guard non-finite targets to prevent permanent frame loops.
+    if !target.is_finite() {
+        return state.update(cx, |channel, _| channel.settle(channel.value));
+    }
 
     // Fast path: avoid mutating/notifying the keyed entity when already settled on target.
     {
@@ -490,155 +515,4 @@ pub fn animate(
     cx: &mut App,
 ) -> f32 {
     animate_with_status(id, target, spec, window, cx).value
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn spring_config_rejects_invalid_and_overflowing_parameters() {
-        for (stiffness, damping) in [
-            (0., 1.),
-            (-1., 1.),
-            (f32::NAN, 1.),
-            (f32::INFINITY, 1.),
-            (f32::from_bits(1), 1.),
-            (400., -0.5),
-            (400., f32::NAN),
-        ] {
-            assert!(
-                spring_config(Spring {
-                    damping_ratio: damping,
-                    stiffness,
-                })
-                .is_none()
-            );
-        }
-        assert!(
-            spring_config(Spring {
-                damping_ratio: 0.9,
-                stiffness: 400.,
-            })
-            .is_some()
-        );
-    }
-
-    #[test]
-    fn loop_clock_holds_phase_while_paused_and_resets_under_reduced_motion() {
-        let t0 = Instant::now();
-        let at = |ms| t0 + Duration::from_millis(ms);
-        let mut clock = LoopClock::default();
-
-        assert_eq!(clock.advance(at(0), true, false), Duration::ZERO);
-        assert_eq!(
-            clock.advance(at(120), true, false),
-            Duration::from_millis(120)
-        );
-        // Pause while clipped off-screen or inactive.
-        assert_eq!(
-            clock.advance(at(120), false, false),
-            Duration::from_millis(120)
-        );
-        // Long idle period does not advance elapsed time.
-        assert_eq!(
-            clock.advance(at(5_000), true, false),
-            Duration::from_millis(120)
-        );
-        assert_eq!(
-            clock.advance(at(5_080), true, false),
-            Duration::from_millis(200)
-        );
-        // Reduced motion resets cleanly.
-        assert_eq!(clock.advance(at(5_100), true, true), Duration::ZERO);
-        assert_eq!(clock.elapsed(), Duration::ZERO);
-    }
-
-    #[test]
-    fn retarget_transition_shortens_mid_flight_reversals_and_settles_on_reduced_motion() {
-        let t0 = Instant::now();
-        let at = |ms| t0 + Duration::from_millis(ms);
-        let linear = Easing::Linear;
-        let mut transition = RetargetTransition::settled(0.0);
-
-        transition.animate_to(
-            1.0,
-            Duration::from_millis(200),
-            linear.clone(),
-            at(0),
-            false,
-        );
-        assert!(transition.is_animating());
-
-        // Advance to 25% (50 ms of 200 ms).
-        let (v, running) = transition.sample(at(50), false);
-        assert!(running);
-        assert!((v - 0.25).abs() < 1e-4);
-
-        // Reverse back to 0.0: duration must shorten to 25% (50 ms), not full 200 ms.
-        transition.animate_to(
-            0.0,
-            Duration::from_millis(200),
-            linear.clone(),
-            at(50),
-            false,
-        );
-        let (mid, running) = transition.sample(at(75), false);
-        assert!(running);
-        assert!((mid - 0.125).abs() < 1e-3, "mid={mid}");
-
-        let (end, running) = transition.sample(at(100), false);
-        assert!(!running);
-        assert_eq!(end, 0.0);
-
-        // Mid-flight reduced motion settles immediately to target.
-        transition.animate_to(1.0, Duration::from_millis(200), linear, at(100), false);
-        let (_, running) = transition.sample(at(120), false);
-        assert!(running);
-        let (settled, running) = transition.sample(at(130), true);
-        assert!(!running);
-        assert_eq!(settled, 1.0);
-    }
-
-    #[test]
-    fn spring_channel_preserves_velocity_across_reversal_and_hands_off_to_tween() {
-        let t0 = Instant::now();
-        let at = |ms| t0 + Duration::from_millis(ms);
-        let spring = MotionSpec::Spring(Spring {
-            damping_ratio: 0.9,
-            stiffness: 700.,
-        });
-        let tween = MotionSpec::Tween {
-            duration_ms: 200,
-            easing: CubicBezier {
-                x1: 0.0,
-                y1: 0.0,
-                x2: 1.0,
-                y2: 1.0,
-            },
-        };
-
-        let mut channel = ChannelState::settled(0.0);
-        let s0 = channel.step(1.0, spring, at(0), false);
-        assert_eq!(s0.status, MotionStatus::Running);
-        let s1 = channel.step(1.0, spring, at(32), false);
-        assert!(s1.value > 0.05 && s1.value < 1.0);
-
-        // Reverse mid-flight: positive velocity carries slightly forward before turning back,
-        // never snapping back to 0 or jumping discontinuously.
-        let rev0 = channel.step(0.0, spring, at(32), false);
-        assert!((rev0.value - s1.value).abs() < 1e-4);
-        let rev1 = channel.step(0.0, spring, at(40), false);
-        assert!(rev1.status == MotionStatus::Running);
-
-        // Switch mid-flight from spring to tween without jumping.
-        let handoff = channel.step(1.0, tween, at(40), false);
-        assert!((handoff.value - rev1.value).abs() < 1e-4);
-        assert_eq!(handoff.status, MotionStatus::Running);
-
-        // Mid-flight reduced motion snaps cleanly to target and stops running.
-        let reduced = channel.step(1.0, tween, at(60), true);
-        assert_eq!(reduced.value, 1.0);
-        assert_eq!(reduced.status, MotionStatus::Finished);
-    }
 }

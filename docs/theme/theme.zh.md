@@ -11,13 +11,13 @@
 | 排版 | `TypeRole::style` 提供 15 个角色的 baseline 和 emphasized Token，`Typography::style` 按主题比例缩放字号、行高和字距。用 `Typography::with_text_scale` 设置比例，默认 1.0，范围为 1.0–2.0，NaN 使用 1.0。控件已有的字体缩放与主题比例相乘。Brand 和 Plain 都优先请求 Roboto，依次回退到 SF Pro Text、Segoe UI、Noto Sans、PingFang SC、Microsoft YaHei UI 和 Noto Sans CJK SC。 |
 | 形状 | `CornerShape`（`uniform`、`top`、`bottom`、`start`、`end`、`Radii`、`Full`）使用逻辑角顺序，按方向映射并限制相邻角总和。满圆角取短边的一半。`MaterialShape` 命名与 Compose `MaterialShapes` 对应的 35 种 Expressive 圆角多边形，`PolygonRole` 保留由 Token 提供的 Circle、Square 和 Triangle 源参数。渲染层负责规范化、轮廓插值、绘制、裁剪及命中检测。 |
 | 动效 | 默认 Standard，可选 Expressive。空间与效果各有 Fast、Default 和 Slow 弹簧。效果弹簧采用临界阻尼。减少动态效果偏好将规格解析为立即完成。固定时长和 Bézier 曲线可通过 Token 查询。 |
-| 布局 | 可用宽度的分界为 600、840、1200、1600 逻辑单位。阈值归入较大的尺寸级。逻辑起止边按 LTR 或 RTL 映射。`LayoutPolicy::scale_text` 用传入的倍率换算文字尺寸。 |
+| 布局 | 可用宽度的分界为 600、840、1200、1600 逻辑单位。阈值归入较大的尺寸级。逻辑起止边按 LTR 或 RTL 映射。`LogicalEdges` 保存非负逻辑四边（`top`/`bottom`/`start`/`end`）并按方向解析；`ColorSpec` 统一表达语义 `ColorRole` 与自定义 `Argb` 颜色覆盖。`LayoutPolicy::scale_text` 用传入的倍率换算文字尺寸。 |
 | 密度 | 桌面策略对组件可视尺寸使用 Compact −4、Standard 0、Comfortable +4 逻辑单位。交互尺寸保留 48 逻辑单位下限。 |
 | 序列化 | `serde` 独立启用主题值的序列化。颜色覆盖以语义角色为键，缺省角色从当前外观的基准表解析。 |
 
 启用 `dynamic-color` 后，`ColorScheme::from_seed_with` 接受 `DynamicVariant` 和 `SpecVersion`。Tonal Spot、Vibrant、Expressive 和 Neutral 支持 Spec2025。Fidelity、Content 和 Monochrome 按上游规则使用 Spec2021。`ThemePreset` 提供基准、命名动态变体、高对比度和参考 [md3.io](https://md3.io/docs/theming/#the-shipped-themes) 的源色预设。
 
-Info、Success 和 Warning 各有一组前景配色和一组容器配色。源色方案将状态色相向源色协调，并使用 MCU 的错误角色对比度策略解析配色。`harmonize_color(design, source)` 将任意 sRGB 色相向目标色协调，`ColorScheme::custom_color(seed, harmonize)` / `custom_color_with_contrast(seed, contrast, harmonize)` 则按当前方案的外观与 Primary 角色，使用同一对比度策略解析四角色 `CustomColorGroup`（`color`、`on_color`、`color_container`、`on_color_container`）。`ColorScheme::blend` 在 sRGB 中插值所有角色及其 alpha，外观在中点切换，两个端点返回原始色谱。`MaterialTheme` 提供链式 `with_colors`、`with_typography`、`with_motion`、`with_layout`、`with_density` 和 `with_direction` 辅助方法，`ThemeScope::density` 与 `ThemeScope::direction` 一并支持子树密度覆盖。
+Info、Success 和 Warning 各有一组前景配色和一组容器配色。源色方案将状态色相向源色协调，并使用 MCU 的错误角色对比度策略解析配色。`harmonize_color(design, source)` 将任意 sRGB 色相向目标色协调，`ColorScheme::custom_color(seed, harmonize)` / `custom_color_with_contrast(seed, contrast, harmonize)` 则按当前方案的外观与 Primary 角色，使用同一对比度策略解析四角色 `CustomColorGroup`（`color`、`on_color`、`color_container`、`on_color_container`）。`ColorScheme::blend` 在 sRGB 中插值所有角色及其 alpha，外观在中点切换，两个端点返回原始色谱。`MaterialTheme` 提供链式 `colors`、`typography`、`motion`、`layout`、`density` 和 `direction` 构建器（`FontFamilies` 使用共享的 `Arc<str>` 与 `Arc<[Arc<str>]>` 存储，避免主题克隆时的堆分配），`ThemeScope::density` 与 `ThemeScope::direction` 一并支持子树密度覆盖。
 
 <a id="token-data"></a>
 

@@ -57,6 +57,10 @@ struct InstalledFonts {
 
 impl Global for InstalledFonts {}
 
+thread_local! {
+    static FALLBACK_INSTALLED_FONTS: RefCell<Option<InstalledFonts>> = const { RefCell::new(None) };
+}
+
 impl InstalledFonts {
     fn enumerate(cx: &App) -> Self {
         Self {
@@ -81,16 +85,22 @@ impl InstalledFonts {
             return (family.clone(), fallbacks.clone());
         }
         let family = std::iter::once(&families.primary)
-            .chain(&families.fallback)
+            .chain(families.fallback.iter())
             .find(|name| {
-                name.as_str() == ".SystemUIFont"
+                name.as_ref() == ".SystemUIFont"
                     || self.families.contains(&name.to_ascii_lowercase())
             })
             .map_or_else(
                 || SharedString::new_static(".SystemUIFont"),
-                |name| SharedString::from(name.clone()),
+                |name| SharedString::from(name.as_ref().to_owned()),
             );
-        let fallbacks = Some(FontFallbacks::from_fonts(families.fallback.clone()));
+        let fallbacks = Some(FontFallbacks::from_fonts(
+            families
+                .fallback
+                .iter()
+                .map(|name| name.as_ref().to_owned())
+                .collect(),
+        ));
         let mut resolved = self.resolved.borrow_mut();
         if resolved.len() < 32 {
             resolved.push((families.clone(), family.clone(), fallbacks.clone()));
@@ -99,8 +109,16 @@ impl InstalledFonts {
     }
 }
 
-pub(crate) fn refresh_installed_fonts(cx: &mut App) {
-    cx.set_global(InstalledFonts::enumerate(cx));
+/// Refreshes the installed-font snapshot and bumps [`font_cache_revision`].
+/// Returns `true` when the set of installed font families changed from the previous snapshot.
+pub(crate) fn refresh_installed_fonts(cx: &mut App) -> bool {
+    let next = InstalledFonts::enumerate(cx);
+    let changed = cx
+        .try_global::<InstalledFonts>()
+        .is_none_or(|prev| prev.families != next.families);
+    cx.set_global(next);
+    FALLBACK_INSTALLED_FONTS.with_borrow_mut(|slot| *slot = None);
+    changed
 }
 
 /// Cache invalidation key for Material's installed-font snapshot. Setting an
@@ -120,7 +138,10 @@ pub fn font_for_style(typography: &Typography, style: TypeStyle, cx: &App) -> Fo
     let families = typography.families(style.typeface);
     let (family, fallbacks) = match cx.try_global::<InstalledFonts>() {
         Some(installed) => installed.resolve_family(families),
-        None => InstalledFonts::enumerate(cx).resolve_family(families),
+        None => FALLBACK_INSTALLED_FONTS.with_borrow_mut(|slot| {
+            slot.get_or_insert_with(|| InstalledFonts::enumerate(cx))
+                .resolve_family(families)
+        }),
     };
     Font {
         family,
@@ -165,9 +186,30 @@ impl ShapedText {
 const TRACKED_LAYOUT_CACHE_LEN: usize = 512;
 type TrackedLayoutSlot = Option<(Arc<gpui::LineLayout>, u32, Arc<gpui::LineLayout>)>;
 
+struct TrackedLayoutCache {
+    revision: u64,
+    slots: Vec<TrackedLayoutSlot>,
+}
+
+impl TrackedLayoutCache {
+    fn new() -> Self {
+        Self {
+            revision: 0,
+            slots: vec![None; TRACKED_LAYOUT_CACHE_LEN],
+        }
+    }
+
+    fn sync_revision(&mut self, revision: u64) {
+        if self.revision != revision {
+            self.slots.fill(None);
+            self.revision = revision;
+        }
+    }
+}
+
 thread_local! {
-    static TRACKED_LAYOUT_CACHE: RefCell<Vec<TrackedLayoutSlot>> =
-        RefCell::new(vec![None; TRACKED_LAYOUT_CACHE_LEN]);
+    static TRACKED_LAYOUT_CACHE: RefCell<TrackedLayoutCache> =
+        RefCell::new(TrackedLayoutCache::new());
 }
 
 /// Shapes one line of application-localized text. Returns `None` for multiline input.
@@ -197,14 +239,16 @@ pub fn shape_text(
         .text_system()
         .shape_line(text, px(style.size), &[run], None);
     if style.tracking != 0. && line.len() > 1 {
+        let revision = font_cache_revision(cx);
         let tracking_bits = style.tracking.to_bits();
         let raw_ptr = Arc::as_ptr(&*line) as usize;
         let hash =
             (raw_ptr >> 4) ^ (raw_ptr >> 13) ^ (tracking_bits as usize).wrapping_mul(0x9e37_79b9);
         let slot_index = hash & (TRACKED_LAYOUT_CACHE_LEN - 1);
         let cached = TRACKED_LAYOUT_CACHE.with(|cache| {
-            let cache = cache.borrow();
-            cache[slot_index]
+            let mut cache = cache.borrow_mut();
+            cache.sync_revision(revision);
+            cache.slots[slot_index]
                 .as_ref()
                 .and_then(|(untracked, bits, tracked)| {
                     (*bits == tracking_bits && Arc::ptr_eq(untracked, &*line))
@@ -251,7 +295,9 @@ pub fn shape_text(
             };
             let untracked = std::mem::replace(&mut *line, tracked.clone());
             TRACKED_LAYOUT_CACHE.with(|cache| {
-                cache.borrow_mut()[slot_index] = Some((untracked, tracking_bits, tracked));
+                let mut cache = cache.borrow_mut();
+                cache.sync_revision(revision);
+                cache.slots[slot_index] = Some((untracked, tracking_bits, tracked));
             });
         }
     }

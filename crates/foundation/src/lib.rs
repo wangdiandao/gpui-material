@@ -13,24 +13,26 @@ pub use root::{
 };
 pub use surface::{
     Surface, SurfaceBorder, SurfaceFeedback, color, elevation_shadow_pair, elevation_shadows,
-    scrim_color,
+    resolve_color_spec, resolve_edges, scrim_color,
 };
 pub use theme_scope::{ThemeScope, current_base_theme, current_material_theme};
 #[doc(hidden)]
 pub use typography::font_cache_revision;
 pub use typography::{ShapedText, font_for_style, shape_text, text_style, wrapped_text};
 
-#[doc(hidden)]
 pub mod control_feedback;
 mod feedback;
 mod motion;
 mod shape;
 
-pub use feedback::{InteractionFeedback, InteractionState, Ripple};
+pub use feedback::{
+    FOCUS_RING_OUTER_OFFSET, FOCUS_RING_WIDTH, FocusRingPlacement, InteractionFeedback,
+    InteractionState, Ripple,
+};
 pub use gpui_material_theme::MaterialShape;
 pub use motion::{
-    LoopClock, MotionSample, MotionStatus, RetargetTransition, animate, animate_with_status,
-    is_bounds_visible,
+    LoopClock, MotionSample, MotionStatus, OverlayMotion, RetargetTransition, ScaledOverlay,
+    animate, animate_with_status, is_bounds_visible, sanitize_overlay_scale,
 };
 pub use shape::{PolygonMorph, Shape, ShapeFit, ShapeMorph, ShapeMorphSequence, ShapePolygon};
 

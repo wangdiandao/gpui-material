@@ -125,3 +125,133 @@ impl LayoutPolicy {
         }
     }
 }
+
+/// Sanitizes a logical scalar dimension to a finite non-negative value.
+///
+/// `NaN`, infinities, negative values, and `-0.0` normalize to `0.0`.
+pub const fn non_negative_f32(value: f32) -> f32 {
+    if !value.is_finite() || value <= 0.0 {
+        0.0
+    } else {
+        value
+    }
+}
+
+/// Direction-aware logical edge insets in density-independent units (`dp`).
+///
+/// Shared across components to avoid duplicating per-component padding structs.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct LogicalEdges {
+    /// Top edge inset in logical units.
+    pub top: f32,
+    /// Bottom edge inset in logical units.
+    pub bottom: f32,
+    /// Inline-start edge inset (left in LTR, right in RTL).
+    pub start: f32,
+    /// Inline-end edge inset (right in LTR, left in RTL).
+    pub end: f32,
+}
+
+impl LogicalEdges {
+    /// Zero insets on all four sides.
+    pub const ZERO: Self = Self {
+        top: 0.0,
+        bottom: 0.0,
+        start: 0.0,
+        end: 0.0,
+    };
+
+    /// Creates uniform insets on all four sides, clamping invalid or negative values to `0.0`.
+    pub const fn all(value: f32) -> Self {
+        let value = non_negative_f32(value);
+        Self {
+            top: value,
+            bottom: value,
+            start: value,
+            end: value,
+        }
+    }
+
+    /// Creates symmetric insets from `horizontal` (start/end) and `vertical` (top/bottom).
+    pub const fn symmetric(horizontal: f32, vertical: f32) -> Self {
+        let horizontal = non_negative_f32(horizontal);
+        let vertical = non_negative_f32(vertical);
+        Self {
+            top: vertical,
+            bottom: vertical,
+            start: horizontal,
+            end: horizontal,
+        }
+    }
+
+    /// Creates explicit logical insets in CSS-like `(top, end, bottom, start)` order.
+    pub const fn new(top: f32, end: f32, bottom: f32, start: f32) -> Self {
+        Self {
+            top: non_negative_f32(top),
+            bottom: non_negative_f32(bottom),
+            start: non_negative_f32(start),
+            end: non_negative_f32(end),
+        }
+    }
+
+    /// Sets the top inset.
+    pub const fn top(mut self, value: f32) -> Self {
+        self.top = non_negative_f32(value);
+        self
+    }
+
+    /// Sets the bottom inset.
+    pub const fn bottom(mut self, value: f32) -> Self {
+        self.bottom = non_negative_f32(value);
+        self
+    }
+
+    /// Sets the inline-start inset.
+    pub const fn start(mut self, value: f32) -> Self {
+        self.start = non_negative_f32(value);
+        self
+    }
+
+    /// Sets the inline-end inset.
+    pub const fn end(mut self, value: f32) -> Self {
+        self.end = non_negative_f32(value);
+        self
+    }
+
+    /// Sets both `start` and `end` insets.
+    pub const fn horizontal(mut self, value: f32) -> Self {
+        let value = non_negative_f32(value);
+        self.start = value;
+        self.end = value;
+        self
+    }
+
+    /// Sets both `top` and `bottom` insets.
+    pub const fn vertical(mut self, value: f32) -> Self {
+        let value = non_negative_f32(value);
+        self.top = value;
+        self.bottom = value;
+        self
+    }
+
+    /// Returns a copy with every side sanitized via [`non_negative_f32`].
+    pub const fn sanitize(self) -> Self {
+        Self {
+            top: non_negative_f32(self.top),
+            bottom: non_negative_f32(self.bottom),
+            start: non_negative_f32(self.start),
+            end: non_negative_f32(self.end),
+        }
+    }
+
+    /// Resolves sanitized insets to physical `[top, right, bottom, left]` order for `direction`.
+    pub const fn resolve(self, direction: Direction) -> [f32; 4] {
+        let clean = self.sanitize();
+        let (left, right) = match direction {
+            Direction::Ltr => (clean.start, clean.end),
+            Direction::Rtl => (clean.end, clean.start),
+        };
+        [clean.top, right, clean.bottom, left]
+    }
+}

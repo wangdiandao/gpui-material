@@ -1,52 +1,20 @@
-use std::{cell::RefCell, rc::Rc};
+mod control;
+mod elevation;
+mod passive;
+
+use std::rc::Rc;
 
 use gpui::{
-    AccessibleAction, AnyElement, App, Bounds, ElementId, Entity, FocusHandle, Hsla, IntoElement,
-    ParentElement, Pixels, RenderOnce, Rgba, Role, SharedString, StatefulInteractiveElement,
-    StyleRefinement, Styled, Toggled, Window, canvas, div, prelude::FluentBuilder, px,
+    AnyElement, App, Bounds, ElementId, Entity, FocusHandle, Hsla, IntoElement, ParentElement,
+    Pixels, RenderOnce, SharedString, StyleRefinement, Styled, Window, px,
 };
-use gpui_base::{Button, StyledExt};
-use gpui_material_theme::{Argb, ColorRole, CornerShape, Direction, Elevation, MaterialTheme};
+use gpui_material_theme::{ColorRole, CornerShape, Direction, Elevation, MaterialTheme};
 
-use crate::{
-    InteractionFeedback, InteractionSource, Shape, ShapeFit, ShapePolygon,
-    control_feedback::{activate_feedback, feedback_target, ripple_state},
-    current_material_theme,
+use crate::{InteractionSource, Shape, ShapeFit, ShapePolygon, current_material_theme};
+
+pub use elevation::{
+    color, elevation_shadow_pair, elevation_shadows, resolve_color_spec, resolve_edges, scrim_color,
 };
-
-/// Converts Material's packed sRGB color and preserves its alpha channel.
-pub fn color(argb: Argb) -> Hsla {
-    let [a, r, g, b] = argb.channels().map(|channel| f32::from(channel) / 255.);
-    Rgba { r, g, b, a }.into()
-}
-
-/// Resolves the Material scrim color for an overlay that owns dismissal and focus.
-pub fn scrim_color(theme: &MaterialTheme, opacity: f32) -> Hsla {
-    color(theme.colors.color(ColorRole::Scrim)).opacity(opacity.clamp(0., 1.))
-}
-
-/// Stack-allocated two-layer desktop shadow projection for custom canvas painters.
-pub fn elevation_shadow_pair(
-    elevation: f32,
-    scale: f32,
-    shadow: Hsla,
-) -> Option<[gpui::BoxShadow; 2]> {
-    let dp = elevation * scale;
-    if !dp.is_finite() || dp <= 0. || !scale.is_finite() || scale <= 0. {
-        return None;
-    }
-    Some([
-        gpui_base::box_shadow(0., dp * 0.4, dp, 0., shadow.opacity(0.18)),
-        gpui_base::box_shadow(0., scale, dp * 0.5, 0., shadow.opacity(0.13)),
-    ])
-}
-
-/// Desktop shadow projection shared by surfaces and custom-painted controls.
-/// `elevation` is in Material logical units; `scale` follows the component geometry.
-/// Compose delegates shadows to its platform renderer; GPUI uses these two layers.
-pub fn elevation_shadows(elevation: f32, scale: f32, shadow: Hsla) -> Vec<gpui::BoxShadow> {
-    elevation_shadow_pair(elevation, scale, shadow).map_or_else(Vec::new, Vec::from)
-}
 
 /// An outline in logical pixels, drawn around the surface's shape.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -118,7 +86,7 @@ pub struct Surface {
     tonal_elevation: Elevation,
     shadow_elevation: Elevation,
     shadow_scale: f32,
-    theme: Option<MaterialTheme>,
+    theme: Option<Rc<MaterialTheme>>,
     control: Option<Control>,
     disabled: bool,
     focus: Option<FocusHandle>,
@@ -163,7 +131,7 @@ impl Surface {
         Self::interactive(id, label, role, SurfaceAction::Activate)
     }
 
-    /// Renders the caller's selection and requests activation through on_activate.
+    /// Renders the caller's selection and requests activation through `on_activate`.
     pub fn selectable(
         id: impl Into<ElementId>,
         label: impl Into<SharedString>,
@@ -173,7 +141,7 @@ impl Surface {
         Self::interactive(id, label, role, SurfaceAction::Select(selected))
     }
 
-    /// Renders the caller's check state and requests the next value through on_checked_change.
+    /// Renders the caller's check state and requests the next value through `on_checked_change`.
     pub fn toggleable(
         id: impl Into<ElementId>,
         label: impl Into<SharedString>,
@@ -332,8 +300,8 @@ impl Surface {
     }
 
     /// Uses an explicit window or subtree theme for this surface.
-    pub fn with_theme(mut self, theme: MaterialTheme) -> Self {
-        self.theme = Some(theme);
+    pub fn theme(mut self, theme: MaterialTheme) -> Self {
+        self.theme = Some(Rc::new(theme));
         self
     }
 }
@@ -351,13 +319,13 @@ impl Styled for Surface {
 }
 
 #[derive(Clone)]
-enum ResolvedShape {
+pub(super) enum ResolvedShape {
     Corners(CornerShape, Direction),
     Polygon(ShapePolygon, ShapeFit),
 }
 
 impl ResolvedShape {
-    fn build(&self, bounds: Bounds<Pixels>) -> Option<Shape> {
+    pub(super) fn build(&self, bounds: Bounds<Pixels>) -> Option<Shape> {
         match self {
             Self::Corners(shape, direction) => Shape::rounded(bounds, *shape, *direction),
             Self::Polygon(polygon, fit) => Shape::polygon(bounds, polygon, *fit),
@@ -365,19 +333,19 @@ impl ResolvedShape {
     }
 }
 
-struct PolygonPaint {
-    background: Hsla,
-    shadow_elevation: f32,
-    shadow_scale: f32,
-    shadow_color: Hsla,
-    border: Option<(Pixels, Hsla)>,
+pub(super) struct PolygonPaint {
+    pub(super) background: Hsla,
+    pub(super) shadow_elevation: f32,
+    pub(super) shadow_scale: f32,
+    pub(super) shadow_color: Hsla,
+    pub(super) border: Option<(Pixels, Hsla)>,
 }
 
 impl RenderOnce for Surface {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let current;
         let theme = match &self.theme {
-            Some(theme) => theme,
+            Some(theme) => theme.as_ref(),
             None => {
                 current = current_material_theme(window, cx);
                 &*current
@@ -487,233 +455,5 @@ impl Surface {
                 Direction::Ltr,
             )
         }
-    }
-
-    fn render_passive(
-        self,
-        resolved_shape: ResolvedShape,
-        polygon_paint: Option<PolygonPaint>,
-    ) -> AnyElement {
-        let clip_backdrop = self.clip_backdrop;
-        if polygon_paint.is_none() && clip_backdrop.is_none() {
-            return div()
-                .refine_style(&self.style)
-                .children(self.children)
-                .into_any_element();
-        }
-        let prepared: Rc<RefCell<Option<Shape>>> = Rc::new(RefCell::new(None));
-        let border = polygon_paint.as_ref().and_then(|paint| paint.border);
-        let prepaint_shape = prepared.clone();
-        let bg_shape = prepared.clone();
-        let background_layer = polygon_paint.map(|paint| {
-            let spec = resolved_shape.clone();
-            canvas(
-                move |bounds, _, _| {
-                    *prepaint_shape.borrow_mut() = spec.build(bounds);
-                },
-                move |_, _, window, _| {
-                    if let Some(shape) = bg_shape.borrow().as_ref() {
-                        shape.paint_shadow(
-                            paint.shadow_elevation,
-                            paint.shadow_scale,
-                            paint.shadow_color,
-                            window,
-                        );
-                        shape.paint(paint.background, window);
-                    }
-                },
-            )
-            .absolute()
-            .inset_0()
-        });
-        let needs_fg = clip_backdrop.is_some() || border.is_some();
-        let fg_prepaint = prepared.clone();
-        let fg_paint = prepared;
-        let has_bg = background_layer.is_some();
-        let foreground_layer = needs_fg.then(|| {
-            canvas(
-                move |bounds, _, _| {
-                    if !has_bg {
-                        *fg_prepaint.borrow_mut() = resolved_shape.build(bounds);
-                    }
-                },
-                move |bounds, _, window, _| {
-                    if let Some(shape) = fg_paint.borrow().as_ref() {
-                        if let Some(backdrop) = clip_backdrop {
-                            shape.paint_backdrop_mask(bounds, backdrop, window);
-                        }
-                        if let Some((width, color)) = border {
-                            shape.paint_stroke(width, color, window);
-                        }
-                    }
-                },
-            )
-            .absolute()
-            .inset_0()
-        });
-        div()
-            .relative()
-            .when(clip_backdrop.is_some(), Styled::overflow_hidden)
-            .refine_style(&self.style)
-            .children(background_layer)
-            .children(self.children)
-            .children(foreground_layer)
-            .into_any_element()
-    }
-
-    fn render_control(
-        self,
-        control: Control,
-        resolved_shape: ResolvedShape,
-        polygon_paint: Option<PolygonPaint>,
-        default_focus: Hsla,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> AnyElement {
-        let focus = self.focus.unwrap_or_else(|| {
-            window
-                .use_keyed_state((control.id.clone(), "focus"), cx, |_, cx| cx.focus_handle())
-                .read(cx)
-                .clone()
-        });
-        let state = ripple_state(&control.id, !self.disabled, window, cx);
-        let shape_hit_test = self.shape_hit_test.unwrap_or(polygon_paint.is_some());
-        state.borrow_mut().set_shape_hit_test(shape_hit_test);
-        let tracker = self
-            .interaction_source
-            .as_ref()
-            .map(|source| InteractionSource::track(source, &control.id, window, cx));
-        let interaction = state
-            .borrow_mut()
-            .track(!self.disabled, &focus, tracker, window, cx);
-        let appearance = self.feedback;
-        let ink = appearance
-            .ink
-            .or(self.style.text.color)
-            .unwrap_or_else(|| window.text_style().color);
-        let ring = if appearance.focus_ring {
-            appearance.focus_color.unwrap_or(default_focus)
-        } else {
-            gpui::transparent_black()
-        };
-        let clip_backdrop = self.clip_backdrop;
-        let border = polygon_paint.as_ref().and_then(|paint| paint.border);
-        let bg_geometry = state.clone();
-        let bg_paint = state.clone();
-        let background_layer = polygon_paint.map(|paint| {
-            let spec = resolved_shape.clone();
-            canvas(
-                move |bounds, window, _| {
-                    bg_geometry
-                        .borrow_mut()
-                        .set_shape(spec.build(bounds), window);
-                },
-                move |_, _, window, _| {
-                    if let Some(shape) = &bg_paint.borrow().shape {
-                        shape.paint_shadow(
-                            paint.shadow_elevation,
-                            paint.shadow_scale,
-                            paint.shadow_color,
-                            window,
-                        );
-                        shape.paint(paint.background, window);
-                    }
-                },
-            )
-            .absolute()
-            .inset_0()
-        });
-        let has_bg = background_layer.is_some();
-        let geometry = state.clone();
-        let paint = state.clone();
-        let visual = canvas(
-            move |bounds, window, _| {
-                if !has_bg {
-                    match &resolved_shape {
-                        ResolvedShape::Corners(corners, direction) => {
-                            geometry
-                                .borrow_mut()
-                                .set_rounded_shape(bounds, *corners, *direction, window);
-                        }
-                        ResolvedShape::Polygon(polygon, fit) => {
-                            geometry
-                                .borrow_mut()
-                                .set_shape(Shape::polygon(bounds, polygon, *fit), window);
-                        }
-                    }
-                }
-            },
-            move |bounds, _, window, cx| {
-                let state = paint.borrow();
-                if let Some(shape) = &state.shape {
-                    if let Some(backdrop) = clip_backdrop {
-                        shape.paint_backdrop_mask(bounds, backdrop, window);
-                    }
-                    if let Some((width, color)) = border {
-                        shape.paint_stroke(width, color, window);
-                    }
-                    let reduced = cx.reduce_motion();
-                    let ripple = state.ripple.as_ref().filter(|_| appearance.ripple);
-                    let layer = interaction
-                        .layer_with_ripple(reduced || ripple.is_none())
-                        .filter(|_| appearance.state_layer)
-                        .map_or(0., |layer| layer.opacity());
-                    InteractionFeedback::new(interaction, ink, ring).paint_with_opacity(
-                        shape,
-                        ripple,
-                        layer,
-                        cx.background_executor().now(),
-                        reduced,
-                        window,
-                    );
-                }
-            },
-        )
-        .absolute()
-        .inset_0();
-        let button = Button::new(control.id)
-            .block()
-            .items_stretch()
-            .justify_start()
-            .when(clip_backdrop.is_some(), Styled::overflow_hidden)
-            .line_height(window.text_style().line_height)
-            .refine_style(&self.style)
-            .accessibility_label(control.label)
-            .track_focus(&focus)
-            .disabled(self.disabled);
-        let button = match control.action {
-            SurfaceAction::Activate => button,
-            SurfaceAction::Select(value) => button.role(Role::ListBoxOption).aria_selected(value),
-            SurfaceAction::Check(value) => button.role(Role::CheckBox).aria_toggled(if value {
-                Toggled::True
-            } else {
-                Toggled::False
-            }),
-        };
-        let button = if let Some(activate) = control.activate.filter(|_| !self.disabled) {
-            let accessible = activate.clone();
-            let feedback = state.clone();
-            button
-                .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
-                    accessible(window, cx);
-                })
-                .on_click(move |event, window, cx| {
-                    cx.stop_propagation();
-                    if !feedback.borrow().blocks_activation(event) {
-                        activate_feedback(event, &feedback, window, cx);
-                        activate(window, cx);
-                    }
-                })
-        } else {
-            button
-        };
-        button
-            .when(!self.disabled, |button| {
-                feedback_target(button, state, true, Some(focus))
-            })
-            .children(background_layer)
-            .children(self.children)
-            .child(visual)
-            .into_any_element()
     }
 }

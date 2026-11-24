@@ -1,17 +1,15 @@
-use std::panic::{AssertUnwindSafe, catch_unwind};
-
 use gpui::{Bounds, Pixels, px};
 use gpui_material_theme::PolygonRole;
-use polymorpher::{Cubic, Morph, geometry::Point as PolygonPoint};
+use polymorpher::{Cubic, Morph, RoundedPolygon, geometry::Point as PolygonPoint};
 
 use super::polygon::{ShapePolygon, cubic_center};
 use super::{Outline, Shape, ShapeFit};
 
 /// A reusable morph between any two [`ShapePolygon`] contours.
 ///
-/// Uses `polymorpher`'s feature-matched morph when both endpoints are `RoundedPolygon`s
-/// and falls back to perimeter-length cubic alignment when an endpoint is an arbitrary
-/// cubic contour or triggers a feature-matching edge case.
+/// Uses `polymorpher`'s feature-matched morph when both endpoints are non-degenerate
+/// `RoundedPolygon`s and falls back to perimeter-length cubic alignment for arbitrary
+/// cubic contours or degenerate geometry.
 #[derive(Clone)]
 pub struct ShapeMorph {
     kind: MorphKind,
@@ -31,13 +29,10 @@ impl ShapeMorph {
         let start = start.into();
         let end = end.into();
         let kind = match (start.as_rounded(), end.as_rounded()) {
-            (Some(from), Some(to)) => {
-                match catch_unwind(AssertUnwindSafe(|| Morph::new(from.clone(), to.clone()))) {
-                    Ok(morph) => MorphKind::FeatureMatched(morph),
-                    Err(_) => {
-                        MorphKind::PerimeterAligned(align_perimeter(&from.cubics, &to.cubics))
-                    }
-                }
+            (Some(from), Some(to))
+                if is_valid_morph_polygon(from) && is_valid_morph_polygon(to) =>
+            {
+                MorphKind::FeatureMatched(Morph::new(from.clone(), to.clone()))
             }
             _ => MorphKind::PerimeterAligned(align_perimeter(start.cubics(), end.cubics())),
         };
@@ -257,6 +252,7 @@ impl ShapeMorphSequence {
             rotation: rotation_radians,
             pivot,
             scale,
+            rounded_rect: None,
         })
     }
 
@@ -285,6 +281,29 @@ impl PolygonMorph {
     pub fn sample(&self, bounds: Bounds<Pixels>, progress: f32) -> Option<Shape> {
         self.0.sample(bounds, progress)
     }
+}
+
+fn is_valid_morph_polygon(polygon: &RoundedPolygon) -> bool {
+    if polygon.cubics.len() < 2 {
+        return false;
+    }
+    let size = polygon.aabb(true).size();
+    size.width.is_finite()
+        && size.height.is_finite()
+        && size.width > 1e-4
+        && size.height > 1e-4
+        && polygon.center.x.is_finite()
+        && polygon.center.y.is_finite()
+        && polygon.cubics.iter().all(|cubic| {
+            [
+                cubic.anchor0(),
+                cubic.control0(),
+                cubic.control1(),
+                cubic.anchor1(),
+            ]
+            .into_iter()
+            .all(|point| point.x.is_finite() && point.y.is_finite())
+        })
 }
 
 fn clamp_progress(progress: f32) -> f32 {

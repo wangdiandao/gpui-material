@@ -4,6 +4,7 @@
 //! `embed-assets` feature also provides bundled fonts. Browser apps can
 //! asynchronously fetch a TrueType asset with `SymbolFont::fetch`.
 //! Pass the generated SVG bytes to `gpui_material::Icon::svg_data` or GPUI's SVG element.
+#![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![deny(rustdoc::broken_intra_doc_links)]
 

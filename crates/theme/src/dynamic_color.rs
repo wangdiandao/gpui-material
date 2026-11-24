@@ -1,6 +1,8 @@
 use material_color_utils::{
     blend::blend_functions::Blend,
-    dynamic::color_spec::SpecVersion as McuSpec,
+    contrast::contrast_utils::Contrast,
+    dynamic::{color_spec::SpecVersion as McuSpec, contrast_curve::ContrastCurve},
+    hct::hct_color::Hct,
     palettes::tonal_palette::TonalPalette,
     scheme::{
         SchemeContent, SchemeExpressive, SchemeFidelity, SchemeMonochrome, SchemeNeutral,
@@ -119,7 +121,7 @@ impl ColorScheme {
                     .build()
             };
         }
-        let mut scheme = match variant {
+        let scheme = match variant {
             DynamicVariant::TonalSpot => build!(SchemeTonalSpot),
             DynamicVariant::Vibrant => build!(SchemeVibrant),
             DynamicVariant::Expressive => build!(SchemeExpressive),
@@ -132,6 +134,7 @@ impl ColorScheme {
         for (role, color) in dynamic_colors(&scheme) {
             colors.set_color(role, color);
         }
+        let surface_tone = highest_surface_tone(&colors);
         use ColorRole::*;
         for (status_seed, roles) in [
             (0xff00_61a4, [Info, OnInfo, InfoContainer, OnInfoContainer]),
@@ -144,21 +147,16 @@ impl ColorScheme {
                 [Warning, OnWarning, WarningContainer, OnWarningContainer],
             ),
         ] {
-            // Resolve each custom palette with the same tone and contrast
-            // relationships as Error, against the generated surface palette.
-            scheme.error_palette =
-                TonalPalette::from_hct(Blend::harmonize(McuArgb(status_seed), seed).into());
-            scheme.argb_cache.pin().clear();
-            scheme.hct_cache.pin().clear();
-            scheme.tone_cache.pin().clear();
+            let harmonized = Blend::harmonize(McuArgb(status_seed), seed);
+            let group = resolve_custom_group(harmonized, surface_tone, dark, contrast);
             let values = [
-                scheme.error(),
-                scheme.on_error(),
-                scheme.error_container(),
-                scheme.on_error_container(),
+                group.color,
+                group.on_color,
+                group.color_container,
+                group.on_color_container,
             ];
             for (role, color) in roles.into_iter().zip(values) {
-                colors.set_color(role, Argb::from_u32(color.0));
+                colors.set_color(role, color);
             }
         }
         colors
@@ -176,15 +174,14 @@ impl ColorScheme {
     /// Resolves a Material 3 four-role [`CustomColorGroup`] for `seed` in this
     /// scheme's appearance and requested contrast (`-1.0..=1.0`, `NaN` -> `0.0`).
     ///
-    /// Uses MCU's error-role contrast curve against a Tonal Spot scheme seeded
-    /// from this scheme's [`ColorRole::Primary`] role.
+    /// Uses Material 3's error-role contrast curves against this scheme's
+    /// highest-emphasis surface tone via [`TonalPalette`].
     pub fn custom_color_with_contrast(
         &self,
         seed: Argb,
         contrast: f64,
         harmonize: bool,
     ) -> CustomColorGroup {
-        let primary = McuArgb(self.color(ColorRole::Primary).to_u32() | 0xff00_0000);
         let target = if harmonize {
             McuArgb(harmonize_color(seed, self.color(ColorRole::Primary)).to_u32())
         } else {
@@ -195,17 +192,77 @@ impl ColorScheme {
         } else {
             contrast.clamp(-1.0, 1.0)
         };
-        let mut scheme =
-            SchemeTonalSpot::builder(primary, self.appearance() == Appearance::Dark, contrast)
-                .spec_version(McuSpec::Spec2021)
-                .build();
-        scheme.error_palette = TonalPalette::from_hct(target.into());
-        CustomColorGroup {
-            color: Argb::from_u32(scheme.error().0),
-            on_color: Argb::from_u32(scheme.on_error().0),
-            color_container: Argb::from_u32(scheme.error_container().0),
-            on_color_container: Argb::from_u32(scheme.on_error_container().0),
-        }
+        let dark = self.appearance() == Appearance::Dark;
+        let surface_tone = highest_surface_tone(self);
+        resolve_custom_group(target, surface_tone, dark, contrast)
+    }
+}
+
+fn highest_surface_tone(scheme: &ColorScheme) -> f64 {
+    let role = match scheme.appearance() {
+        Appearance::Light => ColorRole::SurfaceDim,
+        Appearance::Dark => ColorRole::SurfaceBright,
+    };
+    Hct::from_argb(McuArgb(scheme.color(role).to_u32() | 0xff00_0000)).tone()
+}
+
+fn adjust_tone_for_contrast(
+    base: f64,
+    background: f64,
+    required: f64,
+    prefer_lighter: bool,
+) -> f64 {
+    if Contrast::ratio_of_tones(base, background) >= required {
+        return base;
+    }
+    let adjusted = if prefer_lighter {
+        Contrast::lighter(background, required).or_else(|| Contrast::darker(background, required))
+    } else {
+        Contrast::darker(background, required).or_else(|| Contrast::lighter(background, required))
+    };
+    adjusted.unwrap_or(if background < 50.0 { 100.0 } else { 0.0 })
+}
+
+fn resolve_custom_group(
+    target: McuArgb,
+    surface_tone: f64,
+    dark: bool,
+    contrast: f64,
+) -> CustomColorGroup {
+    let palette = TonalPalette::from_hct(target.into());
+
+    let color_tone = adjust_tone_for_contrast(
+        if dark { 80.0 } else { 40.0 },
+        surface_tone,
+        ContrastCurve::new(3.0, 4.5, 7.0, 7.0).get(contrast),
+        dark,
+    );
+    let on_color_tone = adjust_tone_for_contrast(
+        if dark { 20.0 } else { 100.0 },
+        color_tone,
+        ContrastCurve::new(4.5, 7.0, 11.0, 21.0).get(contrast),
+        !dark,
+    );
+    let container_tone = adjust_tone_for_contrast(
+        if dark { 30.0 } else { 90.0 },
+        surface_tone,
+        ContrastCurve::new(1.0, 1.0, 3.0, 4.5).get(contrast),
+        dark,
+    );
+    let on_container_tone = adjust_tone_for_contrast(
+        if dark { 90.0 } else { 30.0 },
+        container_tone,
+        ContrastCurve::new(3.0, 4.5, 7.0, 11.0).get(contrast),
+        dark,
+    );
+
+    let tone_argb =
+        |tone: f64| Argb::from_u32(palette.tone(tone.round().clamp(0.0, 100.0) as i32).0);
+    CustomColorGroup {
+        color: tone_argb(color_tone),
+        on_color: tone_argb(on_color_tone),
+        color_container: tone_argb(container_tone),
+        on_color_container: tone_argb(on_container_tone),
     }
 }
 

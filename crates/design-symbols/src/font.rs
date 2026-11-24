@@ -1,5 +1,6 @@
 use std::{
     borrow::Cow,
+    collections::{HashMap, VecDeque},
     error::Error,
     fmt,
     fmt::Write as _,
@@ -14,9 +15,37 @@ const FILL: Tag = Tag::from_bytes(b"FILL");
 const WEIGHT: Tag = Tag::from_bytes(b"wght");
 const GRADE: Tag = Tag::from_bytes(b"GRAD");
 const OPTICAL_SIZE: Tag = Tag::from_bytes(b"opsz");
-const SVG_CACHE_LEN: usize = 256;
+const SVG_CACHE_CAPACITY: usize = 256;
 
-type SvgCacheSlot = Option<((u32, SymbolAxes), Arc<[u8]>)>;
+type CacheKey = (u32, SymbolAxes);
+
+#[derive(Default)]
+struct SvgCache {
+    entries: HashMap<CacheKey, Arc<[u8]>>,
+    order: VecDeque<CacheKey>,
+}
+
+impl SvgCache {
+    fn get(&self, key: &CacheKey) -> Option<Arc<[u8]>> {
+        self.entries.get(key).cloned()
+    }
+
+    fn insert(&mut self, key: CacheKey, data: Arc<[u8]>) {
+        if let std::collections::hash_map::Entry::Occupied(mut entry) = self.entries.entry(key) {
+            entry.insert(data);
+            return;
+        }
+        while self.entries.len() >= SVG_CACHE_CAPACITY {
+            if let Some(oldest) = self.order.pop_front() {
+                self.entries.remove(&oldest);
+            } else {
+                break;
+            }
+        }
+        self.entries.insert(key, data);
+        self.order.push_back(key);
+    }
+}
 
 /// A font load or glyph extraction error.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -64,7 +93,7 @@ impl Error for SymbolError {}
 pub struct SymbolFont {
     bytes: Cow<'static, [u8]>,
     has_grade_opsz: bool,
-    cache: Mutex<Vec<SvgCacheSlot>>,
+    cache: Mutex<SvgCache>,
 }
 
 impl SymbolFont {
@@ -89,8 +118,42 @@ impl SymbolFont {
         Ok(Self {
             bytes,
             has_grade_opsz,
-            cache: Mutex::new(Vec::new()),
+            cache: Mutex::new(SvgCache::default()),
         })
+    }
+
+    #[cfg(all(
+        any(
+            feature = "embed-outlined",
+            feature = "embed-rounded",
+            feature = "embed-sharp"
+        ),
+        not(target_arch = "wasm32")
+    ))]
+    fn from_embedded_bytes(bytes: &'static [u8]) -> Self {
+        Self {
+            bytes: Cow::Borrowed(bytes),
+            has_grade_opsz: false,
+            cache: Mutex::new(SvgCache::default()),
+        }
+    }
+
+    /// Use the bundled Outlined font on desktop. Requires the `embed-outlined` feature.
+    #[cfg(all(feature = "embed-outlined", not(target_arch = "wasm32")))]
+    pub fn embedded_outlined() -> Self {
+        Self::from_embedded_bytes(include_bytes!("../assets/material-symbols-outlined.ttf"))
+    }
+
+    /// Use the bundled Rounded font on desktop. Requires the `embed-rounded` feature.
+    #[cfg(all(feature = "embed-rounded", not(target_arch = "wasm32")))]
+    pub fn embedded_rounded() -> Self {
+        Self::from_embedded_bytes(include_bytes!("../assets/material-symbols-rounded.ttf"))
+    }
+
+    /// Use the bundled Sharp font on desktop. Requires the `embed-sharp` feature.
+    #[cfg(all(feature = "embed-sharp", not(target_arch = "wasm32")))]
+    pub fn embedded_sharp() -> Self {
+        Self::from_embedded_bytes(include_bytes!("../assets/material-symbols-sharp.ttf"))
     }
 
     /// Use a bundled font on desktop. Requires the `embed-assets` feature.
@@ -98,15 +161,10 @@ impl SymbolFont {
     pub fn embedded(style: crate::SymbolStyle) -> Self {
         use crate::SymbolStyle::{Outlined, Rounded, Sharp};
 
-        let bytes: &'static [u8] = match style {
-            Outlined => include_bytes!("../assets/material-symbols-outlined.ttf"),
-            Rounded => include_bytes!("../assets/material-symbols-rounded.ttf"),
-            Sharp => include_bytes!("../assets/material-symbols-sharp.ttf"),
-        };
-        Self {
-            bytes: Cow::Borrowed(bytes),
-            has_grade_opsz: false,
-            cache: Mutex::new(Vec::new()),
+        match style {
+            Outlined => Self::embedded_outlined(),
+            Rounded => Self::embedded_rounded(),
+            Sharp => Self::embedded_sharp(),
         }
     }
 
@@ -117,15 +175,12 @@ impl SymbolFont {
     pub fn svg_data(&self, symbol: Symbol, axes: SymbolAxes) -> Result<Arc<[u8]>, SymbolError> {
         let codepoint = symbol.codepoint();
         let key = (codepoint, axes);
-        let slot_index = ((codepoint as usize).wrapping_mul(0x9e37_79b9)
-            ^ (usize::from(axes.filled) << 16)
-            ^ usize::from(axes.weight.get()))
-            & (SVG_CACHE_LEN - 1);
-        if let Ok(cache) = self.cache.lock()
-            && let Some(Some((cached_key, svg))) = cache.get(slot_index)
-            && *cached_key == key
-        {
-            return Ok(svg.clone());
+        let mut cache = self
+            .cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(svg) = cache.get(&key) {
+            return Ok(svg);
         }
 
         let mut face = Face::parse(&self.bytes, 0).map_err(|_| SymbolError::InvalidFont)?;
@@ -145,23 +200,42 @@ impl SymbolFont {
             .ok_or(SymbolError::MissingGlyph(symbol))?;
         let em = face.units_per_em();
         let mut buf = String::with_capacity(1024);
-        write!(
+        let _ = write!(
             buf,
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 -{em} {em} {em}"><path transform="scale(1 -1)" d=""#,
-        )
-        .unwrap();
+        );
         let mut svg = SvgPath(buf);
         face.outline_glyph(glyph, &mut svg)
             .ok_or(SymbolError::InvalidOutline(symbol))?;
         svg.0.push_str(r#""/></svg>"#);
         let data: Arc<[u8]> = Arc::from(svg.0.into_bytes());
-        if let Ok(mut cache) = self.cache.lock() {
-            if cache.is_empty() {
-                cache.resize(SVG_CACHE_LEN, None);
-            }
-            cache[slot_index] = Some((key, data.clone()));
-        }
+        cache.insert(key, data.clone());
         Ok(data)
+    }
+}
+
+fn push_coord(out: &mut String, value: f32) {
+    if !value.is_finite() {
+        out.push('0');
+        return;
+    }
+    let scaled = (f64::from(value) * 100.0).round() as i64;
+    if scaled == 0 {
+        out.push('0');
+        return;
+    }
+    if scaled < 0 {
+        out.push('-');
+    }
+    let abs = scaled.unsigned_abs();
+    let int_part = abs / 100;
+    let frac_part = abs % 100;
+    if frac_part == 0 {
+        let _ = write!(out, "{int_part}");
+    } else if frac_part.is_multiple_of(10) {
+        let _ = write!(out, "{int_part}.{}", frac_part / 10);
+    } else {
+        let _ = write!(out, "{int_part}.{frac_part:02}");
     }
 }
 
@@ -169,19 +243,43 @@ struct SvgPath(String);
 
 impl OutlineBuilder for SvgPath {
     fn move_to(&mut self, x: f32, y: f32) {
-        write!(self.0, "M{x} {y}").unwrap();
+        self.0.push('M');
+        push_coord(&mut self.0, x);
+        self.0.push(' ');
+        push_coord(&mut self.0, y);
     }
 
     fn line_to(&mut self, x: f32, y: f32) {
-        write!(self.0, "L{x} {y}").unwrap();
+        self.0.push('L');
+        push_coord(&mut self.0, x);
+        self.0.push(' ');
+        push_coord(&mut self.0, y);
     }
 
     fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
-        write!(self.0, "Q{x1} {y1} {x} {y}").unwrap();
+        self.0.push('Q');
+        push_coord(&mut self.0, x1);
+        self.0.push(' ');
+        push_coord(&mut self.0, y1);
+        self.0.push(' ');
+        push_coord(&mut self.0, x);
+        self.0.push(' ');
+        push_coord(&mut self.0, y);
     }
 
     fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
-        write!(self.0, "C{x1} {y1} {x2} {y2} {x} {y}").unwrap();
+        self.0.push('C');
+        push_coord(&mut self.0, x1);
+        self.0.push(' ');
+        push_coord(&mut self.0, y1);
+        self.0.push(' ');
+        push_coord(&mut self.0, x2);
+        self.0.push(' ');
+        push_coord(&mut self.0, y2);
+        self.0.push(' ');
+        push_coord(&mut self.0, x);
+        self.0.push(' ');
+        push_coord(&mut self.0, y);
     }
 
     fn close(&mut self) {
@@ -194,11 +292,55 @@ mod tests {
     use super::*;
 
     #[test]
-    fn rejects_invalid_font_bytes() {
+    fn rejects_invalid_font_bytes_and_formats_errors() {
         assert!(matches!(
             SymbolFont::from_bytes(Vec::new()),
             Err(SymbolError::InvalidFont)
         ));
+        assert!(SymbolError::InvalidFont.to_string().contains("invalid"));
+        assert!(SymbolError::UnsupportedAxes.to_string().contains("FILL"));
+        assert!(
+            SymbolError::MissingGlyph(Symbol::Favorite)
+                .to_string()
+                .contains("favorite")
+        );
+        assert!(
+            SymbolError::InvalidOutline(Symbol::Favorite)
+                .to_string()
+                .contains("favorite")
+        );
+    }
+
+    #[test]
+    fn push_coord_formats_compactly_without_trailing_zeros() {
+        let fmt = |v| {
+            let mut s = String::new();
+            push_coord(&mut s, v);
+            s
+        };
+        assert_eq!(fmt(0.0), "0");
+        assert_eq!(fmt(-0.001), "0");
+        assert_eq!(fmt(f32::NAN), "0");
+        assert_eq!(fmt(12.0), "12");
+        assert_eq!(fmt(-12.50), "-12.5");
+        assert_eq!(fmt(12.345), "12.35");
+        assert_eq!(fmt(0.05), "0.05");
+    }
+
+    #[test]
+    fn svg_cache_hits_and_evicts_fifo_at_capacity() {
+        let mut cache = SvgCache::default();
+        let axes = SymbolAxes::default();
+        let first: Arc<[u8]> = Arc::from(b"first".as_slice());
+        cache.insert((0, axes), first.clone());
+        assert!(Arc::ptr_eq(&cache.get(&(0, axes)).unwrap(), &first));
+
+        for i in 1..=(SVG_CACHE_CAPACITY as u32) {
+            cache.insert((i, axes), Arc::from(format!("v{i}").into_bytes()));
+        }
+        assert!(cache.get(&(0, axes)).is_none());
+        assert!(cache.get(&(1, axes)).is_some());
+        assert!(cache.get(&(SVG_CACHE_CAPACITY as u32, axes)).is_some());
     }
 
     #[cfg(all(feature = "embed-assets", not(target_arch = "wasm32")))]

@@ -393,10 +393,10 @@ impl RenderOnce for Card {
                     BorderStyle::Solid,
                 ));
                 let feedback = paint_feedback.borrow();
-                if let Some(shape) = &feedback.shape {
+                if let Some(shape) = feedback.shape() {
                     InteractionFeedback::new(interaction, foreground, ring).paint_with_opacity(
                         shape,
-                        feedback.ripple.as_ref(),
+                        feedback.ripple(),
                         layer,
                         cx.background_executor().now(),
                         reduced,

@@ -5,9 +5,10 @@ use std::{
 };
 
 use gpui::{
-    App, ElementId, Global, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels,
-    RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, TextAlign, Window, canvas,
-    div, prelude::FluentBuilder, px,
+    AnyElement, App, Bounds, Element, ElementId, Global, GlobalElementId, Hsla, InspectorElementId,
+    InteractiveElement, IntoElement, LayoutId, ParentElement, Pixels, RenderOnce, Role,
+    SharedString, StatefulInteractiveElement, Styled, TextAlign, Window, canvas, div,
+    prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
 use gpui_material_foundation::{
@@ -37,6 +38,18 @@ impl EllipsisKey {
         let mut hasher = DefaultHasher::new();
         self.text.hash(&mut hasher);
         f32::from(self.width).to_bits().hash(&mut hasher);
+        self.style.size.to_bits().hash(&mut hasher);
+        self.style.line_height.to_bits().hash(&mut hasher);
+        self.style.tracking.to_bits().hash(&mut hasher);
+        self.style.weight.hash(&mut hasher);
+        std::mem::discriminant(&self.style.typeface).hash(&mut hasher);
+        self.font_scale.to_bits().hash(&mut hasher);
+        self.scale_factor.to_bits().hash(&mut hasher);
+        self.font_revision.hash(&mut hasher);
+        self.tint.h.to_bits().hash(&mut hasher);
+        self.tint.s.to_bits().hash(&mut hasher);
+        self.tint.l.to_bits().hash(&mut hasher);
+        self.tint.a.to_bits().hash(&mut hasher);
         hasher.finish() as usize % ELLIPSIS_CACHE_SLOTS
     }
 }
@@ -211,8 +224,11 @@ impl Text {
     }
 
     /// Applies an additional font-size multiplier on top of the window theme's typography scale. Defaults to `1.0`.
+    /// Non-finite or non-positive scales are ignored.
     pub fn font_scale(mut self, scale: f32) -> Self {
-        self.font_scale = scale;
+        if scale.is_finite() && scale > 0. {
+            self.font_scale = scale;
+        }
         self
     }
 
@@ -296,10 +312,87 @@ impl RenderOnce for Text {
                 cx,
             )
         };
-        text.id(self.id.unwrap_or_else(|| "material-text".into()))
-            .test_support()
-            .role(Role::Label)
-            .aria_label(self.value)
+        if let Some(id) = self.id {
+            text.id(id)
+                .test_support()
+                .role(Role::Label)
+                .aria_value(self.value.clone())
+                .aria_label(self.value)
+                .into_any_element()
+        } else if self.wrap {
+            // GPUI's native wrapped text child already exposes a Role::Label node with value.
+            text.into_any_element()
+        } else {
+            AccessibleTextElement {
+                child: text.into_any_element(),
+                value: self.value,
+            }
+            .into_any_element()
+        }
+    }
+}
+
+/// Stateless accessible label wrapper for canvas-painted single-line text when no explicit
+/// element ID is supplied. Exposes `Role::Label` and `node.set_value(...)` without assigning a
+/// colliding hardcoded ID.
+struct AccessibleTextElement {
+    child: AnyElement,
+    value: SharedString,
+}
+
+impl Element for AccessibleTextElement {
+    type RequestLayoutState = ();
+    type PrepaintState = ();
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn a11y_role(&self) -> Option<Role> {
+        Some(Role::Label)
+    }
+
+    fn write_a11y_info(&self, node: &mut gpui::accesskit::Node) {
+        node.set_value(self.value.to_string());
+    }
+
+    fn request_layout(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, ()) {
+        (self.child.request_layout(window, cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        _: Bounds<Pixels>,
+        _: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.child.prepaint(window, cx);
+    }
+
+    fn paint(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        _: Bounds<Pixels>,
+        _: &mut (),
+        _: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.child.paint(window, cx);
     }
 }
 
@@ -318,7 +411,7 @@ pub(crate) fn shape_single_line(
     tint: Hsla,
     window: &Window,
     cx: &App,
-) -> (SharedString, ShapedText) {
+) -> Option<(SharedString, ShapedText)> {
     let clean = clean_line(value);
     let theme = current_material_theme(window, cx);
     let shaped = shape_text(
@@ -329,9 +422,8 @@ pub(crate) fn shape_single_line(
         tint,
         window,
         cx,
-    )
-    .expect("single-line text");
-    (clean, shaped)
+    )?;
+    Some((clean, shaped))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -345,7 +437,9 @@ fn single_line_aligned(
     window: &Window,
     cx: &App,
 ) -> gpui::Div {
-    let shaped = shape_single_line(value, style, font_scale, tint, window, cx);
+    let Some(shaped) = shape_single_line(value, style, font_scale, tint, window, cx) else {
+        return div().min_w_0();
+    };
     single_line_with_shaped_and_align(
         shaped,
         style,
@@ -512,9 +606,8 @@ fn ellipsize(
             window,
             cx,
         )
-        .expect("single-line text")
     };
-    let ellipsis = shape("…".into());
+    let ellipsis = shape("…".into())?;
     if ellipsis.line().width > key.width {
         return None;
     }
@@ -529,7 +622,7 @@ fn ellipsize(
     ends.sort_unstable();
     ends.dedup();
     find_ellipsis_fit(&ends, |end| {
-        let line = shape(format!("{}…", &key.text[..end]).into());
+        let line = shape(format!("{}…", &key.text[..end]).into())?;
         (line.line().width <= key.width).then_some(line)
     })
     .or(Some(ellipsis))

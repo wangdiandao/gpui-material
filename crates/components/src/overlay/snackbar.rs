@@ -1,7 +1,6 @@
 use std::{cell::Cell, collections::VecDeque, rc::Rc, time::Duration};
 
 use crate::SemanticTone;
-use crate::motion::{OverlayMotion, ScaledOverlay};
 use gpui::{
     AnyElement, App, ClickEvent, Context, EntityId, FocusHandle, Hsla, InteractiveElement,
     IntoElement, KeyDownEvent, ParentElement, Render, Role, SharedString,
@@ -9,6 +8,7 @@ use gpui::{
     point, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt as _;
+use gpui_material_foundation::{OverlayMotion, ScaledOverlay};
 use gpui_material_foundation::{color, current_material_theme, elevation_shadows};
 use gpui_material_theme::{ColorRole, CornerShape, Direction, Elevation, TypeRole};
 

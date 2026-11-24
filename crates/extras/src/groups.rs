@@ -5,8 +5,8 @@ use gpui::{
     prelude::FluentBuilder,
 };
 use gpui_material_components::{
-    ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShape, ButtonShapes,
-    ButtonVariant, ControlSize, IconButtonWidth, SemanticTone,
+    ButtonColors, ButtonShape, ButtonVariant, ControlBorder, ControlElevations, ControlShapes,
+    ControlSize, IconButtonWidth, LogicalEdges, SemanticTone,
     button_composition::{ButtonPart, Segment},
 };
 use gpui_material_foundation::InteractionSource;
@@ -66,23 +66,23 @@ pub enum ButtonGroupVerticalAlignment {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ButtonGroupConnectedShapes {
     /// Corner shapes for the first visible segment in a connected group.
-    pub leading: ButtonShapes,
+    pub leading: ControlShapes,
     /// Corner shapes for interior segments in a connected group.
-    pub middle: ButtonShapes,
+    pub middle: ControlShapes,
     /// Corner shapes for the last visible segment in a connected group.
-    pub trailing: ButtonShapes,
+    pub trailing: ControlShapes,
     /// Corner shapes when only a single segment is visible.
-    pub only: ButtonShapes,
+    pub only: ControlShapes,
 }
 
 impl ButtonGroupConnectedShapes {
-    fn for_segment(self, segment: Option<Segment>) -> ButtonShapes {
+    fn for_segment(self, segment: Option<Segment>) -> ControlShapes {
         match segment {
             Some(Segment::Leading) => self.leading,
             Some(Segment::Middle) => self.middle,
             Some(Segment::Trailing) => self.trailing,
             Some(Segment::Only) => self.only,
-            _ => ButtonShapes::default(),
+            _ => ControlShapes::default(),
         }
     }
 }
@@ -91,21 +91,21 @@ impl ButtonGroupConnectedShapes {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ButtonGroupItemStyle {
     /// Corner shape overrides for resting, pressed, and checked states.
-    pub shapes: ButtonShapes,
+    pub shapes: ControlShapes,
     /// Container and content color overrides.
     pub colors: ButtonColors,
     /// Optional border override.
-    pub border: Option<ButtonBorder>,
+    pub border: Option<ControlBorder>,
     /// Elevation overrides across interaction states.
-    pub elevations: ButtonElevations,
+    pub elevations: ControlElevations,
     /// Optional content padding override.
-    pub padding: Option<ButtonPadding>,
+    pub padding: Option<LogicalEdges>,
 }
 
 impl ButtonGroupItemStyle {
-    fn apply(self, button: ButtonPart, shapes: ButtonShapes) -> ButtonPart {
+    fn apply(self, button: ButtonPart, shapes: ControlShapes) -> ButtonPart {
         button
-            .shapes(ButtonShapes {
+            .shapes(ControlShapes {
                 resting: self.shapes.resting.or(shapes.resting),
                 pressed: self.shapes.pressed.or(shapes.pressed),
                 checked: self.shapes.checked.or(shapes.checked),

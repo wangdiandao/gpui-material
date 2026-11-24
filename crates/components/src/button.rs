@@ -1,257 +1,38 @@
+mod action_button;
 mod appearance;
-mod spinner;
+/// Internal composition hooks shared with the optional Material extras crate.
+#[doc(hidden)]
+pub mod composition;
+mod icon_button;
+mod slots;
+mod toggle_button;
+mod types;
 
-use std::rc::Rc;
-
-use gpui::{
-    AnyElement, App, ElementId, Entity, FocusHandle, InteractiveElement, IntoElement,
-    ParentElement, Pixels, RenderOnce, SharedString, Styled, Window, div, px,
+pub use action_button::Button;
+pub use icon_button::{IconButton, IconToggleButton};
+pub use toggle_button::ToggleButton;
+pub use types::{
+    ButtonShape, ButtonVariant, IconButtonVariant, IconButtonWidth, ToggleButtonVariant,
 };
-use gpui_base::TestSupportExt;
-use gpui_material_foundation::{InteractionSource, current_material_theme};
-use gpui_material_theme::{
-    CornerRole, Direction, MotionKind, MotionSpeed, TypeRole, TypographyEmphasis,
-};
-
-use crate::action::{
-    Action, ActionControl, ActionLayout, ActionStyle, Change, InvokeAction, SegmentShape, icon_slot,
-};
-use crate::button_style::{
-    ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShapes, ButtonStyle,
-    ControlSize, finite_length,
-};
-
-use appearance::{button_appearance, icon_appearance};
-use spinner::render_loading_spinner;
-
-#[derive(Clone, Copy)]
-struct Metrics {
-    height: f32,
-    icon: f32,
-    gap: f32,
-    padding: f32,
-    outline: f32,
-    square: CornerRole,
-    pressed: CornerRole,
-    label: TypeRole,
-}
-
-impl ControlSize {
-    // Button{XSmall,Small,Medium,Large,XLarge}Tokens in Compose Material 3 1.5.0-rc01.
-    fn metrics(self) -> Metrics {
-        use CornerRole::*;
-        use TypeRole::*;
-        let (height, icon, gap, padding, outline, square, pressed, label) = match self {
-            Self::ExtraSmall => (32., 20., 8., 16., 1., Medium, Small, LabelLarge),
-            Self::Small => (40., 20., 8., 16., 1., Medium, Small, LabelLarge),
-            Self::Medium => (56., 24., 8., 24., 1., Large, Medium, TitleMedium),
-            Self::Large => (96., 32., 12., 48., 2., ExtraLarge, Large, HeadlineSmall),
-            Self::ExtraLarge => (136., 40., 16., 64., 3., ExtraLarge, Large, HeadlineLarge),
-        };
-        Metrics {
-            height,
-            icon,
-            gap,
-            padding,
-            outline,
-            square,
-            pressed,
-            label,
-        }
-    }
-
-    fn icon_metrics(self, width: IconButtonWidth) -> (Metrics, f32) {
-        // Expressive icon buttons have their own icon and horizontal space.
-        let mut metrics = self.metrics();
-        let (icon, narrow, uniform, wide) = match self {
-            Self::ExtraSmall => (20., 4., 6., 10.),
-            Self::Small => (24., 4., 8., 14.),
-            Self::Medium => (24., 12., 16., 24.),
-            Self::Large => (32., 16., 32., 48.),
-            Self::ExtraLarge => (40., 32., 48., 72.),
-        };
-        metrics.icon = icon;
-        let space = match width {
-            IconButtonWidth::Narrow => narrow,
-            IconButtonWidth::Uniform => uniform,
-            IconButtonWidth::Wide => wide,
-        };
-        (metrics, icon + 2. * space)
-    }
-}
-
-/// Resting corner shape preset for Material buttons.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub enum ButtonShape {
-    /// Pill-shaped full corner radius (default).
-    #[default]
-    Round,
-    /// Size-dependent rounded-square corner radius.
-    Square,
-}
-
-impl ButtonShape {
-    fn corner(self, square: CornerRole, invert: bool) -> CornerRole {
-        if (self == Self::Round) != invert {
-            CornerRole::Full
-        } else {
-            square
-        }
-    }
-}
-
-/// Semantic palette shortcut for Material buttons and icon buttons.
-/// Backwards-compatible alias for [`crate::SemanticTone`].
-/// Per-instance [`ButtonColors`] and [`ButtonBorder`] overrides still take precedence.
-pub type ButtonTone = crate::SemanticTone;
-
-/// Visual emphasis style for [`Button`].
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub enum ButtonVariant {
-    /// Raised low-emphasis surface with drop shadow.
-    Elevated,
-    /// High-emphasis solid filled container (default).
-    #[default]
-    Filled,
-    /// Medium-emphasis tonal container fill.
-    FilledTonal,
-    /// Medium-emphasis outlined container with transparent fill.
-    Outlined,
-    /// Low-emphasis borderless text action.
-    Text,
-}
-
-/// Visual emphasis style for [`ToggleButton`].
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub enum ToggleButtonVariant {
-    /// Raised surface with drop shadow.
-    Elevated,
-    /// High-emphasis solid filled toggle (default).
-    #[default]
-    Filled,
-    /// Medium-emphasis tonal container toggle.
-    FilledTonal,
-    /// Medium-emphasis outlined toggle.
-    Outlined,
-}
-
-/// Visual emphasis style for [`IconButton`] and [`IconToggleButton`].
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub enum IconButtonVariant {
-    /// Borderless, transparent icon button (default).
-    #[default]
-    Standard,
-    /// High-emphasis solid filled icon button.
-    Filled,
-    /// Medium-emphasis tonal container icon button.
-    FilledTonal,
-    /// Medium-emphasis outlined icon button.
-    Outlined,
-}
-
-/// Horizontal width preset for Expressive icon buttons.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub enum IconButtonWidth {
-    /// Compact horizontal padding.
-    Narrow,
-    /// Balanced square-like horizontal padding (default).
-    #[default]
-    Uniform,
-    /// Expanded pill-like horizontal padding.
-    Wide,
-}
-
-struct Common {
-    id: ElementId,
-    label: SharedString,
-    disabled: bool,
-    loading: bool,
-    focus: Option<FocusHandle>,
-    interaction_source: Option<Entity<InteractionSource>>,
-    appearance: ButtonStyle,
-    size: ControlSize,
-    shape: ButtonShape,
-    tone: ButtonTone,
-}
-
-impl Common {
-    fn new(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
-        Self {
-            id: id.into(),
-            label: label.into(),
-            disabled: false,
-            loading: false,
-            focus: None,
-            interaction_source: None,
-            appearance: ButtonStyle::default(),
-            size: ControlSize::default(),
-            shape: ButtonShape::default(),
-            tone: ButtonTone::default(),
-        }
-    }
-
-    fn render(
-        self,
-        content: AnyElement,
-        style: ActionStyle,
-        action: Action,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> AnyElement {
-        self.render_scaled(content, style, action, 1., window, cx)
-    }
-
-    fn render_scaled(
-        self,
-        content: AnyElement,
-        style: ActionStyle,
-        action: Action,
-        scale: f32,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> AnyElement {
-        ActionControl {
-            id: self.id,
-            label: self.label,
-            focus: self.focus,
-            disabled: self.disabled,
-            action,
-            style,
-            content,
-        }
-        .render_layout(
-            scale,
-            ActionLayout {
-                tab_stop: true,
-                loading: self.loading,
-                appearance: self.appearance,
-                ..Default::default()
-            },
-            self.interaction_source.as_ref(),
-            window,
-            cx,
-        )
-    }
-}
 
 // All four buttons expose the same shape, size, and focus contract.
 macro_rules! common_builders {
     () => {
         /// Sets the Material size tier. Small is the default.
-        pub fn size(mut self, size: ControlSize) -> Self {
+        pub fn size(mut self, size: crate::control_style::ControlSize) -> Self {
             self.common.size = size;
             self
         }
 
         /// Sets the resting shape. Round is the default.
-        pub fn shape(mut self, shape: ButtonShape) -> Self {
+        pub fn shape(mut self, shape: super::types::ButtonShape) -> Self {
             self.common.shape = shape;
             self
         }
 
         /// Applies a Material 3 semantic tone shortcut. Explicit `.colors` and `.border`
         /// overrides still take precedence.
-        pub fn tone(mut self, tone: ButtonTone) -> Self {
+        pub fn tone(mut self, tone: crate::SemanticTone) -> Self {
             self.common.tone = tone;
             self
         }
@@ -263,840 +44,87 @@ macro_rules! common_builders {
         }
 
         /// Uses the caller's stable focus handle.
-        pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
+        pub fn track_focus(mut self, focus: &gpui::FocusHandle) -> Self {
             self.common.focus = Some(focus.clone());
             self
         }
     };
 }
-
-const MIN_COMPRESSED_HORIZONTAL_PADDING: f32 = 4.;
-
-fn compress_horizontal_padding(
-    left: Pixels,
-    right: Pixels,
-    width: Pixels,
-    icon_extent: Pixels,
-    natural_label_width: Pixels,
-) -> (Pixels, Pixels, Pixels) {
-    let mut left_pad = finite_length(left);
-    let mut right_pad = finite_length(right);
-    let available = (width - left_pad - right_pad - icon_extent).max(px(0.));
-    let deficit = (natural_label_width - available).max(px(0.));
-    if deficit > px(0.) {
-        let floor_left = left_pad.min(px(MIN_COMPRESSED_HORIZONTAL_PADDING));
-        let floor_right = right_pad.min(px(MIN_COMPRESSED_HORIZONTAL_PADDING));
-        let slack_left = (left_pad - floor_left).max(px(0.));
-        let slack_right = (right_pad - floor_right).max(px(0.));
-        let total_slack = slack_left + slack_right;
-        let absorb = deficit.min(total_slack);
-        if absorb > px(0.) && total_slack > px(0.) {
-            let left_cut = absorb * (f32::from(slack_left) / f32::from(total_slack));
-            let right_cut = absorb - left_cut;
-            left_pad -= left_cut;
-            right_pad -= right_cut;
-        }
-    }
-    let label_width = (width - left_pad - right_pad - icon_extent).max(px(0.));
-    (left_pad, right_pad, label_width)
-}
-
-#[derive(Default)]
-struct Slots {
-    leading: Option<AnyElement>,
-    trailing: Option<AnyElement>,
-    content: Option<AnyElement>,
-    padding: Option<ButtonPadding>,
-    width: Option<Pixels>,
-}
-
-impl Slots {
-    fn render(
-        self,
-        label: SharedString,
-        metrics: Metrics,
-        scale: f32,
-        window: &Window,
-        tint: gpui::Hsla,
-        cx: &App,
-    ) -> AnyElement {
-        let direction = current_material_theme(window, cx).layout.direction;
-        let typography = metrics.label.style(TypographyEmphasis::Baseline);
-        let max_padding = self.width.map_or_else(
-            || f32::from(window.viewport_size().width) * 0.125,
-            |width| (f32::from(width) - 16.).max(0.) / 2.,
-        );
-        let horizontal = px(metrics.padding.min(max_padding));
-        let ButtonPadding {
-            top,
-            end,
-            bottom,
-            start,
-        } = self.padding.unwrap_or(ButtonPadding {
-            top: px(4.),
-            end: horizontal,
-            bottom: px(4.),
-            start: horizontal,
-        });
-        let (mut left_pad, mut right_pad) = if direction == Direction::Rtl {
-            (finite_length(end), finite_length(start))
-        } else {
-            (finite_length(start), finite_length(end))
-        };
-        let icons = usize::from(self.leading.is_some()) + usize::from(self.trailing.is_some());
-        let icon_extent = px((metrics.icon + metrics.gap) * icons as f32);
-        let mut shaped_label = None;
-        let label_width = self.width.map(|width| {
-            if self.content.is_none() {
-                let shaped = crate::text::shape_single_line(
-                    label.clone(),
-                    typography,
-                    scale,
-                    tint,
-                    window,
-                    cx,
-                );
-                let natural_width = if scale.is_finite() && scale > 0. {
-                    shaped.1.line().width.ceil() / scale
-                } else {
-                    shaped.1.line().width.ceil()
-                };
-                let (next_left, next_right, next_label_width) = compress_horizontal_padding(
-                    left_pad,
-                    right_pad,
-                    width,
-                    icon_extent,
-                    natural_width,
-                );
-                left_pad = next_left;
-                right_pad = next_right;
-                shaped_label = Some(shaped);
-                next_label_width
-            } else {
-                (width - left_pad - right_pad - icon_extent).max(px(0.))
-            }
-        });
-        let row_typography = current_material_theme(window, cx)
-            .typography
-            .scale_style(typography);
-        let mut row = div()
-            .flex()
-            .items_center()
-            .justify_center()
-            .min_w_0()
-            .max_w_full()
-            .gap(px(metrics.gap * scale))
-            .pl(left_pad * scale)
-            .pr(right_pad * scale)
-            .pt(finite_length(top) * scale)
-            .pb(finite_length(bottom) * scale)
-            .text_size(px(row_typography.size * scale))
-            .line_height(px(row_typography.line_height * scale));
-        if direction == Direction::Rtl {
-            row = row.flex_row_reverse();
-        }
-        if let Some(width) = self.width {
-            row = row.w(width).overflow_hidden();
-        }
-        row.children(
-            self.leading
-                .map(|icon| icon_slot(icon, metrics.icon * scale)),
-        )
-        .child(self.content.unwrap_or_else(|| {
-            if let Some(shaped) = shaped_label {
-                crate::text::single_line_with_shaped(
-                    shaped,
-                    typography,
-                    scale,
-                    tint,
-                    (label_width, 1., 1.),
-                    window,
-                    cx,
-                )
-            } else {
-                crate::text::single_line(
-                    label,
-                    typography,
-                    scale,
-                    tint,
-                    (label_width, 1., 1.),
-                    window,
-                    cx,
-                )
-            }
-            .into_any_element()
-        }))
-        .children(
-            self.trailing
-                .map(|icon| icon_slot(icon, metrics.icon * scale)),
-        )
-        .into_any_element()
-    }
-}
+pub(super) use common_builders;
 
 macro_rules! appearance_builders {
     () => {
         /// Observes this button's interaction presentation through a caller-owned source.
         /// The source does not handle input or change selection.
-        pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
+        pub fn interaction_source(
+            mut self,
+            source: &gpui::Entity<gpui_material_foundation::InteractionSource>,
+        ) -> Self {
             self.common.interaction_source = Some(source.clone());
             self
         }
 
         /// Overrides state-specific corners. Unspecified states use the size and variant defaults.
-        pub fn shapes(mut self, shapes: ButtonShapes) -> Self {
+        pub fn shapes(mut self, shapes: crate::control_style::ControlShapes) -> Self {
             self.common.appearance.shapes = shapes;
             self
         }
 
         /// Overrides container and content colors for individual states.
-        pub fn colors(mut self, colors: ButtonColors) -> Self {
+        pub fn colors(mut self, colors: crate::control_style::ButtonColors) -> Self {
             self.common.appearance.colors = colors;
             self
         }
 
         /// Supplies a border in place of the variant's outline.
-        pub fn border(mut self, border: ButtonBorder) -> Self {
+        pub fn border(mut self, border: crate::control_style::ControlBorder) -> Self {
             self.common.appearance.border = Some(border);
             self
         }
     };
 }
+pub(super) use appearance_builders;
 
 macro_rules! slot_builders {
     () => {
         /// Replaces the visible label with an element. The constructor's label
         /// remains the accessible name. Keep interactive children outside the button.
-        pub fn content(mut self, content: impl IntoElement) -> Self {
+        pub fn content(mut self, content: impl gpui::IntoElement) -> Self {
             self.slots.content = Some(content.into_any_element());
             self
         }
 
         /// Sets logical insets around the label, content and icon slots.
-        pub fn content_padding(mut self, padding: ButtonPadding) -> Self {
+        pub fn content_padding(mut self, padding: gpui_material_theme::LogicalEdges) -> Self {
             self.slots.padding = Some(padding);
             self
         }
 
         /// Overrides elevation levels for individual interaction states.
-        pub fn elevations(mut self, elevations: ButtonElevations) -> Self {
+        pub fn elevations(mut self, elevations: crate::control_style::ControlElevations) -> Self {
             self.common.appearance.elevations = elevations;
             self
         }
 
         /// Supplies a decorative leading icon in the Material icon slot.
-        pub fn leading_icon(mut self, icon: impl IntoElement) -> Self {
+        pub fn leading_icon(mut self, icon: impl gpui::IntoElement) -> Self {
             self.slots.leading = Some(icon.into_any_element());
             self
         }
 
         /// Supplies a decorative trailing icon in the Material icon slot.
-        pub fn trailing_icon(mut self, icon: impl IntoElement) -> Self {
+        pub fn trailing_icon(mut self, icon: impl gpui::IntoElement) -> Self {
             self.slots.trailing = Some(icon.into_any_element());
             self
         }
     };
 }
-
-/// Internal composition hooks shared with the optional Material extras crate.
-#[doc(hidden)]
-pub mod composition;
-
-/// A labeled Material action. Activation uses Base's pointer, keyboard and
-/// accessibility behavior and invokes the application callback once.
-#[derive(IntoElement)]
-pub struct Button {
-    common: Common,
-    variant: ButtonVariant,
-    slots: Slots,
-    on_activate: Option<InvokeAction>,
-    scale: f32,
-}
-
-impl Button {
-    /// Creates a button with the default [`ButtonVariant::Filled`] emphasis.
-    pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
-        Self {
-            common: Common::new(id, label),
-            variant: ButtonVariant::default(),
-            slots: Slots::default(),
-            on_activate: None,
-            scale: 1.,
-        }
-    }
-
-    /// Creates a Filled button.
-    pub fn filled(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
-        Self::new(id, label).variant(ButtonVariant::Filled)
-    }
-
-    /// Creates a Filled Tonal button.
-    pub fn tonal(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
-        Self::new(id, label).variant(ButtonVariant::FilledTonal)
-    }
-
-    /// Creates an Elevated button.
-    pub fn elevated(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
-        Self::new(id, label).variant(ButtonVariant::Elevated)
-    }
-
-    /// Creates an Outlined button.
-    pub fn outlined(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
-        Self::new(id, label).variant(ButtonVariant::Outlined)
-    }
-
-    /// Creates a Text button.
-    pub fn text(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
-        Self::new(id, label).variant(ButtonVariant::Text)
-    }
-
-    common_builders!();
-    appearance_builders!();
-    slot_builders!();
-
-    /// Sets the visual emphasis variant. Defaults to [`ButtonVariant::Filled`].
-    pub fn variant(mut self, variant: ButtonVariant) -> Self {
-        self.variant = variant;
-        self
-    }
-
-    /// Shows a centered inline circular spinner while suppressing activation and preserving the
-    /// button's resting width. Keeps the active palette unless `.disabled(true)` is also set.
-    pub fn loading(mut self, loading: bool) -> Self {
-        self.common.loading = loading;
-        self
-    }
-
-    #[cfg(feature = "feedback")]
-    pub(crate) fn scale(mut self, scale: f32) -> Self {
-        self.scale = scale;
-        self
-    }
-
-    /// Invoked once when the button is activated via pointer click, keyboard Enter/Space, or assistive technology.
-    ///
-    /// Replaces any previously registered `.on_activate(...)` or `.on_accessible_activate(...)` handler.
-    pub fn on_activate(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
-        self.on_activate = Some(InvokeAction::Full(Rc::new(handler)));
-        self
-    }
-
-    /// Registers only the accessibility click action (`AccessibleAction::Click`), leaving pointer
-    /// and keyboard activation to an enclosing trigger container such as `Menu::composed` or
-    /// `gpui_base::Popover`.
-    ///
-    /// Press feedback and focus remain active while avoiding `on_click` conflicts with container
-    /// `on_mouse_down` handlers. Replaces any previously registered `.on_activate(...)` or
-    /// `.on_accessible_activate(...)` handler.
-    pub fn on_accessible_activate(
-        mut self,
-        handler: impl Fn(&mut Window, &mut App) + 'static,
-    ) -> Self {
-        self.on_activate = Some(InvokeAction::AccessibleOnly(Rc::new(handler)));
-        self
-    }
-}
-
-fn loading_overlay(
-    id: &ElementId,
-    resting_content: AnyElement,
-    icon_size: f32,
-    tint: gpui::Hsla,
-    window: &mut Window,
-    cx: &mut App,
-) -> AnyElement {
-    div()
-        .relative()
-        .flex()
-        .items_center()
-        .justify_center()
-        .child(div().opacity(0.).child(resting_content))
-        .child(
-            div()
-                .id((id.clone(), "loading-spinner"))
-                .test_support()
-                .absolute()
-                .inset_0()
-                .flex()
-                .items_center()
-                .justify_center()
-                .child(render_loading_spinner(id, icon_size, tint, window, cx)),
-        )
-        .into_any_element()
-}
-
-fn loading_icon_spinner(
-    id: &ElementId,
-    icon_size: f32,
-    tint: gpui::Hsla,
-    window: &mut Window,
-    cx: &mut App,
-) -> AnyElement {
-    div()
-        .id((id.clone(), "loading-spinner"))
-        .test_support()
-        .flex()
-        .items_center()
-        .justify_center()
-        .child(render_loading_spinner(id, icon_size, tint, window, cx))
-        .into_any_element()
-}
-
-impl RenderOnce for Button {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let metrics = self.common.size.metrics();
-        let appearance = button_appearance(self.variant, None, self.common.tone);
-        let style = appearance.style(
-            metrics,
-            self.common.shape.corner(metrics.square, false),
-            58.,
-        );
-        let tint = self
-            .common
-            .appearance
-            .colors
-            .content(self.common.disabled, false)
-            .unwrap_or_else(|| style.foreground(self.common.disabled, window, cx));
-        let resting_content = self.slots.render(
-            self.common.label.clone(),
-            metrics,
-            self.scale,
-            window,
-            tint,
-            cx,
-        );
-        let content = if self.common.loading {
-            loading_overlay(
-                &self.common.id,
-                resting_content,
-                metrics.icon * self.scale,
-                tint,
-                window,
-                cx,
-            )
-        } else {
-            resting_content
-        };
-        self.common.render_scaled(
-            content,
-            style,
-            Action::Invoke(self.on_activate),
-            self.scale,
-            window,
-            cx,
-        )
-    }
-}
-
-/// A controlled labeled toggle. The caller re-renders with the selected value
-/// after accepting a requested change.
-#[derive(IntoElement)]
-pub struct ToggleButton {
-    common: Common,
-    variant: ToggleButtonVariant,
-    selected: bool,
-    slots: Slots,
-    on_change: Option<Change>,
-}
-
-impl ToggleButton {
-    /// Creates a controlled toggle button with the default [`ToggleButtonVariant::Filled`] emphasis.
-    pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>, selected: bool) -> Self {
-        Self {
-            common: Common::new(id, label),
-            variant: ToggleButtonVariant::default(),
-            selected,
-            slots: Slots::default(),
-            on_change: None,
-        }
-    }
-
-    /// Creates a Filled toggle button.
-    pub fn filled(
-        id: impl Into<ElementId>,
-        label: impl Into<SharedString>,
-        selected: bool,
-    ) -> Self {
-        Self::new(id, label, selected).variant(ToggleButtonVariant::Filled)
-    }
-
-    /// Creates a Filled Tonal toggle button.
-    pub fn tonal(id: impl Into<ElementId>, label: impl Into<SharedString>, selected: bool) -> Self {
-        Self::new(id, label, selected).variant(ToggleButtonVariant::FilledTonal)
-    }
-
-    /// Creates an Elevated toggle button.
-    pub fn elevated(
-        id: impl Into<ElementId>,
-        label: impl Into<SharedString>,
-        selected: bool,
-    ) -> Self {
-        Self::new(id, label, selected).variant(ToggleButtonVariant::Elevated)
-    }
-
-    /// Creates an Outlined toggle button.
-    pub fn outlined(
-        id: impl Into<ElementId>,
-        label: impl Into<SharedString>,
-        selected: bool,
-    ) -> Self {
-        Self::new(id, label, selected).variant(ToggleButtonVariant::Outlined)
-    }
-
-    common_builders!();
-    appearance_builders!();
-    slot_builders!();
-
-    /// Sets the visual emphasis variant. Defaults to [`ToggleButtonVariant::Filled`].
-    pub fn variant(mut self, variant: ToggleButtonVariant) -> Self {
-        self.variant = variant;
-        self
-    }
-
-    /// Shows a centered inline circular spinner while suppressing activation and preserving the
-    /// button's resting width. Keeps the active palette unless `.disabled(true)` is also set.
-    pub fn loading(mut self, loading: bool) -> Self {
-        self.common.loading = loading;
-        self
-    }
-
-    /// Invoked with the requested next selected state when the toggle button is activated.
-    pub fn on_change(mut self, handler: impl Fn(bool, &mut Window, &mut App) + 'static) -> Self {
-        self.on_change = Some(Rc::new(handler));
-        self
-    }
-}
-
-impl RenderOnce for ToggleButton {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let metrics = self.common.size.metrics();
-        let variant = match self.variant {
-            ToggleButtonVariant::Elevated => ButtonVariant::Elevated,
-            ToggleButtonVariant::Filled => ButtonVariant::Filled,
-            ToggleButtonVariant::FilledTonal => ButtonVariant::FilledTonal,
-            ToggleButtonVariant::Outlined => ButtonVariant::Outlined,
-        };
-        let mut style = button_appearance(variant, Some(self.selected), self.common.tone).style(
-            metrics,
-            self.common.shape.corner(metrics.square, false),
-            0.,
-        );
-        style.selected_corner = Some(self.common.shape.corner(metrics.square, true));
-        let tint = self
-            .common
-            .appearance
-            .colors
-            .content(self.common.disabled, self.selected)
-            .unwrap_or_else(|| style.foreground(self.common.disabled, window, cx));
-        let resting_content =
-            self.slots
-                .render(self.common.label.clone(), metrics, 1., window, tint, cx);
-        let content = if self.common.loading {
-            loading_overlay(
-                &self.common.id,
-                resting_content,
-                metrics.icon,
-                tint,
-                window,
-                cx,
-            )
-        } else {
-            resting_content
-        };
-        self.common.render(
-            content,
-            style,
-            Action::Toggle {
-                selected: self.selected,
-                on_change: self.on_change,
-            },
-            window,
-            cx,
-        )
-    }
-}
-
-/// An icon-only action with a required accessibility name.
-#[derive(IntoElement)]
-pub struct IconButton {
-    common: Common,
-    icon: AnyElement,
-    variant: IconButtonVariant,
-    width: IconButtonWidth,
-    on_activate: Option<InvokeAction>,
-}
-
-impl IconButton {
-    /// Creates an icon button with the default [`IconButtonVariant::Standard`] emphasis.
-    pub fn new(
-        id: impl Into<ElementId>,
-        name: impl Into<SharedString>,
-        icon: impl IntoElement,
-    ) -> Self {
-        Self {
-            common: Common::new(id, name),
-            icon: icon.into_any_element(),
-            variant: IconButtonVariant::default(),
-            width: IconButtonWidth::default(),
-            on_activate: None,
-        }
-    }
-
-    /// Creates a Standard icon button.
-    pub fn standard(
-        id: impl Into<ElementId>,
-        name: impl Into<SharedString>,
-        icon: impl IntoElement,
-    ) -> Self {
-        Self::new(id, name, icon).variant(IconButtonVariant::Standard)
-    }
-
-    /// Creates a Filled icon button.
-    pub fn filled(
-        id: impl Into<ElementId>,
-        name: impl Into<SharedString>,
-        icon: impl IntoElement,
-    ) -> Self {
-        Self::new(id, name, icon).variant(IconButtonVariant::Filled)
-    }
-
-    /// Creates a Filled Tonal icon button.
-    pub fn tonal(
-        id: impl Into<ElementId>,
-        name: impl Into<SharedString>,
-        icon: impl IntoElement,
-    ) -> Self {
-        Self::new(id, name, icon).variant(IconButtonVariant::FilledTonal)
-    }
-
-    /// Creates an Outlined icon button.
-    pub fn outlined(
-        id: impl Into<ElementId>,
-        name: impl Into<SharedString>,
-        icon: impl IntoElement,
-    ) -> Self {
-        Self::new(id, name, icon).variant(IconButtonVariant::Outlined)
-    }
-
-    common_builders!();
-    appearance_builders!();
-
-    /// Sets the visual emphasis variant. Defaults to [`IconButtonVariant::Standard`].
-    pub fn variant(mut self, variant: IconButtonVariant) -> Self {
-        self.variant = variant;
-        self
-    }
-
-    /// Sets the horizontal width preset. Defaults to [`IconButtonWidth::Uniform`].
-    pub fn width(mut self, width: IconButtonWidth) -> Self {
-        self.width = width;
-        self
-    }
-
-    /// Shows an inline circular spinner in place of the icon while suppressing activation.
-    /// Keeps the active palette unless `.disabled(true)` is also set.
-    pub fn loading(mut self, loading: bool) -> Self {
-        self.common.loading = loading;
-        self
-    }
-
-    /// Invoked once when the icon button is activated via pointer, keyboard, or assistive technology.
-    ///
-    /// Replaces any previously registered `.on_activate(...)` or `.on_accessible_activate(...)` handler.
-    pub fn on_activate(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
-        self.on_activate = Some(InvokeAction::Full(Rc::new(handler)));
-        self
-    }
-
-    /// Registers only the accessibility click action (`AccessibleAction::Click`), leaving pointer
-    /// and keyboard activation to an enclosing trigger container such as `Menu::composed` or
-    /// `gpui_base::Popover`.
-    ///
-    /// Press feedback and focus remain active while avoiding `on_click` conflicts with container
-    /// `on_mouse_down` handlers. Replaces any previously registered `.on_activate(...)` or
-    /// `.on_accessible_activate(...)` handler.
-    pub fn on_accessible_activate(
-        mut self,
-        handler: impl Fn(&mut Window, &mut App) + 'static,
-    ) -> Self {
-        self.on_activate = Some(InvokeAction::AccessibleOnly(Rc::new(handler)));
-        self
-    }
-}
-
-impl RenderOnce for IconButton {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let (metrics, width) = self.common.size.icon_metrics(self.width);
-        let mut style = icon_appearance(self.variant, None, self.common.tone).style(
-            metrics,
-            self.common.shape.corner(metrics.square, false),
-            width,
-        );
-        style.corner_motion = (MotionKind::Effects, MotionSpeed::Default);
-        let content = if self.common.loading {
-            let tint = self
-                .common
-                .appearance
-                .colors
-                .content(self.common.disabled, false)
-                .unwrap_or_else(|| style.foreground(self.common.disabled, window, cx));
-            loading_icon_spinner(&self.common.id, metrics.icon, tint, window, cx)
-        } else {
-            icon_slot(self.icon, metrics.icon).into_any_element()
-        };
-        self.common
-            .render(content, style, Action::Invoke(self.on_activate), window, cx)
-    }
-}
-
-/// An icon-only controlled toggle. The selected icon and native toggle state
-/// both reflect the caller's value.
-#[derive(IntoElement)]
-pub struct IconToggleButton {
-    common: Common,
-    icon: AnyElement,
-    selected_icon: Option<AnyElement>,
-    selected: bool,
-    variant: IconButtonVariant,
-    width: IconButtonWidth,
-    on_change: Option<Change>,
-}
-
-impl IconToggleButton {
-    /// Creates a controlled icon toggle button with the default [`IconButtonVariant::Standard`] emphasis.
-    pub fn new(
-        id: impl Into<ElementId>,
-        name: impl Into<SharedString>,
-        icon: impl IntoElement,
-        selected: bool,
-    ) -> Self {
-        Self {
-            common: Common::new(id, name),
-            icon: icon.into_any_element(),
-            selected_icon: None,
-            selected,
-            variant: IconButtonVariant::default(),
-            width: IconButtonWidth::default(),
-            on_change: None,
-        }
-    }
-
-    /// Creates a Standard icon toggle button.
-    pub fn standard(
-        id: impl Into<ElementId>,
-        name: impl Into<SharedString>,
-        icon: impl IntoElement,
-        selected: bool,
-    ) -> Self {
-        Self::new(id, name, icon, selected).variant(IconButtonVariant::Standard)
-    }
-
-    /// Creates a Filled icon toggle button.
-    pub fn filled(
-        id: impl Into<ElementId>,
-        name: impl Into<SharedString>,
-        icon: impl IntoElement,
-        selected: bool,
-    ) -> Self {
-        Self::new(id, name, icon, selected).variant(IconButtonVariant::Filled)
-    }
-
-    /// Creates a Filled Tonal icon toggle button.
-    pub fn tonal(
-        id: impl Into<ElementId>,
-        name: impl Into<SharedString>,
-        icon: impl IntoElement,
-        selected: bool,
-    ) -> Self {
-        Self::new(id, name, icon, selected).variant(IconButtonVariant::FilledTonal)
-    }
-
-    /// Creates an Outlined icon toggle button.
-    pub fn outlined(
-        id: impl Into<ElementId>,
-        name: impl Into<SharedString>,
-        icon: impl IntoElement,
-        selected: bool,
-    ) -> Self {
-        Self::new(id, name, icon, selected).variant(IconButtonVariant::Outlined)
-    }
-
-    common_builders!();
-    appearance_builders!();
-
-    /// Supplies an alternate icon displayed when `selected` is `true`.
-    pub fn selected_icon(mut self, icon: impl IntoElement) -> Self {
-        self.selected_icon = Some(icon.into_any_element());
-        self
-    }
-
-    /// Sets the visual emphasis variant. Defaults to [`IconButtonVariant::Standard`].
-    pub fn variant(mut self, variant: IconButtonVariant) -> Self {
-        self.variant = variant;
-        self
-    }
-
-    /// Sets the horizontal width preset. Defaults to [`IconButtonWidth::Uniform`].
-    pub fn width(mut self, width: IconButtonWidth) -> Self {
-        self.width = width;
-        self
-    }
-
-    /// Shows an inline circular spinner in place of the icon while suppressing activation.
-    /// Keeps the active palette unless `.disabled(true)` is also set.
-    pub fn loading(mut self, loading: bool) -> Self {
-        self.common.loading = loading;
-        self
-    }
-
-    /// Invoked with the requested next selected state when the icon toggle button is activated.
-    pub fn on_change(mut self, handler: impl Fn(bool, &mut Window, &mut App) + 'static) -> Self {
-        self.on_change = Some(Rc::new(handler));
-        self
-    }
-}
-
-impl RenderOnce for IconToggleButton {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let (metrics, width) = self.common.size.icon_metrics(self.width);
-        let mut style = icon_appearance(self.variant, Some(self.selected), self.common.tone).style(
-            metrics,
-            self.common.shape.corner(metrics.square, false),
-            width,
-        );
-        style.selected_corner = Some(self.common.shape.corner(metrics.square, true));
-        style.corner_motion = (MotionKind::Effects, MotionSpeed::Default);
-        let content = if self.common.loading {
-            let tint = self
-                .common
-                .appearance
-                .colors
-                .content(self.common.disabled, self.selected)
-                .unwrap_or_else(|| style.foreground(self.common.disabled, window, cx));
-            loading_icon_spinner(&self.common.id, metrics.icon, tint, window, cx)
-        } else {
-            let icon = if self.selected {
-                self.selected_icon.unwrap_or(self.icon)
-            } else {
-                self.icon
-            };
-            icon_slot(icon, metrics.icon).into_any_element()
-        };
-        self.common.render(
-            content,
-            style,
-            Action::Toggle {
-                selected: self.selected,
-                on_change: self.on_change,
-            },
-            window,
-            cx,
-        )
-    }
-}
+pub(super) use slot_builders;
 
 #[cfg(test)]
 mod tests {
+    use gpui::div;
+
     use super::*;
 
     #[test]
@@ -1169,68 +197,5 @@ mod tests {
             IconToggleButton::outlined("it4", "Out", div(), true).variant,
             IconButtonVariant::Outlined
         );
-
-        let tone: ButtonTone = crate::SemanticTone::Danger;
-        assert_eq!(tone, ButtonTone::Danger);
-    }
-
-    #[test]
-    fn button_and_icon_button_activation_modes_replace_each_other() {
-        let button = Button::new("b", "Open").on_accessible_activate(|_, _| {});
-        assert!(matches!(
-            button.on_activate,
-            Some(InvokeAction::AccessibleOnly(_))
-        ));
-        let button = button.on_activate(|_, _| {});
-        assert!(matches!(button.on_activate, Some(InvokeAction::Full(_))));
-        let button = button.on_accessible_activate(|_, _| {});
-        assert!(matches!(
-            button.on_activate,
-            Some(InvokeAction::AccessibleOnly(_))
-        ));
-
-        let icon = IconButton::new("i", "More", div()).on_accessible_activate(|_, _| {});
-        assert!(matches!(
-            icon.on_activate,
-            Some(InvokeAction::AccessibleOnly(_))
-        ));
-        let icon = icon.on_activate(|_, _| {});
-        assert!(matches!(icon.on_activate, Some(InvokeAction::Full(_))));
-        let icon = icon.on_accessible_activate(|_, _| {});
-        assert!(matches!(
-            icon.on_activate,
-            Some(InvokeAction::AccessibleOnly(_))
-        ));
-    }
-
-    #[test]
-    fn compressed_button_shrinks_horizontal_padding_before_truncating_label() {
-        // Resting width 60px = 28px label + 16px*2 padding; compressed by 6px -> 54px.
-        let (left, right, label_width) =
-            compress_horizontal_padding(px(16.), px(16.), px(54.), px(0.), px(28.));
-        assert_eq!(left, px(13.));
-        assert_eq!(right, px(13.));
-        assert_eq!(label_width, px(28.));
-
-        // Sufficient width leaves padding untouched.
-        let (left, right, label_width) =
-            compress_horizontal_padding(px(16.), px(16.), px(72.), px(0.), px(28.));
-        assert_eq!(left, px(16.));
-        assert_eq!(right, px(16.));
-        assert_eq!(label_width, px(40.));
-
-        // Severe compression stops at 4px floor per side and only then shrinks label width.
-        let (left, right, label_width) =
-            compress_horizontal_padding(px(16.), px(16.), px(30.), px(0.), px(28.));
-        assert_eq!(left, px(4.));
-        assert_eq!(right, px(4.));
-        assert_eq!(label_width, px(22.));
-
-        // Caller padding smaller than 4px is preserved without expanding.
-        let (left, right, label_width) =
-            compress_horizontal_padding(px(2.), px(10.), px(30.), px(0.), px(28.));
-        assert_eq!(left, px(2.));
-        assert_eq!(right, px(4.));
-        assert_eq!(label_width, px(24.));
     }
 }

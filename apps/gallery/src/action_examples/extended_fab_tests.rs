@@ -6,7 +6,7 @@ use gpui::{
 };
 use gpui_base::{TestSupportExt, test_support::find};
 use gpui_material::{
-    Button, ButtonColors, ButtonElevations, ExtendedFab, FabAlignment, FabSize,
+    Button, ButtonColors, ControlElevations, ExtendedFab, FabAlignment, FabSize,
     FabVisibilityAnimation, InteractionSource, MaterialRoot,
     foundation::{set_window_material_theme, window_material_theme},
     theme::{CornerShape, CubicBezier, Direction, Elevation, MotionSpec},
@@ -138,7 +138,7 @@ fn extended_fab_content_modes_fit_and_keep_one_accessible_action(cx: &mut TestAp
                                 disabled_container: Some(DISABLED),
                                 ..Default::default()
                             })
-                            .elevations(ButtonElevations {
+                            .elevations(ControlElevations {
                                 resting: Some(Elevation::Level0),
                                 ..Default::default()
                             }),

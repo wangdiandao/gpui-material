@@ -93,7 +93,7 @@ pub struct ExposedDropdownState {
     pub(super) selected: Option<ElementId>,
     pub(super) scroll: ListState,
     presented: Rc<[DropdownOption]>,
-    metrics: Option<(Pixels, f32, Pixels, gpui_material_theme::Typography, u64)>,
+    metrics: Option<(Pixels, Pixels, gpui_material_theme::Typography, u64)>,
     options: OptionSnapshot,
     _input: Subscription,
 }
@@ -262,9 +262,11 @@ impl ExposedDropdownState {
         cx.notify();
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn present(
         &mut self,
         visibility: &Rc<Visibility>,
+        disabled: bool,
         primary_enabled: bool,
         secondary_enabled: bool,
         primary: Opening,
@@ -272,7 +274,11 @@ impl ExposedDropdownState {
         cx: &mut Context<Self>,
     ) {
         self.primary_enabled = primary_enabled;
-        self.open = visibility.controlled.unwrap_or(self.open);
+        self.open = if disabled {
+            false
+        } else {
+            visibility.controlled.unwrap_or(self.open)
+        };
         self.visibility = Rc::downgrade(visibility);
         let opening = self.opening.take();
         if self.presented_open == self.open {
@@ -308,7 +314,8 @@ impl ExposedDropdownState {
             }
         } else {
             self.reset_draft(window, cx);
-            if let Some(mut restore) = self.restore_focus.take()
+            if !disabled
+                && let Some(mut restore) = self.restore_focus.take()
                 && self.popup_focus.contains_focused(window, cx)
             {
                 if !secondary_enabled && restore == self.secondary_focus {
@@ -325,6 +332,8 @@ impl ExposedDropdownState {
                         restore.focus(window, cx);
                     }
                 });
+            } else if disabled {
+                self.restore_focus = None;
             }
         }
     }
@@ -358,7 +367,7 @@ impl ExposedDropdownState {
         &mut self,
         options: &Rc<[DropdownOption]>,
         active: Option<&ElementId>,
-        metrics: (Pixels, f32, Pixels, gpui_material_theme::Typography, u64),
+        metrics: (Pixels, Pixels, gpui_material_theme::Typography, u64),
     ) {
         if !Rc::ptr_eq(&self.presented, options) {
             let old_top = self.scroll.logical_scroll_top();
@@ -392,6 +401,12 @@ impl ExposedDropdownState {
 
     pub(super) fn navigate(&mut self, backwards: bool, cx: &mut Context<Self>) {
         let choices = &self.options.visible;
+        if choices.is_empty() {
+            self.active = None;
+            self.active_index = None;
+            cx.notify();
+            return;
+        }
         let index = self.active_position(choices);
         let next = index.map_or_else(
             || {
@@ -411,18 +426,34 @@ impl ExposedDropdownState {
                 }
             },
         );
-        if let Some(choice) = choices.get(next) {
+        self.focus_option_at(next, cx);
+    }
+
+    pub(super) fn navigate_edge(&mut self, to_end: bool, cx: &mut Context<Self>) {
+        let choices = &self.options.visible;
+        if choices.is_empty() {
+            self.active = None;
+            self.active_index = None;
+            cx.notify();
+            return;
+        }
+        let next = if to_end { choices.len() - 1 } else { 0 };
+        self.focus_option_at(next, cx);
+    }
+
+    fn focus_option_at(&mut self, index: usize, cx: &mut Context<Self>) {
+        if let Some(choice) = self.options.visible.get(index) {
             self.active = Some(choice.id.clone());
-            self.active_index = Some(next);
+            self.active_index = Some(index);
         } else {
             self.active = None;
             self.active_index = None;
         }
-        if self.scroll.bounds_for_item(next).is_some() {
-            self.scroll.scroll_to_reveal_item(next);
+        if self.scroll.bounds_for_item(index).is_some() {
+            self.scroll.scroll_to_reveal_item(index);
         } else {
             self.scroll.scroll_to(ListOffset {
-                item_ix: next,
+                item_ix: index,
                 offset_in_item: px(0.),
             });
         }

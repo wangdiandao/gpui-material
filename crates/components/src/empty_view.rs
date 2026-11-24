@@ -17,7 +17,7 @@ const ICON_SIZE: Pixels = px(32.);
 const ACTION_GAP: Pixels = px(12.);
 const ACTIONS_TOP_MARGIN: Pixels = px(24.);
 
-enum EmptyStateVisual {
+enum EmptyViewVisual {
     Icon(AnyElement),
     Custom(AnyElement),
 }
@@ -37,12 +37,12 @@ enum IconContainerShape {
 /// Displays an optional decorative icon backdrop (or custom visual), title, optional
 /// supporting text or content, and optional centered primary/secondary actions.
 #[derive(IntoElement)]
-pub struct EmptyState {
+pub struct EmptyView {
     id: ElementId,
     title: SharedString,
     title_role: TypeRole,
     supporting: Option<SupportingSlot>,
-    visual: Option<EmptyStateVisual>,
+    visual: Option<EmptyViewVisual>,
     icon_container_shape: IconContainerShape,
     icon_container_role: ColorRole,
     icon_content_role: ColorRole,
@@ -51,7 +51,7 @@ pub struct EmptyState {
     max_width: Pixels,
 }
 
-impl EmptyState {
+impl EmptyView {
     /// Creates an empty-state layout with a stable element ID and required title.
     pub fn new(id: impl Into<ElementId>, title: impl Into<SharedString>) -> Self {
         Self {
@@ -83,7 +83,7 @@ impl EmptyState {
 
     /// Renders a decorative icon inside an expressive `Surface` container above the title.
     pub fn icon(mut self, icon: impl IntoElement) -> Self {
-        self.visual = Some(EmptyStateVisual::Icon(icon.into_any_element()));
+        self.visual = Some(EmptyViewVisual::Icon(icon.into_any_element()));
         self
     }
 
@@ -111,7 +111,7 @@ impl EmptyState {
 
     /// Replaces the decorative icon container with a custom visual illustration element.
     pub fn visual(mut self, element: impl IntoElement) -> Self {
-        self.visual = Some(EmptyStateVisual::Custom(element.into_any_element()));
+        self.visual = Some(EmptyViewVisual::Custom(element.into_any_element()));
         self
     }
 
@@ -150,7 +150,7 @@ fn resolve_max_width(width: Pixels) -> Pixels {
     }
 }
 
-impl RenderOnce for EmptyState {
+impl RenderOnce for EmptyView {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
@@ -159,7 +159,7 @@ impl RenderOnce for EmptyState {
         let icon_fg = color(theme.colors.color(self.icon_content_role));
 
         let visual_slot = self.visual.map(|visual| match visual {
-            EmptyStateVisual::Icon(icon) => {
+            EmptyViewVisual::Icon(icon) => {
                 let surface = Surface::new(self.icon_container_role).content_color(icon_fg);
                 let surface = match self.icon_container_shape {
                     IconContainerShape::Polygon(polygon) => surface.polygon_shape(polygon),
@@ -180,7 +180,7 @@ impl RenderOnce for EmptyState {
                     )
                     .into_any_element()
             }
-            EmptyStateVisual::Custom(element) => div()
+            EmptyViewVisual::Custom(element) => div()
                 .id((self.id.clone(), "visual"))
                 .test_support()
                 .mb(px(20.))
@@ -204,6 +204,7 @@ impl RenderOnce for EmptyState {
         .id((self.id.clone(), "title"))
         .test_support()
         .role(Role::Label)
+        .aria_value(self.title.clone())
         .aria_label(self.title);
 
         let supporting_slot = self.supporting.map(|slot| match slot {
@@ -224,6 +225,7 @@ impl RenderOnce for EmptyState {
                     .id((self.id.clone(), "supporting"))
                     .test_support()
                     .role(Role::Label)
+                    .aria_value(text.clone())
                     .aria_label(text),
                 )
                 .into_any_element(),

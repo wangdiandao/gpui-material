@@ -8,8 +8,8 @@ use gpui::{
 };
 use gpui_base::test_support::find;
 use gpui_material::{
-    ButtonBorder, ButtonPadding, ButtonShapes, Chip, ChipColors, ChipElevations, ChipStateColors,
-    ChipVariant, InteractionSource, InteractionState, MaterialRoot, MaterialTheme,
+    Chip, ChipColors, ChipStateColors, ChipVariant, ControlBorder, ControlElevations,
+    ControlShapes, InteractionSource, InteractionState, LogicalEdges, MaterialRoot, MaterialTheme,
     foundation::{color, set_window_material_theme, window_material_theme},
     theme::{ColorRole, CornerRole, CornerShape, Direction, Elevation},
 };
@@ -61,13 +61,13 @@ impl Render for Chips {
                     .content(Slot(self.assist_label.clone(), 29., 12.))
                     .trailing(Slot(self.assist_trailing.clone(), 11., 13.))
                     .spacing(px(17.))
-                    .content_padding(ButtonPadding {
-                        start: px(9.),
-                        end: px(5.),
-                        top: px(12.),
-                        bottom: px(14.),
+                    .content_padding(LogicalEdges {
+                        start: 9.,
+                        end: 5.,
+                        top: 12.,
+                        bottom: 14.,
                     })
-                    .shapes(ButtonShapes {
+                    .shapes(ControlShapes {
                         resting: Some(CornerShape::Radii([3., 6., 9., 12.])),
                         ..Default::default()
                     })
@@ -81,7 +81,7 @@ impl Render for Chips {
                         },
                         ..Default::default()
                     })
-                    .border(ButtonBorder {
+                    .border(ControlBorder {
                         width: px(2.),
                         color: rgb(0x234225).into(),
                     }),
@@ -116,13 +116,13 @@ impl Render for Chips {
                     .leading_icon(Slot(self.input_leading.clone(), 10., 10.))
                     .avatar(Slot(self.input_avatar.clone(), 24., 24.))
                     .trailing(Slot(self.input_trailing.clone(), 26., 34.))
-                    .content_padding(ButtonPadding {
-                        start: px(7.),
-                        end: px(9.),
-                        top: px(4.),
-                        bottom: px(3.),
+                    .content_padding(LogicalEdges {
+                        start: 7.,
+                        end: 9.,
+                        top: 4.,
+                        bottom: 3.,
                     })
-                    .shapes(ButtonShapes {
+                    .shapes(ControlShapes {
                         pressed: Some(CornerShape::Radii([2.; 4])),
                         checked: Some(CornerShape::Radii([11.; 4])),
                         ..Default::default()
@@ -147,7 +147,7 @@ impl Render for Chips {
                             ..Default::default()
                         },
                     })
-                    .elevations(ChipElevations {
+                    .elevations(ControlElevations {
                         resting: Some(Elevation::Level1),
                         pressed: Some(Elevation::Level2),
                         focused: Some(Elevation::Level3),

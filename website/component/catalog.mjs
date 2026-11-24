@@ -936,19 +936,19 @@ TimePicker::new("reminder", "Reminder time", &self.picker, self.time)
   {
     slug: "empty-state",
     group: "layout",
-    title: "EmptyState",
-    source: "crates/components/src/empty_state.rs",
-    api: "struct.EmptyState.html",
+    title: "EmptyView",
+    source: "crates/components/src/empty_view.rs",
+    api: "struct.EmptyView.html",
     description: {
       en: "Present a centered Material 3 Expressive empty-state layout with an optional shape backdrop, copy, and actions.",
       zh: "呈现居中的 Material 3 Expressive 空状态布局，包含可选形状衬底、说明文案与操作按钮。",
     },
     usage: {
-      en: "Pass a stable ID and title to EmptyState::new. Attach icon (rendered inside a decorative MaterialShape Surface backdrop) or visual, add supporting text, and supply primary_action / secondary_action buttons.",
-      zh: "向 EmptyState::new 传入稳定 ID 与标题。可配置带装饰性 MaterialShape 衬底的 icon 或自定义 visual，补充 supporting 文案，并提供 primary_action / secondary_action 操作按钮。",
+      en: "Pass a stable ID and title to EmptyView::new. Attach icon (rendered inside a decorative MaterialShape Surface backdrop) or visual, add supporting text, and supply primary_action / secondary_action buttons.",
+      zh: "向 EmptyView::new 传入稳定 ID 与标题。可配置带装饰性 MaterialShape 衬底的 icon 或自定义 visual，补充 supporting 文案，并提供 primary_action / secondary_action 操作按钮。",
     },
-    imports: "use gpui_material::{Button, EmptyState, Icon, IconName};",
-    code: `EmptyState::new("no-projects", "No projects yet")
+    imports: "use gpui_material::{Button, EmptyView, Icon, IconName};",
+    code: `EmptyView::new("no-projects", "No projects yet")
     .icon(Icon::new(IconName::Inbox))
     .supporting("Create your first project to start organizing files.")
     .primary_action(Button::new("create-project", "Create project"))`,

@@ -329,11 +329,11 @@ impl Render for TextFieldExamples {
                     TextField::new("amount", "Budget amount", &self.amount)
                         .variant(TextFieldVariant::Outlined)
                         .shape(gpui_material::theme::CornerRole::Medium.shape())
-                        .content_padding(gpui::Edges {
-                            left: px(16.),
-                            right: px(20.),
-                            top: px(8.),
-                            bottom: px(8.),
+                        .content_padding(gpui_material::LogicalEdges {
+                            start: 16.,
+                            end: 20.,
+                            top: 8.,
+                            bottom: 8.,
                         })
                         .label_position(TextFieldLabelPosition::Above)
                         .label_alignment(

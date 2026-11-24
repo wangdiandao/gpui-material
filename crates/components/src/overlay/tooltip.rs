@@ -11,7 +11,7 @@ use gpui::{
     point, prelude::FluentBuilder, px,
 };
 use gpui_base::{Link, Placement, TestSupportExt};
-use gpui_material_foundation::{ThemeScope, current_material_theme};
+use gpui_material_foundation::{OverlayMotion, ScaledOverlay, ThemeScope, current_material_theme};
 use gpui_material_theme::{CornerShape, Direction, Elevation, TypeRole};
 
 use appearance::{Appearance, SurfaceStyle};
@@ -22,11 +22,7 @@ pub use gpui_base::Positioner as TooltipPositioner;
 pub use interaction::TooltipState;
 pub use label::Label;
 
-use crate::{
-    Button, ButtonColors, ButtonVariant,
-    button_style::finite_length,
-    motion::{OverlayMotion, ScaledOverlay},
-};
+use crate::{Button, ButtonColors, ButtonVariant, control_style::finite_length};
 
 gpui::actions!(
     material_tooltip,

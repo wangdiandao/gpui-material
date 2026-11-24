@@ -1,7 +1,7 @@
 use gpui::{IntoElement, SharedString};
 use gpui_material::{
-    Button, ButtonGroup, ButtonGroupItem, ButtonShape, ButtonTone, ButtonVariant, ControlSize,
-    ExtendedFab, Fab, FabColor, FabMenu, FabMenuItem, FabSize, Icon, IconButton, IconButtonVariant,
+    Button, ButtonGroup, ButtonGroupItem, ButtonShape, ButtonVariant, ControlSize, ExtendedFab,
+    Fab, FabColor, FabMenu, FabMenuItem, FabSize, Icon, IconButton, IconButtonVariant,
     IconButtonWidth, IconName, IconToggleButton, MenuItem, SemanticTone, SplitButton, ToggleButton,
     ToggleButtonVariant,
 };
@@ -28,13 +28,13 @@ fn size_code(value: &str) -> &'static str {
     }
 }
 
-fn parse_button_tone(value: &str) -> ButtonTone {
+fn parse_button_tone(value: &str) -> SemanticTone {
     match value {
-        "Success" => ButtonTone::Success,
-        "Warning" => ButtonTone::Warning,
-        "Danger" => ButtonTone::Danger,
-        "Info" => ButtonTone::Info,
-        _ => ButtonTone::Default,
+        "Success" => SemanticTone::Success,
+        "Warning" => SemanticTone::Warning,
+        "Danger" => SemanticTone::Danger,
+        "Info" => SemanticTone::Info,
+        _ => SemanticTone::Default,
     }
 }
 
@@ -201,7 +201,10 @@ pub static BUTTON: Playground = Playground {
             size_code(cfg.option("size"))
         );
         if cfg.option("tone") != "Default" {
-            s.push_str(&format!("\n    .tone(ButtonTone::{})", cfg.option("tone")));
+            s.push_str(&format!(
+                "\n    .tone(SemanticTone::{})",
+                cfg.option("tone")
+            ));
         }
         if cfg.option("shape") == "Square" {
             s.push_str("\n    .shape(ButtonShape::Square)");

@@ -21,7 +21,7 @@ use gpui_material_theme::{
 use crate::{
     Button, ButtonVariant, ControlSize, SwipeToDismiss, Text,
     action::{Activate, FeedbackState, activate_feedback, feedback_target, ripple_state},
-    button_style::finite_length,
+    control_style::finite_length,
 };
 
 use super::long_press::LongPress;
@@ -145,6 +145,7 @@ fn render_content_slot(
         .child(
             div()
                 .id("headline-slot")
+                .test_support()
                 .child(content.unwrap_or_else(|| Text::new(label).id("label").into_any_element())),
         )
         .children(
@@ -737,6 +738,7 @@ fn inherit_color(id: impl Into<ElementId>, element: AnyElement, color: Option<Hs
     // implicit IDs such as Text and Icon.
     div()
         .id(id)
+        .test_support()
         .when_some(color, Styled::text_color)
         .child(element)
         .into_any_element()

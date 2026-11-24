@@ -1,15 +1,20 @@
 use std::rc::Rc;
 
 use gpui::{
-    AnyElement, App, Bounds, Edges, ElementId, Entity, Hsla, IntoElement, Pixels, SharedString,
-    Window, px,
+    AnyElement, App, Bounds, ElementId, Entity, Hsla, IntoElement, Pixels, SharedString, Window, px,
 };
 use gpui_base::input::{InputBaseState, InputModeKind};
 use gpui_material_foundation::InteractionSource;
-use gpui_material_theme::{CornerShape, TypeStyle};
+use gpui_material_theme::{CornerShape, LogicalEdges, TypeStyle};
 
 use super::{TextAreaState, TextFieldState};
 
+mod controls;
+mod editor;
+mod label;
+mod metrics;
+mod outline;
+mod palette;
 mod render;
 
 /// Material text field container treatment. The default is Filled.
@@ -150,6 +155,7 @@ pub struct TextField {
     placeholder: Option<(SharedString, AnyElement)>,
     supporting: Option<FieldDescription>,
     error: Option<SharedString>,
+    disabled: bool,
     invalid: bool,
     required: bool,
     character_count: Option<usize>,
@@ -167,7 +173,7 @@ pub struct TextField {
     font_scale: f32,
     text_style: Option<TypeStyle>,
     shape: Option<CornerShape>,
-    content_padding: Option<Edges<Pixels>>,
+    content_padding: Option<LogicalEdges>,
     min_height: Option<Pixels>,
     indicator_width: (Pixels, Pixels),
     colors: TextFieldColors,
@@ -213,6 +219,17 @@ impl Editor {
         match self {
             Self::Single(state) | Self::Secure(state) => apply(state, value, window, cx),
             Self::Multiple(state) => apply(state, value, window, cx),
+        }
+    }
+
+    fn set_disabled(&self, disabled: bool, cx: &mut App) {
+        match self {
+            Self::Single(state) | Self::Secure(state) => {
+                state.update(cx, |state, cx| state.set_disabled(disabled, cx));
+            }
+            Self::Multiple(state) => {
+                state.update(cx, |state, cx| state.set_disabled(disabled, cx));
+            }
         }
     }
 }
@@ -289,6 +306,7 @@ impl TextField {
             placeholder: None,
             supporting: None,
             error: None,
+            disabled: false,
             invalid: false,
             required: false,
             character_count: None,
@@ -393,9 +411,19 @@ impl TextField {
         self
     }
 
-    /// Sets physical editor insets. An Inside label reserves additional height above the editor.
-    pub fn content_padding(mut self, padding: Edges<Pixels>) -> Self {
+    /// Sets logical editor insets, mirrored automatically in RTL.
+    /// An Inside label reserves additional height above the editor.
+    pub fn content_padding(mut self, padding: LogicalEdges) -> Self {
         self.content_padding = Some(padding);
+        self
+    }
+
+    /// Disables the text field at the component level.
+    ///
+    /// Combined via logical OR with the underlying Base editor state's disabled flag.
+    /// When disabled, pointer and keyboard interaction are suppressed and active focus is blurred.
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
         self
     }
 

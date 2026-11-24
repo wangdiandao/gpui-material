@@ -270,7 +270,21 @@ mod tests {
                 &(ElementId::from("material-range"), "end").into(),
             )
             .unwrap();
-            for (thumb, fraction) in [(start, 0.4), (end, 0.7)] {
+            let start_visual = find(
+                window,
+                &[],
+                &(ElementId::from("material-range"), "start-visual").into(),
+            )
+            .unwrap();
+            let end_visual = find(
+                window,
+                &[],
+                &(ElementId::from("material-range"), "end-visual").into(),
+            )
+            .unwrap();
+            assert_eq!(start.bounds().size.width, bounds.size.width);
+            assert_eq!(end.bounds().size.width, bounds.size.width);
+            for (thumb, fraction) in [(start_visual, 0.4), (end_visual, 0.7)] {
                 let expected = bounds.left() + bounds.size.width * fraction;
                 assert!((thumb.bounds().center().x - expected).abs() <= px(1.));
                 assert_eq!(thumb.bounds().center().y, bounds.center().y);
@@ -349,7 +363,7 @@ mod tests {
                 );
                 draw(window, cx);
             }
-            assert_eq!(state.read(cx).value(), (3.0, 8.0).into());
+            assert_eq!(state.read(cx).value(), (5.0, 8.0).into());
         })
         .unwrap();
     }

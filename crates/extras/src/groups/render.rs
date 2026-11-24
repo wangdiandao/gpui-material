@@ -10,7 +10,7 @@ use gpui::{
     Window, div, prelude::FluentBuilder, px,
 };
 use gpui_material_components::{
-    ButtonPadding, ButtonShapes, ControlSize, Icon, IconName, Menu, MenuItem, SemanticTone,
+    ControlShapes, ControlSize, Icon, IconName, LogicalEdges, Menu, MenuItem, SemanticTone,
     button_composition::{
         ButtonPart, Segment, group_icon_width, group_label_width, split_trailing_size,
     },
@@ -31,7 +31,7 @@ use super::{
 
 struct LabelWidthEntry {
     label: SharedString,
-    padding: Option<ButtonPadding>,
+    padding: Option<LogicalEdges>,
     leading_icon: bool,
     width: Pixels,
 }
@@ -159,7 +159,7 @@ impl ButtonGroupItem {
         }
     }
 
-    fn render_member(&self, button: ButtonPart, shapes: ButtonShapes) -> ButtonPart {
+    fn render_member(&self, button: ButtonPart, shapes: ControlShapes) -> ButtonPart {
         let button = match &self.content {
             ItemContent::Label => button,
             ItemContent::LeadingIcon(icon) => button.leading_icon(icon()),

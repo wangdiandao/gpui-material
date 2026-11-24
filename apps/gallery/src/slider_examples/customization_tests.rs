@@ -191,8 +191,8 @@ fn range_events(view: &Entity<Preview>, cx: &mut VisualTestContext) -> Events {
 #[gpui::test]
 fn slider_styles_separate_handles_and_clear_pointer_and_touch_sources(cx: &mut TestAppContext) {
     let (view, cx) = open(cx);
-    let start = thumb(cx, "test-range", "start");
-    let end = thumb(cx, "test-range", "end");
+    let start = thumb(cx, "test-range", "start-visual");
+    let end = thumb(cx, "test-range", "end-visual");
     assert_eq!(start.size, size(px(40.), px(58.)));
     assert_eq!(end.size, size(px(12.), px(30.)));
     assert_eq!(start.center().y, end.center().y);
@@ -232,7 +232,7 @@ fn slider_styles_separate_handles_and_clear_pointer_and_touch_sources(cx: &mut T
     assert!(snapshot(cx, &view, 0).pressed);
     assert!(!snapshot(cx, &view, 1).pressed);
     assert_range(&view, (5., 5.), cx);
-    assert_eq!(thumb(cx, "test-range", "start").size.width, px(26.));
+    assert_eq!(thumb(cx, "test-range", "start-visual").size.width, px(26.));
     cx.simulate_mouse_move(
         edge - point(px(70.), px(0.)),
         MouseButton::Left,
@@ -301,14 +301,17 @@ fn slider_reversal_mirrors_geometry_and_physical_keys(cx: &mut TestAppContext) {
         let increasing_down = find(window, &[], &id("reversed", "end")).unwrap();
         assert_eq!(increasing_down.role(), Some(Role::Slider));
         assert_eq!(increasing_down.label(), Some("Reversed level"));
+        let increasing_down_visual = find(window, &[], &id("reversed", "end-visual")).unwrap();
         assert!(
-            (increasing_down.bounds().center().y - (reversed.top() + reversed.size.height * 0.3))
+            (increasing_down_visual.bounds().center().y
+                - (reversed.top() + reversed.size.height * 0.3))
                 .abs()
                 < px(1.)
         );
-        let increasing_up = find(window, &[], &id("normal", "end")).unwrap();
+        let increasing_up_visual = find(window, &[], &id("normal", "end-visual")).unwrap();
         assert!(
-            (increasing_up.bounds().center().y - (normal.bottom() - normal.size.height * 0.3))
+            (increasing_up_visual.bounds().center().y
+                - (normal.bottom() - normal.size.height * 0.3))
                 .abs()
                 < px(1.)
         );
@@ -343,8 +346,8 @@ fn slider_reversal_mirrors_geometry_and_physical_keys(cx: &mut TestAppContext) {
         set_window_material_theme(Some(theme), window, cx);
     });
     draw(cx);
-    let start = thumb(cx, "test-range", "start").center();
-    assert!(start.x > thumb(cx, "test-range", "end").center().x);
+    let start = thumb(cx, "test-range", "start-visual").center();
+    assert!(start.x > thumb(cx, "test-range", "end-visual").center().x);
     cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::default());
     cx.simulate_mouse_up(start, MouseButton::Left, Modifiers::default());
     draw(cx);
@@ -415,7 +418,7 @@ fn slider_home_end_and_page_keys_adjust_single_and_range_values(cx: &mut TestApp
     let (view, cx) = open(cx);
     draw(cx);
     // Focus single slider end thumb (range 0..=10, step 1, initial value 3).
-    let single_center = thumb(cx, "normal", "end").center();
+    let single_center = thumb(cx, "normal", "end-visual").center();
     cx.simulate_mouse_down(single_center, MouseButton::Left, Modifiers::default());
     cx.simulate_mouse_up(single_center, MouseButton::Left, Modifiers::default());
     draw(cx);
@@ -446,7 +449,7 @@ fn slider_home_end_and_page_keys_adjust_single_and_range_values(cx: &mut TestApp
     );
 
     // Focus range start thumb (initial range 4..=5) and jump to its bounds.
-    let start_center = thumb(cx, "test-range", "start").center();
+    let start_center = thumb(cx, "test-range", "start-visual").center();
     cx.simulate_mouse_down(start_center, MouseButton::Left, Modifiers::default());
     cx.simulate_mouse_up(start_center, MouseButton::Left, Modifiers::default());
     draw(cx);

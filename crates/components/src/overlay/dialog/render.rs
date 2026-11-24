@@ -358,7 +358,7 @@ impl RenderOnce for Dialog {
             self.on_close.take(),
             cx,
         );
-        let presence = crate::motion::presence(&self.id, open, 200, window, cx);
+        let presence = crate::overlay::presence(&self.id, open, 200, window, cx);
         if !presence.should_render() {
             return div().into_any_element();
         }

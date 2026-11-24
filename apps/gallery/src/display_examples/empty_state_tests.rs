@@ -5,7 +5,7 @@ use gpui::{
 };
 use gpui_base::test_support::find;
 use gpui_material::{
-    Button, ButtonVariant, EmptyState, Icon, IconName,
+    Button, ButtonVariant, EmptyView, Icon, IconName,
     foundation::{MaterialRoot, color, set_window_material_theme},
     theme::{Appearance, ColorRole, CornerRole, Direction, MaterialShape, MaterialTheme, TypeRole},
 };
@@ -33,7 +33,7 @@ fn empty_state_renders_slots_shapes_rtl_actions_and_focus_order(cx: &mut TestApp
                 .p_4()
                 .child(Button::new("before-empty", "Before").on_activate(|_, _| {}))
                 .child(
-                    EmptyState::new("projects-empty", "No projects yet")
+                    EmptyView::new("projects-empty", "No projects yet")
                         .icon(Icon::new(IconName::Inbox))
                         .supporting("Create a project to start tracking work.")
                         .max_width(px(320.))
@@ -57,7 +57,7 @@ fn empty_state_renders_slots_shapes_rtl_actions_and_focus_order(cx: &mut TestApp
                         ),
                 )
                 .child(
-                    EmptyState::new("rounded-empty", "No results")
+                    EmptyView::new("rounded-empty", "No results")
                         .icon(Icon::new(IconName::Search))
                         .shape(CornerRole::ExtraLarge.shape())
                         .icon_container_color_role(
@@ -70,7 +70,7 @@ fn empty_state_renders_slots_shapes_rtl_actions_and_focus_order(cx: &mut TestApp
                         ),
                 )
                 .child(
-                    EmptyState::new("custom-visual-empty", "Nothing pinned")
+                    EmptyView::new("custom-visual-empty", "Nothing pinned")
                         .icon_container_shape(MaterialShape::SoftBurst)
                         .visual(
                             div()

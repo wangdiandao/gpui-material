@@ -151,10 +151,9 @@ impl ListItemColors {
         });
         let (colors, content, secondary, side, background) = if state.disabled {
             let tint = tone(ColorRole::OnSurface).opacity(0.38);
-            let background = self
-                .disabled
-                .container
-                .unwrap_or_else(|| crate::motion::mix(normal_container, tint, selection));
+            let background = self.disabled.container.unwrap_or_else(|| {
+                crate::control_style::mix_color(normal_container, tint, selection)
+            });
             (self.disabled, tint, tint, Some(tint), background)
         } else if state.dragged {
             let background = self.dragged.container.unwrap_or_else(|| {
@@ -173,7 +172,8 @@ impl ListItemColors {
             });
             (self.dragged, content, content, Some(content), background)
         } else {
-            let background = crate::motion::mix(normal_container, selected_container, selection);
+            let background =
+                crate::control_style::mix_color(normal_container, selected_container, selection);
             if selected {
                 let tint = tone(
                     semantic_tone

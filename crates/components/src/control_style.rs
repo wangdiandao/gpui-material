@@ -1,4 +1,4 @@
-use gpui::{Hsla, Pixels, px};
+use gpui::{Hsla, Pixels, Rgba, px};
 use gpui_material_foundation::InteractionState;
 use gpui_material_theme::{CornerShape, Elevation};
 
@@ -18,19 +18,19 @@ pub enum ControlSize {
     ExtraLarge,
 }
 
-/// Button corner overrides in logical top-start, top-end, bottom-end,
+/// Control corner overrides in logical top-start, top-end, bottom-end,
 /// bottom-start order. Unspecified states keep their size and shape presets.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct ButtonShapes {
+pub struct ControlShapes {
     /// Corner shape while resting and unselected.
     pub resting: Option<CornerShape>,
     /// Corner shape while pressed.
     pub pressed: Option<CornerShape>,
-    /// Corner shape while checked/selected on toggle buttons.
+    /// Corner shape while checked/selected on toggle controls and chips.
     pub checked: Option<CornerShape>,
 }
 
-/// Per-instance pigments. Each omitted field keeps the variant's color in
+/// Per-instance button pigments. Each omitted field keeps the variant's color in
 /// that state. Checked colors apply to enabled toggles.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ButtonColors {
@@ -66,32 +66,19 @@ impl ButtonColors {
     }
 }
 
-/// A stroke for any button variant. A zero width removes its outline.
+/// A stroke for any control variant. A zero width removes its outline.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ButtonBorder {
+pub struct ControlBorder {
     /// Stroke thickness in logical pixels.
     pub width: Pixels,
     /// Stroke color.
     pub color: Hsla,
 }
 
-/// Insets around the label or custom content, including leading and trailing icons.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct ButtonPadding {
-    /// Top padding in logical pixels.
-    pub top: Pixels,
-    /// Trailing-edge padding (right in LTR, left in RTL).
-    pub end: Pixels,
-    /// Bottom padding in logical pixels.
-    pub bottom: Pixels,
-    /// Leading-edge padding (left in LTR, right in RTL).
-    pub start: Pixels,
-}
-
 /// Optional Material elevation levels. Disabled takes precedence, followed by
-/// pressed, keyboard focus, hover and rest.
+/// dragged, pressed, keyboard focus, hover, and rest.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ButtonElevations {
+pub struct ControlElevations {
     /// Elevation level while resting.
     pub resting: Option<Elevation>,
     /// Elevation level while pressed.
@@ -100,14 +87,18 @@ pub struct ButtonElevations {
     pub focused: Option<Elevation>,
     /// Elevation level while hovered.
     pub hovered: Option<Elevation>,
+    /// Elevation level while dragged.
+    pub dragged: Option<Elevation>,
     /// Elevation level while disabled.
     pub disabled: Option<Elevation>,
 }
 
-impl ButtonElevations {
+impl ControlElevations {
     pub(crate) fn for_state(self, state: InteractionState) -> Option<Elevation> {
         if state.disabled {
             self.disabled
+        } else if state.dragged {
+            self.dragged
         } else if state.pressed {
             self.pressed
         } else if state.focus_visible {
@@ -123,9 +114,9 @@ impl ButtonElevations {
 #[derive(Clone, Copy, Default)]
 pub(crate) struct ButtonStyle {
     pub(crate) colors: ButtonColors,
-    pub(crate) shapes: ButtonShapes,
-    pub(crate) border: Option<ButtonBorder>,
-    pub(crate) elevations: ButtonElevations,
+    pub(crate) shapes: ControlShapes,
+    pub(crate) border: Option<ControlBorder>,
+    pub(crate) elevations: ControlElevations,
 }
 
 pub(crate) fn finite_length(length: Pixels) -> Pixels {
@@ -136,6 +127,19 @@ pub(crate) fn finite_length(length: Pixels) -> Pixels {
     }
 }
 
+pub(crate) fn mix_color(from: Hsla, to: Hsla, fraction: f32) -> Hsla {
+    let from = Rgba::from(from);
+    let to = Rgba::from(to);
+    let mix = |a, b| a + (b - a) * fraction;
+    Rgba {
+        r: mix(from.r, to.r),
+        g: mix(from.g, to.g),
+        b: mix(from.b, to.b),
+        a: mix(from.a, to.a),
+    }
+    .into()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -143,12 +147,13 @@ mod tests {
     #[test]
     fn elevation_overrides_are_independent_and_follow_state_priority() {
         use Elevation::*;
-        let levels = ButtonElevations {
+        let levels = ControlElevations {
             resting: Some(Level1),
             hovered: Some(Level2),
             focused: Some(Level3),
             pressed: Some(Level4),
-            disabled: Some(Level5),
+            dragged: Some(Level5),
+            disabled: Some(Level0),
         };
         let mut state = InteractionState::default();
         assert_eq!(levels.for_state(state), Some(Level1));
@@ -158,12 +163,9 @@ mod tests {
         assert_eq!(levels.for_state(state), Some(Level3));
         state.pressed = true;
         assert_eq!(levels.for_state(state), Some(Level4));
-        state.disabled = true;
+        state.dragged = true;
         assert_eq!(levels.for_state(state), Some(Level5));
-        let resting_only = ButtonElevations {
-            resting: Some(Level2),
-            ..Default::default()
-        };
-        assert_eq!(resting_only.for_state(state), None);
+        state.disabled = true;
+        assert_eq!(levels.for_state(state), Some(Level0));
     }
 }

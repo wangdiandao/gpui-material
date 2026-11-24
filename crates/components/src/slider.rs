@@ -1,5 +1,10 @@
 mod geometry;
+mod gesture;
+mod layout;
+mod palette;
 mod render;
+mod thumb;
+mod track;
 
 use gpui::{
     AnyElement, App, Axis, ElementId, Entity, FocusHandle, Hsla, IntoElement, Pixels, Point,
@@ -245,10 +250,20 @@ impl Slider {
         self
     }
 
+    /// Replaces the handle artwork of a single-value slider (`RangeThumb::End`).
+    pub fn single_thumb(self, element: impl IntoElement) -> Self {
+        self.thumb(RangeThumb::End, element)
+    }
+
     /// Sets per-handle size and colors. Use `RangeThumb::End` for a single value.
     pub fn thumb_style(mut self, which: RangeThumb, style: SliderThumbStyle) -> Self {
         self.thumbs[thumb_index(which)].style = style;
         self
+    }
+
+    /// Sets the handle size and colors of a single-value slider (`RangeThumb::End`).
+    pub fn single_thumb_style(self, style: SliderThumbStyle) -> Self {
+        self.thumb_style(RangeThumb::End, style)
     }
 
     /// Overrides enabled and disabled track, thumb, and tick colors.
@@ -264,6 +279,11 @@ impl Slider {
         self
     }
 
+    /// Uses the caller's focus handle for a single-value slider (`RangeThumb::End`).
+    pub fn single_track_focus(self, focus: &FocusHandle) -> Self {
+        self.track_focus(RangeThumb::End, focus)
+    }
+
     /// Observes one handle under the slider ID paired with `"start"` or `"end"`.
     pub fn interaction_source(
         mut self,
@@ -274,6 +294,11 @@ impl Slider {
         entry.source = Some(source.clone());
         entry.source_key = None;
         self
+    }
+
+    /// Observes the handle of a single-value slider (`RangeThumb::End`).
+    pub fn single_interaction_source(self, source: &Entity<InteractionSource>) -> Self {
+        self.interaction_source(RangeThumb::End, source)
     }
 
     #[cfg(feature = "surfaces")]

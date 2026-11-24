@@ -4,7 +4,7 @@ use std::rc::Rc;
 use crate::menu_appearance::Paint;
 pub use crate::menu_appearance::{MenuColor, MenuItemStyle, MenuSurfaceStyle};
 
-use crate::motion::{OverlayMotion, ScaledOverlay, menu_pivot};
+use crate::menu_appearance::menu_pivot;
 use crate::{Icon, IconName, SemanticTone};
 use gpui::{
     Anchor, AnyElement, App, Bounds, ElementId, FocusHandle, Focusable, InteractiveElement,
@@ -16,6 +16,7 @@ use gpui_base::{
     Popover, PopoverState, Popup, Positioner, TestSupportExt,
     actions::{Cancel, Confirm},
 };
+use gpui_material_foundation::{OverlayMotion, ScaledOverlay};
 use gpui_material_foundation::{ThemeScope, current_material_theme, logical_anchor};
 use gpui_material_theme::{CornerShape, Direction, TypeRole, TypographyEmphasis};
 

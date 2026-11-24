@@ -2,7 +2,8 @@ use gpui_material_theme::{ColorRole, CornerRole, Elevation, MotionKind, MotionSp
 
 use crate::action::{ActionStyle, DisabledStyle};
 
-use super::{ButtonTone, ButtonVariant, IconButtonVariant, Metrics};
+use super::types::{ButtonVariant, IconButtonVariant, Metrics};
+use crate::SemanticTone;
 
 pub(super) struct Appearance {
     pub(super) background: Option<ColorRole>,
@@ -38,7 +39,7 @@ impl Appearance {
 pub(super) fn button_appearance(
     variant: ButtonVariant,
     selected: Option<bool>,
-    tone: ButtonTone,
+    tone: SemanticTone,
 ) -> Appearance {
     use ColorRole::*;
     use Elevation::*;
@@ -178,7 +179,7 @@ pub(super) fn button_appearance(
 pub(super) fn icon_appearance(
     variant: IconButtonVariant,
     selected: Option<bool>,
-    tone: ButtonTone,
+    tone: SemanticTone,
 ) -> Appearance {
     let mut appearance = match variant {
         IconButtonVariant::Standard => button_appearance(ButtonVariant::Text, selected, tone),
@@ -188,7 +189,7 @@ pub(super) fn icon_appearance(
         }
         IconButtonVariant::Outlined => button_appearance(ButtonVariant::Outlined, selected, tone),
     };
-    if variant == IconButtonVariant::Standard && tone == ButtonTone::Default {
+    if variant == IconButtonVariant::Standard && tone == SemanticTone::Default {
         appearance.foreground = if selected == Some(true) {
             ColorRole::Primary
         } else {
@@ -219,19 +220,23 @@ mod tests {
         // Button.kt corrects TextButtonTokens.LabelColor, whereas a standard
         // icon remains neutral until selected (IconButtonDefaults.kt).
         assert_eq!(
-            button_appearance(ButtonVariant::Text, None, ButtonTone::Default).foreground,
+            button_appearance(ButtonVariant::Text, None, SemanticTone::Default).foreground,
             ColorRole::Primary
         );
         for selected in [None, Some(false)] {
             assert_eq!(
-                icon_appearance(IconButtonVariant::Standard, selected, ButtonTone::Default)
+                icon_appearance(IconButtonVariant::Standard, selected, SemanticTone::Default)
                     .foreground,
                 ColorRole::OnSurfaceVariant
             );
         }
         assert_eq!(
-            icon_appearance(IconButtonVariant::Standard, Some(true), ButtonTone::Default)
-                .foreground,
+            icon_appearance(
+                IconButtonVariant::Standard,
+                Some(true),
+                SemanticTone::Default
+            )
+            .foreground,
             ColorRole::Primary
         );
     }
@@ -241,23 +246,24 @@ mod tests {
         use ColorRole::*;
         for selected in [Some(false), Some(true)] {
             let outlined =
-                button_appearance(ButtonVariant::Outlined, selected, ButtonTone::Default);
+                button_appearance(ButtonVariant::Outlined, selected, SemanticTone::Default);
             assert_eq!(outlined.disabled.background, Some((OutlineVariant, 0.10)));
             assert_eq!(outlined.disabled.foreground, OnSurfaceVariant);
             assert_eq!(outlined.disabled.outline, (OutlineVariant, 0.10));
-            let icon = icon_appearance(IconButtonVariant::Outlined, selected, ButtonTone::Default);
+            let icon =
+                icon_appearance(IconButtonVariant::Outlined, selected, SemanticTone::Default);
             assert_eq!(icon.disabled.background, None);
             assert_eq!(icon.disabled.foreground, OnSurface);
             assert_eq!(icon.disabled.outline, (OutlineVariant, 0.38));
         }
         assert_eq!(
-            button_appearance(ButtonVariant::Outlined, None, ButtonTone::Default)
+            button_appearance(ButtonVariant::Outlined, None, SemanticTone::Default)
                 .disabled
                 .background,
             None
         );
         assert_eq!(
-            button_appearance(ButtonVariant::Filled, None, ButtonTone::Default)
+            button_appearance(ButtonVariant::Filled, None, SemanticTone::Default)
                 .disabled
                 .background,
             Some((OnSurface, 0.10))
@@ -265,19 +271,23 @@ mod tests {
         // FilledTonalButton and its expressive toggle reference different token
         // generations in the pinned Compose release.
         assert_eq!(
-            button_appearance(ButtonVariant::FilledTonal, None, ButtonTone::Default)
+            button_appearance(ButtonVariant::FilledTonal, None, SemanticTone::Default)
                 .disabled
                 .background,
             Some((OnSurface, 0.12))
         );
         assert_eq!(
-            button_appearance(ButtonVariant::FilledTonal, Some(false), ButtonTone::Default)
-                .disabled
-                .background,
+            button_appearance(
+                ButtonVariant::FilledTonal,
+                Some(false),
+                SemanticTone::Default
+            )
+            .disabled
+            .background,
             Some((OnSurface, 0.10))
         );
         assert_eq!(
-            icon_appearance(IconButtonVariant::FilledTonal, None, ButtonTone::Default)
+            icon_appearance(IconButtonVariant::FilledTonal, None, SemanticTone::Default)
                 .disabled
                 .background,
             Some((OnSurface, 0.10))
@@ -289,28 +299,28 @@ mod tests {
         use ColorRole::*;
         let cases = [
             (
-                ButtonTone::Danger,
+                SemanticTone::Danger,
                 Error,
                 OnError,
                 ErrorContainer,
                 OnErrorContainer,
             ),
             (
-                ButtonTone::Success,
+                SemanticTone::Success,
                 Success,
                 OnSuccess,
                 SuccessContainer,
                 OnSuccessContainer,
             ),
             (
-                ButtonTone::Warning,
+                SemanticTone::Warning,
                 Warning,
                 OnWarning,
                 WarningContainer,
                 OnWarningContainer,
             ),
             (
-                ButtonTone::Info,
+                SemanticTone::Info,
                 Info,
                 OnInfo,
                 InfoContainer,

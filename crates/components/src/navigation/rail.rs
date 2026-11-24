@@ -394,7 +394,7 @@ impl RenderOnce for NavigationRail {
         let modal = self.modal.as_ref().and_then(|state| {
             let open = state.read(cx).is_open();
             let id = (self.id.clone(), "rail-modal").into();
-            let presence = crate::motion::presence(&id, open, 240, window, cx);
+            let presence = crate::overlay::presence(&id, open, 240, window, cx);
             presence.should_render().then(|| (state.clone(), presence))
         });
         // Resolve before either placement so a destination retains its handle.

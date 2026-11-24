@@ -159,10 +159,14 @@ fn draw(cx: &mut TestAppContext, handle: gpui::WindowHandle<gpui_base::Root>) {
     }
 }
 
+fn scoped(part: &'static str) -> ElementId {
+    (ElementId::from("custom-dropdown"), part).into()
+}
+
 fn field(window: &Window) -> ElementSnapshot {
-    let id = (ElementId::from("custom-dropdown"), "combobox").into();
+    let id = scoped("combobox");
     let trigger = find(window, &[], &id).unwrap();
-    find(window, trigger.path(), &"value".into()).unwrap()
+    find(window, trigger.path(), &scoped("value")).unwrap()
 }
 
 fn click(
@@ -204,7 +208,7 @@ fn dropdown_selection_only_popup_focus_and_controlled_dismissal(cx: &mut TestApp
     });
     field_click(cx, handle);
     cx.update_window(handle.into(), |_, window, _| {
-        let menu = find(window, &[], &"options".into()).unwrap();
+        let menu = find(window, &[], &scoped("options")).unwrap();
         assert_eq!(menu.role(), Some(Role::ListBox));
         assert_eq!(menu.label(), Some("Custom destination options"));
         assert_eq!(menu.focused(), Some(true));
@@ -216,7 +220,7 @@ fn dropdown_selection_only_popup_focus_and_controlled_dismissal(cx: &mut TestApp
     cx.update_window(handle.into(), |_, window, cx| {
         assert_eq!(field(window).focused(), Some(true));
         assert_eq!(field(window).value(), Some("Option 0"));
-        assert!(find(window, &[], &"options".into()).is_none());
+        assert!(find(window, &[], &scoped("options")).is_none());
         let view = view.read(cx);
         assert_eq!(
             view.state.read(cx).selected_option_id(),
@@ -282,7 +286,7 @@ fn dropdown_editable_secondary_pointer_preserves_field_and_disabled_anchors_pres
     draw(cx, handle);
     let secondary = cx
         .update_window(handle.into(), |_, window, _| {
-            let button = find(window, &[], &"toggle-options".into()).unwrap();
+            let button = find(window, &[], &scoped("toggle-options")).unwrap();
             assert_eq!(button.label(), Some("Choose preset"));
             button.bounds().center()
         })
@@ -306,7 +310,7 @@ fn dropdown_editable_secondary_pointer_preserves_field_and_disabled_anchors_pres
         let view = view.read(cx);
         assert!(view.state.read(cx).is_open());
         assert!(view.state.read(cx).selected_option_id().is_none());
-        let scroll = find(window, &[], &"options-scroll-region".into()).unwrap();
+        let scroll = find(window, &[], &scoped("options-scroll-region")).unwrap();
         assert!(
             find(window, scroll.path(), &0usize.into())
                 .unwrap()
@@ -336,7 +340,7 @@ fn dropdown_editable_secondary_pointer_preserves_field_and_disabled_anchors_pres
         assert!(!view.state.read(cx).is_open());
         assert_eq!(view.changes, [true, false]);
         assert_eq!(field(window).role(), Some(Role::TextInput));
-        assert!(find(window, &[], &"toggle-options".into()).is_none());
+        assert!(find(window, &[], &scoped("toggle-options")).is_none());
     })
     .unwrap();
 }
@@ -352,13 +356,13 @@ fn dropdown_custom_surface_width_and_virtual_scroll_survive_rebuilding(cx: &mut 
         })
     });
     draw(cx, handle);
-    let popup = |window: &Window| find(window, &[], &"options".into()).unwrap().bounds();
+    let popup = |window: &Window| find(window, &[], &scoped("options")).unwrap().bounds();
     cx.update_window(handle.into(), |_, window, cx| {
         let bounds = popup(window);
         assert_eq!(bounds.size.width, px(230.));
         assert!(bounds.top() > field(window).bounds().bottom());
         assert!(bounds.bottom() <= window.viewport_size().height - px(8.));
-        let scroll = find(window, &[], &"options-scroll-region".into()).unwrap();
+        let scroll = find(window, &[], &scoped("options-scroll-region")).unwrap();
         let first = find(window, scroll.path(), &0usize.into()).unwrap();
         assert_eq!(first.role(), Some(Role::ListBoxOption));
         assert_eq!(first.label(), Some("Option 0"));
@@ -407,7 +411,7 @@ fn dropdown_custom_surface_width_and_virtual_scroll_survive_rebuilding(cx: &mut 
             51
         );
         assert_eq!(popup(window).size.width, field(window).bounds().size.width);
-        let scroll = find(window, &[], &"options-scroll-region".into()).unwrap();
+        let scroll = find(window, &[], &scoped("options-scroll-region")).unwrap();
         assert!(
             find(window, scroll.path(), &50usize.into())
                 .unwrap()

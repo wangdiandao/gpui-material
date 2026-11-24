@@ -1,18 +1,22 @@
-use std::{cell::Cell, rc::Rc};
+use gpui::StatefulInteractiveElement;
+use std::rc::Rc;
 
 use gpui::{
-    AccessibleAction, AnyElement, App, BorderStyle, Bounds, ContentMask, ElementId, Entity,
-    FocusHandle, Hsla, InteractiveElement, IntoElement, ParentElement, Path, PathBuilder,
-    PathStyle, Pixels, RenderOnce, Rgba, SharedString, StatefulInteractiveElement, StrokeOptions,
-    Styled, Window, canvas, div, point, prelude::FluentBuilder, px, quad,
+    AccessibleAction, App, BorderStyle, Bounds, ContentMask, ElementId, Entity, FocusHandle, Hsla,
+    InteractiveElement, IntoElement, ParentElement, Path, PathBuilder, PathStyle, Pixels,
+    RenderOnce, Rgba, SharedString, StrokeOptions, Styled, Window, canvas, div, point,
+    prelude::FluentBuilder, px, quad,
 };
 use gpui_base::{Checkbox as BaseCheckbox, CheckboxState, TestSupportExt};
-use gpui_material_foundation::{InteractionSource, ThemeScope, animate, current_material_theme};
+use gpui_material_foundation::{
+    InteractionSource, animate, control_feedback::activate_feedback, current_material_theme,
+};
 use gpui_material_theme::{ColorRole, MotionKind, MotionSpec, MotionSpeed};
 
-use crate::action::{feedback_target, ripple_state, ripple_target};
-
-use super::{focus_style, row, selection_label, selection_target, selection_tone, tone};
+use super::{
+    base::{BoundValueAction, SelectionControlBase},
+    focus_style, selection_target, selection_tone, tone,
+};
 
 type CheckboxChange = Rc<dyn Fn(CheckboxState, &mut Window, &mut App)>;
 
@@ -73,20 +77,13 @@ const CHECKBOX_STROKE: f32 = 2.;
 /// Controlled Material checkbox. Mixed activation requests Checked.
 #[derive(IntoElement)]
 pub struct Checkbox {
-    id: ElementId,
-    label: SharedString,
-    show_label: bool,
-    label_content: Option<AnyElement>,
+    base: SelectionControlBase,
     state: CheckboxState,
     error: bool,
-    disabled: bool,
     colors: CheckboxColors,
     checkmark_stroke: StrokeOptions,
     outline_stroke: Pixels,
-    focus: Option<FocusHandle>,
-    interaction_source: Option<Entity<InteractionSource>>,
     on_change: Option<CheckboxChange>,
-    decorative: bool,
 }
 
 impl Checkbox {
@@ -97,42 +94,35 @@ impl Checkbox {
         state: CheckboxState,
     ) -> Self {
         Self {
-            id: id.into(),
-            label: label.into(),
-            show_label: true,
-            label_content: None,
+            base: SelectionControlBase::new(id, label),
             state,
             error: false,
-            disabled: false,
             colors: CheckboxColors::default(),
             checkmark_stroke: StrokeOptions {
                 line_width: CHECKBOX_STROKE,
                 ..StrokeOptions::default()
             },
             outline_stroke: px(CHECKBOX_STROKE),
-            focus: None,
-            interaction_source: None,
             on_change: None,
-            decorative: false,
         }
     }
 
     #[cfg(feature = "surfaces")]
     pub(crate) fn decorative(mut self, decorative: bool) -> Self {
-        self.decorative = decorative;
+        self.base.decorative(decorative);
         self
     }
 
     /// Controls whether the visible label is rendered. Defaults to `true`.
     /// When `false`, the constructor's label remains the accessible name and the trailing gap is omitted.
     pub fn show_label(mut self, show: bool) -> Self {
-        self.show_label = show;
+        self.base.show_label(show);
         self
     }
 
     /// Replaces the visible label while keeping the constructor's label as the accessible name.
     pub fn label_content(mut self, content: impl IntoElement) -> Self {
-        self.label_content = Some(content.into_any_element());
+        self.base.label_content(content);
         self
     }
 
@@ -144,7 +134,7 @@ impl Checkbox {
 
     /// Disables pointer, keyboard, and accessibility interaction when `true`.
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = disabled;
+        self.base.disabled(disabled);
         self
     }
 
@@ -168,13 +158,13 @@ impl Checkbox {
 
     /// Uses the caller's focus handle instead of an internal keyed handle.
     pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
-        self.focus = Some(focus.clone());
+        self.base.track_focus(focus);
         self
     }
 
     /// Reports pointer, keyboard and disabled feedback to a caller-owned source.
     pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
-        self.interaction_source = Some(source.clone());
+        self.base.interaction_source(source);
         self
     }
 
@@ -200,15 +190,16 @@ impl Checkbox {
 }
 
 impl RenderOnce for Checkbox {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let disabled = self.base.disabled;
         let checked = self.state != CheckboxState::Unchecked;
-        let accent = if self.error && !self.disabled {
+        let accent = if self.error && !disabled {
             tone(ColorRole::Error, window, cx)
         } else {
-            selection_tone(checked, self.disabled, window, cx)
+            selection_tone(checked, disabled, window, cx)
         };
         let on_accent = tone(
-            if self.disabled {
+            if disabled {
                 ColorRole::Surface
             } else if self.error {
                 ColorRole::OnError
@@ -218,12 +209,15 @@ impl RenderOnce for Checkbox {
             window,
             cx,
         );
-        let motion = current_material_theme(window, cx).motion;
-        let reduced = self.disabled || cx.reduce_motion();
+        let theme = current_material_theme(window, cx);
+        let motion = theme.motion;
+        let direction = theme.layout.direction;
+        let density = theme.layout.density;
+        let reduced = disabled || cx.reduce_motion();
         let effects = motion.spec(MotionKind::Effects, MotionSpeed::Fast, reduced);
         let spatial = motion.spec(MotionKind::Spatial, MotionSpeed::Fast, reduced);
         let draw = animate(
-            (self.id.clone(), "check-draw"),
+            (self.base.id.clone(), "check-draw"),
             f32::from(checked),
             spatial,
             window,
@@ -231,24 +225,24 @@ impl RenderOnce for Checkbox {
         )
         .clamp(0., 1.);
         let mixed = animate(
-            (self.id.clone(), "check-shape"),
+            (self.base.id.clone(), "check-shape"),
             f32::from(self.state == CheckboxState::Indeterminate),
             effects,
             window,
             cx,
         )
         .clamp(0., 1.);
-        let inactive = if self.error && !self.disabled {
+        let inactive = if self.error && !disabled {
             accent
         } else {
-            selection_tone(false, self.disabled, window, cx)
+            selection_tone(false, disabled, window, cx)
         };
         let (box_color, border, mark) = resolve_checkbox_colors(
-            &self.id,
+            &self.base.id,
             self.colors,
             self.state,
             self.error,
-            self.disabled,
+            disabled,
             accent,
             inactive,
             on_accent,
@@ -285,9 +279,9 @@ impl RenderOnce for Checkbox {
         )
         .size(px(CHECKBOX_SIZE))
         .flex_none();
-        if self.decorative {
+        if self.base.decorative {
             return div()
-                .id(self.id)
+                .id(self.base.id)
                 .test_support()
                 .flex_none()
                 .size(px(24.))
@@ -297,90 +291,67 @@ impl RenderOnce for Checkbox {
                 .child(indicator)
                 .into_any_element();
         }
-        let direction = current_material_theme(window, cx).layout.direction;
-        let ripple = ripple_state(&self.id, !self.disabled, window, cx);
-        let focus = self.focus.unwrap_or_else(|| {
-            window
-                .use_keyed_state(self.id.clone(), cx, |_, cx| cx.focus_handle())
-                .read(cx)
-                .clone()
-        });
-        let tracker = self
-            .interaction_source
-            .as_ref()
-            .map(|source| InteractionSource::track(source, &self.id, window, cx));
-        let track_hover = tracker.is_some();
-        ripple
-            .borrow_mut()
-            .track(!self.disabled, &focus, tracker, window, cx);
-        let group: SharedString = format!("material-checkbox/{}", self.id).into();
-        let label = self.label;
-        let control = BaseCheckbox::new(self.id)
-            .track_focus(&focus)
-            .when(!self.disabled, |control| {
-                if track_hover {
-                    feedback_target(control, ripple.clone(), true, Some(focus.clone()))
-                } else {
-                    ripple_target(control, ripple.clone())
-                }
-            })
+        let interaction = self.base.prepare_interaction(None, window, cx);
+        let group = self.base.group_name("material-checkbox");
+        let target = selection_target(
+            group.clone(),
+            indicator,
+            accent,
+            !disabled,
+            interaction.ripple.clone(),
+            direction,
+            density,
+            cx.reduce_motion(),
+        );
+        let click_ripple = interaction.ripple.clone();
+        let label = self.base.label.clone();
+        let control = BaseCheckbox::new(self.base.id.clone())
+            .track_focus(&interaction.focus)
             .state(self.state)
-            .when(self.error, |control| {
+            .when(self.error && !disabled, |control| {
                 control.a11y_synthetic_children(|node| {
                     node.parent_node()
                         .set_invalid(gpui::accesskit::Invalid::True);
                 })
             })
-            .disabled(self.disabled)
-            .accessibility_label(label.clone())
-            .group(group.clone())
+            .disabled(disabled)
+            .accessibility_label(label)
+            .group(group)
             .border_2()
             .border_color(gpui::transparent_black())
             .rounded_md()
             .focus_visible(focus_style(tone(ColorRole::Secondary, window, cx)))
-            .child(
-                row(direction, self.show_label)
-                    .child(selection_target(
-                        group,
-                        indicator,
-                        accent,
-                        !self.disabled,
-                        ripple,
-                        direction,
-                        cx.reduce_motion(),
-                    ))
-                    .children(self.show_label.then(|| {
-                        selection_label(label, self.label_content, self.disabled, window, cx)
-                    })),
-            );
+            .child(self.base.render_row(direction, target, window, cx));
+        let control = interaction.attach_feedback(control);
+        if disabled {
+            return control.into_any_element();
+        }
         match self.on_change {
-            Some(handler) if !self.disabled => {
+            Some(handler) => {
                 let next = if self.state == CheckboxState::Checked {
                     CheckboxState::Unchecked
                 } else {
                     CheckboxState::Checked
                 };
-                let pending = Rc::new(Cell::new(next));
-                let pending_arg = pending.clone();
-                let handler = Rc::new(ThemeScope::bind_action(
-                    move |window, cx| handler(pending_arg.get(), window, cx),
-                    window,
-                    cx,
-                ));
-                let change = handler.clone();
-                let a11y_pending = pending.clone();
+                let bound = BoundValueAction::new(next, handler, window, cx);
+                let a11y_bound = bound.clone();
                 control
                     .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
-                        a11y_pending.set(next);
-                        change(window, cx);
+                        a11y_bound.invoke_default(window, cx);
                     })
-                    .on_change(move |value, _, window, cx| {
-                        pending.set(value);
-                        handler(window, cx);
+                    .on_change(move |value, event, window, cx| {
+                        cx.stop_propagation();
+                        activate_feedback(event, &click_ripple, window, cx);
+                        bound.invoke(value, window, cx);
                     })
                     .into_any_element()
             }
-            _ => control.into_any_element(),
+            None => control
+                .on_change(move |_, event, window, cx| {
+                    cx.stop_propagation();
+                    activate_feedback(event, &click_ripple, window, cx);
+                })
+                .into_any_element(),
         }
     }
 }
@@ -411,7 +382,7 @@ fn resolve_checkbox_colors(
         .clamp(0., 1.);
         (
             accent.opacity(fill),
-            crate::motion::mix(inactive, accent, fill),
+            crate::control_style::mix_color(inactive, accent, fill),
             on_accent,
         )
     } else {

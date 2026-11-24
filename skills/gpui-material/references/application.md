@@ -14,6 +14,15 @@ edition = "2024"
 gpui = { package = "gpui-pre", version = "=0.3.14" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.14", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
 gpui-material = "0.3.2"
+
+# Recommended for smooth dev-build rendering (see practices.md for the full list).
+[profile.dev.package]
+gpui-base = { opt-level = 3 }
+gpui-pre = { opt-level = 3 }
+gpui-pre-platform = { opt-level = 3 }
+gpui-pre-windows = { opt-level = 3 }
+gpui-pre-macos = { opt-level = 3 }
+gpui-pre-linux = { opt-level = 3 }
 ```
 
 ## `src/main.rs`

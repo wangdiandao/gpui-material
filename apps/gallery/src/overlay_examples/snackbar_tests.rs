@@ -225,7 +225,7 @@ fn snackbar_styles_live_content_and_keeps_keyboard_focus_local(cx: &mut TestAppC
                 .height
                 > short_height
         );
-        let quads = window.painted_quads();
+        let quads = crate::painted_quads(window);
         let custom = quads
             .iter()
             .find(|quad| quad.background == rgb(0x172b49).into())
@@ -692,8 +692,7 @@ fn snackbar_tone_push_message_and_replace_precedence(cx: &mut TestAppContext) {
         let error = color(theme.colors.color(ColorRole::Error));
 
         assert!(
-            window
-                .painted_quads()
+            crate::painted_quads(window)
                 .iter()
                 .any(|quad| quad.background == error_container.into()),
             "Danger snackbar must paint ErrorContainer"
@@ -747,8 +746,7 @@ fn snackbar_tone_push_message_and_replace_precedence(cx: &mut TestAppContext) {
     draw(cx);
     cx.update(|window, _| {
         assert!(
-            window
-                .painted_quads()
+            crate::painted_quads(window)
                 .iter()
                 .any(|quad| quad.background == explicit_bg.into()),
             "explicit SnackbarColors::container must override SemanticTone"

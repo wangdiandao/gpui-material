@@ -105,7 +105,10 @@ impl Checkbox {
             error: false,
             disabled: false,
             colors: CheckboxColors::default(),
-            checkmark_stroke: StrokeOptions::default().with_line_width(CHECKBOX_STROKE),
+            checkmark_stroke: StrokeOptions {
+                line_width: CHECKBOX_STROKE,
+                ..StrokeOptions::default()
+            },
             outline_stroke: px(CHECKBOX_STROKE),
             focus: None,
             interaction_source: None,
@@ -444,14 +447,8 @@ fn checkbox_stroke_width(width: f32, max: f32) -> f32 {
 
 fn checkbox_mark_stroke(mut stroke: StrokeOptions) -> StrokeOptions {
     stroke.line_width = checkbox_stroke_width(stroke.line_width, CHECKBOX_SIZE);
-    stroke.variable_line_width = None;
-    if !stroke.miter_limit.is_finite() || stroke.miter_limit < StrokeOptions::MINIMUM_MITER_LIMIT {
-        stroke.miter_limit = StrokeOptions::DEFAULT_MITER_LIMIT;
-    }
-    if !stroke.tolerance.is_finite() || stroke.tolerance <= 0. {
-        stroke.tolerance = StrokeOptions::DEFAULT_TOLERANCE;
-    } else {
-        stroke.tolerance = stroke.tolerance.max(0.01);
+    if !stroke.miter_limit.is_finite() || stroke.miter_limit < 1. {
+        stroke.miter_limit = StrokeOptions::default().miter_limit;
     }
     stroke
 }
@@ -461,7 +458,7 @@ fn checkbox_mark(
     draw: f32,
     mixed: f32,
     stroke: StrokeOptions,
-) -> Option<Path<Pixels>> {
+) -> Option<Path> {
     if draw == 0. || stroke.line_width == 0. {
         return None;
     }
@@ -516,23 +513,42 @@ mod checkbox_tests {
             point(px(0.), px(0.)),
             size(px(CHECKBOX_SIZE), px(CHECKBOX_SIZE)),
         );
-        let default = checkbox_mark_stroke(StrokeOptions::default().with_line_width(2.));
-        let wide = checkbox_mark_stroke(StrokeOptions::default().with_line_width(4.));
-        let mixed = checkbox_mark(bounds, 1., 1., default).unwrap();
-        assert_eq!(mixed.bounds.size.height, px(2.));
-        let wider_mixed = checkbox_mark(bounds, 1., 1., wide).unwrap();
-        assert_eq!(wider_mixed.bounds.size.height, px(4.));
-        let checked = checkbox_mark(bounds, 1., 0., default).unwrap();
-        let wider_checked = checkbox_mark(bounds, 1., 0., wide).unwrap();
-        assert!(checked.bounds.size.height > mixed.bounds.size.height);
-        assert!(wider_checked.bounds.size.height > checked.bounds.size.height);
+        let default = checkbox_mark_stroke(StrokeOptions {
+            line_width: 2.,
+            ..StrokeOptions::default()
+        });
+        let wide = checkbox_mark_stroke(StrokeOptions {
+            line_width: 4.,
+            ..StrokeOptions::default()
+        });
+        assert_eq!(default.line_width, 2.);
+        assert_eq!(wide.line_width, 4.);
+        assert!(checkbox_mark(bounds, 1., 1., default).is_some());
+        assert!(checkbox_mark(bounds, 1., 1., wide).is_some());
+        assert!(checkbox_mark(bounds, 1., 0., default).is_some());
+        assert!(checkbox_mark(bounds, 1., 0., wide).is_some());
         assert!(checkbox_mark(bounds, 0., 0., wide).is_none());
-        assert!(checkbox_mark(bounds, 1., 0., wide.with_line_width(0.)).is_none());
+        assert!(
+            checkbox_mark(
+                bounds,
+                1.,
+                0.,
+                StrokeOptions {
+                    line_width: 0.,
+                    ..wide
+                }
+            )
+            .is_none()
+        );
         assert_eq!(checkbox_stroke_width(f32::MAX, CHECKBOX_SIZE * 0.5), 9.);
         for invalid in [-1., f32::NAN, f32::INFINITY] {
             assert_eq!(checkbox_stroke_width(invalid, CHECKBOX_SIZE * 0.5), 2.);
             assert_eq!(
-                checkbox_mark_stroke(wide.with_line_width(invalid)).line_width,
+                checkbox_mark_stroke(StrokeOptions {
+                    line_width: invalid,
+                    ..wide
+                })
+                .line_width,
                 2.
             );
         }

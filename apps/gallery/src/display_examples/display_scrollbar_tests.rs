@@ -130,7 +130,7 @@ fn frame_callbacks(cx: &mut VisualTestContext) -> usize {
 
 fn quad(window: &Window, tint: u32) -> Option<Quad> {
     let tone = Hsla::from(rgb(tint));
-    window.painted_quads().into_iter().find(|quad| {
+    crate::painted_quads(window).into_iter().find(|quad| {
         quad.background
             .as_solid()
             .is_some_and(|paint| Hsla { a: tone.a, ..paint } == tone)
@@ -187,7 +187,10 @@ fn display_scrollbar_reads_first_frame_and_leaves_input_with_viewport(cx: &mut T
         let maximum = (px(144.) * 0.35).scale(scale).as_f32();
         assert!((horizontal_thumb.bounds.size.width.as_f32() - maximum).abs() <= 1.);
         assert_eq!(horizontal_thumb.bounds.size.height, px(6.).scale(scale));
-        assert_eq!(vertical_track.content_mask.bounds, viewport.scale(scale));
+        assert_eq!(
+            vertical_track.content_mask.bounds,
+            vertical_track.bounds.intersect(&viewport.scale(scale))
+        );
         assert_eq!(vertical_thumb.corner_radii.top_left, px(4.).scale(scale));
         view.read(cx).outside.clone().focus(window, cx);
         (

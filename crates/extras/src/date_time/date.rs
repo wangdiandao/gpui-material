@@ -32,11 +32,29 @@ pub enum DateSelection {
     Range(Option<(NaiveDate, NaiveDate)>),
 }
 
+pub(super) fn to_base_date(date: NaiveDate) -> Option<jiff::civil::Date> {
+    use chrono::Datelike as _;
+
+    let year = i16::try_from(date.year()).ok()?;
+    let month = i8::try_from(date.month()).ok()?;
+    let day = i8::try_from(date.day()).ok()?;
+    jiff::civil::Date::new(year, month, day).ok()
+}
+
+pub(super) fn from_base_date(date: jiff::civil::Date) -> NaiveDate {
+    NaiveDate::from_ymd_opt(
+        i32::from(date.year()),
+        date.month() as u32,
+        date.day() as u32,
+    )
+    .expect("jiff civil::Date is always a valid Gregorian NaiveDate")
+}
+
 impl DateSelection {
     fn draft(self) -> Date {
         match self {
-            Self::Single(value) => Date::Single(value),
-            Self::Range(Some((start, end))) => Date::Range(Some(start), Some(end)),
+            Self::Single(value) => Date::Single(value.and_then(to_base_date)),
+            Self::Range(Some((start, end))) => Date::Range(to_base_date(start), to_base_date(end)),
             Self::Range(None) => Date::Range(None, None),
         }
     }
@@ -44,10 +62,11 @@ impl DateSelection {
 
 fn complete(draft: Date) -> Option<DateSelection> {
     match draft {
-        Date::Single(Some(date)) => Some(DateSelection::Single(Some(date))),
-        Date::Range(Some(start), Some(end)) if start <= end => {
-            Some(DateSelection::Range(Some((start, end))))
-        }
+        Date::Single(Some(date)) => Some(DateSelection::Single(Some(from_base_date(date)))),
+        Date::Range(Some(start), Some(end)) if start <= end => Some(DateSelection::Range(Some((
+            from_base_date(start),
+            from_base_date(end),
+        )))),
         _ => None,
     }
 }
@@ -91,8 +110,10 @@ impl From<DateSelection> for DatePickerDraft {
 impl From<Date> for DatePickerDraft {
     fn from(date: Date) -> Self {
         match date {
-            Date::Single(value) => Self::Single(value),
-            Date::Range(start, end) => Self::Range(start, end),
+            Date::Single(value) => Self::Single(value.map(from_base_date)),
+            Date::Range(start, end) => {
+                Self::Range(start.map(from_base_date), end.map(from_base_date))
+            }
         }
     }
 }
@@ -100,8 +121,10 @@ impl From<Date> for DatePickerDraft {
 impl From<DatePickerDraft> for Date {
     fn from(draft: DatePickerDraft) -> Self {
         match draft {
-            DatePickerDraft::Single(value) => Self::Single(value),
-            DatePickerDraft::Range(start, end) => Self::Range(start, end),
+            DatePickerDraft::Single(value) => Self::Single(value.and_then(to_base_date)),
+            DatePickerDraft::Range(start, end) => {
+                Self::Range(start.and_then(to_base_date), end.and_then(to_base_date))
+            }
         }
     }
 }
@@ -522,7 +545,10 @@ impl DatePicker {
 }
 
 fn selection_label(draft: Date, formatter: &DateFormatter) -> SharedString {
-    match (draft.start(), draft.end()) {
+    match (
+        draft.start().map(from_base_date),
+        draft.end().map(from_base_date),
+    ) {
         (Some(start), Some(end)) => format!("{} – {}", formatter(start), formatter(end)).into(),
         (Some(start), _) => formatter(start),
         _ if draft.is_single() => "No date selected".into(),

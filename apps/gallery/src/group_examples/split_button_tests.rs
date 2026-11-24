@@ -241,8 +241,7 @@ fn pointer_up(window: &mut Window, cx: &mut App, position: Point<Pixels>) {
 }
 
 fn paint(window: &Window, rgb: u32) -> gpui::Quad {
-    window
-        .painted_quads()
+    crate::painted_quads(window)
         .into_iter()
         .find(|quad| quad.background.as_solid() == Some(ink(rgb)))
         .expect("segment paint")
@@ -499,7 +498,7 @@ fn split_button_variants_keep_their_base_paint_and_name_icon_only_buttons(cx: &m
     });
     draw(cx, handle);
     cx.update_window(handle, |_, window, cx| {
-        let quads = window.painted_quads();
+        let quads = crate::painted_quads(window);
         let theme = window_material_theme(window, cx);
         for (name, role) in [
             ("filled", Some(ColorRole::Primary)),
@@ -572,7 +571,7 @@ fn split_button_tone_overrides_apply_per_segment(cx: &mut TestAppContext) {
     });
     draw(cx, handle);
     cx.update_window(handle, |_, window, cx| {
-        let quads = window.painted_quads();
+        let quads = crate::painted_quads(window);
         let theme = window_material_theme(window, cx);
         let scale = window.scale_factor();
         for (split, part, role) in [

@@ -4,6 +4,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Dependencies
+
+- Upgrade `gpui-base` to `=0.11.0` and paired `gpui-pre` / `gpui-pre-platform` / `gpui-pre-web` snapshots to `=0.3.14`, enabling upstream IME surrounding-text redaction for masked text fields (`longbridge/gpui-kit#4059`). Downstream apps that import GPUI or Base directly must match the new pins.
+
 ## 0.3.2 - 2026-11-23
 
 Changes since [v0.3.1](https://github.com/wangdiandao/gpui-material/releases/tag/v0.3.1).

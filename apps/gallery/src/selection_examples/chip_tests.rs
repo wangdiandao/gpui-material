@@ -234,8 +234,7 @@ fn state(cx: &mut VisualTestContext, view: &Entity<Chips>) -> InteractionState {
 }
 
 fn container(window: &Window, pigment: u32) -> gpui::Quad {
-    window
-        .painted_quads()
+    crate::painted_quads(window)
         .into_iter()
         .find(|quad| quad.background.as_solid() == Some(rgb(pigment).into()))
         .expect("chip container pigment")
@@ -800,7 +799,7 @@ fn chip_shorthands_and_semantic_tones_respect_selection_disabled_and_overrides(
         assert_eq!(state.disabled_icon.get().unwrap().1, disabled_fg);
         assert_eq!(state.overridden_icon.get().unwrap().1, rgb(0x225588).into());
 
-        let quads = window.painted_quads();
+        let quads = crate::painted_quads(window);
         assert!(
             quads
                 .iter()

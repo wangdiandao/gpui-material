@@ -263,7 +263,7 @@ mod tests {
         cx.update(|window, _| {
             let scale = window.scale_factor();
             let size = size(px(width), px(height)).scale(scale);
-            let painted = window.painted_quads();
+            let painted = crate::painted_quads(window);
             let quad = painted
                 .iter()
                 .find(|quad| quad.background == tint.into() && quad.bounds.size == size)

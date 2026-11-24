@@ -291,8 +291,7 @@ fn button_group_mixes_commands_toggles_and_selection_with_stable_press_feedback(
             assert_eq!(member(window, "pin").checked(), Some(false));
             assert_eq!(unavailable.disabled(), Some(true));
             assert!(member(window, "advanced").bounds().size.width > details.bounds().size.width);
-            let detail_quad = window
-                .painted_quads()
+            let detail_quad = crate::painted_quads(window)
                 .into_iter()
                 .find(|quad| quad.background == rgb(DETAIL_CHECKED).into())
                 .unwrap();
@@ -318,8 +317,7 @@ fn button_group_mixes_commands_toggles_and_selection_with_stable_press_feedback(
     cx.update_window(handle, |_, window, cx| {
         assert_eq!(member(window, "send").bounds().size.width, send_width);
         assert_eq!(member(window, "details").bounds().size.width, details_width);
-        let detail_quad = window
-            .painted_quads()
+        let detail_quad = crate::painted_quads(window)
             .into_iter()
             .find(|quad| quad.background == rgb(DETAIL_CHECKED).into())
             .unwrap();
@@ -685,7 +683,7 @@ fn button_group_and_item_tone_applies_to_visible_and_overflow_items(cx: &mut Tes
         .unwrap()
         .bounds()
         .scale(scale);
-        let quads = window.painted_quads();
+        let quads = crate::painted_quads(window);
         assert!(quads.iter().any(|quad| {
             warn_bounds.contains(&quad.bounds.center())
                 && quad.background.as_solid() == Some(warn_bg)

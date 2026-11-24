@@ -55,7 +55,7 @@ pub struct TooltipColors {
     pub action_content: Option<Hsla>,
 }
 
-type CaretPath = Box<dyn Fn(Bounds<Pixels>, TooltipPlacement) -> Option<Path<Pixels>>>;
+type CaretPath = Box<dyn Fn(Bounds<Pixels>, TooltipPlacement) -> Option<Path>>;
 
 /// Tooltip caret geometry. The default triangle is 16 px wide and 8 px deep.
 pub struct TooltipCaret {
@@ -82,7 +82,7 @@ impl TooltipCaret {
     /// physical side relative to the trigger.
     pub fn path(
         mut self,
-        path: impl Fn(Bounds<Pixels>, TooltipPlacement) -> Option<Path<Pixels>> + 'static,
+        path: impl Fn(Bounds<Pixels>, TooltipPlacement) -> Option<Path> + 'static,
     ) -> Self {
         self.path = Some(Box::new(path));
         self
@@ -185,7 +185,7 @@ fn infer_side(surface: Bounds<Pixels>, trigger: Bounds<Pixels>) -> Option<Placem
     }
 }
 
-fn triangle(a: Point<Pixels>, tip: Point<Pixels>, b: Point<Pixels>) -> Option<Path<Pixels>> {
+fn triangle(a: Point<Pixels>, tip: Point<Pixels>, b: Point<Pixels>) -> Option<Path> {
     let mut path = PathBuilder::fill();
     path.move_to(a);
     path.line_to(tip);

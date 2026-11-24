@@ -665,14 +665,6 @@ fn focus_after_layout(target: FocusHandle, window: &mut Window, cx: &mut App) {
     });
 }
 
-impl IntoElement for BreadcrumbsLayout {
-    type Element = Self;
-
-    fn into_element(self) -> Self {
-        self
-    }
-}
-
 struct BreadcrumbsLayoutState {
     items: Vec<PreparedItem>,
     sep_width: Pixels,

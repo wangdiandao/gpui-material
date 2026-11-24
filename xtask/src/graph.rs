@@ -328,14 +328,14 @@ fn verify(target: &str, backend: &str, backend_features: &[&str], test: bool) ->
         }
     }
     for (name, version, features) in [
-        ("gpui-base", "0.10.0", &[][..]),
-        ("gpui-pre", "0.3.12", &[][..]),
+        ("gpui-base", "0.11.0", &[][..]),
+        ("gpui-pre", "0.3.14", &[][..]),
         (
             "gpui-pre-platform",
-            "0.3.12",
+            "0.3.14",
             &["font-kit", "x11", "wayland", "runtime_shaders"][..],
         ),
-        (backend, "0.3.12", backend_features),
+        (backend, "0.3.14", backend_features),
     ] {
         let nodes = metadata
             .resolve

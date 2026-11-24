@@ -132,11 +132,11 @@ pub(super) fn render_loading_spinner(
             let step = sweep / steps as f32;
             let first = arc_point(center, radius, start);
             let last = arc_point(center, radius, start + sweep);
-            let mut path = PathBuilder::default().with_style(PathStyle::Stroke(
-                StrokeOptions::default()
-                    .with_line_width(stroke_width)
-                    .with_miter_limit(1.),
-            ));
+            let mut path = PathBuilder::default().with_style(PathStyle::Stroke(StrokeOptions {
+                line_width: stroke_width,
+                miter_limit: 1.,
+                ..StrokeOptions::default()
+            }));
             path.move_to(first);
             for ix in 1..=steps {
                 path.line_to(arc_point(center, radius, start + step * ix as f32));

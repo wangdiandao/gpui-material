@@ -292,8 +292,7 @@ fn fab_menu_controlled_requests_do_not_commit_or_move_focus_by_themselves(cx: &m
 
 fn painted(window: &Window, pigment: Hsla) -> (Bounds<Pixels>, f32) {
     let scale = window.scale_factor();
-    let quad = window
-        .painted_quads()
+    let quad = crate::painted_quads(window)
         .into_iter()
         .find(|quad| quad.background.as_solid() == Some(pigment))
         .expect("expected menu pigment");

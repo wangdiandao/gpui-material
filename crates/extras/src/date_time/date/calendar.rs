@@ -16,8 +16,9 @@ use gpui_material_foundation::{color, current_material_theme, text_style};
 use gpui_material_theme::{ColorRole, Direction, TypeRole, TypographyEmphasis};
 
 use super::{
-    DatePickerColors, DatePickerLocale, DatePickerState, DockedActions, NaiveDate,
+    DatePickerColors, DatePickerLocale, DatePickerState, DockedActions, NaiveDate, from_base_date,
     state::{MonthCache, calendar_start, first_of_month},
+    to_base_date,
 };
 
 const YEARS_PER_PAGE: i32 = 12;
@@ -43,7 +44,7 @@ fn year_choices(
     let first = model.limits.bounds.start().year();
     let last = model.limits.bounds.end().year();
     let displayed = model.displayed_month();
-    let today = model.calendar.read(cx).today();
+    let today = from_base_date(model.calendar.read(cx).today());
     let selected_year = displayed.year();
     let direction = current_material_theme(window, cx).layout.direction;
     let rtl = direction == Direction::Rtl;
@@ -373,10 +374,11 @@ fn day_cell(
     };
     let rtl = ctx.direction == Direction::Rtl;
     let enabled = model.limits.accepts(date);
-    let active = ctx.draft.is_active(&date);
-    let range = ctx.draft.is_in_range(&date);
-    let leading = range && ctx.draft.start() == Some(date);
-    let trailing = range && ctx.draft.end() == Some(date);
+    let base_date = to_base_date(date);
+    let active = base_date.is_some_and(|d| ctx.draft.is_active(&d));
+    let range = base_date.is_some_and(|d| ctx.draft.is_in_range(&d));
+    let leading = range && base_date.is_some() && ctx.draft.start() == base_date;
+    let trailing = range && base_date.is_some() && ctx.draft.end() == base_date;
     let focus = ctx.cursor == date;
     let is_today = date == ctx.today;
     let show_focus_ring = focus && ctx.focus_cursor && window.last_input_was_keyboard();
@@ -560,7 +562,7 @@ pub(super) fn calendar(
         month,
         start: calendar_start(month, locale.first_day),
         draft: model.calendar.read(cx).date(),
-        today: model.calendar.read(cx).today(),
+        today: from_base_date(model.calendar.read(cx).today()),
         cursor: model.cursor,
         direction: current_material_theme(window, cx).layout.direction,
         cell: (width / 7.).clamp(px(16.), px(48.)),

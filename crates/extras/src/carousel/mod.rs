@@ -466,13 +466,6 @@ struct Prepaint {
     mask: Bounds<Pixels>,
 }
 
-impl IntoElement for Viewport {
-    type Element = Self;
-    fn into_element(self) -> Self {
-        self
-    }
-}
-
 impl Element for Viewport {
     type RequestLayoutState = ();
     type PrepaintState = Prepaint;

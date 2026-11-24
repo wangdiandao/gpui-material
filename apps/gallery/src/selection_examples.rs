@@ -110,7 +110,10 @@ impl SelectionExamples {
             _ => "Ready",
         };
         let colors = custom_checkbox_colors();
-        let stroke = StrokeOptions::default().with_line_width(3.5);
+        let stroke = StrokeOptions {
+            line_width: 3.5,
+            ..StrokeOptions::default()
+        };
         let owner = cx.entity();
         let examples = [
             (

@@ -348,7 +348,7 @@ impl MorphSample {
         bounds: Bounds<Pixels>,
         extent: f32,
         sequence: &ShapeMorphSequence,
-    ) -> Option<Path<Pixels>> {
+    ) -> Option<Path> {
         sequence
             .sample_step_in_envelope(self.step, self.progress, bounds, px(extent), self.angle)
             .map(|shape| shape.fill_path().clone())
@@ -375,10 +375,17 @@ mod tests {
                     let sampled = shapes
                         .sample_step_in_envelope(step, progress, bounds, px(ACTIVE_SIZE), 0.)
                         .unwrap();
-                    assert!(sampled.fill_path().vertices.iter().all(|v| {
-                        let delta = v.xy_position - bounds.center();
-                        f32::from(delta.x).hypot(f32::from(delta.y)) <= ACTIVE_SIZE * 0.5 + 0.05
-                    }));
+                    assert!(sampled.contains(bounds.center()));
+                    let outer_radius = ACTIVE_SIZE * 0.5 + 0.1;
+                    for sample in 0..36 {
+                        let angle = std::f32::consts::TAU * sample as f32 / 36.;
+                        let outside = bounds.center()
+                            + point(
+                                px(outer_radius * angle.cos()),
+                                px(outer_radius * angle.sin()),
+                            );
+                        assert!(!sampled.contains(outside));
+                    }
                 }
             }
         }
@@ -407,9 +414,19 @@ mod tests {
         let end = determinate_sample(shapes, 1.);
         assert_eq!((start.progress, start.angle), (0., 0.));
         assert_eq!((end.progress, end.angle), (1., -TAU * 0.5));
-        let start_path = start.path(bounds, ACTIVE_SIZE, shapes).unwrap();
-        let end_path = end.path(bounds, ACTIVE_SIZE, shapes).unwrap();
-        assert_ne!(start_path.vertices.len(), end_path.vertices.len());
+        let start_shape = shapes
+            .sample_step_in_envelope(
+                start.step,
+                start.progress,
+                bounds,
+                px(ACTIVE_SIZE),
+                start.angle,
+            )
+            .unwrap();
+        let end_shape = shapes
+            .sample_step_in_envelope(end.step, end.progress, bounds, px(ACTIVE_SIZE), end.angle)
+            .unwrap();
+        assert_ne!(start_shape.fill_bounds(), end_shape.fill_bounds());
     }
 
     #[test]
@@ -430,10 +447,17 @@ mod tests {
         let shapes = &custom.0;
         let bounds = Bounds::new(point(px(0.), px(0.)), size(px(48.), px(48.)));
         let frame = |value| {
-            determinate_sample(shapes, value)
-                .path(bounds, ACTIVE_SIZE, shapes)
+            let sample = determinate_sample(shapes, value);
+            shapes
+                .sample_step_in_envelope(
+                    sample.step,
+                    sample.progress,
+                    bounds,
+                    px(ACTIVE_SIZE),
+                    sample.angle,
+                )
                 .unwrap()
-                .bounds
+                .fill_bounds()
                 .size
         };
         let start = frame(0.);
@@ -483,11 +507,25 @@ mod tests {
                 .sample_step_polygon(sample.step, sample.progress)
                 .unwrap();
             assert!(outline.cubic_count() < limit);
-            let path = sample.path(bounds, ACTIVE_SIZE, shapes).unwrap();
-            assert!(path.vertices.iter().all(|point| {
-                let delta = point.xy_position - bounds.center();
-                f32::from(delta.x).hypot(delta.y.into()) <= ACTIVE_SIZE * 0.5 + 0.05
-            }));
+            let shape = shapes
+                .sample_step_in_envelope(
+                    sample.step,
+                    sample.progress,
+                    bounds,
+                    px(ACTIVE_SIZE),
+                    sample.angle,
+                )
+                .unwrap();
+            let outer_radius = ACTIVE_SIZE * 0.5 + 0.1;
+            for i in 0..36 {
+                let angle = TAU * i as f32 / 36.;
+                let outside = bounds.center()
+                    + point(
+                        px(outer_radius * angle.cos()),
+                        px(outer_radius * angle.sin()),
+                    );
+                assert!(!shape.contains(outside));
+            }
         }
     }
 
@@ -500,10 +538,19 @@ mod tests {
         ])
         .unwrap();
         let bounds = Bounds::new(point(px(0.), px(0.)), size(px(48.), px(48.)));
-        let path = determinate_sample(&sequence.0, 0.5)
-            .path(bounds, ACTIVE_SIZE, &sequence.0)
+        let sample = determinate_sample(&sequence.0, 0.5);
+        let shape = sequence
+            .0
+            .sample_step_in_envelope(
+                sample.step,
+                sample.progress,
+                bounds,
+                px(ACTIVE_SIZE),
+                sample.angle,
+            )
             .unwrap();
-        assert!(!path.vertices.is_empty());
+        assert!(sample.path(bounds, ACTIVE_SIZE, &sequence.0).is_some());
+        assert!(shape.contains(bounds.center()));
     }
 
     #[test]

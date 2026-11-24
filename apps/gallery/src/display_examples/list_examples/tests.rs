@@ -260,8 +260,7 @@ fn list_slots_keep_grouping_and_controlled_semantics_in_both_directions(cx: &mut
             assert_eq!(action.expanded(), Some(false));
             assert_eq!(action.description(), Some("Report operations"));
             assert!(find(window, &[], &"expanded-child".into()).is_none());
-            let quad = window
-                .painted_quads()
+            let quad = crate::painted_quads(window)
                 .into_iter()
                 .find(|quad| quad.background == Hsla::from(rgb(0x81abc2)).into())
                 .unwrap();

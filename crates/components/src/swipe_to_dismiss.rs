@@ -577,14 +577,6 @@ struct SwipeContent {
     focus: FocusHandle,
 }
 
-impl IntoElement for SwipeContent {
-    type Element = Self;
-
-    fn into_element(self) -> Self {
-        self
-    }
-}
-
 impl Element for SwipeContent {
     type RequestLayoutState = ();
     type PrepaintState = (bool, Option<Hitbox>);

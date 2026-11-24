@@ -210,6 +210,13 @@ fn choice_tile_opens_anchored_menu_selects_option_and_restores_focus(cx: &mut Te
         window.draw(cx).clear(cx);
     };
 
+    let activate_id: ElementId = (ElementId::from("density-tile"), "activate").into();
+    let compact_id: ElementId = (
+        ElementId::from("density-tile"),
+        SharedString::from("compact"),
+    )
+        .into();
+
     cx.update_window(handle.into(), |_, window, cx| {
         let mut theme = MaterialTheme::baseline(Appearance::Light);
         theme.layout.direction = Direction::Rtl;
@@ -217,7 +224,6 @@ fn choice_tile_opens_anchored_menu_selects_option_and_restores_focus(cx: &mut Te
         window.activate_window();
         draw(window, cx);
 
-        let activate_id: ElementId = (ElementId::from("density-tile"), "activate").into();
         let trigger = find(window, &[], &activate_id).unwrap();
         let center = trigger.bounds().center();
 
@@ -245,13 +251,12 @@ fn choice_tile_opens_anchored_menu_selects_option_and_restores_focus(cx: &mut Te
         );
         draw(window, cx);
         assert!(view.read(cx).menu.read(cx).is_open());
+    })
+    .unwrap();
 
-        // Find and click the "Compact" option in the open menu.
-        let compact_id: ElementId = (
-            ElementId::from("density-tile"),
-            SharedString::from("compact"),
-        )
-            .into();
+    // Flush deferred popover focus into the menu, then click the "Compact" option.
+    cx.update_window(handle.into(), |_, window, cx| {
+        draw(window, cx);
         let compact = find_all(window, &[], &compact_id)
             .into_iter()
             .next()
@@ -278,6 +283,12 @@ fn choice_tile_opens_anchored_menu_selects_option_and_restores_focus(cx: &mut Te
             .to_platform_input(),
             cx,
         );
+        draw(window, cx);
+    })
+    .unwrap();
+
+    // Flush deferred focus restoration back to the trigger tile.
+    cx.update_window(handle.into(), |_, window, cx| {
         draw(window, cx);
         assert_eq!(view.read(cx).selected, "compact");
         assert!(!view.read(cx).menu.read(cx).is_open());
@@ -781,8 +792,7 @@ fn list_section_segmented_applies_grouped_corners_and_unified_roving_focus(
         let sp = |v: f32| px(v).scale(scale);
         let row_corners = |id: &'static str, window: &Window| {
             let row_bounds = find(window, &[], &id.into()).unwrap().bounds().scale(scale);
-            window
-                .painted_quads()
+            crate::painted_quads(window)
                 .into_iter()
                 .find(|quad| {
                     (quad.bounds.size.width - row_bounds.size.width).0.abs() < sp(6.).0

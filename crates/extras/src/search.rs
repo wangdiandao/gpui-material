@@ -194,7 +194,7 @@ pub struct SearchState {
     target: SearchValue,
     progress: f32,
     animation: RetargetTransition,
-    last_sampled: Option<std::time::Instant>,
+    last_sampled: Option<gpui_material_foundation::Instant>,
     _input: Subscription,
 }
 

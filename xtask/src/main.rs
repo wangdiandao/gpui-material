@@ -1,5 +1,6 @@
 mod docs;
 mod graph;
+mod snippets;
 mod timings;
 mod tokens;
 
@@ -16,6 +17,7 @@ const USAGE: &str = "Usage:
   cargo xtask docs --check
   cargo xtask docs --write <english-markdown>...
   cargo xtask graph
+  cargo xtask snippets [--check]
   cargo xtask tokens [--check]
   cargo xtask timings <new-report-directory>";
 
@@ -43,6 +45,8 @@ fn run() -> Result {
         ["docs", "--check"] => docs::check()?,
         ["docs", "--write", paths @ ..] if !paths.is_empty() => docs::write_records(paths)?,
         ["graph"] => graph::check()?,
+        ["snippets"] => snippets::run(false)?,
+        ["snippets", "--check"] => snippets::run(true)?,
         ["tokens"] => tokens::run(false)?,
         ["tokens", "--check"] => tokens::run(true)?,
         ["timings", path] => timings::measure(path.as_ref())?,
@@ -54,6 +58,7 @@ fn run() -> Result {
 fn check() -> Result {
     docs::check()?;
     tokens::run(true)?;
+    snippets::run(true)?;
     graph::check()
 }
 

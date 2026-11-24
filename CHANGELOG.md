@@ -74,6 +74,13 @@ See [versioning and releases](docs/release.md) for the release process.
   - `window_chrome`: fix Win32 `GetWindowTextLengthW`/`GetWindowTextW` signed-to-`usize` safety, propagate `PostMessageW` failure so `remove_window`/`zoom_window` fallbacks run, cache window titles to avoid per-frame Win32 FFI allocations, keep macOS traffic-light padding on the physical left under RTL, auto-hide client title bars under Linux `Decorations::Server`, and attach `.track_focus(...)` to caption buttons.
   - `toolbar`, `groups`, `search`: eliminate double `layout_as_root` on expanding toolbar slots, add M3 Level 3 default elevation to floating `Toolbar`, use `logical_anchor` for RTL toolbar overflow menus, scope internal element IDs by `self.id`, add accessible label support to `SplitButton` outer `Role::Group`, and fix `search/scroll.rs` initial non-zero offset hide and duplicate same-frame sampling.
 
+### Gallery
+
+- Raise the default Gallery window size to `1280×820` so component playgrounds open in side-by-side preview/configuration layout, compute the stacked breakpoint from actual available content width (accounting for sidebar state), and stretch the stacked preview column to full width.
+- Move the light/dark theme toggle permanently to the top bar and remove the floating bottom-right theme toggle `Fab` that obscured component controls; mount `DisplayScrollbar::vertical` on the Gallery scroll container.
+- Eliminate Windows UIA duplicate-name collisions across playground scenario chips, choice controls, switches, and `Overview` buttons; expose tab selection semantics (`Role::TabList` / `Role::Tab` / `selected`) for top-bar sections and `Live preview | Specs` tabs; make the top-bar brand button, `Overview` shape buttons, 44–48 px theme swatches, and all component cards keyboard-focusable and activatable with uniform 2-column card widths.
+- Render playground `Rust code` with a monospace font stack and horizontal scrolling, fix `#playground-event-status` contrast inside local light/dark `ThemeScope` previews, unify `--window-chrome` (`ChromePreview`) surfaces with `ColorRole::SurfaceContainer` and compact `Block close` sizing, and register embedded `IBM Plex Sans` with `DisplayScrollbar` in `gpui-material-gallery-web`.
+
 ## 0.3.3 - 2026-11-24
 
 Changes since [v0.3.2](https://github.com/wangdiandao/gpui-material/releases/tag/v0.3.2).

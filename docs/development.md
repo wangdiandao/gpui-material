@@ -69,7 +69,7 @@ The default workspace members are `gpui-material-theme` and `xtask`. Use `-p gpu
 
 ## Local checks
 
-Stage Markdown additions, renames, and removals before running `xtask` so they appear in the Git index. `cargo xtask check` validates Markdown links against tracked and staged repository files, heading anchors, bilingual pairs (reporting all broken links and stale records together), generated tokens, and three-platform GPUI/Base dependency graphs. Running `cargo xtask tokens` also refreshes `docs/theme/token-index.i18n.yaml` automatically.
+Stage Markdown additions, renames, and removals before running `xtask` so they appear in the Git index. `cargo xtask check` validates Markdown links against tracked and staged repository files, heading anchors, bilingual pairs (reporting all broken links and stale records together), generated tokens, three-platform GPUI/Base dependency graphs, and synchronization of the compile-checked `website/component/catalog.mjs` Rust snippets (`cargo xtask snippets --check`). Running `cargo xtask tokens` also refreshes `docs/theme/token-index.i18n.yaml` automatically.
 
 ```powershell
 git diff --check origin/main
@@ -136,7 +136,7 @@ cargo install wasm-bindgen-cli --version 0.2.130 --locked
 npm --prefix website run build:wasm
 ```
 
-In repository settings, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. `npm --prefix website run build:wasm` honors `RUSTUP_TOOLCHAIN` and verifies `wasm-bindgen --version`; `npm --prefix website run build` also validates every `source` path in `website/component/catalog.mjs`. PRs touching website sources, `docs/`, or WASM build inputs run the website build; pushes to `main` touching the website, its build inputs, or `docs/` deploy automatically.
+In repository settings, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. `npm --prefix website run build:wasm` honors `RUSTUP_TOOLCHAIN`, verifies `wasm-bindgen --version`, and builds `--release` with Cargo's `wasm-release` profile; `npm --prefix website run build` also validates every `source` path in `website/component/catalog.mjs`, while `cargo xtask snippets --check` and `cargo test --locked -p gpui-material --test catalog_snippets --all-features` compile-check every Rust snippet against the workspace crates. PRs touching website sources, `docs/`, or WASM build inputs run the website build; pushes to `main` touching the website, its build inputs, or `docs/` deploy automatically.
 
 <a id="持续集成与合并"></a>
 

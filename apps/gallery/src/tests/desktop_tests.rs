@@ -164,7 +164,7 @@ fn catalog_filters_and_opens_a_story_on_a_compact_window(cx: &mut TestAppContext
         assert!(find(window, &[], &"gallery-search".into()).is_none());
     })
     .unwrap();
-    click(cx, handle, "page-tab-specs".into());
+    click(cx, handle, (ElementId::from("page-tab"), "specs").into());
     cx.update_window(handle.into(), |_, window, cx| {
         window.refresh();
         window.draw(cx).clear(cx);
@@ -515,7 +515,7 @@ fn gallery_virtualizes_catalog_and_skips_noop_navigation_notifications(cx: &mut 
     assert_eq!(notifications.get(), 0);
 
     // Focus the selected catalog row, then press End to reveal and focus the last catalog entry.
-    let last_entry = crate::catalog::CATALOG
+    let last_entry = crate::shell::catalog::CATALOG
         .last()
         .expect("catalog is non-empty");
     let last_id = ElementId::from((ElementId::from("gallery-story"), last_entry.page.id()));
@@ -820,7 +820,7 @@ fn reorganized_gallery_sections_overview_and_styles_work(cx: &mut TestAppContext
     .unwrap();
 
     // Switching to Specs renders the full story view.
-    click(cx, handle, "page-tab-specs".into());
+    click(cx, handle, (ElementId::from("page-tab"), "specs").into());
     cx.update_window(handle.into(), |_, window, cx| {
         window.refresh();
         window.draw(cx).clear(cx);
@@ -860,4 +860,109 @@ fn all_component_playgrounds_render_without_panicking(cx: &mut TestAppContext) {
         })
         .unwrap();
     }
+}
+
+#[gpui::test]
+fn playground_responsive_layout_tabs_and_overview_grid_invariants(cx: &mut TestAppContext) {
+    let handle = cx.update(|cx| {
+        init_gallery(cx);
+        cx.set_reduce_motion(true);
+        open_gallery(cx, false, Story::Button, false).unwrap()
+    });
+
+    // At 1280x820 with sidebar open, preview and config cards render side-by-side.
+    cx.simulate_window_resize(handle.into(), size(px(1280.), px(820.)));
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let preview = find(window, &[], &"playground-preview-card".into())
+            .expect("preview card")
+            .bounds();
+        let config = find(window, &[], &"playground-config-card".into())
+            .expect("config card")
+            .bounds();
+        assert!(
+            preview.right() < config.left(),
+            "expected side-by-side at 1280x820: preview={preview:?} config={config:?}"
+        );
+
+        let comp_tab = find(
+            window,
+            &[],
+            &(ElementId::from("top-section"), "components").into(),
+        )
+        .expect("components tab");
+        assert_eq!(comp_tab.role(), Some(Role::Tab));
+        assert_eq!(comp_tab.selected(), Some(true));
+
+        let preview_tab = find(
+            window,
+            &[],
+            &(ElementId::from("page-tab"), "preview").into(),
+        )
+        .expect("preview tab");
+        assert_eq!(preview_tab.role(), Some(Role::Tab));
+        assert_eq!(preview_tab.selected(), Some(true));
+
+        let scenario_default = find(
+            window,
+            &[],
+            &(
+                ElementId::from(("playground-scenario", 0_usize)),
+                "activate",
+            )
+                .into(),
+        )
+        .expect("default scenario");
+        assert_eq!(scenario_default.label(), Some("Scenario: Default"));
+    })
+    .unwrap();
+
+    // At 1040x744 with sidebar open, preview stacks above config at full width.
+    cx.simulate_window_resize(handle.into(), size(px(1040.), px(744.)));
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let preview = find(window, &[], &"playground-preview-card".into())
+            .expect("preview card")
+            .bounds();
+        let config = find(window, &[], &"playground-config-card".into())
+            .expect("config card")
+            .bounds();
+        assert!(
+            preview.bottom() <= config.top(),
+            "expected stacked layout at 1040x744: preview={preview:?} config={config:?}"
+        );
+        assert!(
+            (f32::from(preview.size.width) - f32::from(config.size.width)).abs() < 2.,
+            "expected stacked preview card to match full config width: preview={preview:?} config={config:?}"
+        );
+    })
+    .unwrap();
+
+    // Navigate to Overview and verify odd last-row card matches peer card width.
+    click(cx, handle, "gallery-brand".into());
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.refresh();
+        window.draw(cx).clear(cx);
+        let checkbox = find(
+            window,
+            &[],
+            &(ElementId::from("overview-card"), "checkbox").into(),
+        )
+        .expect("checkbox card")
+        .bounds();
+        let stepper = find(
+            window,
+            &[],
+            &(ElementId::from("overview-card"), "stepper").into(),
+        )
+        .expect("stepper card")
+        .bounds();
+        assert!(
+            (f32::from(checkbox.size.width) - f32::from(stepper.size.width)).abs() < 2.,
+            "expected uniform grid width for odd last-row card: checkbox={checkbox:?} stepper={stepper:?}"
+        );
+    })
+    .unwrap();
 }

@@ -1055,12 +1055,12 @@ TimePicker::new("reminder", "Reminder time", &self.picker, self.time)
       en: "Build destinations with NavigationItems, sections, headers, and dividers. Use NavigationDrawerMode::Standard for a docked 360 dp drawer or Modal with a retained DialogState for scrim and focus restoration.",
       zh: "使用 NavigationItems、分组、标题和分隔线组织导航项。Standard 模式呈现 360 dp 停靠抽屉，Modal 模式搭配持久化的 DialogState 提供遮罩与回焦。",
     },
-    imports: "use gpui_material::{IconName, NavigationDrawer, NavigationItem, NavigationItems};",
+    imports: "use gpui_material::{Icon, IconName, NavigationDrawer, NavigationItem, NavigationItems};",
     code: `NavigationDrawer::new(
     "main-drawer",
-    NavigationItems::new([
-        NavigationItem::new("inbox", "Inbox", IconName::Inbox),
-        NavigationItem::new("archive", "Archive", IconName::Archive),
+    NavigationItems::new("destinations", "Destinations", [
+        NavigationItem::new("inbox", "Inbox").icon(Icon::new(IconName::Inbox)),
+        NavigationItem::new("archive", "Archive").icon(Icon::new(IconName::Archive)),
     ])
     .selected("inbox"),
 )
@@ -1154,7 +1154,8 @@ TimePicker::new("reminder", "Reminder time", &self.picker, self.time)
       en: "Compose Skeleton::rect, text_line, circle, and shape (for MaterialShape polygons) while content loads. Placeholders pause offscreen and fall back to a static tint under reduced motion.",
       zh: "在数据加载期间组合使用 Skeleton::rect、text_line、circle 与 shape（支持 MaterialShape 多边形）。占位在离屏时自动暂停，在低动效下保持静态填充。",
     },
-    imports: "use gpui_material::{Skeleton, px};",
+    imports: `use gpui::px;
+use gpui_material::Skeleton;`,
     code: `Skeleton::text_line("headline-skeleton").width(px(220.))`,
   },
   {
@@ -1181,5 +1182,24 @@ TimePicker::new("reminder", "Reminder time", &self.picker, self.time)
     ],
 )
 .on_select(|id, _, _| println!("Navigate to {id}"))`,
+  },
+  {
+    slug: "window-chrome",
+    group: "layout",
+    title: "TitleBar",
+    source: "crates/extras/src/window_chrome.rs",
+    feature: "window-chrome",
+    story: null,
+    description: {
+      en: "Render a cross-platform client-drawn window title bar with drag regions and platform caption controls.",
+      zh: "渲染支持拖动区域与平台窗口控制按钮的跨平台自绘标题栏。",
+    },
+    usage: {
+      en: "Open the window with title_bar_window_options() and place TitleBar at the top of the root view. Provide an explicit title or omit it to mirror the live window title, and attach optional leading, content, or trailing slots.",
+      zh: "使用 title_bar_window_options() 打开窗口，并将 TitleBar 放在根视图顶部。可传入自定义标题或省略以跟随窗口标题，并可附加 leading、content 或 trailing 插槽。",
+    },
+    imports: "use gpui_material::window_chrome::TitleBar;",
+    code: `TitleBar::new("main-title-bar")
+    .title("Workspace")`,
   },
 ].map((guide) => ({ story: guide.slug, ...guide }));

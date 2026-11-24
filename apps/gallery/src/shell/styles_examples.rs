@@ -15,10 +15,8 @@ use gpui_material::{
     },
 };
 
-use crate::{
-    catalog::StylePage,
-    story::{section, stack},
-};
+use super::catalog::StylePage;
+use crate::story::{section, stack};
 
 pub(crate) type ApplyPreset = Rc<dyn Fn(ThemePreset, &mut Window, &mut App)>;
 

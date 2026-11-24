@@ -4,15 +4,15 @@
 use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
 use gpui::{
-    AnyView, App, AppContext, Application, ApplicationHandle, Context, InteractiveElement,
+    AnyView, App, AppContext, Application, ApplicationHandle, Axis, Context, InteractiveElement,
     IntoElement, ParentElement, Render, ScrollHandle, StatefulInteractiveElement, Styled, Window,
     WindowOptions, div,
 };
-use gpui_base::{Root, Scrollbar, ScrollbarMode};
+use gpui_base::Root;
 use gpui_material::{
-    Surface,
+    DisplayScrollbar, Surface,
     foundation::set_material_theme,
-    theme::{Appearance, ColorRole, MaterialTheme},
+    theme::{Appearance, ColorRole, FontFamilies, MaterialTheme, Typography},
 };
 use gpui_material_story::{Story, init_gallery};
 use gpui_web::{CanvasFontFallback, WebBackendPreference, WebPlatform};
@@ -53,13 +53,24 @@ pub fn set_theme(dark: bool) {
     });
 }
 
+fn web_typography() -> Typography {
+    let families = FontFamilies::default().with_primary("IBM Plex Sans");
+    let mut typography = Typography::default();
+    typography.brand = families.clone();
+    typography.plain = families;
+    typography
+}
+
 fn apply_theme(dark: bool, cx: &mut App) {
     let appearance = if dark {
         Appearance::Dark
     } else {
         Appearance::Light
     };
-    set_material_theme(MaterialTheme::baseline(appearance), cx);
+    set_material_theme(
+        MaterialTheme::baseline(appearance).typography(web_typography()),
+        cx,
+    );
 }
 
 fn open_gallery(story: Story, dark: bool, ready: &Function, cx: &mut App) -> gpui::Result<()> {
@@ -106,6 +117,10 @@ impl Render for EmbeddedStory {
                     .p_4()
                     .child(self.view.clone()),
             )
-            .child(Scrollbar::vertical(&self.scroll).mode(ScrollbarMode::Always))
+            .child(DisplayScrollbar::new(
+                "embedded-story-scrollbar",
+                Axis::Vertical,
+                &self.scroll,
+            ))
     }
 }

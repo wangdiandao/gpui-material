@@ -1,38 +1,43 @@
 use std::{
+    cell::Cell,
     rc::Rc,
     sync::{Arc, LazyLock},
 };
 
 use gpui::{
-    AnyView, App, AppContext, Context, ElementId, Entity, FocusHandle, Focusable, Image,
+    AnyView, App, AppContext, Axis, Context, ElementId, Entity, FocusHandle, Focusable, Image,
     ImageFormat, InteractiveElement, IntoElement, ListAlignment, ListOffset, ListState, ObjectFit,
     ParentElement, Pixels, Render, Role, ScrollHandle, Size, StatefulInteractiveElement, Styled,
     StyledImage, Subscription, Window, div, img, list, point, prelude::FluentBuilder, px, svg,
+    transparent_black,
 };
 use gpui_base::TestSupportExt;
 use gpui_material::{
-    Button, ButtonVariant, ControlSize, Fab, FabColor, FloatingAction, Icon, IconButton, IconName,
-    ListDetail, ListDetailPane, ListItem, ListItemShapes, Text, TextField, TextFieldEvent,
-    TextFieldState, TextFieldVariant, ToggleButton, ToggleButtonVariant, Tooltip,
+    ControlSize, DisplayScrollbar, Icon, IconButton, IconName, ListDetail, ListDetailPane,
+    ListItem, ListItemShapes, NavigationItem, NavigationItems, TabVariant, Tabs, TabsColors, Text,
+    TextField, TextFieldEvent, TextFieldState, TextFieldVariant, ThemeScope, ToggleButton,
+    ToggleButtonVariant, Tooltip,
     foundation::{
         Surface, color, set_material_theme, set_window_material_theme, window_material_theme,
     },
     theme::{
-        Appearance, ColorRole, CornerRole, CornerShape, Direction, ThemePreset, TypeRole,
+        Appearance, ColorRole, CornerRole, CornerShape, Density, Direction, ThemePreset, TypeRole,
         WidthClass,
     },
 };
 
-use crate::{
+use super::{
     catalog::{
         CATALOG, CatalogRow, GalleryPage, StylePage, TopSection, entry_index, filter_catalog_rows,
         first_of, section_of,
     },
     overview::OverviewView,
+    styles_examples::StylesExamples,
+};
+use crate::{
     playground::ComponentPageView,
     playgrounds::playground_for,
     story::{Story, stack},
-    styles_examples::StylesExamples,
 };
 
 gpui::actions!(gallery, [CloseCatalog]);
@@ -59,6 +64,7 @@ pub struct Gallery {
     content_scroll: ScrollHandle,
     content_focus: FocusHandle,
     last_viewport: Size<Pixels>,
+    available_content_width: Rc<Cell<Pixels>>,
     overview: Option<Entity<OverviewView>>,
     stories: Vec<(Story, AnyView)>,
     styles: Vec<(StylePage, AnyView)>,
@@ -69,7 +75,7 @@ pub struct Gallery {
 static BRAND_LOGO: LazyLock<Arc<Image>> = LazyLock::new(|| {
     Arc::new(Image::from_bytes(
         ImageFormat::Svg,
-        include_bytes!("../assets/logo.svg").to_vec(),
+        include_bytes!("../../assets/logo.svg").to_vec(),
     ))
 });
 
@@ -108,9 +114,29 @@ impl Gallery {
                     _ => {}
                 },
             );
+        let available_content_width = Rc::new(Cell::new(Self::compute_content_width(
+            window.viewport_size().width,
+            Self::single_pane(Self::width_class(window)),
+            !Self::single_pane(Self::width_class(window)),
+            if Self::width_class(window) == WidthClass::Compact {
+                COMPACT_MARGIN
+            } else {
+                PANE_SPACING
+            },
+            if Self::single_pane(Self::width_class(window)) {
+                if Self::width_class(window) == WidthClass::Compact {
+                    COMPACT_MARGIN
+                } else {
+                    PANE_SPACING
+                }
+            } else {
+                COMPACT_MARGIN
+            },
+        )));
         let mut stories = Vec::new();
         if let GalleryPage::Story(story) = initial_page
-            && let Some(view) = Self::build_story_view(story, window, cx)
+            && let Some(view) =
+                Self::build_story_view(story, available_content_width.clone(), window, cx)
         {
             stories.push((story, view));
         }
@@ -150,6 +176,7 @@ impl Gallery {
             content_scroll: ScrollHandle::new(),
             content_focus: cx.focus_handle(),
             last_viewport: window.viewport_size(),
+            available_content_width,
             overview: None,
             stories,
             styles: Vec::new(),
@@ -260,12 +287,14 @@ impl Gallery {
                 let _ = owner.update(cx, |this, cx| this.set_appearance(appearance, window, cx));
             },
         );
+        let available_width = self.available_content_width.clone();
         let view = cx.new(|cx| {
             OverviewView::new(
                 on_navigate,
                 active_preset,
                 on_select_preset,
                 on_set_appearance,
+                available_width,
                 cx,
             )
         });
@@ -299,10 +328,15 @@ impl Gallery {
         view
     }
 
-    fn build_story_view(story: Story, window: &mut Window, cx: &mut App) -> Option<AnyView> {
+    fn build_story_view(
+        story: Story,
+        available_width: Rc<Cell<Pixels>>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Option<AnyView> {
         if let Some(playground) = playground_for(story) {
             return Some(
-                cx.new(|cx| ComponentPageView::new(story, playground, window, cx))
+                cx.new(|cx| ComponentPageView::new(story, playground, available_width, window, cx))
                     .into(),
             );
         }
@@ -313,9 +347,30 @@ impl Gallery {
         if let Some((_, view)) = self.stories.iter().find(|(entry, _)| *entry == story) {
             return Some(view.clone());
         }
-        let view = Self::build_story_view(story, window, cx)?;
+        let view = Self::build_story_view(story, self.available_content_width.clone(), window, cx)?;
         self.stories.push((story, view.clone()));
         Some(view)
+    }
+
+    fn compute_content_width(
+        viewport_width: Pixels,
+        single_pane: bool,
+        show_catalog: bool,
+        margin: Pixels,
+        inset: Pixels,
+    ) -> Pixels {
+        let detail_width = if single_pane {
+            viewport_width
+        } else {
+            let inner = (viewport_width - margin * 2.).max(px(0.));
+            if show_catalog {
+                let list_width = px(360.).min(viewport_width / 2.);
+                (inner - list_width - PANE_SPACING).max(px(0.))
+            } else {
+                inner
+            }
+        };
+        (detail_width.min(STORY_MAX_WIDTH) - inset * 2.).max(px(0.))
     }
 
     fn width_class(window: &Window) -> WidthClass {
@@ -438,32 +493,42 @@ impl Gallery {
         cx: &Context<Self>,
     ) -> impl IntoElement {
         let active_section = section_of(self.current);
-        let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
         let owner = cx.weak_entity();
-        div()
-            .id(id_prefix)
-            .role(Role::Navigation)
-            .aria_label("Sections")
-            .flex()
-            .items_center()
-            .gap_1()
-            .when(rtl, Styled::flex_row_reverse)
-            .children(TopSection::ALL.into_iter().map(|section| {
-                let selected = section == active_section;
-                let owner = owner.clone();
-                Button::new((ElementId::from(id_prefix), section.id()), section.title())
-                    .variant(if selected {
-                        ButtonVariant::FilledTonal
-                    } else {
-                        ButtonVariant::Text
-                    })
-                    .size(ControlSize::ExtraSmall)
-                    .on_activate(move |window, cx| {
-                        let _ = owner.update(cx, |this, cx| {
-                            this.navigate(first_of(section), window, cx);
-                        });
-                    })
-            }))
+        let destinations = TopSection::ALL
+            .into_iter()
+            .map(|section| NavigationItem::new(section.id(), section.title()));
+        let items = NavigationItems::new(id_prefix, "Sections", destinations)
+            .selected(active_section.id())
+            .on_select(move |id, window, cx| {
+                let Some(section) = TopSection::ALL
+                    .into_iter()
+                    .find(|candidate| candidate.id() == id.as_ref())
+                else {
+                    return;
+                };
+                let _ = owner.update(cx, |this, cx| {
+                    this.navigate(first_of(section), window, cx);
+                });
+            });
+        let mut compact = window_material_theme(window, cx).clone();
+        compact.layout.density = Density::Compact;
+        let tabs_width = if f32::from(window.viewport_size().width) >= 920. {
+            px(324.)
+        } else {
+            px(264.)
+        };
+        div().w(tabs_width).flex_none().child(
+            ThemeScope::new(
+                Tabs::new(items)
+                    .variant(TabVariant::Secondary)
+                    .colors(TabsColors {
+                        container: Some(transparent_black()),
+                        divider: Some(transparent_black()),
+                        ..Default::default()
+                    }),
+            )
+            .theme(compact),
+        )
     }
 
     fn render_catalog(
@@ -814,24 +879,37 @@ impl Gallery {
             }))
             .child(
                 div()
-                    .id("gallery-scroll")
-                    .tab_group()
-                    .track_scroll(&self.content_scroll)
-                    .overflow_y_scroll()
+                    .relative()
                     .flex_1()
                     .min_h_0()
-                    .child(if is_adaptive {
-                        div().size_full().min_h_0().overflow_hidden().child(content)
-                    } else {
+                    .flex()
+                    .flex_col()
+                    .child(
                         div()
-                            .w_full()
-                            .max_w(STORY_MAX_WIDTH)
-                            .mx_auto()
-                            .px(inset)
-                            .pt_4()
-                            .pb_24()
-                            .child(content)
-                    }),
+                            .id("gallery-scroll")
+                            .tab_group()
+                            .track_scroll(&self.content_scroll)
+                            .overflow_y_scroll()
+                            .flex_1()
+                            .min_h_0()
+                            .child(if is_adaptive {
+                                div().size_full().min_h_0().overflow_hidden().child(content)
+                            } else {
+                                div()
+                                    .w_full()
+                                    .max_w(STORY_MAX_WIDTH)
+                                    .mx_auto()
+                                    .px(inset)
+                                    .pt_4()
+                                    .pb_24()
+                                    .child(content)
+                            }),
+                    )
+                    .child(DisplayScrollbar::new(
+                        "gallery-scrollbar",
+                        Axis::Vertical,
+                        &self.content_scroll,
+                    )),
             )
     }
 
@@ -839,43 +917,41 @@ impl Gallery {
         let theme = window_material_theme(window, cx);
         let rtl = theme.layout.direction == Direction::Rtl;
         let owner = cx.weak_entity();
-        div()
-            .id("gallery-brand")
-            .role(Role::Button)
-            .aria_label("GPUI Material Overview")
-            .test_support()
-            .cursor_pointer()
-            .flex()
-            .items_center()
-            .gap_2()
-            .px_2()
-            .py_1()
-            .rounded(px(12.))
-            .when(rtl, Styled::flex_row_reverse)
-            .on_click(move |_, window, cx| {
-                let _ = owner.update(cx, |this, cx| {
-                    this.navigate(GalleryPage::Story(Story::Introduction), window, cx);
-                });
-            })
-            .child(
-                img(BRAND_LOGO.clone())
-                    .id("brand-mark")
-                    .size(px(28.))
-                    .object_fit(ObjectFit::Contain),
-            )
-            .child(
-                Text::new("GPUI Material")
-                    .id("brand-title")
-                    .role(TypeRole::TitleSmall)
-                    .emphasized(true),
-            )
+        Surface::clickable(
+            "gallery-brand",
+            "GPUI Material Overview",
+            ColorRole::SurfaceContainer,
+        )
+        .shape(CornerShape::uniform(12.))
+        .flex()
+        .items_center()
+        .gap_2()
+        .px_2()
+        .py_1()
+        .when(rtl, Styled::flex_row_reverse)
+        .on_activate(move |window, cx| {
+            let _ = owner.update(cx, |this, cx| {
+                this.navigate(GalleryPage::Story(Story::Introduction), window, cx);
+            });
+        })
+        .child(
+            img(BRAND_LOGO.clone())
+                .id("brand-mark")
+                .size(px(28.))
+                .object_fit(ObjectFit::Contain),
+        )
+        .child(
+            Text::new("GPUI Material")
+                .id("brand-title")
+                .role(TypeRole::TitleSmall)
+                .emphasized(true),
+        )
     }
 
     fn render_app_bar(
         &self,
         single_pane: bool,
         show_catalog: bool,
-        theme_in_app_bar: bool,
         margin: Pixels,
         window: &Window,
         cx: &Context<Self>,
@@ -928,14 +1004,14 @@ impl Gallery {
                     .items_center()
                     .gap_2()
                     .when(rtl, Styled::flex_row_reverse)
-                    .children(theme_in_app_bar.then(|| self.render_theme_toggle(false, window, cx)))
+                    .child(self.render_theme_toggle(window, cx))
                     .child(Tooltip::plain(
                         "repository-tooltip",
                         IconButton::new(
                             "open-repository",
                             "Open GitHub repository",
                             svg()
-                                .data(include_bytes!("../assets/mark-github-24.svg"))
+                                .data(include_bytes!("../../assets/mark-github-24.svg"))
                                 .size_full()
                                 .text_color(color(theme.colors.color(ColorRole::OnSurfaceVariant))),
                         )
@@ -951,7 +1027,7 @@ impl Gallery {
             )
     }
 
-    fn render_theme_toggle(&self, floating: bool, window: &Window, cx: &Context<Self>) -> Tooltip {
+    fn render_theme_toggle(&self, window: &Window, cx: &Context<Self>) -> Tooltip {
         let (label, icon, appearance) = match window_material_theme(window, cx).colors.appearance()
         {
             Appearance::Light => ("Switch to dark theme", IconName::DarkMode, Appearance::Dark),
@@ -962,50 +1038,14 @@ impl Gallery {
             ),
         };
         let owner = cx.weak_entity();
-        let activate = move |window: &mut Window, cx: &mut App| {
-            let _ = owner.update(cx, |this, cx| {
-                this.set_appearance(appearance, window, cx);
-            });
-        };
-        let icon = Icon::new(icon);
-        let button = if floating {
-            Fab::new("toggle-theme", label, icon)
-                .color(FabColor::Secondary)
-                .on_activate(activate)
-                .into_any_element()
-        } else {
-            IconButton::new("toggle-theme", label, icon)
-                .on_activate(activate)
-                .into_any_element()
-        };
+        let button = IconButton::new("toggle-theme", label, Icon::new(icon)).on_activate(
+            move |window, cx| {
+                let _ = owner.update(cx, |this, cx| {
+                    this.set_appearance(appearance, window, cx);
+                });
+            },
+        );
         Tooltip::plain("theme-tooltip", button, label)
-    }
-
-    fn render_floating_actions(
-        &self,
-        show_story: bool,
-        window: &Window,
-        cx: &Context<Self>,
-    ) -> FloatingAction {
-        let rtl = window_material_theme(window, cx).layout.direction == Direction::Rtl;
-        FloatingAction::new(
-            div()
-                .flex()
-                .gap_2()
-                .when(rtl, Styled::flex_row_reverse)
-                .children(
-                    (show_story && self.current == GalleryPage::Story(Story::Fab)).then(|| {
-                        Fab::new(
-                            "floating-motion",
-                            "Toggle reduced motion",
-                            Icon::new(IconName::MotionPhotosOn),
-                        )
-                        .on_activate(|_, cx| cx.set_reduce_motion(!cx.reduce_motion()))
-                    }),
-                )
-                .child(self.render_theme_toggle(true, window, cx)),
-        )
-        .margin(px(52.))
     }
 
     fn render_status_bar(&self, margin: Pixels, window: &Window, cx: &App) -> impl IntoElement {
@@ -1057,18 +1097,20 @@ impl Render for Gallery {
         } else {
             !self.catalog_collapsed
         };
-        let show_story = !single_pane || !show_catalog;
-        // Keep Overview, Styles, and Adaptive layout unobstructed by floating actions.
-        let theme_in_app_bar = matches!(
-            self.current,
-            GalleryPage::Story(Story::Introduction | Story::AdaptiveLayout) | GalleryPage::Style(_)
-        );
         let margin = if width_class == WidthClass::Compact {
             COMPACT_MARGIN
         } else {
             PANE_SPACING
         };
         let inset = if single_pane { margin } else { COMPACT_MARGIN };
+        self.available_content_width
+            .set(Self::compute_content_width(
+                window.viewport_size().width,
+                single_pane,
+                show_catalog,
+                margin,
+                inset,
+            ));
         let pane_radius = if single_pane {
             px(0.)
         } else {
@@ -1084,14 +1126,7 @@ impl Render for Gallery {
             .size_full()
             .flex()
             .flex_col()
-            .child(self.render_app_bar(
-                single_pane,
-                show_catalog,
-                theme_in_app_bar,
-                margin,
-                window,
-                cx,
-            ))
+            .child(self.render_app_bar(single_pane, show_catalog, margin, window, cx))
             .child(
                 div()
                     .flex_1()
@@ -1118,8 +1153,5 @@ impl Render for Gallery {
                     }),
             )
             .child(self.render_status_bar(margin, window, cx))
-            .children(
-                (!theme_in_app_bar).then(|| self.render_floating_actions(show_story, window, cx)),
-            )
     }
 }

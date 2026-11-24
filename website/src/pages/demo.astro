@@ -14,6 +14,18 @@ const bindings = root + 'wasm/material-gallery.js';
     <link rel="icon" type="image/svg+xml" href={root + 'favicon.svg'} />
     <link rel="modulepreload" href={bindings} />
     <link rel="preload" href={`${root}wasm/material-gallery_bg.wasm`} as="fetch" type="application/wasm" crossorigin />
+    <script is:inline>
+      try {
+        let hostTheme = document.documentElement;
+        if (window.parent !== window) {
+          try { hostTheme = window.parent.document.documentElement; } catch {}
+        }
+        const dark = hostTheme.classList.contains('mdui-theme-dark')
+          || (!hostTheme.classList.contains('mdui-theme-light')
+            && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', dark);
+      } catch {}
+    </script>
   </head>
   <body data-bindings={bindings} data-state="loading">
     <p id="status" role="status">Loading the component preview…</p>
@@ -97,9 +109,17 @@ const bindings = root + 'wasm/material-gallery.js';
 <style is:global>
   /* Give the GPUI canvas the iframe viewport and keep scroll offsets in GPUI. */
   html, body { height: 100%; overflow: hidden; }
-  html { color-scheme: light; }
-  html.dark { color-scheme: dark; }
-  body { margin: 0; background: Canvas; color: CanvasText; font: 1rem/1.5 system-ui, sans-serif; }
+  html {
+    color-scheme: light;
+    --surface: #FEF7FF;
+    --on-surface: #1D1B20;
+  }
+  html.dark {
+    color-scheme: dark;
+    --surface: #141218;
+    --on-surface: #E6E0E9;
+  }
+  body { margin: 0; background: var(--surface); color: var(--on-surface); font: 1rem/1.5 system-ui, sans-serif; }
   #status {
     position: fixed;
     inset: 0;
@@ -108,7 +128,8 @@ const bindings = root + 'wasm/material-gallery.js';
     place-items: center;
     margin: 0;
     padding: 1rem;
-    background: Canvas;
+    background: var(--surface);
+    color: var(--on-surface);
     text-align: center;
   }
   [data-state="ready"] #status { display: none; }

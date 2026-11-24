@@ -1,24 +1,24 @@
-use std::{rc::Rc, sync::OnceLock};
+use std::{cell::Cell, rc::Rc, sync::OnceLock};
 
 use gpui::{
     AnyElement, App, AppContext, ClipboardItem, Context, ElementId, Entity, Hsla,
-    InteractiveElement, IntoElement, ParentElement, Render, Role, StatefulInteractiveElement,
-    Styled, Window, div, prelude::FluentBuilder, px,
+    InteractiveElement, IntoElement, ParentElement, Pixels, Render, Styled, Window, div,
+    prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
 use gpui_material::{
     Button, ButtonVariant, Chip, ChipVariant, ControlSize, Icon, IconButton, IconName,
     IconToggleButton, MaterialShape, Slider, SliderState, Surface, Switch, Text, ToggleButton,
     ToggleButtonVariant,
-    foundation::{color, window_material_theme},
-    theme::{Appearance, ColorRole, Direction, ThemePreset, TypeRole},
+    foundation::{SurfaceBorder, color, window_material_theme},
+    theme::{Appearance, ColorRole, CornerRole, CornerShape, Direction, ThemePreset, TypeRole},
 };
 
-use crate::{
-    Story,
+use super::{
     catalog::{CatalogGroup, GalleryPage, StylePage, component_count, entries_in_group},
     styles_examples::{ApplyPreset, cached_shape_canvas, preset_label},
 };
+use crate::Story;
 
 const INSTALL_CMD: &str = "cargo add gpui-material";
 
@@ -80,6 +80,7 @@ pub(crate) struct OverviewView {
     active_preset: Rc<dyn Fn(&App) -> ThemePreset>,
     on_select_preset: ApplyPreset,
     on_set_appearance: SetAppearanceFn,
+    available_width: Rc<Cell<Pixels>>,
     hero_shapes: [usize; 4],
     live_switch: bool,
     live_chips: [bool; 3],
@@ -94,6 +95,7 @@ impl OverviewView {
         active_preset: Rc<dyn Fn(&App) -> ThemePreset>,
         on_select_preset: ApplyPreset,
         on_set_appearance: SetAppearanceFn,
+        available_width: Rc<Cell<Pixels>>,
         cx: &mut Context<Self>,
     ) -> Self {
         Self {
@@ -101,6 +103,7 @@ impl OverviewView {
             active_preset,
             on_select_preset,
             on_set_appearance,
+            available_width,
             hero_shapes: [0, 1, 2, 3],
             live_switch: true,
             live_chips: [true, true, false],
@@ -117,26 +120,30 @@ impl OverviewView {
         let outline = color(theme.colors.color(ColorRole::OutlineVariant));
         let shape_fills = HERO_SHAPE_ROLES.map(|role| color(theme.colors.color(role)));
 
+        let owner = cx.weak_entity();
         let mut shape_tiles = Vec::with_capacity(4);
         for slot in 0..4 {
             let shape = HERO_SHAPE_CYCLE[self.hero_shapes[slot] % HERO_SHAPE_CYCLE.len()];
             let fill = shape_fills[slot];
             let mesh =
                 cached_shape_canvas(("overview-hero-mesh", slot), shape, fill, 84., window, cx);
+            let owner = owner.clone();
             shape_tiles.push(
-                div()
-                    .id(("overview-hero-shape", slot))
-                    .role(Role::Button)
-                    .aria_label(format!("Cycle shape: {}", shape.name()))
-                    .cursor_pointer()
-                    .p_1()
-                    .rounded(px(16.))
-                    .on_click(cx.listener(move |this, _, _, cx| {
+                Surface::clickable(
+                    ("overview-hero-shape", slot),
+                    format!("Cycle shape: {}", shape.name()),
+                    ColorRole::SurfaceContainerLow,
+                )
+                .shape(CornerShape::uniform(16.))
+                .p_1()
+                .on_activate(move |_, cx| {
+                    let _ = owner.update(cx, |this, cx| {
                         this.hero_shapes[slot] =
                             (this.hero_shapes[slot] + 1) % HERO_SHAPE_CYCLE.len();
                         cx.notify();
-                    }))
-                    .child(mesh),
+                    });
+                })
+                .child(mesh),
             );
         }
         let mut tiles = shape_tiles.into_iter();
@@ -217,7 +224,7 @@ impl OverviewView {
                                         }),
                                     )
                                     .child(
-                                        Button::new("overview-cta-styles", "Styles")
+                                        Button::new("overview-cta-styles", "Explore styles")
                                             .variant(ButtonVariant::FilledTonal)
                                             .on_activate(move |window, cx| {
                                                 nav_styles(
@@ -313,30 +320,37 @@ impl OverviewView {
                 let selected = preset == active_preset;
                 let (primary, container) = cached_swatch_pair(slot, appearance);
                 let on_select = on_select.clone();
-                div()
-                    .id((ElementId::from("overview-swatch"), preset_label(preset)))
-                    .role(Role::Button)
-                    .aria_label(format!("Use {} theme", preset_label(preset)))
-                    .test_support()
-                    .cursor_pointer()
-                    .size(px(36.))
-                    .rounded_full()
-                    .bg(primary)
-                    .border_2()
-                    .border_color(if selected { outline } else { container })
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .on_click(move |_, window, cx| {
-                        on_select(preset, window, cx);
-                    })
-                    .when(selected, |swatch| {
-                        swatch.child(
-                            Icon::new(IconName::Check)
-                                .size(px(16.))
-                                .color_override(on_primary),
-                        )
-                    })
+                Surface::clickable(
+                    (ElementId::from("overview-swatch"), preset_label(preset)),
+                    format!("Use {} theme", preset_label(preset)),
+                    ColorRole::SurfaceContainerLow,
+                )
+                .shape(CornerRole::Full.shape())
+                .size(px(44.))
+                .flex()
+                .items_center()
+                .justify_center()
+                .on_activate(move |window, cx| {
+                    on_select(preset, window, cx);
+                })
+                .child(
+                    div()
+                        .size(px(32.))
+                        .rounded_full()
+                        .bg(primary)
+                        .border_2()
+                        .border_color(if selected { outline } else { container })
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .when(selected, |swatch| {
+                            swatch.child(
+                                Icon::new(IconName::Check)
+                                    .size(px(16.))
+                                    .color_override(on_primary),
+                            )
+                        }),
+                )
             });
 
         let to_light = on_appearance.clone();
@@ -568,11 +582,11 @@ impl OverviewView {
         let theme = window_material_theme(window, cx);
         let rtl = theme.layout.direction == Direction::Rtl;
         let outline = color(theme.colors.color(ColorRole::OutlineVariant));
-        let card_bg = color(theme.colors.color(ColorRole::SurfaceContainerLow));
         let thumb_bg = color(theme.colors.color(ColorRole::Surface));
-        let hover_bg = color(theme.colors.color(ColorRole::SurfaceContainer));
         let on_surface = color(theme.colors.color(ColorRole::OnSurface));
         let on_surface_variant = color(theme.colors.color(ColorRole::OnSurfaceVariant));
+        let available = f32::from(self.available_width.get());
+        let cols = ((available + 12.) / 252.).floor().clamp(1., 4.) as u16;
 
         let groups = CatalogGroup::COMPONENT_GROUPS.into_iter().map(|group| {
             let entries: Vec<_> = entries_in_group(group).collect();
@@ -582,68 +596,65 @@ impl OverviewView {
             let cards = entries.into_iter().map(|(_, entry)| {
                 let on_navigate = self.on_navigate.clone();
                 let page = entry.page;
-                div()
-                    .id((ElementId::from("overview-card"), page.id()))
-                    .role(Role::Link)
-                    .aria_label(page.name())
-                    .test_support()
-                    .cursor_pointer()
-                    .flex_1()
-                    .min_w(px(240.))
-                    .max_w(px(360.))
-                    .rounded(px(16.))
-                    .bg(card_bg)
-                    .hover(move |style| style.bg(hover_bg))
-                    .border_1()
-                    .border_color(outline)
-                    .overflow_hidden()
-                    .flex()
-                    .flex_col()
-                    .on_click(move |_, window, cx| {
-                        on_navigate(page, window, cx);
-                    })
-                    .child(
-                        div()
-                            .h(px(84.))
-                            .w_full()
-                            .bg(thumb_bg)
-                            .border_b_1()
-                            .border_color(outline)
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .child(
-                                div()
-                                    .size(px(48.))
-                                    .rounded(px(radius))
-                                    .bg(accent)
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .child(Icon::new(icon).size(px(22.)).color(icon_role)),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .p_4()
-                            .flex()
-                            .flex_col()
-                            .gap_1()
-                            .when(rtl, Styled::items_end)
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .font_weight(gpui::FontWeight::MEDIUM)
-                                    .text_color(on_surface)
-                                    .child(page.name()),
-                            )
-                            .child(
-                                div()
-                                    .text_xs()
-                                    .text_color(on_surface_variant)
-                                    .child(page.description()),
-                            ),
-                    )
+                Surface::clickable(
+                    (ElementId::from("overview-card"), page.id()),
+                    page.name(),
+                    ColorRole::SurfaceContainerLow,
+                )
+                .shape(CornerRole::Large.shape())
+                .border(SurfaceBorder {
+                    width: px(1.),
+                    color: outline,
+                })
+                .w_full()
+                .overflow_hidden()
+                .flex()
+                .flex_col()
+                .on_activate(move |window, cx| {
+                    on_navigate(page, window, cx);
+                })
+                .child(
+                    div()
+                        .h(px(84.))
+                        .w_full()
+                        .bg(thumb_bg)
+                        .border_b_1()
+                        .border_color(outline)
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(
+                            div()
+                                .size(px(48.))
+                                .rounded(px(radius))
+                                .bg(accent)
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(Icon::new(icon).size(px(22.)).color(icon_role)),
+                        ),
+                )
+                .child(
+                    div()
+                        .p_4()
+                        .flex()
+                        .flex_col()
+                        .gap_1()
+                        .when(rtl, Styled::items_end)
+                        .child(
+                            div()
+                                .text_sm()
+                                .font_weight(gpui::FontWeight::MEDIUM)
+                                .text_color(on_surface)
+                                .child(page.name()),
+                        )
+                        .child(
+                            div()
+                                .text_xs()
+                                .text_color(on_surface_variant)
+                                .child(page.description()),
+                        ),
+                )
             });
 
             div()
@@ -673,7 +684,14 @@ impl OverviewView {
                                 .color(ColorRole::OnSurfaceVariant),
                         ),
                 )
-                .child(div().w_full().flex().flex_wrap().gap_3().children(cards))
+                .child(
+                    div()
+                        .w_full()
+                        .grid()
+                        .grid_cols(cols)
+                        .gap_3()
+                        .children(cards),
+                )
         });
 
         div()

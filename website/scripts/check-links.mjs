@@ -57,7 +57,7 @@ for (const route of ['', 'component/', 'docs/', ...components.map(({ slug }) => 
   }
 }
 
-const storySource = await readFile(new URL('../../apps/gallery/src/story.rs', import.meta.url), 'utf8');
+const storySource = await readFile(new URL('../../apps/gallery/src/stories/story.rs', import.meta.url), 'utf8');
 const galleryStories = new Set([...storySource.matchAll(/=> "([a-z][a-z-]+)",/g)].map(([, story]) => story));
 const documentedStories = new Set(['introduction', ...components.flatMap(({ story, relatedStory }) => [story, relatedStory?.id]).filter(Boolean)]);
 for (const story of galleryStories.difference(documentedStories)) errors.push(`Gallery story has no guide: ${story}`);

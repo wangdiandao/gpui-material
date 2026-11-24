@@ -8,7 +8,7 @@ use gpui_material::{
     theme::{ColorRole, CornerRole, Direction, TypeRole},
 };
 
-use crate::{
+use super::{
     action_examples::ActionExamples,
     adaptive_examples::AdaptiveExamples,
     carousel_examples::CarouselExamples,

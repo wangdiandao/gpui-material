@@ -1,20 +1,21 @@
-use std::{any::Any, collections::HashMap, sync::OnceLock};
+use std::{any::Any, cell::Cell, collections::HashMap, rc::Rc, sync::OnceLock};
 
 use gpui::{
-    AnyElement, AnyView, App, AppContext, ClipboardItem, Context, ElementId, Entity,
-    InteractiveElement, IntoElement, ParentElement, Render, Role, StatefulInteractiveElement,
-    Styled, Subscription, Window, div, prelude::FluentBuilder, px,
+    AnyElement, AnyView, App, AppContext, ClipboardItem, Context, ElementId, Entity, Font,
+    FontFallbacks, InteractiveElement, IntoElement, ParentElement, Pixels, Render, Role,
+    StatefulInteractiveElement, Styled, Subscription, Window, div, prelude::FluentBuilder, px,
+    transparent_black,
 };
 use gpui_base::TestSupportExt;
 use gpui_material::{
-    Button, ButtonVariant, Chip, ChipVariant, ControlSize, Icon, IconButton, IconName, Slider,
-    SliderState, Surface, Switch, Text, TextField, TextFieldEvent, TextFieldState,
-    TextFieldVariant, ThemeScope,
+    Button, ButtonVariant, Chip, ChipVariant, ControlSize, Icon, IconButton, IconName,
+    NavigationItem, NavigationItems, Slider, SliderState, Surface, Switch, TabVariant, Tabs,
+    TabsColors, Text, TextField, TextFieldEvent, TextFieldState, TextFieldVariant, ThemeScope,
     foundation::{color, window_material_theme},
-    theme::{Appearance, ColorRole, ColorScheme, Direction, ThemePreset, TypeRole},
+    theme::{Appearance, ColorRole, ColorScheme, Density, Direction, ThemePreset, TypeRole},
 };
 
-use crate::{Story, styles_examples::preset_label};
+use crate::{Story, shell::styles_examples::preset_label};
 
 const PREVIEW_PRESETS: [ThemePreset; 6] = [
     ThemePreset::Baseline,
@@ -314,6 +315,7 @@ pub enum PageTab {
 pub struct ComponentPageView {
     story: Story,
     playground: &'static Playground,
+    available_width: Rc<Cell<Pixels>>,
     tab: PageTab,
     config: Config,
     active_scenario: Option<usize>,
@@ -332,6 +334,7 @@ impl ComponentPageView {
     pub fn new(
         story: Story,
         playground: &'static Playground,
+        available_width: Rc<Cell<Pixels>>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -400,6 +403,7 @@ impl ComponentPageView {
         Self {
             story,
             playground,
+            available_width,
             tab: PageTab::Preview,
             config,
             active_scenario: Some(0),
@@ -499,31 +503,40 @@ impl ComponentPageView {
             .preview_appearance
             .unwrap_or_else(|| theme.colors.appearance());
 
-        let tab_preview = {
+        let mode_tabs = {
             let owner = owner.clone();
-            Button::new("page-tab-preview", "Live preview")
-                .variant(if self.tab == PageTab::Preview {
-                    ButtonVariant::FilledTonal
-                } else {
-                    ButtonVariant::Text
-                })
-                .size(ControlSize::ExtraSmall)
-                .on_activate(move |window, cx| {
-                    let _ = owner.update(cx, |this, cx| this.set_tab(PageTab::Preview, window, cx));
-                })
-        };
-        let tab_specs = {
-            let owner = owner.clone();
-            Button::new("page-tab-specs", "Specs")
-                .variant(if self.tab == PageTab::Specs {
-                    ButtonVariant::FilledTonal
-                } else {
-                    ButtonVariant::Text
-                })
-                .size(ControlSize::ExtraSmall)
-                .on_activate(move |window, cx| {
-                    let _ = owner.update(cx, |this, cx| this.set_tab(PageTab::Specs, window, cx));
-                })
+            let active_id = match self.tab {
+                PageTab::Preview => "preview",
+                PageTab::Specs => "specs",
+            };
+            let items = NavigationItems::new(
+                "page-tab",
+                "Component view",
+                [
+                    NavigationItem::new("preview", "Live preview"),
+                    NavigationItem::new("specs", "Specs"),
+                ],
+            )
+            .selected(active_id)
+            .on_select(move |id, window, cx| {
+                let next = match id.as_ref() {
+                    "specs" => PageTab::Specs,
+                    _ => PageTab::Preview,
+                };
+                let _ = owner.update(cx, |this, cx| this.set_tab(next, window, cx));
+            });
+            let mut compact = theme.clone();
+            compact.layout.density = Density::Compact;
+            div().w(px(210.)).flex_none().child(
+                ThemeScope::new(Tabs::new(items).variant(TabVariant::Secondary).colors(
+                    TabsColors {
+                        container: Some(transparent_black()),
+                        divider: Some(transparent_black()),
+                        ..Default::default()
+                    },
+                ))
+                .theme(compact),
+            )
         };
 
         let preset_cycle = {
@@ -571,7 +584,7 @@ impl ComponentPageView {
             .id("playground-card-header")
             .w_full()
             .px_4()
-            .py_3()
+            .py_2()
             .border_b_1()
             .border_color(outline)
             .flex()
@@ -580,15 +593,7 @@ impl ComponentPageView {
             .justify_between()
             .gap_2()
             .when(rtl, Styled::flex_row_reverse)
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_1()
-                    .when(rtl, Styled::flex_row_reverse)
-                    .child(tab_preview)
-                    .child(tab_specs),
-            )
+            .child(mode_tabs)
             .child(
                 div()
                     .flex()
@@ -662,10 +667,24 @@ impl ComponentPageView {
             )
             .child(
                 div()
+                    .id("playground-code-scroll")
+                    .w_full()
+                    .overflow_x_scroll()
                     .p_4()
                     .bg(code_bg)
+                    .font(Font {
+                        family: "Consolas".into(),
+                        fallbacks: Some(FontFallbacks::from_fonts(vec![
+                            "Cascadia Mono".to_owned(),
+                            "JetBrains Mono".to_owned(),
+                            "SF Mono".to_owned(),
+                            "monospace".to_owned(),
+                        ])),
+                        ..Default::default()
+                    })
                     .text_xs()
                     .text_color(on_surface)
+                    .whitespace_nowrap()
                     .child(code),
             )
     }
@@ -688,7 +707,8 @@ impl ComponentPageView {
             .enumerate()
             .map(|(ix, name)| {
                 let owner = owner.clone();
-                Chip::new(("playground-scenario", ix), name)
+                Chip::new(("playground-scenario", ix), format!("Scenario: {name}"))
+                    .content(name)
                     .variant(ChipVariant::Filter)
                     .selected(self.active_scenario == Some(ix))
                     .on_change(move |_, window, cx| {
@@ -704,6 +724,7 @@ impl ComponentPageView {
             .iter()
             .enumerate()
             .map(|(s_ix, section)| {
+                let section_title = section.title;
                 let controls = section.controls.iter().map(|control| {
                     let owner = owner.clone();
                     match *control {
@@ -722,8 +743,9 @@ impl ComponentPageView {
                                         let owner = owner.clone();
                                         Chip::new(
                                             (ElementId::from("cfg-opt"), format!("{id}-{opt_ix}")),
-                                            opt,
+                                            format!("{label}: {opt}"),
                                         )
+                                        .content(opt)
                                         .variant(ChipVariant::Filter)
                                         .selected(opt == selected)
                                         .on_change(
@@ -755,7 +777,7 @@ impl ComponentPageView {
                                 .child(
                                     Switch::new(
                                         (ElementId::from("cfg-switch"), id),
-                                        label,
+                                        format!("{section_title}: {label}"),
                                         checked,
                                     )
                                     .show_label(false)
@@ -837,6 +859,7 @@ impl ComponentPageView {
         let reset_owner = owner.clone();
         div()
             .id("playground-config-card")
+            .test_support()
             .when(stacked, Styled::w_full)
             .when(!stacked, |card| card.w(px(332.)).flex_none())
             .rounded(px(16.))
@@ -893,14 +916,15 @@ impl Render for ComponentPageView {
         let theme = window_material_theme(window, cx).clone();
         let outline = color(theme.colors.color(ColorRole::OutlineVariant));
         let card_bg = color(theme.colors.color(ColorRole::SurfaceContainerLow));
-        let on_surface_variant = color(theme.colors.color(ColorRole::OnSurfaceVariant));
-        let stacked = f32::from(window.viewport_size().width) < 1180.;
+        let stacked = f32::from(self.available_width.get()) < 760.;
 
         let effective_appearance = self
             .preview_appearance
             .unwrap_or_else(|| theme.colors.appearance());
         let mut scoped_theme = theme.clone();
         scoped_theme.colors = cached_preview_scheme(self.preview_preset, effective_appearance);
+        let scoped_on_surface_variant =
+            color(scoped_theme.colors.color(ColorRole::OnSurfaceVariant));
 
         if self.tab == PageTab::Specs {
             let specs = self
@@ -941,6 +965,7 @@ impl Render for ComponentPageView {
 
         let preview_card = div()
             .id("playground-preview-card")
+            .test_support()
             .flex_1()
             .min_w_0()
             .rounded(px(16.))
@@ -971,7 +996,7 @@ impl Render for ComponentPageView {
                                 .aria_label(event.clone())
                                 .pt_2()
                                 .text_xs()
-                                .text_color(on_surface_variant)
+                                .text_color(scoped_on_surface_variant)
                                 .child(event.clone())
                         })),
                 )
@@ -979,7 +1004,8 @@ impl Render for ComponentPageView {
             );
 
         let left_column = div()
-            .flex_1()
+            .when(stacked, Styled::w_full)
+            .when(!stacked, Styled::flex_1)
             .min_w_0()
             .flex()
             .flex_col()

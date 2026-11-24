@@ -18,11 +18,11 @@ const { target_directory: targetDirectory } = JSON.parse(cargo(['metadata', '--l
 
 execFileSync('cargo', [
   toolchain, 'rustc', '--locked', '-p', 'gpui-material-gallery-web', '--target', target,
-  ...(release ? ['--release'] : []), '--', '-C', 'link-arg=-zstack-size=8388608',
+  ...(release ? ['--profile', 'wasm-release'] : []), '--', '-C', 'link-arg=-zstack-size=8388608',
 ], { cwd: root, stdio: 'inherit' });
 
 mkdirSync(output, { recursive: true });
 execFileSync(wasmBindgen, [
-  join(targetDirectory, target, release ? 'release' : 'debug', 'gpui_material_gallery_web.wasm'),
+  join(targetDirectory, target, release ? 'wasm-release' : 'debug', 'gpui_material_gallery_web.wasm'),
   '--target', 'web', '--no-typescript', '--out-name', 'material-gallery', '--out-dir', output,
 ], { cwd: root, stdio: 'inherit' });

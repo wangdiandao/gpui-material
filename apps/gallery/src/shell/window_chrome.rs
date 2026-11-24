@@ -4,20 +4,20 @@ use gpui::{
     StatefulInteractiveElement, Styled, Window, div,
 };
 use gpui_material::{
-    Switch, Text,
+    ControlSize, Text, ToggleButton,
     foundation::{color, window_material_theme},
     theme::{ColorRole, TypeRole},
-    window_chrome::TitleBar,
+    window_chrome::{TitleBar, TitleBarColors},
 };
 
-pub(super) struct ChromePreview {
+pub(crate) struct ChromePreview {
     gallery: Entity<Gallery>,
     block_close: bool,
     blocked_requests: usize,
 }
 
 impl ChromePreview {
-    pub(super) fn new(gallery: Entity<Gallery>, window: &Window, cx: &mut Context<Self>) -> Self {
+    pub(crate) fn new(gallery: Entity<Gallery>, window: &Window, cx: &mut Context<Self>) -> Self {
         let preview = cx.weak_entity();
         window.on_window_should_close(cx, move |_, cx| {
             preview
@@ -42,24 +42,34 @@ impl ChromePreview {
 impl Render for ChromePreview {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = window_material_theme(window, cx);
-        let surface = color(theme.colors.color(ColorRole::Surface));
+        let surface = color(theme.colors.color(ColorRole::SurfaceContainer));
         let preview = cx.weak_entity();
-        let block_close = Switch::new("block-window-close", "Block close", self.block_close)
-            .on_change(move |value, _, cx| {
-                preview
-                    .update(cx, |this, cx| {
-                        this.block_close = value;
-                        cx.notify();
-                    })
-                    .ok();
-            });
+        let block_close =
+            ToggleButton::outlined("block-window-close", "Block close", self.block_close)
+                .size(ControlSize::ExtraSmall)
+                .on_change(move |value, _, cx| {
+                    preview
+                        .update(cx, |this, cx| {
+                            this.block_close = value;
+                            cx.notify();
+                        })
+                        .ok();
+                });
         let status = format!("Blocked close requests: {}", self.blocked_requests);
 
         div()
             .flex()
             .flex_col()
             .size_full()
-            .child(TitleBar::new("window-title-bar").content(block_close))
+            .bg(surface)
+            .child(
+                TitleBar::new("window-title-bar")
+                    .colors(TitleBarColors {
+                        background: Some(surface),
+                        ..Default::default()
+                    })
+                    .content(block_close),
+            )
             .child(
                 div()
                     .id("blocked-close-status")
@@ -68,7 +78,11 @@ impl Render for ChromePreview {
                     .bg(surface)
                     .px_4()
                     .pb_1()
-                    .child(Text::new(status).role(TypeRole::LabelMedium)),
+                    .child(
+                        Text::new(status)
+                            .role(TypeRole::LabelMedium)
+                            .color(ColorRole::OnSurfaceVariant),
+                    ),
             )
             .child(div().flex_1().min_h_0().child(self.gallery.clone()))
     }

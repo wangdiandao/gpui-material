@@ -4,55 +4,15 @@
 //! catalog or [`Story::new_view`] for a single example. Mount either under a
 //! [`gpui_base::Root`] for overlays and keyboard traversal.
 
-mod action_examples;
-mod adaptive_examples;
-mod carousel_examples;
-#[cfg(not(target_arch = "wasm32"))]
-mod catalog;
-mod date_time_examples;
-#[cfg(all(
-    not(target_arch = "wasm32"),
-    feature = "desktop",
-    test,
-    feature = "test-support"
-))]
-mod desktop_tests;
-mod display_examples;
-mod drag_handle_examples;
-#[cfg(all(test, feature = "test-support"))]
-mod drawing;
-#[cfg(not(target_arch = "wasm32"))]
-mod gallery;
-mod group_examples;
-#[cfg(all(test, feature = "test-support"))]
-mod input_examples;
-mod navigation_examples;
-mod overlay_examples;
-#[cfg(not(target_arch = "wasm32"))]
-mod overview;
-#[cfg(all(test, not(target_arch = "wasm32"), feature = "test-support"))]
-mod perf_bench;
 #[cfg(not(target_arch = "wasm32"))]
 mod playground;
 #[cfg(not(target_arch = "wasm32"))]
 mod playgrounds;
-#[cfg(all(test, feature = "test-support"))]
-mod scrim_tests;
-mod search_examples;
-mod selection_examples;
-mod slider_examples;
-mod story;
 #[cfg(not(target_arch = "wasm32"))]
-mod styles_examples;
-mod surface_examples;
+mod shell;
+mod stories;
 #[cfg(all(test, feature = "test-support"))]
-mod swipe_to_dismiss_tests;
-mod text_field_examples;
-#[cfg(all(test, feature = "test-support"))]
-mod theme_tests;
-mod toolbar_examples;
-#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
-mod window_chrome;
+mod tests;
 
 #[cfg(all(test, feature = "test-support"))]
 pub(crate) fn painted_quads(window: &gpui::Window) -> Vec<gpui::Quad> {
@@ -87,21 +47,24 @@ use gpui::{
 };
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 use gpui_base::Root;
-use gpui_material::{MaterialRoot, MaterialTheme};
+use gpui_material::MaterialTheme;
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 use gpui_material::{
+    MaterialRoot,
     foundation::{material_theme, set_window_material_theme},
     theme::{Appearance, ColorScheme},
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use gallery::CloseCatalog;
+use shell::gallery::CloseCatalog;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use catalog::GalleryPage;
+pub use shell::catalog::GalleryPage;
 #[cfg(not(target_arch = "wasm32"))]
-pub use gallery::Gallery;
-pub use story::Story;
+pub use shell::gallery::Gallery;
+pub use stories::story::Story;
+
+pub(crate) use stories::story;
 
 #[doc(hidden)]
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
@@ -152,7 +115,7 @@ pub fn open_gallery_page(
             }),
             ..Default::default()
         }),
-        window_bounds: Some(WindowBounds::centered(None, size(px(1040.), px(744.)), cx)),
+        window_bounds: Some(WindowBounds::centered(None, size(px(1280.), px(820.)), cx)),
         window_min_size: Some(size(px(320.), px(240.))),
         ..Default::default()
     };
@@ -170,7 +133,7 @@ pub fn open_gallery_page(
         let options = gpui_material::window_chrome::title_bar_window_options(options);
         return MaterialRoot::open_window(options, cx, |window, cx| {
             let gallery = build_gallery(window, cx);
-            cx.new(|cx| window_chrome::ChromePreview::new(gallery, window, cx))
+            cx.new(|cx| shell::window_chrome::ChromePreview::new(gallery, window, cx))
         });
     }
     MaterialRoot::open_window(options, cx, build_gallery)

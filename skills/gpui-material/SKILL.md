@@ -79,7 +79,7 @@ fn main() {
 - **Controlled value** — build `Switch::new("reminders", "Enable reminders", self.reminders_enabled)` in `render` and update the owner from `.on_change(...)`.
 - **Retained editor** — create an `Entity<TextFieldState>` once with `cx.new(|cx| TextFieldState::new(window, cx))` and render `TextField::new("name", "Name", &self.name)`.
 - **Theme** — use `gpui_material::material_theme(cx)` for the application theme, `gpui_material::foundation::window_material_theme(window, cx)` for the effective window theme, and `ThemeScope` for subtree overrides. See [theme overrides](../../docs/integration.md#api-and-migration).
-- **Overlays** — retain a `DialogState` entity for `Dialog`, `Sheet`, or anchored `Menu`, and mount a `SnackbarHost` entity for queued messages. See the [overlay Gallery stories](../../apps/gallery/src/overlay_examples.rs).
+- **Overlays** — retain a `DialogState` entity for `Dialog`, `Sheet`, or anchored `Menu`, and mount a `SnackbarHost` entity for queued messages. See the [overlay Gallery stories](../../apps/gallery/src/stories/overlay_examples.rs).
 
 ## Component Catalog
 

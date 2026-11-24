@@ -69,7 +69,7 @@ cargo gallery text-field
 
 ## 本地检查
 
-运行 `xtask` 前先暂存新增、重命名和删除的 Markdown 文件，使其进入 Git 索引。`cargo xtask check` 按 Git 已跟踪和暂存文件校验 Markdown 链接、标题锚点、双语配对（汇总报告全部断链与过期记录）、Token 生成物以及三平台 GPUI/Base 依赖图。运行 `cargo xtask tokens` 时会自动刷新 `docs/theme/token-index.i18n.yaml`。
+运行 `xtask` 前先暂存新增、重命名和删除的 Markdown 文件，使其进入 Git 索引。`cargo xtask check` 按 Git 已跟踪和暂存文件校验 Markdown 链接、标题锚点、双语配对（汇总报告全部断链与过期记录）、Token 生成物、三平台 GPUI/Base 依赖图，以及 `website/component/catalog.mjs` Rust 示例代码编译门禁的同步状态（`cargo xtask snippets --check`）。运行 `cargo xtask tokens` 时会自动刷新 `docs/theme/token-index.i18n.yaml`。
 
 ```powershell
 git diff --check origin/main
@@ -136,7 +136,7 @@ cargo install wasm-bindgen-cli --version 0.2.130 --locked
 npm --prefix website run build:wasm
 ```
 
-在仓库设置中将 **Settings → Pages → Build and deployment → Source** 设为 **GitHub Actions**。`npm --prefix website run build:wasm` 支持通过 `RUSTUP_TOOLCHAIN` 覆盖工具链并校验 `wasm-bindgen --version`；`npm --prefix website run build` 还会校验 `website/component/catalog.mjs` 中的所有 `source` 仓内路径。修改网站源码、`docs/` 或 WASM 构建输入的 PR 会运行网站构建；`main` 上更新网站、构建输入或 `docs/` 时会自动部署。
+在仓库设置中将 **Settings → Pages → Build and deployment → Source** 设为 **GitHub Actions**。`npm --prefix website run build:wasm` 支持通过 `RUSTUP_TOOLCHAIN` 覆盖工具链、校验 `wasm-bindgen --version`，并在 `--release` 时使用 Cargo `wasm-release` 配置编译；`npm --prefix website run build` 还会校验 `website/component/catalog.mjs` 中的所有 `source` 仓内路径，同时 `cargo xtask snippets --check` 与 `cargo test --locked -p gpui-material --test catalog_snippets --all-features` 会使用 `rustc` 校验每条 Rust 示例代码。修改网站源码、`docs/` 或 WASM 构建输入的 PR 会运行网站构建；`main` 上更新网站、构建输入或 `docs/` 时会自动部署。
 
 <a id="ci-and-merging"></a>
 

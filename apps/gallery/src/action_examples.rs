@@ -4,10 +4,11 @@ use gpui::{
 };
 use gpui_base::TestSupportExt;
 use gpui_material::{
-    Button, ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShape, ButtonShapes,
-    ButtonTone, ButtonVariant, ControlSize, ExtendedFab, Fab, FabAlignment, FabColor, FabSize,
+    Button, ButtonColors, ButtonShape, ButtonVariant, ControlBorder, ControlElevations,
+    ControlShapes, ControlSize, ExtendedFab, Fab, FabAlignment, FabColor, FabSize,
     FabVisibilityAnimation, Icon, IconButton, IconButtonVariant, IconButtonWidth, IconName,
-    IconToggleButton, InteractionSource, Text, ToggleButton, ToggleButtonVariant,
+    IconToggleButton, InteractionSource, LogicalEdges, SemanticTone, Text, ToggleButton,
+    ToggleButtonVariant,
     theme::{ColorRole, CornerShape, Elevation, TypeRole},
 };
 
@@ -197,15 +198,15 @@ impl ActionExamples {
 
     fn button_tones_section(&self) -> crate::story::StorySection {
         let tones = [
-            ("Default", ButtonTone::Default),
-            ("Danger", ButtonTone::Danger),
-            ("Success", ButtonTone::Success),
-            ("Warning", ButtonTone::Warning),
-            ("Info", ButtonTone::Info),
+            ("Default", SemanticTone::Default),
+            ("Danger", SemanticTone::Danger),
+            ("Success", SemanticTone::Success),
+            ("Warning", SemanticTone::Warning),
+            ("Info", SemanticTone::Info),
         ];
         section("Semantic tones")
             .description(
-                "Apply Material 3 semantic color roles across button variants with `.tone(ButtonTone)`.",
+                "Apply Material 3 semantic color roles across button variants with `.tone(SemanticTone)`.",
             )
             .child(
                 row().children(tones.into_iter().enumerate().map(|(ix, (label, tone))| {
@@ -358,12 +359,12 @@ impl ActionExamples {
                     format!("Activations: {}", self.count),
                     IconButton::new("custom-icon-action", "Add item", Icon::new(IconName::Add))
                         .variant(IconButtonVariant::Outlined)
-                        .shapes(ButtonShapes {
+                        .shapes(ControlShapes {
                             resting: Some(CornerShape::Radii([5., 15., 5., 15.])),
                             pressed: Some(CornerShape::Radii([4.; 4])),
                             ..Default::default()
                         })
-                        .border(ButtonBorder {
+                        .border(ControlBorder {
                             width: gpui::px(2.),
                             color: custom_border_color(),
                         })
@@ -383,7 +384,7 @@ impl ActionExamples {
                     )
                     .selected_icon(Icon::new(IconName::Favorite).filled(true))
                     .variant(IconButtonVariant::FilledTonal)
-                    .shapes(ButtonShapes {
+                    .shapes(ControlShapes {
                         checked: Some(CornerShape::Radii([6.; 4])),
                         ..Default::default()
                     })
@@ -460,7 +461,7 @@ impl ActionExamples {
                             .size(FabSize::Medium)
                             .color(FabColor::Tertiary)
                             .shape(CornerShape::Radii([12., 24., 24., 12.]))
-                            .elevations(ButtonElevations {
+                            .elevations(ControlElevations {
                                 resting: Some(Elevation::Level2),
                                 pressed: Some(Elevation::Level1),
                                 ..Default::default()
@@ -528,7 +529,7 @@ impl ActionExamples {
                     )
                     .color(FabColor::Tertiary)
                     .shape(CornerShape::Radii([12., 24., 24., 12.]))
-                    .elevations(ButtonElevations {
+                    .elevations(ControlElevations {
                         resting: Some(Elevation::Level2),
                         ..Default::default()
                     })
@@ -706,39 +707,39 @@ fn custom_action() -> Button {
                 .h(gpui::px(24.))
                 .child("Run sample"),
         )
-        .shapes(ButtonShapes {
+        .shapes(ControlShapes {
             resting: Some(CornerShape::Radii([3., 7., 11., 13.])),
             pressed: Some(CornerShape::Radii([2.; 4])),
-            ..ButtonShapes::default()
+            ..ControlShapes::default()
         })
         .colors(ButtonColors {
             container: Some(custom_action_color()),
             content: Some(gpui::white()),
             ..ButtonColors::default()
         })
-        .border(ButtonBorder {
+        .border(ControlBorder {
             width: gpui::px(2.),
             color: custom_border_color(),
         })
-        .content_padding(ButtonPadding {
-            start: gpui::px(22.),
-            end: gpui::px(10.),
-            top: gpui::px(6.),
-            bottom: gpui::px(6.),
+        .content_padding(LogicalEdges {
+            start: 22.,
+            end: 10.,
+            top: 6.,
+            bottom: 6.,
         })
-        .elevations(ButtonElevations {
+        .elevations(ControlElevations {
             resting: Some(Elevation::Level2),
             pressed: Some(Elevation::Level1),
-            ..ButtonElevations::default()
+            ..ControlElevations::default()
         })
 }
 
 fn custom_toggle(selected: bool) -> ToggleButton {
     ToggleButton::new("custom-toggle", "Pin sample", selected)
         .content(div().child(if selected { "Pinned" } else { "Pin" }))
-        .shapes(ButtonShapes {
+        .shapes(ControlShapes {
             checked: Some(CornerShape::Radii([6.; 4])),
-            ..ButtonShapes::default()
+            ..ControlShapes::default()
         })
         .colors(ButtonColors {
             checked_container: Some(custom_toggle_color()),

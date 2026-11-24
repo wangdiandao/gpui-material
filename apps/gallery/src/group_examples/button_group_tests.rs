@@ -10,7 +10,7 @@ use gpui_base::{
 };
 use gpui_material::{
     Button, ButtonColors, ButtonGroupAlignment, ButtonGroupConnectedShapes, ButtonGroupItemStyle,
-    ButtonGroupSelection, ButtonGroupVariant, ButtonGroupVerticalAlignment, ButtonShapes,
+    ButtonGroupSelection, ButtonGroupVariant, ButtonGroupVerticalAlignment, ControlShapes,
     InteractionSource, MaterialRoot, MaterialTheme,
     foundation::set_window_material_theme,
     theme::{CornerShape, Direction},
@@ -101,7 +101,7 @@ impl Render for Preview {
                     .alignment(ButtonGroupAlignment::End)
                     .vertical_alignment(ButtonGroupVerticalAlignment::Center)
                     .connected_shapes(ButtonGroupConnectedShapes {
-                        middle: ButtonShapes {
+                        middle: ControlShapes {
                             resting: Some(CornerShape::Radii([2.; 4])),
                             pressed: Some(CornerShape::Radii([8.; 4])),
                             checked: Some(CornerShape::Radii([11.; 4])),

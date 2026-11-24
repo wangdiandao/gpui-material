@@ -1,8 +1,8 @@
 use std::{cell::RefCell, rc::Rc, time::Duration};
 
 use gpui::{
-    AppContext, ClipboardItem, Context, Edges, ElementId, Entity, EntityInputHandler, Focusable,
-    Hsla, InputEvent, InteractiveElement, IntoElement, MouseButton, MouseDownEvent, MouseUpEvent,
+    AppContext, ClipboardItem, Context, ElementId, Entity, EntityInputHandler, Focusable, Hsla,
+    InputEvent, InteractiveElement, IntoElement, MouseButton, MouseDownEvent, MouseUpEvent,
     ParentElement, Render, Rgba, Role, Styled, TestAppContext, Window, WindowOptions, div, point,
     px, rgb, size,
 };
@@ -141,11 +141,11 @@ fn styled_text_field_observes_layout_and_keeps_the_custom_outline_cutout(cx: &mu
             TextField::new("styled-field", "Project", &self.state)
                 .variant(self.variant)
                 .shape(CornerShape::Radii([12., 18., 10., 8.]))
-                .content_padding(Edges {
-                    left: px(20.),
-                    right: px(30.),
-                    top: px(6.),
-                    bottom: px(6.),
+                .content_padding(gpui_material::LogicalEdges {
+                    start: 20.,
+                    end: 30.,
+                    top: 6.,
+                    bottom: 6.,
                 })
                 .text_style(TypeRole::TitleLarge.style(TypographyEmphasis::Baseline))
                 .colors(TextFieldColors {
@@ -1857,10 +1857,14 @@ fn text_field_focus_boundaries_outside_blur_trailing_controls_and_disable(cx: &m
     let combo_toggle = cx
         .update_window(window.into(), |_, window, _| {
             let combo = find(window, &[], &(ElementId::from("combo"), "combobox").into()).unwrap();
-            find(window, combo.path(), &"toggle-options".into())
-                .unwrap()
-                .bounds()
-                .center()
+            find(
+                window,
+                combo.path(),
+                &(ElementId::from("combo"), "toggle-options").into(),
+            )
+            .unwrap()
+            .bounds()
+            .center()
         })
         .unwrap();
     click(cx, combo_toggle);
@@ -1872,9 +1876,13 @@ fn text_field_focus_boundaries_outside_blur_trailing_controls_and_disable(cx: &m
             .update_window(window.into(), |_, window, _| {
                 let combo =
                     find(window, &[], &(ElementId::from("combo"), "combobox").into()).unwrap();
-                find(window, combo.path(), &"value".into())
-                    .unwrap()
-                    .focused()
+                find(
+                    window,
+                    combo.path(),
+                    &(ElementId::from("combo"), "value").into(),
+                )
+                .unwrap()
+                .focused()
             })
             .unwrap();
         assert_eq!(combo_input, Some(true));
@@ -1882,7 +1890,7 @@ fn text_field_focus_boundaries_outside_blur_trailing_controls_and_disable(cx: &m
     });
     let beta_center = cx
         .update_window(window.into(), |_, window, _| {
-            let options = find(window, &[], &"options".into()).unwrap();
+            let options = find(window, &[], &(ElementId::from("combo"), "options").into()).unwrap();
             find(window, options.path(), &"beta".into())
                 .unwrap()
                 .bounds()
@@ -1899,9 +1907,13 @@ fn text_field_focus_boundaries_outside_blur_trailing_controls_and_disable(cx: &m
     assert_eq!(
         cx.update_window(window.into(), |_, window, _| {
             let combo = find(window, &[], &(ElementId::from("combo"), "combobox").into()).unwrap();
-            find(window, combo.path(), &"value".into())
-                .unwrap()
-                .focused()
+            find(
+                window,
+                combo.path(),
+                &(ElementId::from("combo"), "value").into(),
+            )
+            .unwrap()
+            .focused()
         })
         .unwrap(),
         Some(true)
@@ -1919,9 +1931,13 @@ fn text_field_focus_boundaries_outside_blur_trailing_controls_and_disable(cx: &m
     assert_eq!(
         cx.update_window(window.into(), |_, window, _| {
             let combo = find(window, &[], &(ElementId::from("combo"), "combobox").into()).unwrap();
-            find(window, combo.path(), &"value".into())
-                .unwrap()
-                .focused()
+            find(
+                window,
+                combo.path(),
+                &(ElementId::from("combo"), "value").into(),
+            )
+            .unwrap()
+            .focused()
         })
         .unwrap(),
         Some(false)

@@ -11,7 +11,7 @@ use gpui_material::{
     Avatar, AvatarGroup, AvatarShape, AvatarSize, Badge, Banner, Button, ButtonVariant, Card,
     CardBorder, CardColors, CardElevations, CardVariant, CheckboxState, CheckboxTile, ChoiceOption,
     ChoiceTile, CircularProgress, DisplayScrollbar, DisplayScrollbarFade, DisplayScrollbarStyle,
-    Divider, DropTarget, EmptyState, Icon, IconName, LinearProgress, List, ListItem, ListSection,
+    Divider, DropTarget, EmptyView, Icon, IconName, LinearProgress, List, ListItem, ListSection,
     ListVariant, LoadingIndicator, LoadingIndicatorShape, LoadingIndicatorShapes, ProgressCap,
     ProgressShape, ProgressStroke, RadioTile, SemanticTone, Skeleton, SliderState, SliderTile,
     SwitchTile, Text,
@@ -780,10 +780,10 @@ impl DisplayExamples {
             .child(
                 section("Expressive icon backdrop and actions")
                     .description(
-                        "EmptyState is a purely presentational M3E layout shell with a decorative shape backdrop, copy, and caller-owned actions.",
+                        "EmptyView is a purely presentational M3E layout shell with a decorative shape backdrop, copy, and caller-owned actions.",
                     )
                     .child(
-                        EmptyState::new("gallery-empty-projects", "No projects yet")
+                        EmptyView::new("gallery-empty-projects", "No projects yet")
                             .icon(Icon::new(IconName::Inbox))
                             .supporting(
                                 "Create a workspace project or import an existing folder to get started.",
@@ -824,7 +824,7 @@ impl DisplayExamples {
                         "Swap the icon backdrop to any MaterialShape or CornerShape, or supply a custom visual element.",
                     )
                     .child(
-                        EmptyState::new("gallery-empty-search", "No matching items")
+                        EmptyView::new("gallery-empty-search", "No matching items")
                             .icon(Icon::new(IconName::Search))
                             .icon_container_shape(MaterialShape::SoftBurst)
                             .icon_container_color_role(

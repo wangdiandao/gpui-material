@@ -506,7 +506,7 @@ impl RenderOnce for AppBar {
         let background = match overlap {
             0. => surface,
             1. => scrolled,
-            _ => crate::motion::mix(surface, scrolled, overlap),
+            _ => crate::control_style::mix_color(surface, scrolled, overlap),
         };
         let title_color = self
             .colors

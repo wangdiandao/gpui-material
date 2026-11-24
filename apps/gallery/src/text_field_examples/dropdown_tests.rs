@@ -64,9 +64,10 @@ fn dropdown_filters_cancels_and_commits_to_owner(cx: &mut TestAppContext) {
         })
         .unwrap()
     };
-    let collapsed = options_bounds(cx, "options".into()).unwrap();
+    let city_part = |part: &'static str| -> ElementId { (ElementId::from("city"), part).into() };
+    let collapsed = options_bounds(cx, city_part("options")).unwrap();
     cx.executor().advance_clock(Duration::from_millis(250));
-    let expanded = options_bounds(cx, "options".into()).unwrap();
+    let expanded = options_bounds(cx, city_part("options")).unwrap();
     assert!(collapsed.size.width < expanded.size.width);
     assert!(collapsed.size.height < expanded.size.height);
     assert_eq!(collapsed.top(), expanded.top());
@@ -77,17 +78,17 @@ fn dropdown_filters_cancels_and_commits_to_owner(cx: &mut TestAppContext) {
     .unwrap();
     cx.simulate_keystrokes(window.into(), "enter");
     cx.update(|cx| assert_eq!(view.read(cx).destination.as_ref(), "上海"));
-    assert!(options_bounds(cx, "options-exit".into()).is_some());
+    assert!(options_bounds(cx, city_part("options-exit")).is_some());
     cx.executor().advance_clock(Duration::from_millis(60));
     assert!(
-        options_bounds(cx, "options-exit".into())
+        options_bounds(cx, city_part("options-exit"))
             .unwrap()
             .size
             .width
             < expanded.size.width
     );
     cx.executor().advance_clock(Duration::from_millis(250));
-    assert!(options_bounds(cx, "options-exit".into()).is_none());
+    assert!(options_bounds(cx, city_part("options-exit")).is_none());
 }
 
 #[gpui::test]
@@ -136,7 +137,12 @@ fn dropdown_modes_preserve_focus_and_show_caret_only_when_editable(cx: &mut Test
         cx.update_window(window.into(), |_, window, cx| {
             window.refresh();
             window.draw(cx).clear(cx);
-            find(window, &[], &"options".into()).is_some()
+            find(
+                window,
+                &[],
+                &(ElementId::from("language"), "options").into(),
+            )
+            .is_some()
         })
         .unwrap()
     };
@@ -145,7 +151,12 @@ fn dropdown_modes_preserve_focus_and_show_caret_only_when_editable(cx: &mut Test
             window.refresh();
             window.draw(cx).clear(cx);
             let trigger = find(window, &[], &(ElementId::from(id), "combobox").into()).unwrap();
-            let field = find(window, trigger.path(), &"value".into()).unwrap();
+            let field = find(
+                window,
+                trigger.path(),
+                &(ElementId::from(id), "value").into(),
+            )
+            .unwrap();
             assert_eq!(field.focused(), Some(true), "{id} retains focus");
             let factor = window.scale_factor();
             let bounds = field.bounds().scale(factor);
@@ -189,7 +200,12 @@ fn dropdown_modes_preserve_focus_and_show_caret_only_when_editable(cx: &mut Test
         .update_window(window.into(), |_, window, cx| {
             window.refresh();
             window.draw(cx).clear(cx);
-            let menu = find(window, &[], &"options-scroll-region".into()).unwrap();
+            let menu = find(
+                window,
+                &[],
+                &(ElementId::from("language"), "options-scroll-region").into(),
+            )
+            .unwrap();
             let option = find(window, menu.path(), &"ja".into()).unwrap();
             point(menu.bounds().right() - px(16.), option.bounds().center().y)
         })
@@ -241,7 +257,12 @@ fn dropdown_keyboard_choice_scrolls_into_the_visible_list(cx: &mut TestAppContex
     }
     let assert_visible = |cx: &mut TestAppContext, id: &str| {
         cx.update_window(handle.into(), |_, window, _| {
-            let list = find(window, &[], &"options-scroll-region".into()).unwrap();
+            let list = find(
+                window,
+                &[],
+                &(ElementId::from("long-menu"), "options-scroll-region").into(),
+            )
+            .unwrap();
             let choice = find(window, list.path(), &ElementId::from(id.to_owned())).unwrap();
             assert!(choice.visible());
             assert!(choice.bounds().top() >= list.bounds().top());
@@ -328,13 +349,23 @@ fn dropdown_virtualizes_full_model_navigation_and_preserves_identity(cx: &mut Te
                 "only viewport and bounded overscan rows are built: {}",
                 rows.len()
             );
-            let list = find(window, &[], &"options-scroll-region".into()).unwrap();
+            let list = find(
+                window,
+                &[],
+                &(ElementId::from("large-menu"), "options-scroll-region").into(),
+            )
+            .unwrap();
             let row = find(window, list.path(), &id.to_owned().into()).unwrap();
             assert_eq!(row.selected(), Some(true));
             assert_eq!(row.bounds().size.height, px(48.));
             assert!(row.bounds().top() >= list.bounds().top());
             assert!(row.bounds().bottom() <= list.bounds().bottom());
-            let editor = find(window, &[], &"value".into()).unwrap();
+            let editor = find(
+                window,
+                &[],
+                &(ElementId::from("large-menu"), "value").into(),
+            )
+            .unwrap();
             assert_eq!(editor.focused(), Some(true));
         })
         .unwrap();
@@ -389,9 +420,22 @@ fn dropdown_virtualizes_full_model_navigation_and_preserves_identity(cx: &mut Te
     draw(cx);
     cx.update(|cx| assert_eq!(view.read(cx).selected.len(), 1));
     cx.update_window(handle.into(), |_, window, _| {
-        assert!(find(window, &[], &"options".into()).is_none());
+        assert!(
+            find(
+                window,
+                &[],
+                &(ElementId::from("large-menu"), "options").into()
+            )
+            .is_none()
+        );
         assert_eq!(
-            find(window, &[], &"value".into()).unwrap().value(),
+            find(
+                window,
+                &[],
+                &(ElementId::from("large-menu"), "value").into()
+            )
+            .unwrap()
+            .value(),
             Some("Option 1999")
         );
     })
@@ -445,9 +489,13 @@ fn dropdown_keeps_multiline_row_measurements(cx: &mut TestAppContext) {
         assert_eq!(short.size.height, px(48.));
         assert!(multiline.size.height > short.size.height);
         assert_eq!(short.bottom(), multiline.top());
-        let viewport = find(window, &[], &"options-scroll-region".into())
-            .unwrap()
-            .bounds();
+        let viewport = find(
+            window,
+            &[],
+            &(ElementId::from("multiline-menu"), "options-scroll-region").into(),
+        )
+        .unwrap()
+        .bounds();
         assert_eq!(short.size.width, viewport.size.width);
         assert_eq!(multiline.size.width, viewport.size.width);
         assert!(multiline.bottom() <= viewport.bottom());

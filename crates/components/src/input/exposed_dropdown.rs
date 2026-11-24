@@ -7,6 +7,9 @@ use gpui::{
 
 use super::TextField;
 
+mod interaction;
+mod option_row;
+mod popup;
 mod render;
 mod state;
 
@@ -57,6 +60,7 @@ pub struct ExposedDropdown {
     state: Entity<ExposedDropdownState>,
     options: Rc<[DropdownOption]>,
     primary: Option<DropdownAnchor>,
+    disabled: bool,
     primary_enabled: bool,
     secondary_enabled: bool,
     secondary: Option<(SharedString, AnchorContent)>,
@@ -95,6 +99,7 @@ impl ExposedDropdown {
             state: state.clone(),
             options: options.into(),
             primary: None,
+            disabled: false,
             primary_enabled: true,
             secondary_enabled: true,
             secondary: None,
@@ -112,6 +117,14 @@ impl ExposedDropdown {
     /// Controls primary activation and focus. Pair the anchor with the state's editing mode.
     pub fn primary_anchor(mut self, anchor: DropdownAnchor) -> Self {
         self.primary = Some(anchor);
+        self
+    }
+
+    /// Disables the dropdown, its inner text field, and both primary and secondary triggers.
+    ///
+    /// If the popup menu is currently open, it is closed immediately.
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
         self
     }
 

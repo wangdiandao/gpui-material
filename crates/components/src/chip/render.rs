@@ -1,302 +1,20 @@
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{
-    AnyElement, App, BorderStyle, Corners, Div, ElementId, Hsla, InteractiveElement, IntoElement,
-    ParentElement, Pixels, RenderOnce, SharedString, Stateful, Styled, Window, canvas, div, point,
-    prelude::FluentBuilder, px, quad,
+    AnyElement, App, Div, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels,
+    RenderOnce, Styled, Window, div, prelude::FluentBuilder, px,
 };
-use gpui_material_foundation::{
-    InteractionSource, InteractionState, InteractionTracker, ThemeScope, animate, color,
-    current_material_theme, elevation_shadow_pair,
+use gpui_material_foundation::{InteractionSource, current_material_theme};
+use gpui_material_theme::{Direction, LogicalEdges, TypeRole, TypographyEmphasis};
+
+use crate::action::{Action, ActionControl, InvokeAction, icon_slot};
+use crate::{Icon, IconName};
+
+use super::{
+    Chip, ChipVariant,
+    palette::{build_chip_layout, build_chip_style, resolve_palette},
+    split::{measure_height, render_split_chip, split_action_style},
 };
-use gpui_material_theme::{
-    ColorRole, CornerRole, Direction, Elevation, MotionKind, MotionSpeed, TypeRole,
-    TypographyEmphasis,
-};
-
-use crate::action::{
-    Action, ActionControl, ActionLayout, ActionStyle, Activate, DisabledStyle, InvokeAction,
-    SegmentShape, icon_slot, interpolated_corners,
-};
-use crate::button_style::{
-    ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShapes, ButtonStyle,
-    finite_length,
-};
-use crate::{Icon, IconName, SemanticTone};
-
-use super::{Chip, ChipColors, ChipElevations, ChipVariant};
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct ChipToneRoles {
-    foreground: ColorRole,
-    leading: ColorRole,
-    trailing: ColorRole,
-    selected_container: ColorRole,
-    border: ColorRole,
-}
-
-fn chip_tone_roles(
-    variant: ChipVariant,
-    selected: bool,
-    tonal: bool,
-    tone: SemanticTone,
-) -> ChipToneRoles {
-    use ColorRole::*;
-    if let Some((role, _, container, on_container)) = tone.roles() {
-        let fg = if selected { on_container } else { role };
-        ChipToneRoles {
-            foreground: fg,
-            leading: fg,
-            trailing: fg,
-            selected_container: container,
-            border: role,
-        }
-    } else {
-        ChipToneRoles {
-            foreground: if selected {
-                OnSecondaryContainer
-            } else if variant == ChipVariant::Assist {
-                OnSurface
-            } else {
-                OnSurfaceVariant
-            },
-            leading: match (variant, selected, tonal) {
-                (ChipVariant::Input, false, _) | (ChipVariant::Filter, false, true) => {
-                    OnSurfaceVariant
-                }
-                (ChipVariant::Filter, true, _) => OnSecondaryContainer,
-                _ => Primary,
-            },
-            trailing: if selected {
-                OnSecondaryContainer
-            } else {
-                OnSurfaceVariant
-            },
-            selected_container: SecondaryContainer,
-            border: OutlineVariant,
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-struct ChipPalette {
-    foreground: ColorRole,
-    label: Hsla,
-    leading: Hsla,
-    trailing: Hsla,
-    container: Hsla,
-    border_color: Hsla,
-    border_width: Pixels,
-    selection: f32,
-}
-
-#[allow(clippy::too_many_arguments)]
-fn resolve_palette(
-    id: &ElementId,
-    variant: ChipVariant,
-    selectable: bool,
-    selected: bool,
-    tonal: bool,
-    tone: SemanticTone,
-    elevated: bool,
-    disabled: bool,
-    chip_colors: ChipColors,
-    border: Option<ButtonBorder>,
-    window: &mut Window,
-    cx: &mut App,
-) -> ChipPalette {
-    use ColorRole::*;
-    let colors = chip_colors.for_state(disabled, selected);
-    let roles = chip_tone_roles(variant, selected, tonal, tone);
-    let foreground = roles.foreground;
-    let (on_surface, label, leading, trailing, idle, checked, border_color, effects) = {
-        let theme = current_material_theme(window, cx);
-        let theme_color = |role| color(theme.colors.color(role));
-        let on_surface = theme_color(OnSurface);
-        let label = colors.label.unwrap_or_else(|| {
-            if disabled {
-                on_surface.opacity(0.38)
-            } else {
-                theme_color(foreground)
-            }
-        });
-        let leading = colors.leading.unwrap_or_else(|| {
-            if disabled {
-                on_surface.opacity(0.38)
-            } else {
-                theme_color(roles.leading)
-            }
-        });
-        let trailing = colors.trailing.unwrap_or_else(|| {
-            if disabled {
-                on_surface.opacity(0.38)
-            } else {
-                theme_color(roles.trailing)
-            }
-        });
-        let idle = chip_colors.enabled.container.unwrap_or_else(|| {
-            if elevated {
-                theme_color(SurfaceContainerLow)
-            } else {
-                theme_color(roles.selected_container).opacity(0.)
-            }
-        });
-        let checked = chip_colors
-            .selected
-            .container
-            .unwrap_or_else(|| theme_color(roles.selected_container));
-        let border_color = colors
-            .border
-            .or(border.map(|border| border.color))
-            .unwrap_or_else(|| {
-                if disabled {
-                    on_surface.opacity(0.12)
-                } else {
-                    theme_color(roles.border)
-                }
-            });
-        let effects = theme.motion.spec(
-            MotionKind::Effects,
-            MotionSpeed::Fast,
-            cx.reduce_motion() || disabled,
-        );
-        (
-            on_surface,
-            label,
-            leading,
-            trailing,
-            idle,
-            checked,
-            border_color,
-            effects,
-        )
-    };
-    let selection = if selectable {
-        animate(
-            (id.clone(), "chip-tint"),
-            f32::from(selected),
-            effects,
-            window,
-            cx,
-        )
-        .clamp(0., 1.)
-    } else {
-        0.
-    };
-    let container = if disabled {
-        colors
-            .container
-            .unwrap_or_else(|| on_surface.opacity(if selected || elevated { 0.12 } else { 0. }))
-    } else if selection == 0. {
-        idle
-    } else if selection == 1. {
-        checked
-    } else {
-        crate::motion::mix(idle, checked, selection)
-    };
-    let border_width = border.map_or(px(f32::from(!elevated && !selected)), |border| {
-        finite_length(border.width)
-    });
-    ChipPalette {
-        foreground,
-        label,
-        leading,
-        trailing,
-        container,
-        border_color,
-        border_width,
-        selection,
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn build_chip_style(
-    variant: ChipVariant,
-    selectable: bool,
-    selected: bool,
-    tonal: bool,
-    elevated: bool,
-    shapes: ButtonShapes,
-    foreground: ColorRole,
-) -> ActionStyle {
-    ActionStyle {
-        background: None,
-        background_color: None,
-        foreground,
-        disabled: DisabledStyle {
-            foreground: ColorRole::OnSurface,
-            background: None,
-            outline: (ColorRole::OnSurface, 0.12),
-        },
-        height: 32.,
-        min_width: 0.,
-        corner: if tonal {
-            CornerRole::Medium
-        } else {
-            CornerRole::Small
-        },
-        pressed_corner: CornerRole::Small,
-        selected_corner: if tonal {
-            Some(CornerRole::Full)
-        } else if selectable && shapes.checked.is_some() {
-            Some(CornerRole::Small)
-        } else {
-            None
-        },
-        corner_motion: (MotionKind::Spatial, MotionSpeed::Fast),
-        outline: 0.,
-        outline_role: ColorRole::OutlineVariant,
-        elevation: if elevated {
-            Elevation::Level1
-        } else {
-            Elevation::Level0
-        },
-        hover_elevation: if elevated {
-            Elevation::Level2
-        } else if selected && variant == ChipVariant::Filter {
-            Elevation::Level1
-        } else {
-            Elevation::Level0
-        },
-    }
-}
-
-fn build_chip_layout(
-    split: bool,
-    tab_stop: bool,
-    dragged: bool,
-    shapes: ButtonShapes,
-    elevations: ChipElevations,
-    dragged_elevation: Option<Elevation>,
-    palette: ChipPalette,
-) -> ActionLayout {
-    ActionLayout {
-        tab_stop,
-        dragged,
-        dragged_elevation: (!split).then_some(dragged_elevation).flatten(),
-        appearance: ButtonStyle {
-            shapes,
-            colors: action_colors(
-                palette.label,
-                if split {
-                    gpui::transparent_black()
-                } else {
-                    palette.container
-                },
-            ),
-            border: (!split).then_some(ButtonBorder {
-                width: palette.border_width,
-                color: palette.border_color,
-            }),
-            elevations: if split {
-                ButtonElevations::default()
-            } else {
-                elevations.button()
-            },
-        },
-        ..Default::default()
-    }
-}
 
 #[allow(clippy::too_many_arguments)]
 fn build_leading_slot(
@@ -352,7 +70,7 @@ fn build_primary_content(
     leading: Option<AnyElement>,
     trailing: Option<AnyElement>,
     label: AnyElement,
-    padding: ButtonPadding,
+    padding: LogicalEdges,
     spacing: Pixels,
     filter_mark: f32,
     split: bool,
@@ -366,12 +84,12 @@ fn build_primary_content(
         .min_w_0()
         .text_size(px(14.))
         .when(direction == Direction::Rtl, Styled::flex_row_reverse)
-        .pt(padding.top)
-        .pb(padding.bottom);
+        .pt(px(padding.top))
+        .pb(px(padding.bottom));
     let mut content = logical_edges(
         content,
-        padding.start,
-        if split { spacing } else { padding.end },
+        px(padding.start),
+        if split { spacing } else { px(padding.end) },
         direction,
     )
     .children(leading)
@@ -392,115 +110,12 @@ fn build_primary_content(
     content.into_any_element()
 }
 
-#[allow(clippy::too_many_arguments)]
-fn render_split_chip(
-    id: ElementId,
-    row: Stateful<Div>,
-    primary: ActionControl,
-    remove_label: SharedString,
-    on_remove: Activate,
-    remove_content: Option<AnyElement>,
-    disabled: bool,
-    dragged: bool,
-    selected: bool,
-    direction: Direction,
-    padding: ButtonPadding,
-    explicit_padding: Option<ButtonPadding>,
-    style: ActionStyle,
-    layout: ActionLayout,
-    palette: ChipPalette,
-    elevations: ButtonElevations,
-    dragged_elevation: Option<Elevation>,
-    visual_height: Rc<Cell<Pixels>>,
-    tracker: Option<InteractionTracker>,
-    window: &mut Window,
-    cx: &mut App,
-) -> Stateful<Div> {
-    let primary_focus = primary.focus_handle(window, cx);
-    let key_remove = on_remove.clone();
-    let remove = ActionControl {
-        id: ElementId::from((id.clone(), "remove")),
-        label: remove_label,
-        focus: None,
-        disabled,
-        action: Action::Invoke(Some(InvokeAction::Full(on_remove))),
-        style: split_action_style(style, 32.),
-        content: logical_edges(
-            div().relative().pt(padding.top).pb(padding.bottom),
-            px(0.),
-            explicit_padding.map_or(px(0.), |padding| padding.end),
-            direction,
-        )
-        .child(remove_content.unwrap_or_else(|| {
-            icon_slot(Icon::new(IconName::Close).into_any_element(), 18.).into_any_element()
-        }))
-        .child(measure_height(visual_height.clone()))
-        .into_any_element(),
-    };
-    let primary_state = primary.interaction_snapshot(dragged, window, cx);
-    let remove_state = remove.interaction_snapshot(dragged, window, cx);
-    let mut interaction = primary_state;
-    interaction.hovered |= remove_state.hovered;
-    interaction.pressed |= remove_state.pressed;
-    interaction.focus_visible |= remove_state.focus_visible;
-    let surface = SplitSurface {
-        id,
-        style,
-        layout,
-        direction,
-        selected,
-        container: palette.container,
-        border: ButtonBorder {
-            width: palette.border_width,
-            color: palette.border_color,
-        },
-        elevations,
-        dragged_elevation,
-        visual_height,
+pub(super) fn logical_edges(element: Div, start: Pixels, end: Pixels, direction: Direction) -> Div {
+    if direction == Direction::Rtl {
+        element.pl(end).pr(start)
+    } else {
+        element.pl(start).pr(end)
     }
-    .render(interaction, window, cx);
-    let primary_layout = ActionLayout {
-        segment: Some(SegmentShape {
-            leading: true,
-            trailing: false,
-            outer: style.corner,
-            inner: CornerRole::None,
-            pressed: CornerRole::None,
-        }),
-        ..layout
-    };
-    let remove_layout = ActionLayout {
-        segment: Some(SegmentShape {
-            leading: false,
-            trailing: true,
-            outer: style.corner,
-            inner: CornerRole::None,
-            pressed: CornerRole::None,
-        }),
-        presentation_selected: Some(selected),
-        appearance: ButtonStyle {
-            shapes: layout.appearance.shapes,
-            colors: action_colors(palette.trailing, gpui::transparent_black()),
-            ..Default::default()
-        },
-        ..layout
-    };
-    row.when(!disabled, |row| {
-        let on_remove =
-            ThemeScope::bind_action(move |window, cx| key_remove(window, cx), window, cx);
-        row.on_key_down(move |event, window, cx| {
-            if !event.keystroke.modifiers.modified()
-                && matches!(event.keystroke.key.as_str(), "backspace" | "delete")
-                && primary_focus.is_focused(window)
-            {
-                cx.stop_propagation();
-                on_remove(window, cx);
-            }
-        })
-    })
-    .child(surface)
-    .child(primary.render_with_tracker(1., primary_layout, tracker, window, cx))
-    .child(remove.render_with_tracker(1., remove_layout, None, window, cx))
 }
 
 impl RenderOnce for Chip {
@@ -537,14 +152,12 @@ impl RenderOnce for Chip {
             self.shapes,
             palette.foreground,
         );
-        let dragged_elevation = self.elevations.dragged.or(Some(Elevation::Level4));
         let layout = build_chip_layout(
             split,
             self.tab_stop,
             self.dragged,
             self.shapes,
             self.elevations,
-            dragged_elevation,
             palette,
         );
 
@@ -576,8 +189,8 @@ impl RenderOnce for Chip {
                     .child(content)
                     .into_any_element()
             });
-        let padding = self.padding.unwrap_or_else(|| ButtonPadding {
-            start: px(if has_avatar {
+        let padding = self.padding.unwrap_or_else(|| {
+            let start = if has_avatar {
                 4.
             } else if filter_mark > 0. {
                 16. - 8. * filter_mark
@@ -585,15 +198,15 @@ impl RenderOnce for Chip {
                 8.
             } else {
                 16.
-            }),
-            end: if split {
-                self.spacing
+            };
+            let end = if split {
+                f32::from(self.spacing)
             } else if trailing.is_some() {
-                px(8.)
+                8.
             } else {
-                px(16.)
-            },
-            ..Default::default()
+                16.
+            };
+            LogicalEdges::new(0., end, 0., start)
         });
         let label = self.content.unwrap_or_else(|| {
             crate::text::single_line(
@@ -672,8 +285,7 @@ impl RenderOnce for Chip {
                 style,
                 layout,
                 palette,
-                self.elevations.button(),
-                dragged_elevation,
+                self.elevations,
                 visual_height,
                 tracker,
                 window,
@@ -681,222 +293,6 @@ impl RenderOnce for Chip {
             )
         } else {
             row.child(primary.render_with_tracker(1., layout, tracker, window, cx))
-        }
-    }
-}
-
-fn logical_edges(element: Div, start: Pixels, end: Pixels, direction: Direction) -> Div {
-    if direction == Direction::Rtl {
-        element.pl(end).pr(start)
-    } else {
-        element.pl(start).pr(end)
-    }
-}
-
-fn action_colors(label: Hsla, container: Hsla) -> ButtonColors {
-    ButtonColors {
-        container: Some(container),
-        content: Some(label),
-        disabled_container: Some(container),
-        disabled_content: Some(label),
-        checked_container: Some(container),
-        checked_content: Some(label),
-    }
-}
-
-fn split_action_style(style: ActionStyle, min_width: f32) -> ActionStyle {
-    ActionStyle {
-        min_width,
-        elevation: Elevation::Level0,
-        hover_elevation: Elevation::Level0,
-        ..style
-    }
-}
-
-fn measure_height(height: Rc<Cell<Pixels>>) -> gpui::Canvas<()> {
-    canvas(
-        move |bounds, _, _| height.set(height.get().max(bounds.size.height)),
-        |_, (), _, _| {},
-    )
-    .absolute()
-    .inset_0()
-}
-
-/// A split chip shares one container around its two independent actions.
-struct SplitSurface {
-    id: ElementId,
-    style: ActionStyle,
-    layout: ActionLayout,
-    direction: Direction,
-    selected: bool,
-    container: Hsla,
-    border: ButtonBorder,
-    elevations: ButtonElevations,
-    dragged_elevation: Option<Elevation>,
-    visual_height: Rc<Cell<Pixels>>,
-}
-
-impl SplitSurface {
-    fn render(
-        self,
-        state: InteractionState,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> impl IntoElement + use<> {
-        let theme = current_material_theme(window, cx);
-        let shadow = color(theme.colors.color(ColorRole::Shadow));
-        let effects = theme
-            .motion
-            .spec(MotionKind::Effects, MotionSpeed::Fast, cx.reduce_motion());
-        let spatial = theme
-            .motion
-            .spec(MotionKind::Spatial, MotionSpeed::Fast, cx.reduce_motion());
-        let pressed = animate(
-            (self.id.clone(), "chip-press"),
-            f32::from(state.pressed),
-            spatial,
-            window,
-            cx,
-        )
-        .clamp(0., 1.);
-        let selected = if self.style.selected_corner.is_some() {
-            animate(
-                (self.id.clone(), "chip-selection"),
-                f32::from(self.selected),
-                spatial,
-                window,
-                cx,
-            )
-            .clamp(0., 1.)
-        } else {
-            0.
-        };
-        let default_elevation = if state.disabled {
-            Elevation::Level0
-        } else if state.hovered && !state.pressed {
-            self.style.hover_elevation
-        } else {
-            self.style.elevation
-        };
-        let elevation = if state.dragged {
-            self.dragged_elevation
-        } else {
-            self.elevations.for_state(state)
-        }
-        .unwrap_or(default_elevation);
-        let elevation = animate(
-            (self.id.clone(), "chip-elevation"),
-            elevation.dp(),
-            effects,
-            window,
-            cx,
-        )
-        .max(0.);
-        let outline = animate(
-            (self.id.clone(), "chip-outline"),
-            f32::from(self.border.width),
-            effects,
-            window,
-            cx,
-        )
-        .max(0.);
-        canvas(
-            |_, _, _| (),
-            move |mut bounds, (), window, _| {
-                let height = self.visual_height.get().min(bounds.size.height);
-                bounds.origin += point(px(0.), (bounds.size.height - height) / 2.);
-                bounds.size.height = height;
-                let shape =
-                    interpolated_corners(bounds, self.style, selected, pressed, 1., self.layout);
-                let [top_left, top_right, bottom_right, bottom_left] = shape
-                    .radii(
-                        f32::from(bounds.size.width),
-                        f32::from(bounds.size.height),
-                        self.direction,
-                    )
-                    .map(px);
-                let radii = Corners {
-                    top_left,
-                    top_right,
-                    bottom_right,
-                    bottom_left,
-                };
-                if let Some(shadows) = elevation_shadow_pair(elevation, 1., shadow) {
-                    window.paint_drop_shadows(bounds, radii, &shadows);
-                }
-                if self.container.a > 0. || outline > 0. {
-                    window.paint_quad(quad(
-                        bounds,
-                        radii,
-                        self.container,
-                        px(outline),
-                        if outline > 0. {
-                            self.border.color
-                        } else {
-                            gpui::transparent_black()
-                        },
-                        BorderStyle::Solid,
-                    ));
-                }
-            },
-        )
-        .absolute()
-        .inset_0()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn chip_tone_roles_map_semantic_tones_and_preserve_defaults() {
-        use ColorRole::*;
-        let default_assist =
-            chip_tone_roles(ChipVariant::Assist, false, false, SemanticTone::Default);
-        assert_eq!(default_assist.foreground, OnSurface);
-        assert_eq!(default_assist.border, OutlineVariant);
-        assert_eq!(default_assist.selected_container, SecondaryContainer);
-
-        let default_selected =
-            chip_tone_roles(ChipVariant::Filter, true, false, SemanticTone::Default);
-        assert_eq!(default_selected.foreground, OnSecondaryContainer);
-        assert_eq!(default_selected.leading, OnSecondaryContainer);
-        assert_eq!(default_selected.trailing, OnSecondaryContainer);
-
-        for (tone, role, container, on_container) in [
-            (
-                SemanticTone::Danger,
-                Error,
-                ErrorContainer,
-                OnErrorContainer,
-            ),
-            (
-                SemanticTone::Success,
-                Success,
-                SuccessContainer,
-                OnSuccessContainer,
-            ),
-            (
-                SemanticTone::Warning,
-                Warning,
-                WarningContainer,
-                OnWarningContainer,
-            ),
-            (SemanticTone::Info, Info, InfoContainer, OnInfoContainer),
-        ] {
-            let unselected = chip_tone_roles(ChipVariant::Filter, false, false, tone);
-            assert_eq!(unselected.foreground, role);
-            assert_eq!(unselected.leading, role);
-            assert_eq!(unselected.trailing, role);
-            assert_eq!(unselected.border, role);
-            assert_eq!(unselected.selected_container, container);
-
-            let selected = chip_tone_roles(ChipVariant::Filter, true, false, tone);
-            assert_eq!(selected.foreground, on_container);
-            assert_eq!(selected.leading, on_container);
-            assert_eq!(selected.trailing, on_container);
-            assert_eq!(selected.selected_container, container);
         }
     }
 }

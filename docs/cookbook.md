@@ -366,7 +366,7 @@ fn apply_dynamic_theme(appearance: Appearance, cx: &mut App) {
 
 ### Semantic tones
 
-Use `SemanticTone` (`Default`, `Danger`, `Success`, `Warning`, `Info`; also aliased as `ButtonTone`) to apply Material 3 semantic color pairs across `Button`, `ToggleButton`, `IconButton`, `Chip`, `ChipGroupItem`, and `Snackbar` without hand-picking individual color roles:
+Use `SemanticTone` (`Default`, `Danger`, `Success`, `Warning`, `Info`) to apply Material 3 semantic color pairs across `Button`, `ToggleButton`, `IconButton`, `Chip`, `ChipGroupItem`, and `Snackbar` without hand-picking individual color roles:
 
 ```rust
 use gpui_material::{Button, SemanticTone};
@@ -770,6 +770,6 @@ Each optional feature automatically activates only the core component groups it 
 | `dynamic-color` | Theme | `MaterialTheme::from_seed`, `from_seed_with`, `ThemePreset`, `CustomColorGroup`, `harmonize_color` |
 | `serde` | Theme | `Serialize` / `Deserialize` on `MaterialTheme` and theme value types |
 
-Display primitives (`Text`, `Icon`, `Badge`, `Divider`, `Avatar`, `EmptyState`, `Skeleton`, `DisplayScrollbar`, `SemanticTone`), `foundation`, and `theme` are always available regardless of component group features.
+Display primitives (`Text`, `Icon`, `Badge`, `Divider`, `Avatar`, `EmptyView`, `Skeleton`, `DisplayScrollbar`, `SemanticTone`), `foundation`, and `theme` are always available regardless of component group features.
 
 [Downstream integration](integration.md) · [Components](component.md) · [Pure theme](theme/theme.md) · [Architecture](architecture.md)

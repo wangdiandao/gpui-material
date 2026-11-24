@@ -36,3 +36,37 @@ fn text_style<E: gpui::Styled>(
     let style = role.style(gpui_material_theme::TypographyEmphasis::Baseline);
     gpui_material_foundation::text_style(element, style, scale, window, cx)
 }
+
+pub(crate) fn presence(
+    id: &gpui::ElementId,
+    visible: bool,
+    duration_ms: u64,
+    window: &mut gpui::Window,
+    cx: &mut gpui::App,
+) -> gpui_base::motion::PresenceSample {
+    use std::time::Duration;
+
+    use gpui_base::motion::{
+        Easing, MotionStatus, Presence, PresencePhase, PresenceSample, Transition,
+    };
+
+    const ABSENT: PresenceSample = PresenceSample {
+        phase: PresencePhase::Absent,
+        progress: 0.,
+        status: MotionStatus::Finished,
+    };
+    let mounted =
+        window.use_keyed_state((id.clone(), "material-presence-mounted"), cx, |_, _| false);
+    let was_mounted = *mounted.read(cx);
+    if !visible && !was_mounted {
+        return ABSENT;
+    }
+    let sample = Presence::new((id.clone(), "material-presence"), visible)
+        .transition(Transition::new(Duration::from_millis(duration_ms)).easing(Easing::EaseOut))
+        .sample(window, cx);
+    let render = visible || sample.progress > 0.;
+    if was_mounted != render {
+        mounted.update(cx, |mounted, _| *mounted = render);
+    }
+    if render { sample } else { ABSENT }
+}

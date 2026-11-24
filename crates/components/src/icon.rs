@@ -141,8 +141,11 @@ impl Icon {
     }
 
     /// Sets an explicit square side length in logical pixels (clamped to non-negative values).
+    /// Non-finite values are ignored.
     pub fn size(mut self, side: Pixels) -> Self {
-        self.side = Some(side.max(px(0.)));
+        if f32::from(side).is_finite() {
+            self.side = Some(side.max(px(0.)));
+        }
         self
     }
 
@@ -175,8 +178,11 @@ impl Icon {
     }
 
     /// Paint-time rotation composed with RTL mirroring; layout is unchanged.
+    /// Non-finite angles are ignored.
     pub fn rotate(mut self, angle: Radians) -> Self {
-        self.rotation = angle;
+        if angle.0.is_finite() {
+            self.rotation = angle;
+        }
         self
     }
 }
@@ -208,7 +214,22 @@ impl RenderOnce for Icon {
                 .into_any_element(),
             IconContent::Svg(path) => icon_svg().path(path).into_any_element(),
             IconContent::SvgData(data) => icon_svg().data(&data).into_any_element(),
-            IconContent::Element(element) => element,
+            IconContent::Element(element) => {
+                // GPUI exposes affine transforms on SVGs only; for custom elements, mirror
+                // horizontal flex direction in RTL when requested.
+                if rtl {
+                    div()
+                        .size_full()
+                        .flex()
+                        .flex_row_reverse()
+                        .items_center()
+                        .justify_center()
+                        .child(element)
+                        .into_any_element()
+                } else {
+                    element
+                }
+            }
         };
         let icon = div()
             .size(side)

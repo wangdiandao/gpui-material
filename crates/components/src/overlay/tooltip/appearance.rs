@@ -7,7 +7,8 @@ use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Direction, Elevation, MaterialTheme,
 };
 
-use crate::{button_style::finite_length, motion::OverlayMotion};
+use crate::control_style::finite_length;
+use gpui_material_foundation::OverlayMotion;
 
 /// Preferred tooltip side. Start and End resolve against the window's direction.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]

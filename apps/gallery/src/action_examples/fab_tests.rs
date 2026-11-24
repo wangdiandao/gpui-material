@@ -7,7 +7,7 @@ use gpui::{
 };
 use gpui_base::{TestSupportExt, test_support::find};
 use gpui_material::{
-    Button, ButtonColors, ButtonElevations, Fab, FabAlignment, FabSize, FabVisibilityAnimation,
+    Button, ButtonColors, ControlElevations, Fab, FabAlignment, FabSize, FabVisibilityAnimation,
     Icon, IconName, InteractionSource, MaterialRoot,
     foundation::{color, set_window_material_theme, window_material_theme},
     theme::{ColorRole, CornerShape, CubicBezier, Direction, Elevation, MotionSpec},
@@ -88,7 +88,7 @@ fn facade_fab_keeps_the_default_size_and_paints_independent_appearance(cx: &mut 
                             content: Some(INK),
                             ..Default::default()
                         })
-                        .elevations(ButtonElevations {
+                        .elevations(ControlElevations {
                             resting: Some(Elevation::Level0),
                             pressed: Some(Elevation::Level5),
                             ..Default::default()
@@ -105,7 +105,7 @@ fn facade_fab_keeps_the_default_size_and_paints_independent_appearance(cx: &mut 
                             disabled_container: Some(DISABLED),
                             ..Default::default()
                         })
-                        .elevations(ButtonElevations {
+                        .elevations(ControlElevations {
                             resting: Some(Elevation::Level4),
                             disabled: Some(Elevation::Level1),
                             ..Default::default()

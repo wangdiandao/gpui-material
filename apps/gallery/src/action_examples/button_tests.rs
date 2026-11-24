@@ -8,9 +8,9 @@ use gpui::{
 };
 use gpui_base::{TestSupportExt, test_support::find};
 use gpui_material::{
-    Button, ButtonBorder, ButtonColors, ButtonShapes, ButtonTone, ButtonVariant, ControlSize, Icon,
+    Button, ButtonColors, ButtonVariant, ControlBorder, ControlShapes, ControlSize, Icon,
     IconButton, IconButtonVariant, IconButtonWidth, IconName, IconToggleButton, InteractionSource,
-    InteractionUpdate, Switch, ToggleButton, ToggleButtonVariant,
+    InteractionUpdate, SemanticTone, Switch, ToggleButton, ToggleButtonVariant,
     foundation::{MaterialRoot, color, set_window_material_theme, window_material_theme},
     theme::{ColorRole, CornerShape, Direction},
 };
@@ -63,7 +63,7 @@ fn icon_buttons_customize_paint_and_keep_controlled_keyboard_behavior(cx: &mut T
                         .variant(IconButtonVariant::Outlined)
                         .size(ControlSize::Medium)
                         .width(IconButtonWidth::Wide)
-                        .shapes(ButtonShapes {
+                        .shapes(ControlShapes {
                             resting: Some(CornerShape::Radii([7.; 4])),
                             pressed: Some(CornerShape::Radii([3.; 4])),
                             ..Default::default()
@@ -75,7 +75,7 @@ fn icon_buttons_customize_paint_and_keep_controlled_keyboard_behavior(cx: &mut T
                             disabled_content: Some(rgb(DISABLED_INK).into()),
                             ..Default::default()
                         })
-                        .border(ButtonBorder {
+                        .border(ControlBorder {
                             width: px(2.),
                             color: rgb(BORDER).into(),
                         })
@@ -91,7 +91,7 @@ fn icon_buttons_customize_paint_and_keep_controlled_keyboard_behavior(cx: &mut T
                         .variant(IconButtonVariant::FilledTonal)
                         .size(ControlSize::ExtraSmall)
                         .width(IconButtonWidth::Narrow)
-                        .shapes(ButtonShapes {
+                        .shapes(ControlShapes {
                             checked: Some(CornerShape::Radii([9.; 4])),
                             ..Default::default()
                         })
@@ -100,7 +100,7 @@ fn icon_buttons_customize_paint_and_keep_controlled_keyboard_behavior(cx: &mut T
                             checked_content: Some(rgb(CHECKED_INK).into()),
                             ..Default::default()
                         })
-                        .border(ButtonBorder {
+                        .border(ControlBorder {
                             width: px(1.),
                             color: rgb(BORDER).into(),
                         })
@@ -1094,37 +1094,37 @@ fn button_tone_applies_semantic_palettes_and_yields_to_explicit_colors(cx: &mut 
                 .child(
                     Button::new("danger-filled", "Delete")
                         .variant(ButtonVariant::Filled)
-                        .tone(ButtonTone::Danger)
+                        .tone(SemanticTone::Danger)
                         .on_activate(|_, _| {}),
                 )
                 .child(
                     Button::new("success-tonal", "Approve")
                         .variant(ButtonVariant::FilledTonal)
-                        .tone(ButtonTone::Success)
+                        .tone(SemanticTone::Success)
                         .on_activate(|_, _| {}),
                 )
                 .child(
                     Button::new("warning-outlined", "Caution")
                         .variant(ButtonVariant::Outlined)
-                        .tone(ButtonTone::Warning)
+                        .tone(SemanticTone::Warning)
                         .on_activate(|_, _| {}),
                 )
                 .child(
                     ToggleButton::new("info-toggle", "Info", true)
                         .variant(ToggleButtonVariant::Filled)
-                        .tone(ButtonTone::Info)
+                        .tone(SemanticTone::Info)
                         .on_change(|_, _, _| {}),
                 )
                 .child(
                     IconButton::new("danger-icon", "Remove", Icon::new(IconName::Close))
                         .variant(IconButtonVariant::Filled)
-                        .tone(ButtonTone::Danger)
+                        .tone(SemanticTone::Danger)
                         .on_activate(|_, _| {}),
                 )
                 .child(
                     Button::new("override-danger", "Override")
                         .variant(ButtonVariant::Filled)
-                        .tone(ButtonTone::Danger)
+                        .tone(SemanticTone::Danger)
                         .colors(ButtonColors {
                             container: Some(rgb(OVERRIDE_BG).into()),
                             ..Default::default()

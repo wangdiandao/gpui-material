@@ -9,47 +9,28 @@
 )]
 mod action;
 mod avatar;
-#[cfg_attr(not(feature = "actions"), allow(dead_code))]
-mod button_style;
+#[cfg_attr(not(any(feature = "actions", feature = "selection")), allow(dead_code))]
+mod control_style;
 mod display;
 mod display_scrollbar;
-mod empty_state;
+mod empty_view;
 mod ext;
 mod icon;
 mod insets;
 mod menu_appearance;
-#[cfg(any(
-    feature = "actions",
-    feature = "selection",
-    feature = "inputs",
-    feature = "surfaces",
-    feature = "feedback",
-    feature = "navigation"
-))]
-#[cfg_attr(
-    not(all(
-        feature = "actions",
-        feature = "selection",
-        feature = "inputs",
-        feature = "surfaces",
-        feature = "feedback",
-        feature = "navigation"
-    )),
-    allow(dead_code)
-)]
-mod motion;
 mod skeleton;
 mod text;
 mod tone;
 
 pub use avatar::{Avatar, AvatarColors, AvatarGroup, AvatarShape, AvatarSize};
-pub use button_style::ControlSize;
+pub use control_style::ControlSize;
 pub use display::{Badge, Divider};
 pub use display_scrollbar::{
     DisplayScrollbar, DisplayScrollbarFade, DisplayScrollbarStyle, ScrollbarHandle,
 };
-pub use empty_state::EmptyState;
+pub use empty_view::EmptyView;
 pub use ext::MaterialElementExt;
+pub use gpui_material_theme::LogicalEdges;
 pub use icon::{Icon, IconName};
 pub use insets::ScaffoldInsets;
 pub use menu_appearance::MenuSurfaceStyle;
@@ -67,11 +48,13 @@ mod fab;
 pub use button::composition as button_composition;
 #[cfg(feature = "actions")]
 pub use button::{
-    Button, ButtonShape, ButtonTone, ButtonVariant, IconButton, IconButtonVariant, IconButtonWidth,
+    Button, ButtonShape, ButtonVariant, IconButton, IconButtonVariant, IconButtonWidth,
     IconToggleButton, ToggleButton, ToggleButtonVariant,
 };
 #[cfg(feature = "actions")]
-pub use button_style::{ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShapes};
+pub use control_style::ButtonColors;
+#[cfg(any(feature = "actions", feature = "selection"))]
+pub use control_style::{ControlBorder, ControlElevations, ControlShapes};
 #[cfg(feature = "actions")]
 pub use fab::{
     ExtendedFab, Fab, FabAlignment, FabColor, FabSize, FabVisibilityAnimation, FloatingAction,
@@ -86,8 +69,7 @@ mod slider;
 
 #[cfg(feature = "selection")]
 pub use chip::{
-    Chip, ChipColors, ChipElevations, ChipGroup, ChipGroupItem, ChipGroupSelection,
-    ChipStateColors, ChipVariant,
+    Chip, ChipColors, ChipGroup, ChipGroupItem, ChipGroupSelection, ChipStateColors, ChipVariant,
 };
 #[cfg(feature = "selection")]
 pub use selection::{

@@ -607,7 +607,7 @@ impl RenderOnce for Sheet {
         let open = !modal || dialog.read(cx).is_open();
         let presence = (modal && retained_layout.is_none()).then(|| {
             self.presence
-                .unwrap_or_else(|| crate::motion::presence(&self.id, open, 240, window, cx))
+                .unwrap_or_else(|| crate::overlay::presence(&self.id, open, 240, window, cx))
         });
         let hidden = bottom_state.is_some_and(|state| {
             let state = state.read(cx);

@@ -19,6 +19,11 @@ impl Geometry {
         }
     }
 
+    pub(super) fn has_positive_extent(self, bounds: Bounds<Pixels>) -> bool {
+        let extent = f32::from(bounds.size.along(self.axis));
+        extent.is_finite() && extent > 0.
+    }
+
     pub(super) fn position(self, bounds: Bounds<Pixels>, pointer: Point<Pixels>) -> Point<Pixels> {
         if !self.reversed() {
             pointer
@@ -32,9 +37,17 @@ impl Geometry {
     pub(super) fn fraction(self, bounds: Bounds<Pixels>, pointer: Point<Pixels>) -> f32 {
         let pointer = self.position(bounds, pointer);
         if self.axis.is_horizontal() {
-            (pointer.x - bounds.left()) / bounds.size.width
+            let width = f32::from(bounds.size.width);
+            if !width.is_finite() || width <= 0. {
+                return 0.;
+            }
+            f32::from(pointer.x - bounds.left()) / width
         } else {
-            (bounds.bottom() - pointer.y) / bounds.size.height
+            let height = f32::from(bounds.size.height);
+            if !height.is_finite() || height <= 0. {
+                return 0.;
+            }
+            f32::from(bounds.bottom() - pointer.y) / height
         }
     }
 
@@ -270,5 +283,21 @@ mod tests {
         assert_eq!(before.end, px(92.));
         assert_eq!(after.start, px(108.));
         assert!(active.end < active.start);
+    }
+
+    #[test]
+    fn zero_size_bounds_never_produce_nan_fraction() {
+        let zero = Bounds::new(point(px(10.), px(10.)), gpui::size(px(0.), px(0.)));
+        for axis in [Axis::Horizontal, Axis::Vertical] {
+            let geometry = Geometry {
+                axis,
+                direction: Direction::Ltr,
+                reverse_vertical: false,
+            };
+            assert!(!geometry.has_positive_extent(zero));
+            let frac = geometry.fraction(zero, point(px(10.), px(10.)));
+            assert!(frac.is_finite());
+            assert_eq!(frac, 0.);
+        }
     }
 }

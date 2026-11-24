@@ -6,8 +6,8 @@ use gpui::{
     Window, div, prelude::FluentBuilder, px,
 };
 use gpui_material_components::{
-    ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShapes, ButtonVariant,
-    ControlSize, Icon, IconName, Menu, MenuItem, SemanticTone,
+    ButtonColors, ButtonVariant, ControlBorder, ControlElevations, ControlShapes, ControlSize,
+    Icon, IconName, LogicalEdges, Menu, MenuItem, SemanticTone,
     button_composition::{ButtonPart, Segment, label_width, split_trailing_size},
 };
 use gpui_material_foundation::{InteractionSource, current_material_theme};
@@ -40,15 +40,15 @@ enum TrailingAction {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SplitButtonSegmentStyle {
     /// Corner shape overrides for resting, pressed, and checked states.
-    pub shapes: ButtonShapes,
+    pub shapes: ControlShapes,
     /// Container and content color overrides.
     pub colors: ButtonColors,
     /// Optional border override.
-    pub border: Option<ButtonBorder>,
+    pub border: Option<ControlBorder>,
     /// Elevation overrides across interaction states.
-    pub elevations: ButtonElevations,
+    pub elevations: ControlElevations,
     /// Optional content padding override.
-    pub padding: Option<ButtonPadding>,
+    pub padding: Option<LogicalEdges>,
 }
 
 #[derive(Default)]

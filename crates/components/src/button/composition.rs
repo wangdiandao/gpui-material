@@ -1,4 +1,23 @@
-use super::*;
+use std::rc::Rc;
+
+use gpui::{
+    AnyElement, App, ElementId, IntoElement, ParentElement, Pixels, RenderOnce, SharedString,
+    Styled, Window, div, px,
+};
+use gpui_material_foundation::current_material_theme;
+use gpui_material_theme::{CornerRole, LogicalEdges, TypographyEmphasis, non_negative_f32};
+
+use crate::action::{
+    Action, ActionControl, ActionLayout, Change, InvokeAction, SegmentShape, icon_slot,
+};
+use crate::control_style::ControlSize;
+
+use super::{
+    appearance::button_appearance,
+    appearance_builders, common_builders, slot_builders,
+    slots::Slots,
+    types::{ButtonVariant, Common, IconButtonWidth},
+};
 
 /// Logical position within a connected horizontal group.
 #[derive(Clone, Copy)]
@@ -253,7 +272,7 @@ impl RenderOnce for ButtonPart {
     }
 }
 
-fn split_padding(size: ControlSize, segment: Option<Segment>) -> Option<ButtonPadding> {
+fn split_padding(size: ControlSize, segment: Option<Segment>) -> Option<LogicalEdges> {
     let (start, end) = match segment {
         Some(Segment::SplitLeading) => match size {
             ControlSize::ExtraSmall => (12., 10.),
@@ -269,11 +288,7 @@ fn split_padding(size: ControlSize, segment: Option<Segment>) -> Option<ButtonPa
         }
         _ => return None,
     };
-    Some(ButtonPadding {
-        start: px(start),
-        end: px(end),
-        ..Default::default()
-    })
+    Some(LogicalEdges::new(0., end, 0., start))
 }
 
 pub fn label_width(size: ControlSize, label: SharedString, window: &Window, cx: &App) -> Pixels {
@@ -283,7 +298,7 @@ pub fn label_width(size: ControlSize, label: SharedString, window: &Window, cx: 
 pub fn group_label_width(
     size: ControlSize,
     label: SharedString,
-    padding: Option<ButtonPadding>,
+    padding: Option<LogicalEdges>,
     icon: bool,
     window: &Window,
     cx: &App,
@@ -306,7 +321,7 @@ pub fn group_label_width(
     )
     .map_or(px(0.), |text| text.line().width.ceil());
     let padding = padding.map_or(px(metrics.padding * 2.), |padding| {
-        finite_length(padding.start) + finite_length(padding.end)
+        px(non_negative_f32(padding.start) + non_negative_f32(padding.end))
     });
     (width
         + padding
@@ -321,11 +336,11 @@ pub fn group_label_width(
 pub fn group_icon_width(
     size: ControlSize,
     width: IconButtonWidth,
-    padding: Option<ButtonPadding>,
+    padding: Option<LogicalEdges>,
 ) -> Pixels {
     let (metrics, width) = size.icon_metrics(width);
     padding.map_or(px(width), |padding| {
-        px(metrics.icon) + finite_length(padding.start) + finite_length(padding.end)
+        px(metrics.icon + non_negative_f32(padding.start) + non_negative_f32(padding.end))
     })
 }
 

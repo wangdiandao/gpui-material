@@ -165,7 +165,7 @@ fn component_feature_cases() -> [FeatureCase; 16] {
         (COMPONENTS, None, Some(&[])),
         (COMPONENTS, Some("actions"), Some(&["actions"])),
         (COMPONENTS, Some("selection"), Some(&["selection"])),
-        (COMPONENTS, Some("inputs"), Some(&["inputs"])),
+        (COMPONENTS, Some("inputs"), Some(&["actions", "inputs"])),
         (COMPONENTS, Some("surfaces"), Some(&["actions", "surfaces"])),
         (COMPONENTS, Some("feedback"), Some(&["actions", "feedback"])),
         (

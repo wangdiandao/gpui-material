@@ -17,7 +17,7 @@ use gpui_material_theme::{
 
 use crate::{
     action::{Activate, activate_feedback, feedback_target, ripple_state},
-    button_style::finite_length,
+    control_style::finite_length,
 };
 
 /// Visual container style for [`Card`].

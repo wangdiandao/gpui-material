@@ -1,10 +1,10 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
+use crate::menu_appearance::menu_pivot;
 use crate::menu_appearance::{
     MenuColor, MenuItemStyle, MenuSurfaceStyle, Paint, Palette, axis_padding,
 };
-use crate::motion::{OverlayMotion, ScaledOverlay, menu_pivot};
 use crate::{Divider, SemanticTone};
 use gpui::{
     Anchor, AnyElement, App, Axis, ElementId, FocusHandle, InteractiveElement, IntoElement,
@@ -12,6 +12,7 @@ use gpui::{
     prelude::FluentBuilder, px,
 };
 use gpui_base::{Positioner, TestSupportExt};
+use gpui_material_foundation::{OverlayMotion, ScaledOverlay};
 use gpui_material_foundation::{ThemeScope, current_material_theme, move_roving_focus};
 use gpui_material_theme::{ColorRole, CornerRole, CornerShape, Direction, StateLayer, TypeRole};
 

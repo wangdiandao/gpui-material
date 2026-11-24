@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 use gpui::{
     AnyElement, App, ElementId, Hsla, ImageSource, InteractiveElement, IntoElement, ObjectFit,
@@ -89,12 +89,14 @@ pub struct AvatarColors {
     pub border: Option<Hsla>,
 }
 
+type FallbackFactory = Rc<dyn Fn() -> AnyElement>;
+
 enum AvatarContent {
     Initials(SharedString),
     Icon(AnyElement),
     Image {
         source: ImageSource,
-        fallback: Option<AnyElement>,
+        fallback: Option<FallbackFactory>,
     },
     Custom(AnyElement),
 }
@@ -149,10 +151,10 @@ impl Avatar {
         }
     }
 
-    /// Supplies fallback visual content for `Avatar::image` while loading or if loading fails.
-    pub fn fallback(mut self, fallback: impl IntoElement) -> Self {
+    /// Supplies repeatable fallback visual content for `Avatar::image` while loading or if loading fails.
+    pub fn fallback<E: IntoElement>(mut self, fallback: impl Fn() -> E + 'static) -> Self {
         if let AvatarContent::Image { fallback: slot, .. } = &mut self.content {
-            *slot = Some(fallback.into_any_element());
+            *slot = Some(Rc::new(move || fallback().into_any_element()));
         }
         self
     }
@@ -301,9 +303,8 @@ impl RenderOnce for Avatar {
                     .rounded_br(br)
                     .rounded_bl(bl);
                 if let Some(fallback) = fallback {
-                    let slot = Rc::new(RefCell::new(Some(fallback)));
-                    let loading_slot = slot.clone();
-                    let error_slot = slot;
+                    let loading_fallback = fallback.clone();
+                    let error_fallback = fallback;
                     image = image
                         .with_loading(move || {
                             div()
@@ -311,7 +312,7 @@ impl RenderOnce for Avatar {
                                 .flex()
                                 .items_center()
                                 .justify_center()
-                                .children(loading_slot.borrow_mut().take())
+                                .child((loading_fallback)())
                                 .into_any_element()
                         })
                         .with_fallback(move || {
@@ -320,7 +321,7 @@ impl RenderOnce for Avatar {
                                 .flex()
                                 .items_center()
                                 .justify_center()
-                                .children(error_slot.borrow_mut().take())
+                                .child((error_fallback)())
                                 .into_any_element()
                         });
                 }

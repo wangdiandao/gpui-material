@@ -11,7 +11,7 @@ use gpui_material_theme::Direction;
 
 use crate::SemanticTone;
 use crate::action::Activate;
-use crate::button_style::finite_length;
+use crate::control_style::finite_length;
 
 use super::{Chip, ChipVariant};
 
@@ -141,7 +141,7 @@ impl ChipGroupItem {
 }
 
 /// A controlled collection of Material chips with M3 8 dp spacing, roving
-/// keyboard focus, RTL mirroring, and `Role::ListBox` semantics.
+/// keyboard focus, RTL mirroring, and `Role::Group` semantics.
 #[derive(IntoElement)]
 pub struct ChipGroup {
     id: ElementId,
@@ -396,13 +396,16 @@ impl RenderOnce for ChipGroup {
         let mut container = div()
             .id(self.id)
             .test_support()
-            .role(Role::ListBox)
+            .role(Role::Group)
             .aria_label(self.name)
             .flex()
             .flex_row()
             .items_center()
             .when(direction == Direction::Rtl, Styled::flex_row_reverse)
             .on_key_down(move |event, window, cx| {
+                if event.keystroke.modifiers.modified() {
+                    return;
+                }
                 let key = event.keystroke.key.as_str();
                 match key {
                     "home" => {

@@ -1,5 +1,4 @@
-use std::cell::{Cell, RefCell};
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
     AccessibleAction, AnyElement, App, Div, ElementId, Entity, FocusHandle, Hsla,
@@ -7,12 +6,21 @@ use gpui::{
     StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{Switch as BaseSwitch, TestSupportExt};
-use gpui_material_foundation::{InteractionSource, ThemeScope, animate, current_material_theme};
-use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpec, MotionSpeed, StateLayer};
+use gpui_material_foundation::{
+    InteractionSource, animate,
+    control_feedback::{FeedbackState, activate_feedback},
+    current_material_theme,
+};
+use gpui_material_theme::{
+    ColorRole, Density, Direction, MotionKind, MotionSpec, MotionSpeed, StateLayer,
+};
 
-use crate::action::{Change, FeedbackState, feedback_target, ripple_ink, ripple_state};
+use crate::action::{Change, ripple_ink};
 
-use super::{focus_style, row, selection_label, tone};
+use super::{
+    base::{BoundValueAction, SelectionControlBase},
+    focus_style, tone,
+};
 
 /// Optional pigments for one switch state. Omitted fields use the window theme.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -70,21 +78,19 @@ impl SwitchColors {
         use ColorRole::*;
         let color = |role| tone(role, window, cx);
         if disabled {
-            // Compose precomposites disabled pigments over the surface color.
-            let muted = |role, opacity| color(Surface).blend(color(role).opacity(opacity));
             return if checked {
                 self.disabled_checked.resolve(SwitchPalette {
-                    track: muted(OnSurface, 0.12),
+                    track: color(OnSurface).opacity(0.12),
                     border: gpui::transparent_black(),
                     thumb: color(Surface),
-                    content: muted(OnSurface, 0.38),
+                    content: color(OnSurface).opacity(0.38),
                 })
             } else {
                 self.disabled_unchecked.resolve(SwitchPalette {
-                    track: muted(SurfaceContainerHighest, 0.12),
-                    border: muted(OnSurface, 0.12),
-                    thumb: muted(OnSurface, 0.38),
-                    content: muted(SurfaceContainerHighest, 0.38),
+                    track: color(SurfaceContainerHighest).opacity(0.12),
+                    border: color(OnSurface).opacity(0.12),
+                    thumb: color(OnSurface).opacity(0.38),
+                    content: color(SurfaceContainerHighest).opacity(0.38),
                 })
             };
         }
@@ -104,7 +110,7 @@ impl SwitchColors {
         let mix = |off, on| match tint {
             0. => off,
             1. => on,
-            _ => crate::motion::mix(off, on, tint),
+            _ => crate::control_style::mix_color(off, on, tint),
         };
         SwitchPalette {
             track: mix(unchecked.track, on.track),
@@ -119,68 +125,82 @@ impl SwitchColors {
     }
 }
 
+#[derive(Clone, Copy)]
+struct SwitchMetrics {
+    track_width: f32,
+    track_height: f32,
+    state_layer: f32,
+    hit_target: f32,
+    pressed_thumb: f32,
+    checked_thumb: f32,
+    unchecked_thumb: f32,
+}
+
+impl SwitchMetrics {
+    fn from_density(density: Density) -> Self {
+        let track_height = density.visual_size(32.).max(20.);
+        let track_width = density.visual_size(52.).max(36.);
+        let delta = track_height - 32.;
+        Self {
+            track_width,
+            track_height,
+            state_layer: density.visual_size(40.).max(24.),
+            hit_target: density.interactive_size(32.),
+            pressed_thumb: (28. + delta).max(20.),
+            checked_thumb: (24. + delta).max(16.),
+            unchecked_thumb: (16. + delta).max(12.),
+        }
+    }
+}
+
 /// Material switch. The caller owns the checked state and optional thumb content.
 #[derive(IntoElement)]
 pub struct Switch {
-    id: ElementId,
-    label: SharedString,
-    show_label: bool,
-    label_content: Option<AnyElement>,
+    base: SelectionControlBase,
     checked: bool,
-    disabled: bool,
     checked_icon: Option<AnyElement>,
     unchecked_icon: Option<AnyElement>,
     thumb_content: Option<AnyElement>,
     colors: SwitchColors,
-    focus: Option<FocusHandle>,
-    interaction_source: Option<Entity<InteractionSource>>,
     on_change: Option<Change>,
-    decorative: bool,
 }
 
 impl Switch {
     /// Creates a controlled switch with an element ID, accessible/visible label, and current checked state.
     pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>, checked: bool) -> Self {
         Self {
-            id: id.into(),
-            label: label.into(),
-            show_label: true,
-            label_content: None,
+            base: SelectionControlBase::new(id, label),
             checked,
-            disabled: false,
             checked_icon: None,
             unchecked_icon: None,
             thumb_content: None,
             colors: SwitchColors::default(),
-            focus: None,
-            interaction_source: None,
             on_change: None,
-            decorative: false,
         }
     }
 
     #[cfg(feature = "surfaces")]
     pub(crate) fn decorative(mut self, decorative: bool) -> Self {
-        self.decorative = decorative;
+        self.base.decorative(decorative);
         self
     }
 
     /// Controls whether the visible label is rendered. Defaults to `true`.
     /// When `false`, the constructor's label remains the accessible name and the trailing gap is omitted.
     pub fn show_label(mut self, show: bool) -> Self {
-        self.show_label = show;
+        self.base.show_label(show);
         self
     }
 
     /// Replaces the visible label while keeping the constructor's label as the accessible name.
     pub fn label_content(mut self, content: impl IntoElement) -> Self {
-        self.label_content = Some(content.into_any_element());
+        self.base.label_content(content);
         self
     }
 
     /// Disables pointer, keyboard, and accessibility interaction when `true`.
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = disabled;
+        self.base.disabled(disabled);
         self
     }
 
@@ -211,13 +231,13 @@ impl Switch {
 
     /// Uses the caller's focus handle instead of an internal keyed handle.
     pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
-        self.focus = Some(focus.clone());
+        self.base.track_focus(focus);
         self
     }
 
     /// Reports presentation state to a caller-owned source.
     pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
-        self.interaction_source = Some(source.clone());
+        self.base.interaction_source(source);
         self
     }
 
@@ -253,6 +273,7 @@ impl Switch {
 
     fn thumb_geometry(
         &self,
+        metrics: SwitchMetrics,
         has_decoration: bool,
         active: bool,
         motion: MotionSpec,
@@ -260,38 +281,46 @@ impl Switch {
         cx: &mut App,
     ) -> (f32, Pixels) {
         let normal_size = if self.checked || has_decoration {
-            24.
+            metrics.checked_thumb
         } else {
-            16.
+            metrics.unchecked_thumb
         };
         let diameter = animate(
-            (self.id.clone(), "thumb-diameter"),
-            if active { 28. } else { normal_size },
+            (self.base.id.clone(), "thumb-diameter"),
+            if active {
+                metrics.pressed_thumb
+            } else {
+                normal_size
+            },
             if active { MotionSpec::Instant } else { motion },
             window,
             cx,
         )
-        .clamp(16., 28.);
+        .clamp(metrics.unchecked_thumb, metrics.pressed_thumb);
         let offset = animate(
-            (self.id.clone(), "thumb-offset"),
+            (self.base.id.clone(), "thumb-offset"),
             match (active, self.checked) {
-                (true, false) => 2.,
-                (true, true) => 22.,
-                (false, true) => 24.,
-                (false, false) => (32. - normal_size) / 2.,
+                (true, false) => (metrics.track_height - metrics.pressed_thumb) / 2.,
+                (true, true) => metrics.track_width - metrics.pressed_thumb - 2.,
+                (false, true) => {
+                    metrics.track_width - normal_size - (metrics.track_height - normal_size) / 2.
+                }
+                (false, false) => (metrics.track_height - normal_size) / 2.,
             },
             if active { MotionSpec::Instant } else { motion },
             window,
             cx,
         );
         // Offset and diameter are sampled independently, including a reversal on release.
-        (diameter, px(offset.clamp(2., 50. - diameter)))
+        let max_offset = (metrics.track_width - 2. - diameter).max(2.);
+        (diameter, px(offset.clamp(2., max_offset)))
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 fn render_state_layer(
     diameter: f32,
+    state_layer_size: f32,
     checked: bool,
     disabled: bool,
     active: bool,
@@ -306,9 +335,9 @@ fn render_state_layer(
     div()
         .id("switch-state-layer")
         .absolute()
-        .size(px(40.))
-        .left(px((diameter - 40.) / 2.))
-        .top(px((diameter - 40.) / 2.))
+        .size(px(state_layer_size))
+        .left(px((diameter - state_layer_size) / 2.))
+        .top(px((diameter - state_layer_size) / 2.))
         .rounded_full()
         .when(!disabled, |layer| {
             let static_pressed = active && cx.reduce_motion();
@@ -338,6 +367,7 @@ fn render_state_layer(
 #[allow(clippy::too_many_arguments)]
 fn render_track(
     id: &ElementId,
+    metrics: SwitchMetrics,
     palette: SwitchPalette,
     diameter: f32,
     offset: Pixels,
@@ -375,8 +405,8 @@ fn render_track(
         .id((id.clone(), "switch-track"))
         .test_support()
         .relative()
-        .w(px(52.))
-        .h(px(32.))
+        .w(px(metrics.track_width))
+        .h(px(metrics.track_height))
         .rounded_full()
         .bg(palette.track)
         .when(palette.border.a > 0., |track| {
@@ -394,9 +424,11 @@ fn render_track(
 
 impl RenderOnce for Switch {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let disabled = self.base.disabled;
         let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
-        let reduced = self.disabled || cx.reduce_motion();
+        let metrics = SwitchMetrics::from_density(theme.layout.density);
+        let reduced = disabled || cx.reduce_motion();
         let motion = theme
             .motion
             .spec(MotionKind::Spatial, MotionSpeed::Fast, reduced);
@@ -404,7 +436,7 @@ impl RenderOnce for Switch {
             .motion
             .spec(MotionKind::Effects, MotionSpeed::Fast, reduced);
         let tint = animate(
-            (self.id.clone(), "switch-color"),
+            (self.base.id.clone(), "switch-color"),
             f32::from(self.checked),
             effects,
             window,
@@ -413,13 +445,14 @@ impl RenderOnce for Switch {
         .clamp(0., 1.);
         let palette = self
             .colors
-            .resolve(self.checked, self.disabled, tint, window, cx);
+            .resolve(self.checked, disabled, tint, window, cx);
         let decoration = self.thumb_decoration();
-        if self.decorative {
+        if self.base.decorative {
             let (diameter, offset) =
-                self.thumb_geometry(decoration.is_some(), false, motion, window, cx);
+                self.thumb_geometry(metrics, decoration.is_some(), false, motion, window, cx);
             let track = render_track(
-                &self.id,
+                &self.base.id,
+                metrics,
                 palette,
                 diameter,
                 offset,
@@ -428,43 +461,31 @@ impl RenderOnce for Switch {
                 decoration,
             );
             return div()
-                .id(self.id)
+                .id(self.base.id)
                 .flex_none()
                 .child(track)
                 .into_any_element();
         }
-        let ripple = ripple_state(&self.id, !self.disabled, window, cx);
-        let focus = self.focus.take().unwrap_or_else(|| {
-            window
-                .use_keyed_state(self.id.clone(), cx, |_, cx| cx.focus_handle())
-                .read(cx)
-                .clone()
-        });
-        let tracker = self
-            .interaction_source
-            .as_ref()
-            .map(|source| InteractionSource::track(source, &self.id, window, cx));
-        let observes_input = tracker.is_some();
-        ripple
-            .borrow_mut()
-            .track(!self.disabled, &focus, tracker, window, cx);
-        let active = ripple.borrow().pressed();
+        let interaction = self.base.prepare_interaction(None, window, cx);
+        let active = interaction.ripple.borrow().pressed();
         let (diameter, offset) =
-            self.thumb_geometry(decoration.is_some(), active, motion, window, cx);
-        let group: SharedString = format!("material-switch/{}", self.id).into();
+            self.thumb_geometry(metrics, decoration.is_some(), active, motion, window, cx);
+        let group = self.base.group_name("material-switch");
         let state_layer = render_state_layer(
             diameter,
+            metrics.state_layer,
             self.checked,
-            self.disabled,
+            disabled,
             active,
             &group,
-            ripple.clone(),
+            interaction.ripple.clone(),
             direction,
             window,
             cx,
         );
         let track = render_track(
-            &self.id,
+            &self.base.id,
+            metrics,
             palette,
             diameter,
             offset,
@@ -472,58 +493,51 @@ impl RenderOnce for Switch {
             state_layer,
             decoration,
         );
-        let control = BaseSwitch::new(self.id)
+        let click_ripple = interaction.ripple.clone();
+        let label = self.base.label.clone();
+        let control = BaseSwitch::new(self.base.id.clone())
             .checked(self.checked)
-            .disabled(self.disabled)
-            .track_focus(&focus)
+            .disabled(disabled)
+            .track_focus(&interaction.focus)
             .group(group)
-            .accessibility_label(self.label.clone())
-            .when(!self.disabled, |control| {
-                feedback_target(
-                    control,
-                    ripple,
-                    observes_input,
-                    observes_input.then_some(focus),
-                )
-            })
+            .accessibility_label(label)
             .border_2()
             .border_color(gpui::transparent_black())
             .rounded_md()
             .focus_visible(focus_style(tone(ColorRole::Secondary, window, cx)))
             .child(
-                row(direction, self.show_label)
+                self.base
+                    .render_row(direction, track, window, cx)
                     .id("switch-row")
-                    .min_h(px(48.))
-                    .px_1()
-                    .child(track)
-                    .children(self.show_label.then(|| {
-                        selection_label(self.label, self.label_content, self.disabled, window, cx)
-                    })),
+                    .min_h(px(metrics.hit_target))
+                    .px_1(),
             );
+        let control = interaction.attach_feedback(control);
+        if disabled {
+            return control.into_any_element();
+        }
         match self.on_change {
-            Some(handler) if !self.disabled => {
+            Some(handler) => {
                 let next = !self.checked;
-                let pending = Rc::new(Cell::new(next));
-                let pending_arg = pending.clone();
-                let handler = Rc::new(ThemeScope::bind_action(
-                    move |window, cx| handler(pending_arg.get(), window, cx),
-                    window,
-                    cx,
-                ));
-                let change = handler.clone();
-                let a11y_pending = pending.clone();
+                let bound = BoundValueAction::new(next, handler, window, cx);
+                let a11y_bound = bound.clone();
                 control
                     .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
-                        a11y_pending.set(next);
-                        change(window, cx)
+                        a11y_bound.invoke_default(window, cx);
                     })
-                    .on_change(move |checked, _, window, cx| {
-                        pending.set(checked);
-                        handler(window, cx)
+                    .on_change(move |checked, event, window, cx| {
+                        cx.stop_propagation();
+                        activate_feedback(event, &click_ripple, window, cx);
+                        bound.invoke(checked, window, cx);
                     })
                     .into_any_element()
             }
-            _ => control.into_any_element(),
+            None => control
+                .on_change(move |_, event, window, cx| {
+                    cx.stop_propagation();
+                    activate_feedback(event, &click_ripple, window, cx);
+                })
+                .into_any_element(),
         }
     }
 }

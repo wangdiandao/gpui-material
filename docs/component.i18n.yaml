@@ -3,11 +3,11 @@
   en: "7cfe382092669209"
   zh: "50b439a3c070cba1"
 /components/actions-and-selection:
-  en: "2f48a17f4d9a9e5b"
-  zh: "a90509f4e07fa1ad"
+  en: "d28e2fff986d0c0e"
+  zh: "5e542850e53b3856"
 /components/actions-and-selection/floating-action-button:
-  en: "c77a57b086907ad0"
-  zh: "e5c132ba393b8843"
+  en: "83ae140078db6349"
+  zh: "30d7b8fa4d907d7a"
 /components/actions-and-selection/extended-floating-action-button:
   en: "41d061e6fce042a9"
   zh: "b508e9b159c2bec7"
@@ -21,14 +21,14 @@
   en: "30c88d6f9b32344c"
   zh: "6b8b4776b4937580"
 /components/actions-and-selection/chips:
-  en: "ec6a38a9cfa92a19"
-  zh: "e8ce6215beaa4fad"
+  en: "cb415a40c51bd4d9"
+  zh: "21166b3299524a07"
 /components/actions-and-selection/sliders:
-  en: "5e761accd1c5125c"
-  zh: "3c445596aa8104e1"
+  en: "18dddf64bf87f344"
+  zh: "7b4d5bf5ec517a89"
 /components/content-and-feedback:
-  en: "5bb92026bbf0ff65"
-  zh: "3b8c1b0801a893b3"
+  en: "3e7decd24faf970b"
+  zh: "155ea5176ad8eef7"
 /components/content-and-feedback/surfaces:
   en: "e0f5d2b66870d586"
   zh: "7c7c4891edaf84a4"
@@ -51,11 +51,11 @@
   en: "7057aac7ccb9c32a"
   zh: "4c41e70b8d28085f"
 /components/content-and-feedback/avatars:
-  en: "22cd71489ab5bb08"
-  zh: "fb29ab92ec9eb55b"
-/components/content-and-feedback/empty-states:
-  en: "1131dd8acd261e98"
-  zh: "bbfa426819e9fc72"
+  en: "d50da3eb1163859a"
+  zh: "1a8e4f1261f10353"
+/components/content-and-feedback/empty-views:
+  en: "e6ee87c1796c0dba"
+  zh: "47db77577274e8fc"
 /components/content-and-feedback/skeleton-placeholders:
   en: "599d3e417c4949af"
   zh: "17d587b6d08ede4c"
@@ -81,11 +81,11 @@
   en: "652d4f4f4421dc47"
   zh: "efa23e7600bab5f0"
 /components/input-and-overlays:
-  en: "919791aaa30eb306"
-  zh: "609b9c1c20b92513"
+  en: "34f8aa4dcc1bf717"
+  zh: "877a86185413b439"
 /components/input-and-overlays/exposed-dropdowns:
-  en: "5af40c400c43abca"
-  zh: "ddef8112ceaeebaf"
+  en: "8c445551aeaa4259"
+  zh: "28eed400f1709252"
 /components/input-and-overlays/menu-controls-and-item-content:
   en: "5b3fe652eee536c0"
   zh: "f5c7d3e16ee0e368"
@@ -147,8 +147,8 @@
   en: "f749e65450d351e3"
   zh: "fdbeaa7d7dfdc868"
 /components/optional-components:
-  en: "8dffbeb751e59849"
-  zh: "2d18a921a0d77596"
+  en: "436f0201e6c7f50b"
+  zh: "85ebd971567ee1f5"
 /components/optional-components/window-chrome:
   en: "90b7978cbd0f9268"
   zh: "4466ad4e1cd4b7b7"
@@ -159,8 +159,8 @@
   en: "3389d3046d93bb68"
   zh: "da47ef84959e7a74"
 /components/optional-components/split-buttons:
-  en: "57034ba69652dee1"
-  zh: "3d98c3ba200cd55d"
+  en: "db6893e9028ec7c0"
+  zh: "90b5940c91ef13d0"
 /components/optional-components/fab-menus:
   en: "a5d840d969ad243a"
   zh: "8e22b7c51755c7fa"

@@ -594,7 +594,7 @@ impl SelectionExamples {
 
 fn chip_content_examples() -> impl IntoElement {
     use gpui::{px, rgb};
-    use gpui_material::{ButtonPadding, ChipColors, ChipStateColors};
+    use gpui_material::{ChipColors, ChipStateColors, LogicalEdges};
 
     section("Custom chip content").child(
         div()
@@ -641,9 +641,9 @@ fn chip_content_examples() -> impl IntoElement {
                         },
                         ..Default::default()
                     })
-                    .content_padding(ButtonPadding {
-                        start: px(12.),
-                        end: px(4.),
+                    .content_padding(LogicalEdges {
+                        start: 12.,
+                        end: 4.,
                         ..Default::default()
                     }),
             )

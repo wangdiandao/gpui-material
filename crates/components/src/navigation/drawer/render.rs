@@ -458,7 +458,7 @@ impl RenderOnce for NavigationDrawer {
             };
             let open = state.read(cx).is_open();
             let presence_id = (self.id.clone(), "drawer-modal").into();
-            let presence = crate::motion::presence(&presence_id, open, 240, window, cx);
+            let presence = crate::overlay::presence(&presence_id, open, 240, window, cx);
             if !presence.should_render() {
                 return div().id(self.id).into_any_element();
             }

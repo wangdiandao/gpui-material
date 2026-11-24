@@ -172,9 +172,9 @@ fn chip_group_supports_selection_modes_roving_focus_rtl_and_scroll_layout(cx: &m
         window.refresh();
         window.draw(cx).clear(cx);
 
-        // Role::ListBox semantics on the group.
+        // Role::Group semantics on the group.
         let group = find(window, &[], &"multi-group".into()).unwrap();
-        assert_eq!(group.role(), Some(Role::ListBox));
+        assert_eq!(group.role(), Some(Role::Group));
         assert_eq!(group.label(), Some("Filter tags"));
 
         // Wrapping layout puts later chips onto a second row at 240 px width.

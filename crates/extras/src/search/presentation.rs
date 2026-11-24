@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use gpui::{Anchor, Edges, Hsla, Pixels, px};
-use gpui_material_components::{ButtonColors, ButtonShapes, TextFieldColors};
+use gpui_material_components::{ButtonColors, ControlShapes, TextFieldColors};
 use gpui_material_theme::{CornerShape, Elevation};
 
 mod bar;
@@ -28,7 +28,7 @@ pub struct SearchStyle {
     /// Color overrides for the collapsed [`SearchBar`] trigger button.
     pub trigger_colors: Option<ButtonColors>,
     /// Corner shape overrides for the collapsed [`SearchBar`] trigger button.
-    pub trigger_shapes: Option<ButtonShapes>,
+    pub trigger_shapes: Option<ControlShapes>,
     /// Color overrides for the expanded search input [`gpui_material_components::TextField`].
     pub input_colors: Option<TextFieldColors>,
     /// Background fill color for the expanded search surface.

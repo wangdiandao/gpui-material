@@ -1,14 +1,28 @@
 #[cfg(any(feature = "inputs", feature = "feedback"))]
-use gpui::{Div, Hsla, Styled, div, px};
+use gpui::{Bounds, Div, Hsla, Point, Styled, div, point, px};
 use gpui::{Edges, Pixels};
 #[cfg(any(feature = "inputs", feature = "feedback"))]
-use gpui_material_foundation::{color, elevation_shadows};
+use gpui_material_foundation::{OverlayMotion, color, elevation_shadows};
 use gpui_material_theme::{ColorRole, CornerShape, Elevation};
 #[cfg(any(feature = "inputs", feature = "feedback"))]
 use gpui_material_theme::{CornerRole, Direction, MaterialTheme};
 
 #[cfg(any(feature = "inputs", feature = "feedback"))]
-use crate::motion::OverlayMotion;
+pub(crate) fn menu_pivot(menu: Bounds<Pixels>, anchor: Bounds<Pixels>) -> Point<f32> {
+    fn axis(start: Pixels, end: Pixels, anchor_start: Pixels, anchor_end: Pixels) -> f32 {
+        if start >= anchor_end || start == end {
+            0.
+        } else if end <= anchor_start {
+            1.
+        } else {
+            ((start.max(anchor_start) + end.min(anchor_end)) / 2. - start) / (end - start)
+        }
+    }
+    point(
+        axis(menu.left(), menu.right(), anchor.left(), anchor.right()),
+        axis(menu.top(), menu.bottom(), anchor.top(), anchor.bottom()),
+    )
+}
 
 /// Semantic color presets for Material vertical menus.
 #[cfg(any(feature = "inputs", feature = "feedback"))]

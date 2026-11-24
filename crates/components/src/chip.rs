@@ -1,5 +1,7 @@
 mod group;
+mod palette;
 mod render;
+mod split;
 
 pub use group::{ChipGroup, ChipGroupItem, ChipGroupSelection};
 
@@ -10,13 +12,11 @@ use gpui::{
     Window, px,
 };
 use gpui_material_foundation::InteractionSource;
-use gpui_material_theme::Elevation;
+use gpui_material_theme::LogicalEdges;
 
 use crate::SemanticTone;
 use crate::action::{Activate, Change};
-use crate::button_style::{
-    ButtonBorder, ButtonElevations, ButtonPadding, ButtonShapes, finite_length,
-};
+use crate::control_style::{ControlBorder, ControlElevations, ControlShapes, finite_length};
 
 /// Material 3 chip category controlling selection, avatar, and trailing-action behavior.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -78,36 +78,6 @@ impl ChipColors {
     }
 }
 
-/// Optional shadows for each state. Disabled and dragged take precedence over
-/// press, keyboard focus, hover, and rest.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ChipElevations {
-    /// Elevation while resting.
-    pub resting: Option<Elevation>,
-    /// Elevation while pressed.
-    pub pressed: Option<Elevation>,
-    /// Elevation while keyboard focus is visible.
-    pub focused: Option<Elevation>,
-    /// Elevation while hovered.
-    pub hovered: Option<Elevation>,
-    /// Elevation while dragged.
-    pub dragged: Option<Elevation>,
-    /// Elevation while disabled.
-    pub disabled: Option<Elevation>,
-}
-
-impl ChipElevations {
-    fn button(self) -> ButtonElevations {
-        ButtonElevations {
-            resting: self.resting,
-            pressed: self.pressed,
-            focused: self.focused,
-            hovered: self.hovered,
-            disabled: self.disabled,
-        }
-    }
-}
-
 /// A Material chip. Filter and Input chips request controlled selection changes.
 /// Filter and Input chips can expose a separate removal action with its own focus.
 #[derive(IntoElement)]
@@ -125,12 +95,12 @@ pub struct Chip {
     leading: Option<AnyElement>,
     avatar: Option<AnyElement>,
     trailing: Option<AnyElement>,
-    shapes: ButtonShapes,
+    shapes: ControlShapes,
     colors: ChipColors,
-    border: Option<ButtonBorder>,
-    elevations: ChipElevations,
+    border: Option<ControlBorder>,
+    elevations: ControlElevations,
     spacing: Pixels,
-    padding: Option<ButtonPadding>,
+    padding: Option<LogicalEdges>,
     focus: Option<FocusHandle>,
     tab_stop: bool,
     interaction_source: Option<Entity<InteractionSource>>,
@@ -156,10 +126,10 @@ impl Chip {
             leading: None,
             avatar: None,
             trailing: None,
-            shapes: ButtonShapes::default(),
+            shapes: ControlShapes::default(),
             colors: ChipColors::default(),
             border: None,
-            elevations: ChipElevations::default(),
+            elevations: ControlElevations::default(),
             spacing: px(8.),
             padding: None,
             focus: None,
@@ -254,7 +224,7 @@ impl Chip {
     }
 
     /// Overrides state-specific corner shapes.
-    pub fn shapes(mut self, shapes: ButtonShapes) -> Self {
+    pub fn shapes(mut self, shapes: ControlShapes) -> Self {
         self.shapes = shapes;
         self
     }
@@ -266,13 +236,13 @@ impl Chip {
     }
 
     /// Overrides the chip's outline stroke width and color.
-    pub fn border(mut self, border: ButtonBorder) -> Self {
+    pub fn border(mut self, border: ControlBorder) -> Self {
         self.border = Some(border);
         self
     }
 
     /// Overrides drop-shadow elevation levels per interaction state.
-    pub fn elevations(mut self, elevations: ChipElevations) -> Self {
+    pub fn elevations(mut self, elevations: ControlElevations) -> Self {
         self.elevations = elevations;
         self
     }
@@ -290,13 +260,13 @@ impl Chip {
     }
 
     /// Overrides logical inner padding around the chip's slots.
-    pub fn content_padding(mut self, padding: ButtonPadding) -> Self {
-        self.padding = Some(ButtonPadding {
-            top: finite_length(padding.top),
-            end: finite_length(padding.end),
-            bottom: finite_length(padding.bottom),
-            start: finite_length(padding.start),
-        });
+    pub fn content_padding(mut self, padding: LogicalEdges) -> Self {
+        self.padding = Some(LogicalEdges::new(
+            padding.top,
+            padding.end,
+            padding.bottom,
+            padding.start,
+        ));
         self
     }
 

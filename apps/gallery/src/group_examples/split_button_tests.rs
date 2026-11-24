@@ -8,8 +8,8 @@ use gpui::{
 };
 use gpui_base::test_support::find;
 use gpui_material::{
-    ButtonBorder, ButtonColors, ButtonElevations, ButtonPadding, ButtonShapes, ButtonVariant, Icon,
-    IconName, InteractionSource, MaterialRoot, MenuItem, SplitButton, SplitButtonSegmentStyle,
+    ButtonColors, ButtonVariant, ControlBorder, ControlElevations, ControlShapes, Icon, IconName,
+    InteractionSource, LogicalEdges, MaterialRoot, MenuItem, SplitButton, SplitButtonSegmentStyle,
     foundation::{color, set_window_material_theme, window_material_theme},
     theme::{ColorRole, CornerShape, Direction, Elevation},
 };
@@ -88,22 +88,22 @@ impl Render for Example {
                 disabled_container: Some(ink(0xd7dbe7)),
                 ..Default::default()
             },
-            shapes: ButtonShapes {
+            shapes: ControlShapes {
                 resting: Some(CornerShape::Radii([3., 7., 9., 11.])),
                 pressed: Some(CornerShape::Radii([2.; 4])),
                 ..Default::default()
             },
-            border: Some(ButtonBorder {
+            border: Some(ControlBorder {
                 width: px(2.),
                 color: ink(0x3b4d6e),
             }),
-            padding: Some(ButtonPadding {
-                start: px(11.),
-                end: px(3.),
-                top: px(4.),
-                bottom: px(2.),
+            padding: Some(LogicalEdges {
+                start: 11.,
+                end: 3.,
+                top: 4.,
+                bottom: 2.,
             }),
-            elevations: ButtonElevations {
+            elevations: ControlElevations {
                 resting: Some(Elevation::Level2),
                 ..Default::default()
             },
@@ -117,21 +117,21 @@ impl Render for Example {
                 disabled_container: Some(ink(0xc9d2ce)),
                 ..Default::default()
             },
-            shapes: ButtonShapes {
+            shapes: ControlShapes {
                 resting: Some(CornerShape::Radii([4., 8., 10., 12.])),
                 checked: Some(CornerShape::Radii([9.; 4])),
                 ..Default::default()
             },
-            padding: Some(ButtonPadding {
-                start: px(4.),
-                end: px(8.),
+            padding: Some(LogicalEdges {
+                start: 4.,
+                end: 8.,
                 ..Default::default()
             }),
-            border: Some(ButtonBorder {
+            border: Some(ControlBorder {
                 width: px(1.),
                 color: ink(0x31533d),
             }),
-            elevations: ButtonElevations {
+            elevations: ControlElevations {
                 focused: Some(Elevation::Level3),
                 ..Default::default()
             },

@@ -1,19 +1,22 @@
+use gpui::StatefulInteractiveElement;
 use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
-    AccessibleAction, AnyElement, App, Axis, ElementId, Entity, FocusHandle, Hsla,
-    InteractiveElement, IntoElement, ParentElement, RenderOnce, SharedString,
-    StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
+    AccessibleAction, App, Axis, ElementId, Entity, FocusHandle, Hsla, InteractiveElement,
+    IntoElement, ParentElement, RenderOnce, SharedString, Styled, Window, div,
+    prelude::FluentBuilder, px,
 };
 use gpui_base::{Radio as BaseRadio, RadioGroup as BaseRadioGroup, TestSupportExt};
 use gpui_material_foundation::{
-    InteractionSource, ThemeScope, animate, current_material_theme, move_roving_focus,
+    InteractionSource, ThemeScope, animate, control_feedback::activate_feedback,
+    current_material_theme, move_roving_focus,
 };
 use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpeed};
 
-use crate::action::{feedback_target, ripple_state, ripple_target};
-
-use super::{focus_style, row, selection_label, selection_target, selection_tone, tone};
+use super::{
+    base::{SelectionControlBase, bind_activate},
+    focus_style, selection_target, selection_tone, tone,
+};
 
 type RadioChange = Rc<dyn Fn(&ElementId, &mut Window, &mut App)>;
 
@@ -45,53 +48,39 @@ impl RadioColors {
 /// A radio option. A group owns the tab stop and the caller owns selection.
 #[derive(IntoElement)]
 pub struct Radio {
-    id: ElementId,
-    label: SharedString,
-    show_label: bool,
-    label_content: Option<AnyElement>,
+    base: SelectionControlBase,
     selected: bool,
-    disabled: bool,
     on_select: Option<crate::action::Activate>,
     colors: RadioColors,
-    focus: Option<FocusHandle>,
-    interaction_source: Option<Entity<InteractionSource>>,
-    decorative: bool,
 }
 
 impl Radio {
     /// Creates a radio option with an element ID and visible/accessible label.
     pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
         Self {
-            id: id.into(),
-            label: label.into(),
-            show_label: true,
-            label_content: None,
+            base: SelectionControlBase::new(id, label),
             selected: false,
-            disabled: false,
             on_select: None,
             colors: RadioColors::default(),
-            focus: None,
-            interaction_source: None,
-            decorative: false,
         }
     }
 
     #[cfg(feature = "surfaces")]
     pub(crate) fn decorative(mut self, decorative: bool) -> Self {
-        self.decorative = decorative;
+        self.base.decorative(decorative);
         self
     }
 
     /// Controls whether the visible label is rendered. Defaults to `true`.
     /// When `false`, the constructor's label remains the accessible name and the trailing gap is omitted.
     pub fn show_label(mut self, show: bool) -> Self {
-        self.show_label = show;
+        self.base.show_label(show);
         self
     }
 
     /// Replaces the visible label while keeping the constructor's label as the accessible name.
     pub fn label_content(mut self, content: impl IntoElement) -> Self {
-        self.label_content = Some(content.into_any_element());
+        self.base.label_content(content);
         self
     }
 
@@ -103,11 +92,11 @@ impl Radio {
 
     /// Disables selection and keyboard focus for this option when `true`.
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = disabled;
+        self.base.disabled(disabled);
         self
     }
 
-    /// Invoked when this standalone radio option is selected.
+    /// Invoked when this radio option is selected (standalone or inside a [`RadioGroup`]).
     pub fn on_select(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
         self.on_select = Some(Rc::new(handler));
         self
@@ -122,22 +111,23 @@ impl Radio {
     /// Uses the caller's focus handle instead of an internal keyed handle, both standalone and
     /// inside a [`RadioGroup`].
     pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
-        self.focus = Some(focus.clone());
+        self.base.track_focus(focus);
         self
     }
 
     /// Observes hover, press, keyboard focus, and disabled state.
     /// Group options are observed under their rendered, group-scoped IDs.
     pub fn interaction_source(mut self, source: &Entity<InteractionSource>) -> Self {
-        self.interaction_source = Some(source.clone());
+        self.base.interaction_source(source);
         self
     }
 
     fn render_indicator(&self, window: &mut Window, cx: &mut App) -> (Hsla, gpui::Div) {
         let motion = current_material_theme(window, cx).motion;
-        let reduced = self.disabled || cx.reduce_motion();
+        let disabled = self.base.disabled;
+        let reduced = disabled || cx.reduce_motion();
         let dot = animate(
-            (self.id.clone(), "radio-dot"),
+            (self.base.id.clone(), "radio-dot"),
             f32::from(self.selected),
             motion.spec(MotionKind::Spatial, MotionSpeed::Fast, reduced),
             window,
@@ -145,16 +135,16 @@ impl Radio {
         )
         .clamp(0., 1.);
         let tint = animate(
-            (self.id.clone(), "radio-color"),
+            (self.base.id.clone(), "radio-color"),
             f32::from(self.selected),
             motion.spec(MotionKind::Effects, MotionSpeed::Fast, reduced),
             window,
             cx,
         )
         .clamp(0., 1.);
-        let accent = crate::motion::mix(
-            self.colors.resolve(false, self.disabled, window, cx),
-            self.colors.resolve(true, self.disabled, window, cx),
+        let accent = crate::control_style::mix_color(
+            self.colors.resolve(false, disabled, window, cx),
+            self.colors.resolve(true, disabled, window, cx),
             tint,
         );
         let indicator = div()
@@ -170,7 +160,7 @@ impl Radio {
     }
 
     fn render_control(
-        self,
+        mut self,
         focus: Option<FocusHandle>,
         position: Option<(usize, usize)>,
         tab_stop: bool,
@@ -178,67 +168,46 @@ impl Radio {
         cx: &mut App,
     ) -> BaseRadio {
         let (accent, indicator) = self.render_indicator(window, cx);
-        let direction = current_material_theme(window, cx).layout.direction;
-        let ripple = ripple_state(&self.id, !self.disabled, window, cx);
-        let focus = focus.or(self.focus).unwrap_or_else(|| {
-            // Match Base's standalone focus ID so changing the source retains focus.
-            window
-                .use_keyed_state(self.id.clone(), cx, |_, cx| cx.focus_handle())
-                .read(cx)
-                .clone()
-        });
-        let tracker = self
-            .interaction_source
-            .as_ref()
-            .map(|source| InteractionSource::track(source, &self.id, window, cx));
-        let observed = tracker.is_some();
-        ripple
-            .borrow_mut()
-            .track(!self.disabled, &focus, tracker, window, cx);
-        let group: SharedString = format!("material-radio/{}", self.id).into();
-        let radio = BaseRadio::new(self.id)
-            .when(!self.disabled, |control| {
-                if observed {
-                    feedback_target(control, ripple.clone(), true, Some(focus.clone()))
-                } else {
-                    ripple_target(control, ripple.clone())
-                }
-            })
+        let theme = current_material_theme(window, cx);
+        let direction = theme.layout.direction;
+        let density = theme.layout.density;
+        let disabled = self.base.disabled;
+        let interaction = self.base.prepare_interaction(focus, window, cx);
+        let group = self.base.group_name("material-radio");
+        let target = selection_target(
+            group.clone(),
+            indicator,
+            accent,
+            !disabled,
+            interaction.ripple.clone(),
+            direction,
+            density,
+            cx.reduce_motion(),
+        );
+        let click_ripple = interaction.ripple.clone();
+        let label = self.base.label.clone();
+        let radio = BaseRadio::new(self.base.id.clone())
             .checked(self.selected)
-            .disabled(self.disabled)
+            .disabled(disabled)
             .tab_stop(tab_stop)
-            .accessibility_label(self.label.clone())
-            .group(group.clone())
+            .accessibility_label(label)
+            .group(group)
             .border_2()
             .border_color(gpui::transparent_black())
             .rounded_md()
             .focus_visible(focus_style(tone(ColorRole::Secondary, window, cx)))
-            .child(
-                row(direction, self.show_label)
-                    .child(selection_target(
-                        group,
-                        indicator,
-                        accent,
-                        !self.disabled,
-                        ripple,
-                        direction,
-                        cx.reduce_motion(),
-                    ))
-                    .children(self.show_label.then(|| {
-                        selection_label(self.label, self.label_content, self.disabled, window, cx)
-                    })),
-            )
-            .track_focus(&focus)
+            .child(self.base.render_row(direction, target, window, cx))
+            .track_focus(&interaction.focus)
             .when_some(position, |radio, (position, size)| {
                 radio.set_position(position, size)
             });
+        let radio = interaction.attach_feedback(radio);
+        if disabled {
+            return radio;
+        }
         match self.on_select {
-            Some(handler) if !self.disabled => {
-                let handler = Rc::new(ThemeScope::bind_action(
-                    move |window, cx| handler(window, cx),
-                    window,
-                    cx,
-                ));
+            Some(handler) => {
+                let handler = bind_activate(handler, window, cx);
                 let select = handler.clone();
                 radio
                     .when(!self.selected, |radio| {
@@ -246,19 +215,26 @@ impl Radio {
                             select(window, cx)
                         })
                     })
-                    .on_change(move |_, _, window, cx| handler(window, cx))
+                    .on_change(move |_, event, window, cx| {
+                        cx.stop_propagation();
+                        activate_feedback(event, &click_ripple, window, cx);
+                        handler(window, cx);
+                    })
             }
-            _ => radio,
+            None => radio.on_change(move |_, event, window, cx| {
+                cx.stop_propagation();
+                activate_feedback(event, &click_ripple, window, cx);
+            }),
         }
     }
 }
 
 impl RenderOnce for Radio {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        if self.decorative {
+        if self.base.decorative {
             let (_, indicator) = self.render_indicator(window, cx);
             return div()
-                .id(self.id)
+                .id(self.base.id)
                 .test_support()
                 .flex_none()
                 .size(px(24.))
@@ -331,20 +307,20 @@ impl RenderOnce for RadioGroup {
         let current = self
             .options
             .iter()
-            .position(|item| !item.disabled && Some(&item.id) == self.selected.as_ref());
-        let tab_stop = current.or_else(|| self.options.iter().position(|item| !item.disabled));
+            .position(|item| !item.base.disabled && Some(&item.base.id) == self.selected.as_ref());
+        let tab_stop = current.or_else(|| self.options.iter().position(|item| !item.base.disabled));
         let size = self.options.len();
         let focus: Vec<_> = self
             .options
             .iter()
             .map(|item| {
-                if let Some(focus) = &item.focus {
+                if let Some(focus) = &item.base.focus {
                     focus.clone()
                 } else {
                     let id = ElementId::from((self.id.clone(), "radio-focus"));
                     window.with_id(id, |window| {
                         window
-                            .use_keyed_state(item.id.clone(), cx, |_, cx| cx.focus_handle())
+                            .use_keyed_state(item.base.id.clone(), cx, |_, cx| cx.focus_handle())
                             .read(cx)
                             .clone()
                     })
@@ -355,7 +331,18 @@ impl RenderOnce for RadioGroup {
             .options
             .iter()
             .zip(&focus)
-            .map(|(item, focus)| (item.id.clone(), focus.clone(), !item.disabled))
+            .map(|(item, focus)| {
+                let child_select = item
+                    .on_select
+                    .clone()
+                    .map(|handler| bind_activate(handler, window, cx));
+                (
+                    item.base.id.clone(),
+                    focus.clone(),
+                    !item.base.disabled,
+                    child_select,
+                )
+            })
             .collect();
         let change = self.on_select.clone().map(|change| {
             let pending = Rc::new(RefCell::new(None::<ElementId>));
@@ -390,7 +377,7 @@ impl RenderOnce for RadioGroup {
             .on_key_down(move |event, window, cx| {
                 let items: Vec<_> = navigation
                     .iter()
-                    .map(|(_, focus, enabled)| (focus, *enabled))
+                    .map(|(_, focus, enabled, _)| (focus, *enabled))
                     .collect();
                 let Some(ix) =
                     move_roving_focus(&items, &event.keystroke.key, axis, direction, window, cx)
@@ -398,24 +385,39 @@ impl RenderOnce for RadioGroup {
                     return;
                 };
                 cx.stop_propagation();
-                if let Some(change) = &change
-                    && Some(&navigation[ix].0) != selected.as_ref()
-                {
-                    change(&navigation[ix].0, window, cx);
+                if Some(&navigation[ix].0) != selected.as_ref() {
+                    if let Some(child_select) = &navigation[ix].3 {
+                        child_select(window, cx);
+                    }
+                    if let Some(change) = &change {
+                        change(&navigation[ix].0, window, cx);
+                    }
                 }
             });
 
         group.children(self.options.into_iter().zip(focus).enumerate().map(
             |(ix, (mut radio, focus))| {
-                let option_id = radio.id.clone();
-                radio.id = ElementId::from((self.id.clone(), option_id.to_string()));
+                let option_id = radio.base.id.clone();
+                radio.base.id = ElementId::from((self.id.clone(), option_id.to_string()));
                 radio.selected = Some(&option_id) == self.selected.as_ref();
-                let handler = self.on_select.clone();
-                radio.on_select = handler.map(|handler| {
-                    let callback: crate::action::Activate =
-                        Rc::new(move |window, cx| handler(&option_id, window, cx));
-                    callback
-                });
+                let child_handler = radio.on_select.take();
+                let group_handler = self.on_select.clone();
+                radio.on_select = match (child_handler, group_handler) {
+                    (Some(child), Some(group)) => {
+                        let callback: crate::action::Activate = Rc::new(move |window, cx| {
+                            child(window, cx);
+                            group(&option_id, window, cx);
+                        });
+                        Some(callback)
+                    }
+                    (Some(child), None) => Some(child),
+                    (None, Some(group)) => {
+                        let callback: crate::action::Activate =
+                            Rc::new(move |window, cx| group(&option_id, window, cx));
+                        Some(callback)
+                    }
+                    (None, None) => None,
+                };
                 radio.render_control(
                     Some(focus),
                     Some((ix + 1, size)),

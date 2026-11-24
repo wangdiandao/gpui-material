@@ -1,3 +1,4 @@
+mod base;
 mod checkbox;
 mod radio;
 mod switch;
@@ -9,10 +10,10 @@ use gpui::{
     StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
-use gpui_material_foundation::{color, current_material_theme};
-use gpui_material_theme::{ColorRole, Direction, StateLayer};
+use gpui_material_foundation::{color, control_feedback::FeedbackState, current_material_theme};
+use gpui_material_theme::{ColorRole, Density, Direction, StateLayer};
 
-use crate::action::{FeedbackState, ripple_ink};
+use crate::action::ripple_ink;
 
 pub use checkbox::{Checkbox, CheckboxColors, CheckboxStateColors};
 pub use gpui_base::CheckboxState;
@@ -59,6 +60,7 @@ fn selection_label(
         .child(content.unwrap_or_else(|| label.into_any_element()))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn selection_target(
     id: SharedString,
     indicator: impl IntoElement,
@@ -66,11 +68,14 @@ fn selection_target(
     enabled: bool,
     ripple: Rc<std::cell::RefCell<FeedbackState>>,
     direction: Direction,
+    density: Density,
     reduced_motion: bool,
 ) -> Div {
     let static_pressed = enabled && reduced_motion && ripple.borrow().pressed();
+    let hit_target = px(density.interactive_size(40.));
+    let state_layer = px(density.visual_size(40.).max(24.));
     div()
-        .size(px(48.))
+        .size(hit_target)
         .flex_none()
         .flex()
         .items_center()
@@ -79,7 +84,7 @@ fn selection_target(
             div()
                 .id("selection-indicator")
                 .relative()
-                .size(px(40.))
+                .size(state_layer)
                 .rounded_full()
                 .flex()
                 .items_center()

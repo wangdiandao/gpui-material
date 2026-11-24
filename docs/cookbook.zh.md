@@ -366,7 +366,7 @@ fn apply_dynamic_theme(appearance: Appearance, cx: &mut App) {
 
 ### 语义色阶
 
-使用 `SemanticTone`（`Default`、`Danger`、`Success`、`Warning`、`Info`，同时导出别名 `ButtonTone`）可在 `Button`、`ToggleButton`、`IconButton`、`Chip`、`ChipGroupItem` 和 `Snackbar` 上直接应用 Material 3 语义色对，无需手动拼装单个颜色角色：
+使用 `SemanticTone`（`Default`、`Danger`、`Success`、`Warning`、`Info`）可在 `Button`、`ToggleButton`、`IconButton`、`Chip`、`ChipGroupItem` 和 `Snackbar` 上直接应用 Material 3 语义色对，无需手动拼装单个颜色角色：
 
 ```rust
 use gpui_material::{Button, SemanticTone};
@@ -770,6 +770,6 @@ gpui-material = { version = "0.3.3", default-features = false, features = [
 | `dynamic-color` | 主题特性 | `MaterialTheme::from_seed`、`from_seed_with`、`ThemePreset`、`CustomColorGroup`、`harmonize_color` |
 | `serde` | 主题特性 | `MaterialTheme` 及主题值类型的 `Serialize` / `Deserialize` 支持 |
 
-展示基础原语（`Text`、`Icon`、`Badge`、`Divider`、`Avatar`、`EmptyState`、`Skeleton`、`DisplayScrollbar`、`SemanticTone`）、`foundation` 与 `theme` 始终可用，不受核心组件分组开关影响。
+展示基础原语（`Text`、`Icon`、`Badge`、`Divider`、`Avatar`、`EmptyView`、`Skeleton`、`DisplayScrollbar`、`SemanticTone`）、`foundation` 与 `theme` 始终可用，不受核心组件分组开关影响。
 
 [下游集成](integration.zh.md) · [组件](component.zh.md) · [纯主题](theme/theme.zh.md) · [架构与依赖](architecture.zh.md)

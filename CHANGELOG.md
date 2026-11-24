@@ -12,6 +12,14 @@ See [versioning and releases](docs/release.md) for the release process.
   - Migration: construct with `Arc::from("Roboto")` / `FontFamilies::new("Roboto", "Roboto")` or `FontFamilies::with_fallbacks(...)` accepting `impl Into<Arc<str>>`.
 - **Breaking (`gpui-material-foundation`)**: Rename `Surface::with_theme` to `Surface::theme`.
   - Migration: `Surface::new(...).with_theme(theme)` → `Surface::new(...).theme(theme)`.
+- **Breaking (`gpui-material-components`, `gpui-material-extras`, `gpui-material`)**: Unify per-control style primitives (`ButtonShapes` → `ControlShapes`, `ButtonBorder` → `ControlBorder`, `ButtonElevations` and `ChipElevations` → `ControlElevations` with `dragged: Option<Elevation>`, `ButtonPadding` and physical `TextField::content_padding(Edges<Pixels>)` → `gpui_material_theme::LogicalEdges`).
+  - Migration: replace `ButtonShapes` with `ControlShapes`, `ButtonBorder` with `ControlBorder`, `ButtonElevations`/`ChipElevations` with `ControlElevations`, and `ButtonPadding`/`Edges<Pixels>` on `content_padding` with `LogicalEdges`.
+- **Breaking (`gpui-material-components`, `gpui-material`)**: Remove the legacy `ButtonTone` type alias; use `SemanticTone` directly.
+  - Migration: `ButtonTone::Danger` → `SemanticTone::Danger`.
+- **Breaking (`gpui-material-components`, `gpui-material`)**: Rename `EmptyState` to `EmptyView` so `*State` strictly denotes retained GPUI state entities.
+  - Migration: `EmptyState::new(...)` → `EmptyView::new(...)`.
+- **Breaking (`gpui-material-components`, `gpui-material`)**: Change `Avatar::fallback` to accept a repeatable element factory (`impl Fn() -> E + 'static`) instead of a one-shot `IntoElement`, preventing blank fallbacks on re-render.
+  - Migration: `.fallback(icon)` → `.fallback(move || icon())`.
 
 ### Theme, foundation, and design-symbols
 
@@ -25,6 +33,14 @@ See [versioning and releases](docs/release.md) for the release process.
 ### Components
 
 - Expose `Button::on_accessible_activate` and `IconButton::on_accessible_activate` to register only `AccessibleAction::Click` without attaching `on_click`, preventing mouse-down/click conflicts when used as triggers for `Menu::composed` or `gpui_base::Popover`.
+- Add component-level `.disabled(bool)` to `TextField` and `ExposedDropdown`, single-thumb convenience builders (`single_thumb`, `single_thumb_style`, `single_interaction_source`, `single_track_focus`) to `Slider`, and density-aware visual sizing for `Checkbox`, `Radio`, `Switch`, and `Slider` while preserving 48 dp interactive targets.
+- Fix Windows UIA and interaction defects across display, actions, selection, slider, and input controls:
+  - Expose readable text names in Windows UIA for `Text`, stop assigning a hardcoded `"material-text"` ID when omitted, validate finite positive `font_scale`, eliminate `.expect("single-line text")` panics, and key ellipsis caching by style and tint.
+  - Fix `Slider` `RefCell` reentrancy in `on_drag_move`, expose full track bounds on the `Role::Slider` UIA node, roll back drag values on `Escape`, guard arrow keys against modifiers, defer `ValueLabel` painting, guard zero-size bounds against `NaN`, and allow overriding vertical slider height.
+  - Fix `TextField` dual scrollbar ID collisions under `ScrollbarAxis::Both`, IME `marked_text_range` placeholder overlap, unconditional outside-click `window.blur`, dynamic resting label clearance for multiple trailing controls, and suppressed `aria-invalid` when disabled (also on `Checkbox`).
+  - Fix `ExposedDropdown` per-frame list remeasurement during open/close animations, unscoped internal element IDs, readonly cursor masking `secondary_trigger`, and add `Home`/`End`/`Tab` keyboard handling.
+  - Fix disabled `Switch` colors on elevated surfaces (using translucent `OnSurface` instead of pre-blending with `ColorRole::Surface`), add keyboard activation feedback and click `stop_propagation` on `Checkbox`/`Radio`/`Switch`, preserve child `Radio::on_select` inside `RadioGroup`, keep focus rings visible on loading `Action` controls, switch `ChipGroup` to `Role::Group` with modifier guards, and support rotation/RTL mirroring plus finite size checks on `Icon::custom`.
+  - Remove `button/spinner.rs` paint-phase `state.update` antipattern, eliminate double `layout_as_root` on `ExtendedFab`, remove duplicate `components/src/motion.rs` in favor of `foundation::OverlayMotion` / `ScaledOverlay`, and split oversized component modules into focused submodules.
 
 ## 0.3.3 - 2026-11-24
 

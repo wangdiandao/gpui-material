@@ -53,9 +53,9 @@ impl Render for Preview {
         let follow = owner.clone();
         let dismiss = owner.clone();
         let row = ListItem::new("primary", "Current report")
-            .content(Text::new("Visible title"))
-            .overline_content(Text::new("Visible overline"))
-            .supporting_content(Text::new("Visible supporting"))
+            .content(Text::new("Visible title").id("custom-title"))
+            .overline_content(Text::new("Visible overline").id("custom-overline"))
+            .supporting_content(Text::new("Visible supporting").id("custom-supporting"))
             .leading(div().id("leading").test_support().size(px(15.)))
             .trailing(
                 Button::new("independent-trailing", "Independent action").on_activate(
@@ -184,10 +184,16 @@ fn bounds(cx: &mut VisualTestContext, id: impl Into<ElementId>) -> Bounds<Pixels
 
 fn slot(cx: &mut VisualTestContext, id: impl Into<ElementId>, label: &str) -> Bounds<Pixels> {
     let id = id.into();
+    let text_id = match label {
+        "Visible title" => "custom-title",
+        "Visible overline" => "custom-overline",
+        "Visible supporting" => "custom-supporting",
+        _ => "label",
+    };
     cx.update(|window, _| {
         let row = find(window, &[], &"primary".into()).unwrap();
         let path = scope(window, row.path(), &id);
-        let element = find(window, &path, &"material-text".into()).unwrap();
+        let element = find(window, &path, &text_id.into()).unwrap();
         assert_eq!(element.label(), Some(label));
         element.bounds()
     })

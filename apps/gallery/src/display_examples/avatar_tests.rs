@@ -46,7 +46,7 @@ fn avatar_renders_sizes_shapes_colors_and_accessible_semantics(cx: &mut TestAppC
                 .child(
                     Avatar::image("missing-avatar.png")
                         .size(AvatarSize::Small)
-                        .fallback("FB"),
+                        .fallback(|| "FB"),
                 )
                 .child(Button::new("after-avatar", "After").on_activate(|_, _| {}))
         }

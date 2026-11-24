@@ -1,7 +1,7 @@
 use gpui::{AppContext, Entity, IntoElement, ParentElement, Styled, div, px};
 use gpui_material::{
     Avatar, AvatarGroup, AvatarSize, Badge, Banner, Button, ButtonVariant, CircularProgress,
-    EmptyState, Icon, IconName, LinearProgress, LoadingIndicator, MaterialShape, ProgressShape,
+    EmptyView, Icon, IconName, LinearProgress, LoadingIndicator, MaterialShape, ProgressShape,
     SemanticTone, Skeleton, Snackbar, SnackbarHost, Text, Tooltip,
     theme::{ColorRole, CornerRole, TypeRole},
 };
@@ -229,7 +229,7 @@ pub static BANNER: Playground = Playground {
     },
 };
 
-// --- EmptyState ---
+// --- EmptyView ---
 pub static EMPTY_STATE: Playground = Playground {
     scenarios: &[
         Scenario {
@@ -273,7 +273,7 @@ pub static EMPTY_STATE: Playground = Playground {
             _ => MaterialShape::SoftBurst,
         };
         let on_status = ctx.on_status(cx);
-        let mut empty = EmptyState::new("pg-empty-state", cfg.text("title").to_owned())
+        let mut empty = EmptyView::new("pg-empty-state", cfg.text("title").to_owned())
             .supporting("Create your first item or import an existing workspace to get started.")
             .icon(Icon::new(IconName::Inbox))
             .icon_container_shape(shape);
@@ -294,7 +294,7 @@ pub static EMPTY_STATE: Playground = Playground {
             _ => "MaterialShape::SoftBurst",
         };
         let mut s = format!(
-            "EmptyState::new(\"empty\", {:?})\n    .supporting(\"Create your first item to get started.\")\n    .icon(Icon::new(IconName::Inbox))\n    .icon_container_shape({shape})",
+            "EmptyView::new(\"empty\", {:?})\n    .supporting(\"Create your first item to get started.\")\n    .icon(Icon::new(IconName::Inbox))\n    .icon_container_shape({shape})",
             cfg.text("title")
         );
         if cfg.bool("action") {

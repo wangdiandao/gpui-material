@@ -1,10 +1,13 @@
-use std::rc::Rc;
+use std::{
+    rc::Rc,
+    sync::{Arc, LazyLock},
+};
 
 use gpui::{
-    AnyView, App, AppContext, Context, ElementId, Entity, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ListAlignment, ListOffset, ListState, ParentElement, Pixels,
-    Render, Role, ScrollHandle, Size, StatefulInteractiveElement, Styled, Subscription, Window,
-    div, list, point, prelude::FluentBuilder, px, svg,
+    AnyView, App, AppContext, Context, ElementId, Entity, FocusHandle, Focusable, Image,
+    ImageFormat, InteractiveElement, IntoElement, ListAlignment, ListOffset, ListState, ObjectFit,
+    ParentElement, Pixels, Render, Role, ScrollHandle, Size, StatefulInteractiveElement, Styled,
+    StyledImage, Subscription, Window, div, img, list, point, prelude::FluentBuilder, px, svg,
 };
 use gpui_base::TestSupportExt;
 use gpui_material::{
@@ -62,6 +65,13 @@ pub struct Gallery {
     _search: Subscription,
     _bounds: Subscription,
 }
+
+static BRAND_LOGO: LazyLock<Arc<Image>> = LazyLock::new(|| {
+    Arc::new(Image::from_bytes(
+        ImageFormat::Svg,
+        include_bytes!("../assets/logo.svg").to_vec(),
+    ))
+});
 
 impl Gallery {
     /// Creates a Gallery in an existing GPUI window, starting at `initial_story`.
@@ -850,20 +860,10 @@ impl Gallery {
                 });
             })
             .child(
-                div()
+                img(BRAND_LOGO.clone())
+                    .id("brand-mark")
                     .size(px(28.))
-                    .rounded_full()
-                    .bg(color(theme.colors.color(ColorRole::Primary)))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .child(
-                        Text::new("m")
-                            .id("brand-mark")
-                            .role(TypeRole::TitleSmall)
-                            .emphasized(true)
-                            .color(ColorRole::OnPrimary),
-                    ),
+                    .object_fit(ObjectFit::Contain),
             )
             .child(
                 Text::new("GPUI Material")

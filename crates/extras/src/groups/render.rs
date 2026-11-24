@@ -45,7 +45,7 @@ struct LabelWidthCache {
 }
 
 struct GroupState {
-    width: Rc<Cell<Pixels>>,
+    width: Rc<Cell<Option<Pixels>>>,
     focus: HashMap<SharedString, FocusHandle>,
     scope: FocusHandle,
     overflow_focus: FocusHandle,
@@ -390,10 +390,9 @@ impl RenderOnce for ButtonGroup {
         let gap = self
             .spacing
             .unwrap_or(if connected { px(2.) } else { px(12.) });
-        let width = window.viewport_size().width;
         let state =
             window.use_keyed_state((self.id.clone(), "group-state"), cx, |_, cx| GroupState {
-                width: Rc::new(Cell::new(width)),
+                width: Rc::new(Cell::new(None)),
                 focus: HashMap::new(),
                 scope: cx.focus_handle(),
                 overflow_focus: cx.focus_handle(),
@@ -441,7 +440,8 @@ impl RenderOnce for ButtonGroup {
             .filter(|width| *width > px(0.))
             .unwrap_or_else(|| px(split_trailing_size(self.size).1));
         let width = state.read(cx).width.clone();
-        let available = width.get();
+        let measured = width.get();
+        let available = measured.unwrap_or_else(|| window.viewport_size().width);
         let overflow_width = preferred_trigger.min(available.max(px(1.)));
         let shown = visible_count(&preferred, gap, overflow_width, available);
         let overflow = shown < self.items.len();
@@ -508,7 +508,11 @@ impl RenderOnce for ButtonGroup {
             .collect::<Vec<_>>();
         let occupied =
             (if overflow { overflow_width } else { px(0.) }) + gap * count.saturating_sub(1) as f32;
-        let widths = weighted_widths(&preferred[..shown], &weights, available - occupied);
+        let widths = if let Some(measured) = measured {
+            weighted_widths(&preferred[..shown], &weights, measured - occupied)
+        } else {
+            preferred[..shown].to_vec()
+        };
         let ratio = effective_expanded_ratio(self.variant, self.expanded_ratio);
         let targets = pressed_widths(&widths, &limits, active, ratio);
         let mut hidden = Vec::new();
@@ -520,14 +524,18 @@ impl RenderOnce for ButtonGroup {
                 continue;
             }
             let id = ElementId::from((self.id.clone(), item.id.clone()));
-            let width = px(animate(
-                (id.clone(), "group-width"),
-                f32::from(targets[index]),
-                spec,
-                window,
-                cx,
-            )
-            .max(1.));
+            let width = if measured.is_some() {
+                px(animate(
+                    (id.clone(), "group-width"),
+                    f32::from(targets[index]),
+                    spec,
+                    window,
+                    cx,
+                )
+                .max(1.))
+            } else {
+                targets[index].max(px(1.))
+            };
             let shape = segment_at(connected, index, count);
             let button = ButtonPart::new(id, item.label.clone(), width)
                 .size(self.size)
@@ -600,7 +608,8 @@ impl RenderOnce for ButtonGroup {
         row.child(
             gpui::canvas(
                 move |bounds, window, _| {
-                    if width.replace(bounds.size.width) != bounds.size.width {
+                    let measured = Some(bounds.size.width);
+                    if width.replace(measured) != measured {
                         window.on_next_frame(move |_, cx| cx.notify(view));
                     }
                 },

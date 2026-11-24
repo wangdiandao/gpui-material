@@ -61,8 +61,7 @@ fn part(id: &'static str) -> ElementId {
 }
 
 fn paint(window: &Window, tint: Hsla) -> (Bounds<Pixels>, f32) {
-    let quad = window
-        .painted_quads()
+    let quad = crate::painted_quads(window)
         .into_iter()
         .find(|quad| quad.background.as_solid() == Some(tint))
         .unwrap();

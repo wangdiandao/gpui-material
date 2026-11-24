@@ -1,6 +1,250 @@
-use gpui::{Bounds, Path, Pixels, Point, point, px, size};
+use gpui::{
+    Bounds, FillOptions, FillRule, Path, PathBuilder, PathStyle, Pixels, Point, point, px, size,
+};
 
 const RIPPLE_SEGMENTS: usize = 64;
+const FLATTEN_TOLERANCE: f32 = 0.25;
+const MAX_SUBDIVISION_DEPTH: u8 = 10;
+
+/// Disjoint triangle mesh used for exact geometric containment, hit testing, and clipping.
+#[derive(Clone, Debug)]
+pub(super) struct FillMesh {
+    pub(super) bounds: Bounds<Pixels>,
+    pub(super) triangles: Vec<[Point<Pixels>; 3]>,
+}
+
+impl FillMesh {
+    pub(super) fn empty(origin: Point<Pixels>) -> Self {
+        Self {
+            bounds: Bounds::new(origin, size(px(0.), px(0.))),
+            triangles: Vec::new(),
+        }
+    }
+
+    pub(super) fn from_triangles(triangles: Vec<[Point<Pixels>; 3]>) -> Self {
+        let mut min_x = f32::INFINITY;
+        let mut min_y = f32::INFINITY;
+        let mut max_x = f32::NEG_INFINITY;
+        let mut max_y = f32::NEG_INFINITY;
+        for tri in &triangles {
+            for &v in tri {
+                let x = f32::from(v.x);
+                let y = f32::from(v.y);
+                min_x = min_x.min(x);
+                min_y = min_y.min(y);
+                max_x = max_x.max(x);
+                max_y = max_y.max(y);
+            }
+        }
+        let bounds = if min_x.is_finite() && min_y.is_finite() {
+            Bounds::new(
+                point(px(min_x), px(min_y)),
+                size(px((max_x - min_x).max(0.)), px((max_y - min_y).max(0.))),
+            )
+        } else {
+            Bounds::default()
+        };
+        Self { bounds, triangles }
+    }
+
+    /// Triangulates a simple closed polygon contour (convex or concave, either winding)
+    /// into disjoint triangles via ear clipping.
+    pub(super) fn from_contour(contour: &[Point<Pixels>]) -> Self {
+        let mut pts: Vec<Point<Pixels>> = Vec::with_capacity(contour.len());
+        for &p in contour {
+            if !f32::from(p.x).is_finite() || !f32::from(p.y).is_finite() {
+                continue;
+            }
+            if let Some(&prev) = pts.last() {
+                let dx = f32::from(p.x - prev.x);
+                let dy = f32::from(p.y - prev.y);
+                if dx * dx + dy * dy <= 1e-6 {
+                    continue;
+                }
+            }
+            pts.push(p);
+        }
+        while pts.len() >= 2 {
+            let first = pts[0];
+            let last = *pts.last().unwrap();
+            let dx = f32::from(first.x - last.x);
+            let dy = f32::from(first.y - last.y);
+            if dx * dx + dy * dy <= 1e-6 {
+                pts.pop();
+            } else {
+                break;
+            }
+        }
+        if pts.len() < 3 {
+            return Self::empty(pts.first().copied().unwrap_or(point(px(0.), px(0.))));
+        }
+
+        let area = polygon_area(&pts);
+        if !area.is_finite() || area.abs() <= f32::EPSILON {
+            return Self::empty(pts[0]);
+        }
+        // Normalize to positive signed area (CCW in standard coordinates).
+        if area < 0. {
+            pts.reverse();
+        }
+
+        let mut indices: Vec<usize> = (0..pts.len()).collect();
+        let mut triangles = Vec::with_capacity(pts.len().saturating_sub(2));
+
+        let mut guard = indices.len() * indices.len() + 16;
+        while indices.len() > 3 && guard > 0 {
+            guard -= 1;
+            let len = indices.len();
+            let mut clipped = false;
+            for i in 0..len {
+                let prev = indices[(i + len - 1) % len];
+                let curr = indices[i];
+                let next = indices[(i + 1) % len];
+                let a = pts[prev];
+                let b = pts[curr];
+                let c = pts[next];
+                let winding = cross(b - a, c - a);
+                if winding <= f32::EPSILON {
+                    continue;
+                }
+                let has_point_inside = indices.iter().any(|&idx| {
+                    if idx == prev || idx == curr || idx == next {
+                        return false;
+                    }
+                    point_in_triangle_strict(pts[idx], a, b, c)
+                });
+                if !has_point_inside {
+                    triangles.push([a, b, c]);
+                    indices.remove(i);
+                    clipped = true;
+                    break;
+                }
+            }
+            if !clipped {
+                // Fallback for nearly collinear vertices: clip the ear with smallest non-negative area.
+                let mut best: Option<(usize, f32)> = None;
+                for i in 0..len {
+                    let prev = indices[(i + len - 1) % len];
+                    let curr = indices[i];
+                    let next = indices[(i + 1) % len];
+                    let winding = cross(pts[curr] - pts[prev], pts[next] - pts[prev]);
+                    if winding >= -1e-4 && best.is_none_or(|(_, w)| winding > w) {
+                        best = Some((i, winding));
+                    }
+                }
+                let idx = best.map_or(0, |(i, _)| i);
+                let prev = indices[(idx + len - 1) % len];
+                let curr = indices[idx];
+                let next = indices[(idx + 1) % len];
+                if cross(pts[curr] - pts[prev], pts[next] - pts[prev]).abs() > f32::EPSILON {
+                    triangles.push([pts[prev], pts[curr], pts[next]]);
+                }
+                indices.remove(idx);
+            }
+        }
+        if indices.len() == 3 {
+            let [a, b, c] = [pts[indices[0]], pts[indices[1]], pts[indices[2]]];
+            if cross(b - a, c - a).abs() > f32::EPSILON {
+                triangles.push([a, b, c]);
+            }
+        }
+
+        Self::from_triangles(triangles)
+    }
+
+    pub(super) fn is_empty(&self) -> bool {
+        self.triangles.is_empty()
+    }
+
+    pub(super) fn push_triangle(&mut self, a: Point<Pixels>, b: Point<Pixels>, c: Point<Pixels>) {
+        self.triangles.push([a, b, c]);
+    }
+
+    pub(super) fn finalize_bounds(&mut self) {
+        if self.triangles.is_empty() {
+            return;
+        }
+        let rebuilt = Self::from_triangles(std::mem::take(&mut self.triangles));
+        *self = rebuilt;
+    }
+
+    /// Converts the disjoint triangle mesh into a paintable GPUI [`Path`].
+    pub(super) fn to_path(&self) -> Option<Path> {
+        if self.triangles.is_empty() {
+            return None;
+        }
+        let mut builder = PathBuilder::fill().with_style(PathStyle::Fill(FillOptions {
+            fill_rule: FillRule::NonZero,
+        }));
+        for &[a, b, c] in &self.triangles {
+            let winding = cross(b - a, c - a);
+            if winding.abs() <= f32::EPSILON {
+                continue;
+            }
+            builder.move_to(a);
+            if winding > 0. {
+                builder.line_to(b);
+                builder.line_to(c);
+            } else {
+                builder.line_to(c);
+                builder.line_to(b);
+            }
+            builder.close();
+        }
+        builder.build().ok()
+    }
+}
+
+fn point_in_triangle_strict(
+    p: Point<Pixels>,
+    a: Point<Pixels>,
+    b: Point<Pixels>,
+    c: Point<Pixels>,
+) -> bool {
+    let c1 = cross(b - a, p - a);
+    let c2 = cross(c - b, p - b);
+    let c3 = cross(a - c, p - c);
+    c1 >= -1e-5 && c2 >= -1e-5 && c3 >= -1e-5
+}
+
+pub(super) fn flatten_cubic(
+    p0: Point<Pixels>,
+    c0: Point<Pixels>,
+    c1: Point<Pixels>,
+    p1: Point<Pixels>,
+    out: &mut Vec<Point<Pixels>>,
+) {
+    flatten_cubic_recursive(p0, c0, c1, p1, 0, out);
+}
+
+fn flatten_cubic_recursive(
+    p0: Point<Pixels>,
+    c0: Point<Pixels>,
+    c1: Point<Pixels>,
+    p1: Point<Pixels>,
+    depth: u8,
+    out: &mut Vec<Point<Pixels>>,
+) {
+    // Wang's / de Casteljau flatness test against chord p0 -> p1.
+    let ux = 3. * f32::from(c0.x) - 2. * f32::from(p0.x) - f32::from(p1.x);
+    let uy = 3. * f32::from(c0.y) - 2. * f32::from(p0.y) - f32::from(p1.y);
+    let vx = 3. * f32::from(c1.x) - 2. * f32::from(p1.x) - f32::from(p0.x);
+    let vy = 3. * f32::from(c1.y) - 2. * f32::from(p1.y) - f32::from(p0.y);
+    let err_sq = (ux * ux).max(vx * vx) + (uy * uy).max(vy * vy);
+    if depth >= MAX_SUBDIVISION_DEPTH || err_sq <= 16. * FLATTEN_TOLERANCE * FLATTEN_TOLERANCE {
+        out.push(p1);
+        return;
+    }
+    let mid = |a: Point<Pixels>, b: Point<Pixels>| point((a.x + b.x) * 0.5, (a.y + b.y) * 0.5);
+    let p01 = mid(p0, c0);
+    let p12 = mid(c0, c1);
+    let p23 = mid(c1, p1);
+    let p012 = mid(p01, p12);
+    let p123 = mid(p12, p23);
+    let p0123 = mid(p012, p123);
+    flatten_cubic_recursive(p0, p01, p012, p0123, depth + 1, out);
+    flatten_cubic_recursive(p0123, p123, p23, p1, depth + 1, out);
+}
 
 pub(super) fn cross(a: Point<Pixels>, b: Point<Pixels>) -> f32 {
     f32::from(a.x) * f32::from(b.y) - f32::from(a.y) * f32::from(b.x)
@@ -60,12 +304,9 @@ pub(super) fn triangle_disjoint_from_rect(
         || vertices.iter().all(|v| v.y >= max_y)
 }
 
-pub(super) fn contains_fill(path: &Path<Pixels>, position: Point<Pixels>) -> bool {
-    path.bounds.contains(&position)
-        && path.vertices.as_chunks::<3>().0.iter().any(|triangle| {
-            let a = triangle[0].xy_position;
-            let b = triangle[1].xy_position;
-            let c = triangle[2].xy_position;
+pub(super) fn contains_fill(mesh: &FillMesh, position: Point<Pixels>) -> bool {
+    mesh.bounds.contains(&position)
+        && mesh.triangles.iter().any(|&[a, b, c]| {
             let area = cross(b - a, c - a);
             if area.abs() <= f32::EPSILON {
                 return false;
@@ -120,16 +361,14 @@ pub(super) fn clip_polygon_to_rect(
     clip_half_plane(polygon, scratch, |p| bottom - f32::from(p.y));
 }
 
-pub(super) fn clip_rect_fill(fill: &Path<Pixels>, rect: Bounds<Pixels>) -> Path<Pixels> {
-    let mut result = Path::new(rect.origin);
-    if !rect_is_valid(rect) || fill.vertices.is_empty() || !bounds_overlap(fill.bounds, rect) {
+pub(super) fn clip_rect_fill(fill: &FillMesh, rect: Bounds<Pixels>) -> FillMesh {
+    let mut result = FillMesh::empty(rect.origin);
+    if !rect_is_valid(rect) || fill.is_empty() || !bounds_overlap(fill.bounds, rect) {
         return result;
     }
-    let stencil = point(0., 1.);
     let mut polygon = Vec::with_capacity(8);
     let mut scratch = Vec::with_capacity(8);
-    for triangle in fill.vertices.as_chunks::<3>().0 {
-        let [a, b, c] = triangle.each_ref().map(|vertex| vertex.xy_position);
+    for &[a, b, c] in &fill.triangles {
         if triangle_disjoint_from_rect([a, b, c], rect) || cross(b - a, c - a).abs() <= f32::EPSILON
         {
             continue;
@@ -137,19 +376,17 @@ pub(super) fn clip_rect_fill(fill: &Path<Pixels>, rect: Bounds<Pixels>) -> Path<
         polygon.clear();
         polygon.extend([a, b, c]);
         clip_polygon_to_rect(&mut polygon, &mut scratch, rect);
-        push_fan(&mut result, &polygon, stencil);
+        push_fan(&mut result, &polygon);
     }
+    result.finalize_bounds();
     result
 }
 
-pub(super) fn clip_convex_polygon_fill(
-    fill: &Path<Pixels>,
-    vertices: &[Point<Pixels>],
-) -> Path<Pixels> {
+pub(super) fn clip_convex_polygon_fill(fill: &FillMesh, vertices: &[Point<Pixels>]) -> FillMesh {
     let origin = vertices.first().copied().unwrap_or(point(px(0.), px(0.)));
-    let mut result = Path::new(origin);
+    let mut result = FillMesh::empty(origin);
     if vertices.len() < 3
-        || fill.vertices.is_empty()
+        || fill.is_empty()
         || !vertices
             .iter()
             .all(|v| f32::from(v.x).is_finite() && f32::from(v.y).is_finite())
@@ -182,11 +419,9 @@ pub(super) fn clip_convex_polygon_fill(
     if !bounds_overlap(fill.bounds, clip_bounds) {
         return result;
     }
-    let stencil = point(0., 1.);
     let mut polygon = Vec::with_capacity(vertices.len() + 3);
     let mut scratch = Vec::with_capacity(vertices.len() + 3);
-    for triangle in fill.vertices.as_chunks::<3>().0 {
-        let [a, b, c] = triangle.each_ref().map(|vertex| vertex.xy_position);
+    for &[a, b, c] in &fill.triangles {
         if triangle_disjoint_from_rect([a, b, c], clip_bounds)
             || cross(b - a, c - a).abs() <= f32::EPSILON
         {
@@ -202,26 +437,21 @@ pub(super) fn clip_convex_polygon_fill(
                 orientation * cross(end - start, p - start)
             });
         }
-        push_fan(&mut result, &polygon, stencil);
+        push_fan(&mut result, &polygon);
     }
+    result.finalize_bounds();
     result
 }
 
-pub(super) fn clip_path_fill(clip: &Path<Pixels>, source: &Path<Pixels>) -> Path<Pixels> {
-    let mut result = Path::new(source.bounds.origin);
-    if clip.vertices.is_empty()
-        || source.vertices.is_empty()
-        || !bounds_overlap(clip.bounds, source.bounds)
-    {
+pub(super) fn clip_mesh_fill(clip: &FillMesh, source: &FillMesh) -> FillMesh {
+    let mut result = FillMesh::empty(source.bounds.origin);
+    if clip.is_empty() || source.is_empty() || !bounds_overlap(clip.bounds, source.bounds) {
         return result;
     }
     let clip_triangles: Vec<_> = clip
-        .vertices
-        .as_chunks::<3>()
-        .0
+        .triangles
         .iter()
-        .filter_map(|triangle| {
-            let [a, b, c] = triangle.each_ref().map(|vertex| vertex.xy_position);
+        .filter_map(|&[a, b, c]| {
             let winding = cross(b - a, c - a);
             if winding.abs() <= f32::EPSILON
                 || triangle_disjoint_from_rect([a, b, c], source.bounds)
@@ -240,11 +470,9 @@ pub(super) fn clip_path_fill(clip: &Path<Pixels>, source: &Path<Pixels>) -> Path
         return result;
     }
 
-    let stencil = point(0., 1.);
     let mut polygon = Vec::with_capacity(8);
     let mut scratch = Vec::with_capacity(8);
-    for triangle in source.vertices.as_chunks::<3>().0 {
-        let [sa, sb, sc] = triangle.each_ref().map(|vertex| vertex.xy_position);
+    for &[sa, sb, sc] in &source.triangles {
         if cross(sb - sa, sc - sa).abs() <= f32::EPSILON
             || triangle_disjoint_from_rect([sa, sb, sc], clip.bounds)
         {
@@ -269,17 +497,18 @@ pub(super) fn clip_path_fill(clip: &Path<Pixels>, source: &Path<Pixels>) -> Path
                     sign * cross(end - start, p - start)
                 });
             }
-            push_fan(&mut result, &polygon, stencil);
+            push_fan(&mut result, &polygon);
         }
     }
+    result.finalize_bounds();
     result
 }
 
-fn push_fan(path: &mut Path<Pixels>, polygon: &[Point<Pixels>], stencil: Point<f32>) {
+fn push_fan(mesh: &mut FillMesh, polygon: &[Point<Pixels>]) {
     if let Some((&first, rest)) = polygon.split_first() {
         for edge in rest.windows(2) {
             if cross(edge[0] - first, edge[1] - first).abs() > f32::EPSILON {
-                path.push_triangle((first, edge[0], edge[1]), (stencil, stencil, stencil));
+                mesh.push_triangle(first, edge[0], edge[1]);
             }
         }
     }
@@ -293,20 +522,15 @@ static UNIT_CIRCLE: std::sync::LazyLock<[(f32, f32); RIPPLE_SEGMENTS]> =
         })
     });
 
-pub(crate) fn clipped_ripple(
-    fill: &Path<Pixels>,
-    origin: Point<Pixels>,
-    radius: Pixels,
-) -> Path<Pixels> {
+pub(super) fn clipped_ripple(fill: &FillMesh, origin: Point<Pixels>, radius: Pixels) -> FillMesh {
     let raw_radius = f32::from(radius);
     let ox = f32::from(origin.x);
     let oy = f32::from(origin.y);
     if !raw_radius.is_finite() || raw_radius <= 0. || !ox.is_finite() || !oy.is_finite() {
-        return Path::new(origin);
+        return FillMesh::empty(origin);
     }
     let mut circle: Option<[Point<Pixels>; RIPPLE_SEGMENTS]> = None;
-    let mut ripple = Path::new(origin);
-    let stencil = point(0., 1.);
+    let mut ripple = FillMesh::empty(origin);
     let mut polygon = Vec::with_capacity(RIPPLE_SEGMENTS + 3);
     let mut clipped = Vec::with_capacity(RIPPLE_SEGMENTS + 3);
     let extent = point(radius, radius);
@@ -324,8 +548,8 @@ pub(crate) fn clipped_ripple(
 
     // Intersect the disc with each disjoint fill triangle so paint and hit
     // testing use the same tessellated curve, including concave shapes.
-    for triangle in fill.vertices.as_chunks::<3>().0 {
-        let vertices = triangle.each_ref().map(|vertex| vertex.xy_position);
+    for &[a, b, c] in &fill.triangles {
+        let vertices = [a, b, c];
         if has_area
             && (vertices.iter().all(|vertex| vertex.x < min.x)
                 || vertices.iter().all(|vertex| vertex.x > max.x)
@@ -334,13 +558,12 @@ pub(crate) fn clipped_ripple(
         {
             continue;
         }
-        let [a, b, c] = vertices;
         let winding = cross(b - a, c - a);
         if winding.abs() <= f32::EPSILON {
             continue;
         }
         if dist_sq(a) <= inscribed_sq && dist_sq(b) <= inscribed_sq && dist_sq(c) <= inscribed_sq {
-            ripple.push_triangle((a, b, c), (stencil, stencil, stencil));
+            ripple.push_triangle(a, b, c);
             continue;
         }
         let t_min_x = f32::from(a.x.min(b.x).min(c.x));
@@ -367,9 +590,10 @@ pub(crate) fn clipped_ripple(
         }
         if let Some((&first, rest)) = polygon.split_first() {
             for edge in rest.windows(2) {
-                ripple.push_triangle((first, edge[0], edge[1]), (stencil, stencil, stencil));
+                ripple.push_triangle(first, edge[0], edge[1]);
             }
         }
     }
+    ripple.finalize_bounds();
     ripple
 }

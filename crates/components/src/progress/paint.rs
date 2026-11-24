@@ -94,11 +94,11 @@ impl Stroke {
         let steps = (((end - start) * samples_per_turn).ceil() as usize).max(1);
         let last = sample(end);
         let step = (end - start) / steps as f32;
-        let mut path = PathBuilder::default().with_style(PathStyle::Stroke(
-            StrokeOptions::default()
-                .with_line_width(self.width)
-                .with_miter_limit(1.),
-        ));
+        let mut path = PathBuilder::default().with_style(PathStyle::Stroke(StrokeOptions {
+            line_width: self.width,
+            miter_limit: 1.,
+            ..StrokeOptions::default()
+        }));
         let square = !closed && self.cap == ProgressCap::Square;
         path.move_to(if square {
             extend_endpoint(first, sample(start + step), self.cap_length())

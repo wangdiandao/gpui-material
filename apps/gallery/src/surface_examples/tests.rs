@@ -100,7 +100,7 @@ fn surface_passive_colors_and_explicit_shape_inherit_through_nested_layout(
     assert_eq!(observed["override"], Hsla::from(rgb(0x215015)));
     assert_eq!(observed["paired"], paired);
     cx.update_window(handle.into(), |_, window, _| {
-        let quads = window.painted_quads();
+        let quads = crate::painted_quads(window);
         let fill = quads
             .iter()
             .find(|quad| quad.background.as_solid() == Some(painted))

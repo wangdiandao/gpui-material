@@ -485,14 +485,6 @@ fn focus_after_layout(target: FocusHandle, window: &mut Window, cx: &mut App) {
     });
 }
 
-impl IntoElement for StripLayout {
-    type Element = Self;
-
-    fn into_element(self) -> Self {
-        self
-    }
-}
-
 impl Element for StripLayout {
     type RequestLayoutState = Vec<Prepared>;
     type PrepaintState = (usize, Option<AnyElement>);

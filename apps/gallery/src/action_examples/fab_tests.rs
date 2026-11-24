@@ -143,8 +143,7 @@ fn facade_fab_keeps_the_default_size_and_paints_independent_appearance(cx: &mut 
         }
         let scale = window.scale_factor();
         let radius = |tint| {
-            window
-                .painted_quads()
+            crate::painted_quads(window)
                 .iter()
                 .find(|quad| quad.background.as_solid() == Some(tint))
                 .unwrap()
@@ -179,8 +178,7 @@ fn facade_fab_keeps_the_default_size_and_paints_independent_appearance(cx: &mut 
             Some(true)
         );
         assert!(
-            window
-                .painted_quads()
+            crate::painted_quads(window)
                 .iter()
                 .any(|quad| quad.background.as_solid() == Some(DISABLED))
         );
@@ -280,7 +278,7 @@ fn facade_fab_retargets_visibility_and_releases_focus_when_hiding(cx: &mut TestA
     };
     let paint = |window: &Window| {
         let scale = window.scale_factor();
-        window.painted_quads().iter().find_map(|quad| {
+        crate::painted_quads(window).iter().find_map(|quad| {
             let tint = quad.background.as_solid()?;
             ((tint.h, tint.s, tint.l) == (MEDIUM.h, MEDIUM.s, MEDIUM.l))
                 .then(|| (quad.bounds.map(|pixels| px(pixels.0 / scale)), tint.a))

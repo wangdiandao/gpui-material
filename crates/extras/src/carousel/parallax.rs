@@ -154,14 +154,6 @@ pub struct CarouselParallaxPaint {
     clip: Bounds<Pixels>,
 }
 
-impl IntoElement for CarouselParallax {
-    type Element = Self;
-
-    fn into_element(self) -> Self {
-        self
-    }
-}
-
 impl Element for CarouselParallax {
     type RequestLayoutState = ();
     type PrepaintState = Option<CarouselParallaxPaint>;

@@ -418,14 +418,6 @@ struct SlidingSlot {
     direction: Direction,
 }
 
-impl IntoElement for SlidingSlot {
-    type Element = Self;
-
-    fn into_element(self) -> Self {
-        self
-    }
-}
-
 impl Element for SlidingSlot {
     type RequestLayoutState = Size<Pixels>;
     type PrepaintState = ();

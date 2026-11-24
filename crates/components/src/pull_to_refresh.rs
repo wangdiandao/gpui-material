@@ -575,14 +575,6 @@ struct RefreshViewport {
     body: AnyElement,
 }
 
-impl IntoElement for RefreshViewport {
-    type Element = Self;
-
-    fn into_element(self) -> Self {
-        self
-    }
-}
-
 impl gpui::Element for RefreshViewport {
     type RequestLayoutState = ();
     type PrepaintState = Hitbox;

@@ -52,8 +52,7 @@ fn node(window: &Window, id: &'static str) -> ElementSnapshot {
 
 fn painted(window: &Window, tint: Hsla) -> (Bounds<Pixels>, f32) {
     let scale = window.scale_factor();
-    let quad = window
-        .painted_quads()
+    let quad = crate::painted_quads(window)
         .into_iter()
         .find(|quad| quad.background.as_solid() == Some(tint))
         .expect("tab paint");

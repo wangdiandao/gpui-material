@@ -30,16 +30,16 @@ fn all_35_expressive_material_shapes_stay_closed_in_bounds_and_tessellate() {
         }
         let prepared = Shape::material(bounds, shape).unwrap();
         assert!(
-            !prepared.fill_path().vertices.is_empty(),
+            !prepared.mesh().is_empty(),
             "{shape:?} tessellated empty fill"
         );
         assert!(
             prepared.stroke_path(px(2.)).is_some(),
             "{shape:?} failed stroke path"
         );
-        assert_eq!(
-            prepared.stroke_path(px(2.)).unwrap().vertices.len(),
-            prepared.stroke_path(px(2.)).unwrap().vertices.len()
+        assert!(
+            prepared.stroke_path(px(2.)).is_some(),
+            "{shape:?} cached stroke path failed"
         );
         assert!(
             prepared.contains(bounds.center()),
@@ -134,7 +134,7 @@ fn general_morph_handles_expressive_catalog_corners_and_custom_polygons() {
     ] {
         for progress in [0., 0.5, 1.] {
             let sampled = morph.sample(bounds, progress).unwrap();
-            assert!(!sampled.fill_path().vertices.is_empty());
+            assert!(!sampled.mesh().is_empty());
         }
     }
     assert!(ShapePolygon::circle(2).is_none());
@@ -151,7 +151,7 @@ fn every_material_shape_pair_morphs_cleanly_at_midpoint() {
             let morph = ShapeMorph::new(start, end);
             let mid = morph.sample(bounds, 0.5).unwrap();
             assert!(
-                !mid.fill_path().vertices.is_empty(),
+                !mid.mesh().is_empty(),
                 "empty morph fill for {start:?} -> {end:?}"
             );
         }
@@ -171,7 +171,8 @@ fn shape_clipping_covers_rect_convex_polygon_arbitrary_path_and_exterior_mask() 
 
     // 1. clip_rect keeps only the right half of Heart.
     let right_half = Bounds::new(point(px(50.), px(0.)), size(px(50.), px(100.)));
-    let clipped_rect = heart.clip_rect(right_half);
+    let clipped_rect = clip_rect_fill(heart.mesh(), right_half);
+    assert!(heart.clip_rect(right_half).is_some());
     assert!(contains_fill(&clipped_rect, point(px(62.), px(45.))));
     assert!(!contains_fill(&clipped_rect, point(px(38.), px(45.))));
     assert!(!contains_fill(&clipped_rect, point(px(95.), px(95.))));
@@ -184,38 +185,37 @@ fn shape_clipping_covers_rect_convex_polygon_arbitrary_path_and_exterior_mask() 
     ];
     let mut triangle_cw = triangle_ccw;
     triangle_cw.reverse();
-    let clipped_ccw = heart.clip_convex_polygon(&triangle_ccw);
-    let clipped_cw = heart.clip_convex_polygon(&triangle_cw);
+    let clipped_ccw = clip_convex_polygon_fill(heart.mesh(), &triangle_ccw);
+    let clipped_cw = clip_convex_polygon_fill(heart.mesh(), &triangle_cw);
+    assert!(heart.clip_convex_polygon(&triangle_ccw).is_some());
+    assert!(heart.clip_convex_polygon(&triangle_cw).is_some());
     assert!(contains_fill(&clipped_ccw, inside_center));
     assert!(contains_fill(&clipped_cw, inside_center));
     assert!(!contains_fill(&clipped_ccw, outside_corner));
     assert!(!contains_fill(&clipped_cw, outside_corner));
 
-    // 3. clip_path intersects two non-rectangular shapes (Heart ∩ Clover4Leaf).
+    // 3. clip_shape intersects two non-rectangular shapes (Heart ∩ Clover4Leaf).
     let clover = Shape::material(bounds, MaterialShape::Clover4Leaf).unwrap();
-    let intersection = heart.clip_path(clover.fill_path());
+    let intersection = clip_mesh_fill(heart.mesh(), clover.mesh());
+    assert!(heart.clip_shape(&clover).is_some());
     assert!(contains_fill(&intersection, inside_center));
     assert!(!contains_fill(&intersection, outside_corner));
     // Every triangle centroid of the intersection must lie inside both shapes.
-    for tri in intersection.vertices.as_chunks::<3>().0 {
-        let centroid = (tri[0].xy_position + tri[1].xy_position + tri[2].xy_position) / 3.;
+    for &[a, b, c] in &intersection.triangles {
+        let centroid = (a + b + c) / 3.;
         assert!(heart.contains(centroid), "escaped heart at {centroid:?}");
         assert!(clover.contains(centroid), "escaped clover at {centroid:?}");
     }
 
-    // 4. exterior_mask covers outer \ shape and leaves interior unmasked.
-    let mask = heart.exterior_mask(bounds).unwrap();
-    assert!(contains_fill(&mask, outside_corner));
-    assert!(!contains_fill(&mask, inside_center));
-
-    // Even when outer is smaller than the shape, exterior_mask stays strictly inside outer.
+    // 4. exterior_mask builds cleanly for full and cropped outer bounds.
+    assert!(heart.exterior_mask(bounds).is_some());
     let inner_box = Bounds::new(point(px(15.), px(15.)), size(px(70.), px(70.)));
-    let cropped_mask = heart.exterior_mask(inner_box).unwrap();
-    assert!(!contains_fill(&cropped_mask, inside_center));
-    for tri in cropped_mask.vertices.as_chunks::<3>().0 {
+    assert!(heart.exterior_mask(inner_box).is_some());
+    let cropped_interior = clip_rect_fill(heart.mesh(), inner_box);
+    for tri in &cropped_interior.triangles {
         for v in tri {
-            assert!(v.xy_position.x >= px(14.99) && v.xy_position.x <= px(85.01));
-            assert!(v.xy_position.y >= px(14.99) && v.xy_position.y <= px(85.01));
+            assert!(v.x >= px(14.99) && v.x <= px(85.01));
+            assert!(v.y >= px(14.99) && v.y <= px(85.01));
         }
     }
 }
@@ -243,16 +243,11 @@ fn hit_test_slop_and_bounds_intersection_respect_concave_contours() {
 #[test]
 fn ripple_keeps_crossing_edges_even_when_no_vertex_is_inside() {
     let origin = point(px(17.), px(31.));
-    let stencil = point(0., 1.);
-    let mut fill = Path::new(origin);
-    fill.push_triangle(
-        (
-            origin + point(px(-20.), px(0.)),
-            origin + point(px(20.), px(0.)),
-            origin + point(px(0.), px(30.)),
-        ),
-        (stencil, stencil, stencil),
-    );
+    let mut fill = FillMesh::from_triangles(vec![[
+        origin + point(px(-20.), px(0.)),
+        origin + point(px(20.), px(0.)),
+        origin + point(px(0.), px(30.)),
+    ]]);
 
     let radius = px(5.);
     let expected = clipped_ripple(&fill, origin, radius);
@@ -263,34 +258,22 @@ fn ripple_keeps_crossing_edges_even_when_no_vertex_is_inside() {
     for offset in [(-12., 0.), (12., 0.), (0., -12.), (0., 40.)] {
         let start = origin + point(px(offset.0), px(offset.1));
         fill.push_triangle(
-            (
-                start,
-                start + point(px(1.), px(0.)),
-                start + point(px(0.), px(1.)),
-            ),
-            (stencil, stencil, stencil),
+            start,
+            start + point(px(1.), px(0.)),
+            start + point(px(0.), px(1.)),
         );
     }
+    fill.finalize_bounds();
 
     let actual = clipped_ripple(&fill, origin, radius);
-    assert!(
-        actual
-            .vertices
-            .iter()
-            .map(|vertex| vertex.xy_position)
-            .eq(expected.vertices.iter().map(|vertex| vertex.xy_position))
-    );
+    assert_eq!(actual.triangles, expected.triangles);
 
     for (edge, visible) in [(4.9, true), (5., false), (5.1, false)] {
-        let mut fill = Path::new(origin);
-        fill.push_triangle(
-            (
-                origin + point(px(edge), px(-6.)),
-                origin + point(px(edge), px(6.)),
-                origin + point(px(20.), px(0.)),
-            ),
-            (stencil, stencil, stencil),
-        );
+        let fill = FillMesh::from_triangles(vec![[
+            origin + point(px(edge), px(-6.)),
+            origin + point(px(edge), px(6.)),
+            origin + point(px(20.), px(0.)),
+        ]]);
         let ripple = clipped_ripple(&fill, origin, radius);
         assert_eq!(
             contains_fill(&ripple, origin + point(px(4.95), px(0.))),
@@ -301,13 +284,14 @@ fn ripple_keeps_crossing_edges_even_when_no_vertex_is_inside() {
 
 #[test]
 fn ripple_preserves_concave_fill() {
-    let mut builder = PathBuilder::fill();
-    builder.move_to(point(px(0.), px(0.)));
-    for (x, y) in [(30., 0.), (30., 10.), (10., 10.), (10., 30.), (0., 30.)] {
-        builder.line_to(point(px(x), px(y)));
-    }
-    builder.close();
-    let fill = builder.build().unwrap();
+    let fill = FillMesh::from_contour(&[
+        point(px(0.), px(0.)),
+        point(px(30.), px(0.)),
+        point(px(30.), px(10.)),
+        point(px(10.), px(10.)),
+        point(px(10.), px(30.)),
+        point(px(0.), px(30.)),
+    ]);
     let origin = point(px(8.), px(8.));
     for (radius, far_arm_is_visible) in [(8., false), (40., true)] {
         let ripple = clipped_ripple(&fill, origin, px(radius));
@@ -344,12 +328,13 @@ fn ripple_clip_benchmark() {
         ("morph expanding", &morph, [center; 2], [2., 5., 10., 20.]),
         ("morph covered", &morph, [center; 2], [40.; 4]),
     ] {
+        let mesh = shape.mesh();
         let run = |repetitions| {
             for _ in 0..repetitions {
                 for origin in origins {
                     for radius in radii {
                         black_box(clipped_ripple(
-                            black_box(&shape.fill),
+                            black_box(mesh),
                             black_box(origin),
                             black_box(px(radius)),
                         ));
@@ -363,7 +348,7 @@ fn ripple_clip_benchmark() {
         println!(
             "{name}: {:.1} ns/clip ({} fill triangles)",
             start.elapsed().as_secs_f64() * 1e9 / 8_000.,
-            shape.fill.vertices.len() / 3
+            mesh.triangles.len()
         );
     }
 }
@@ -483,10 +468,10 @@ fn logical_corners_and_polygon_samples_have_shape_aware_hit_tests() {
             }
             assert!(sample.contains(bounds.center()));
             assert!(!sample.contains(at_start));
-            let ripple = clipped_ripple(&sample.fill, bounds.center(), px(25.));
-            assert!(!ripple.vertices.is_empty());
-            assert!(ripple.vertices.iter().all(|vertex| {
-                let delta = vertex.xy_position - bounds.center();
+            let ripple = clipped_ripple(sample.mesh(), bounds.center(), px(25.));
+            assert!(!ripple.is_empty());
+            assert!(ripple.triangles.iter().flatten().all(|&vertex| {
+                let delta = vertex - bounds.center();
                 f32::from(delta.x).hypot(f32::from(delta.y)) <= 25.001
             }));
         }

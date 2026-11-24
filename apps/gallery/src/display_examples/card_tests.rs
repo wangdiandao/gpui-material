@@ -194,7 +194,7 @@ fn cards_paint_independent_variants_and_keep_semantics(cx: &mut TestAppContext) 
         ("outlined", 0xdbe6ff, 0., None, [5.; 4], 0x4a5263),
     ];
     cx.update(|window, cx| {
-        let quads = window.painted_quads();
+        let quads = crate::painted_quads(window);
         let scale = window.scale_factor();
         for (index, (id, background, border, stroke, corners, foreground)) in
             variants.into_iter().enumerate()
@@ -238,7 +238,7 @@ fn cards_paint_independent_variants_and_keep_semantics(cx: &mut TestAppContext) 
     });
     draw(cx);
     cx.update(|window, _| {
-        let quads = window.painted_quads();
+        let quads = crate::painted_quads(window);
         let fill = quads
             .iter()
             .find(|quad| quad.background == Hsla::from(rgb(0xe0c6f6)).into())
@@ -312,8 +312,7 @@ fn actionable_card_keeps_base_activation_and_cancels_drag_click(cx: &mut TestApp
         assert_eq!(preview.read(cx).activated, 2);
         assert_eq!(preview.read(cx).colors[1].get(), rgb(0x615b69).into());
         assert!(
-            window
-                .painted_quads()
+            crate::painted_quads(window)
                 .iter()
                 .any(|quad| { quad.background == Hsla::from(rgb(0xe0d8e5)).into() })
         );

@@ -10,12 +10,12 @@
 
 ```toml
 [dependencies]
-gpui = { package = "gpui-pre", version = "=0.3.12" }
-gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
+gpui = { package = "gpui-pre", version = "=0.3.14" }
+gpui_platform = { package = "gpui-pre-platform", version = "=0.3.14", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
 gpui-material = "0.3.2"
 ```
 
-应用直接使用 Base 时也应固定 `gpui-base = "=0.10.0"`。从源码集成时，使用 `{ path = "../gpui-material/crates/material" }` 并固定检出提交。升级后运行 `cargo tree -d` 检查是否存在重复包版本。
+应用直接使用 Base 时也应固定 `gpui-base = "=0.11.0"`。从源码集成时，使用 `{ path = "../gpui-material/crates/material" }` 并固定检出提交。升级后运行 `cargo tree -d` 检查是否存在重复包版本。
 
 ```rust
 use gpui::{AppContext, Context, IntoElement, QuitMode, Render, Window, WindowOptions};

@@ -43,6 +43,7 @@ toolbars = [
 ]
 date-time = [
     "dep:chrono",
+    "dep:jiff",
     "dep:gpui",
     "dep:gpui-base",
     "dep:gpui-material-components",
@@ -56,6 +57,7 @@ window-chrome = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-foundation", "d
 
 [dependencies]
 chrono = { version = "0.4.45", default-features = false, optional = true }
+jiff = { version = "1.0", default-features = false, optional = true }
 gpui = { workspace = true, optional = true }
 gpui-base = { workspace = true, optional = true }
 gpui-material-components = { workspace = true, optional = true, default-features = false }

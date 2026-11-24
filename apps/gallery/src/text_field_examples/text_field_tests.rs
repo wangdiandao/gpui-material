@@ -689,6 +689,14 @@ fn secure_field_toggles_obfuscation_mode_and_clipboard_policy(cx: &mut TestAppCo
         assert_eq!(field.value(), None);
         assert_eq!(field.description(), None);
         assert!(!password.read(cx).is_copyable());
+        let (ime_text, adjusted) = password.update(cx, |state, cx| {
+            let mut adjusted = None;
+            let text =
+                gpui::EntityInputHandler::text_for_range(state, 0..7, &mut adjusted, window, cx);
+            (text, adjusted)
+        });
+        assert_eq!(ime_text.as_deref(), Some("•••••••"));
+        assert_eq!(adjusted, Some(0..7));
         cx.write_to_clipboard(ClipboardItem::new_string("sentinel".into()));
     })
     .unwrap();
@@ -707,6 +715,14 @@ fn secure_field_toggles_obfuscation_mode_and_clipboard_policy(cx: &mut TestAppCo
         assert_eq!(field.value(), Some("s3cr3t!"));
         assert_eq!(field.description(), Some("7 / 24"));
         assert!(password.read(cx).is_copyable());
+        let (ime_text, adjusted) = password.update(cx, |state, cx| {
+            let mut adjusted = None;
+            let text =
+                gpui::EntityInputHandler::text_for_range(state, 0..7, &mut adjusted, window, cx);
+            (text, adjusted)
+        });
+        assert_eq!(ime_text.as_deref(), Some("s3cr3t!"));
+        assert_eq!(adjusted, Some(0..7));
         password.update(cx, |state, cx| {
             state.focus(window, cx);
             state.select_all(window, cx);
@@ -728,6 +744,14 @@ fn secure_field_toggles_obfuscation_mode_and_clipboard_policy(cx: &mut TestAppCo
         assert_eq!(field.value(), None);
         assert_eq!(field.description(), None);
         assert!(!password.read(cx).is_copyable());
+        let (ime_text, adjusted) = password.update(cx, |state, cx| {
+            let mut adjusted = None;
+            let text =
+                gpui::EntityInputHandler::text_for_range(state, 0..7, &mut adjusted, window, cx);
+            (text, adjusted)
+        });
+        assert_eq!(ime_text.as_deref(), Some("•••••••"));
+        assert_eq!(adjusted, Some(0..7));
         password.update(cx, |state, cx| {
             state.focus(window, cx);
             state.select_all(window, cx);

@@ -71,7 +71,7 @@ fn avatar_renders_sizes_shapes_colors_and_accessible_semantics(cx: &mut TestAppC
             window.refresh();
             window.draw(cx).clear(cx);
 
-            let quads = window.painted_quads();
+            let quads = crate::painted_quads(window);
             let find_quad = |fill: Hsla| {
                 quads
                     .iter()
@@ -222,7 +222,7 @@ fn avatar_group_renders_overflow_rings_overlap_rtl_and_accessible_group(cx: &mut
             window.refresh();
             window.draw(cx).clear(cx);
 
-            let quads = window.painted_quads();
+            let quads = crate::painted_quads(window);
             let find_quad = |fill: Hsla| {
                 quads
                     .iter()

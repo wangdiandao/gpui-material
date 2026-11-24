@@ -145,8 +145,7 @@ fn icon_buttons_customize_paint_and_keep_controlled_keyboard_behavior(cx: &mut T
         };
         let quad = |fill, window: &Window| {
             let fill: Hsla = rgb(fill).into();
-            window
-                .painted_quads()
+            crate::painted_quads(window)
                 .into_iter()
                 .find(|quad| quad.background == fill.into())
                 .unwrap_or_else(|| panic!("Missing icon button color {fill:?}"))
@@ -365,8 +364,7 @@ fn action_and_selection_feedback_clear_after_pointer_cancellation(cx: &mut TestA
                         .colors
                         .color(ColorRole::Primary),
                 );
-                window
-                    .painted_quads()
+                crate::painted_quads(window)
                     .into_iter()
                     .find(|quad| quad.background == tint.into())
                     .unwrap()
@@ -536,8 +534,7 @@ fn button_keyboard_press_does_not_resume_after_focus_returns(cx: &mut TestAppCon
                     .colors
                     .color(ColorRole::Primary),
             );
-            let quad = window
-                .painted_quads()
+            let quad = crate::painted_quads(window)
                 .into_iter()
                 .find(|quad| quad.background == tint.into())
                 .expect("filled button paints its primary container");
@@ -805,8 +802,7 @@ fn custom_button_states_and_slots_keep_token_defaults_and_controlled_values(
             window.draw(cx).clear(cx);
         };
         let quad = |tint: Hsla, window: &Window| {
-            window
-                .painted_quads()
+            crate::painted_quads(window)
                 .into_iter()
                 .find(|quad| quad.background == tint.into())
                 .expect("button paints its instance or default container")
@@ -1149,7 +1145,7 @@ fn button_tone_applies_semantic_palettes_and_yields_to_explicit_colors(cx: &mut 
         window.draw(cx).clear(cx);
 
         let theme = window_material_theme(window, cx);
-        let quads = window.painted_quads();
+        let quads = crate::painted_quads(window);
         let has_fill = |fill: Hsla| quads.iter().any(|quad| quad.background == fill.into());
         let has_border = |stroke: Hsla| {
             quads
@@ -1283,8 +1279,7 @@ fn button_loading_suppresses_activation_preserves_width_and_respects_motion_and_
 
         // Active palette is preserved while loading without disabled.
         assert!(
-            window
-                .painted_quads()
+            crate::painted_quads(window)
                 .iter()
                 .any(|quad| quad.background == primary.into()),
             "loading button must preserve active container color"
@@ -1361,8 +1356,7 @@ fn button_loading_suppresses_activation_preserves_width_and_respects_motion_and_
         });
         draw(window, cx);
         assert!(
-            !window
-                .painted_quads()
+            !crate::painted_quads(window)
                 .iter()
                 .any(|quad| quad.background == primary.into()),
             "disabled + loading must use disabled palette"

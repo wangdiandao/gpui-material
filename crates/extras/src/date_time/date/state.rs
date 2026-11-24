@@ -49,8 +49,8 @@ impl DateLimits {
     }
 
     pub(super) fn accepts_draft(&self, draft: Date) -> bool {
-        let start = draft.start();
-        let end = draft.end();
+        let start = draft.start().map(super::from_base_date);
+        let end = draft.end().map(super::from_base_date);
         start.is_none_or(|date| self.accepts(date))
             && end.is_none_or(|date| start.is_some_and(|start| start <= date) && self.accepts(date))
     }
@@ -168,7 +168,7 @@ impl DatePickerState {
             disabled_years: Arc::new(|_| false),
         };
         let calendar = cx.new(|cx| CalendarState::new(window, cx));
-        let cursor = calendar.read(cx).today();
+        let cursor = super::from_base_date(calendar.read(cx).today());
         let start = cx.new(|cx| TextFieldState::new(window, cx));
         let end = cx.new(|cx| TextFieldState::new(window, cx));
         let anchor = cx.new(|cx| TextFieldState::new(window, cx));
@@ -358,7 +358,7 @@ impl DatePickerState {
         if self.input_mode {
             let draft = self.input_draft(cx);
             self.apply_draft(draft, cx);
-            if let Some(day) = draft.start() {
+            if let Some(day) = draft.start().map(super::from_base_date) {
                 self.set_displayed_month(day, cx);
             }
         } else {
@@ -393,7 +393,7 @@ impl DatePickerState {
         let limits = self.limits.clone();
         self.calendar.update(cx, |calendar, _| {
             calendar.set_disabled_matcher_shared(Some(Rc::new(Matcher::custom(move |date| {
-                !limits.accepts(*date)
+                !limits.accepts(super::from_base_date(*date))
             }))));
             calendar.apply_date(draft);
         });
@@ -436,8 +436,13 @@ impl DatePickerState {
             Date::Range(None, None)
         };
         self.apply_draft(draft, cx);
-        let today = self.calendar.read(cx).today();
-        self.set_displayed_month(self.initial_month.or(draft.start()).unwrap_or(today), cx);
+        let today = super::from_base_date(self.calendar.read(cx).today());
+        self.set_displayed_month(
+            self.initial_month
+                .or(draft.start().map(super::from_base_date))
+                .unwrap_or(today),
+            cx,
+        );
         self.reset_input(draft, locale, window, cx);
         self.input_mode = variant == DatePickerVariant::ModalInput;
         self.input_attempted = false;
@@ -473,10 +478,10 @@ impl DatePickerState {
             date.map_or_else(SharedString::default, |date| (locale.format)(date))
         };
         self.start.update(cx, |field, cx| {
-            field.set_value(format(draft.start()), window, cx)
+            field.set_value(format(draft.start().map(super::from_base_date)), window, cx)
         });
         self.end.update(cx, |field, cx| {
-            field.set_value(format(draft.end()), window, cx)
+            field.set_value(format(draft.end().map(super::from_base_date)), window, cx)
         });
     }
 
@@ -498,10 +503,13 @@ impl DatePickerState {
         };
         let start = parse(&self.start);
         if self.calendar.read(cx).date().is_single() {
-            return Date::Single(start);
+            return Date::Single(start.and_then(super::to_base_date));
         }
         let end = parse(&self.end).filter(|end| start.is_some_and(|start| start <= *end));
-        Date::Range(start, end)
+        Date::Range(
+            start.and_then(super::to_base_date),
+            end.and_then(super::to_base_date),
+        )
     }
 
     pub(super) fn dismiss_docked(
@@ -537,7 +545,9 @@ impl DatePickerState {
         }
         self.cursor = date;
         let result = self.calendar.update(cx, |calendar, _| {
-            calendar.select_date(date);
+            if let Some(base_date) = super::to_base_date(date) {
+                calendar.select_date(base_date);
+            }
             complete(calendar.date())
         });
         // Base owns the range transition. Keep the second endpoint's month

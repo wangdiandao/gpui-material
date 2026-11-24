@@ -366,7 +366,7 @@ fn dropdown_custom_surface_width_and_virtual_scroll_survive_rebuilding(cx: &mut 
         assert!(view.read(cx).renders.get() < 500);
 
         let tint = gpui::Hsla::from(rgb(0xdba9ef));
-        let quads = window.painted_quads();
+        let quads = crate::painted_quads(window);
         let quad = quads
             .iter()
             .find(|quad| quad.background.as_solid() == Some(tint))

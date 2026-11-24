@@ -100,14 +100,6 @@ impl<F: Fn(Bounds<Pixels>) -> Point<f32> + 'static> ScaledOverlay<F> {
     }
 }
 
-impl<F: Fn(Bounds<Pixels>) -> Point<f32> + 'static> IntoElement for ScaledOverlay<F> {
-    type Element = Self;
-
-    fn into_element(self) -> Self {
-        self
-    }
-}
-
 impl<F: Fn(Bounds<Pixels>) -> Point<f32> + 'static> Element for ScaledOverlay<F> {
     type RequestLayoutState = ();
     type PrepaintState = ();

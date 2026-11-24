@@ -58,15 +58,15 @@ Geometry and color algorithms are cross-checked against the pinned upstream suit
 
 ## GPUI and Base
 
-[GPUI Kit v0.10.0][kit-release] and the crates.io `gpui-base` metadata both point to [`f697c3133d55c64fa8a5b67926147fb3dadd276d`][kit]. The [pinned workspace manifest][kit-manifest] and release package metadata establish the versions below.
+[GPUI Kit v0.11.0][kit-release] and the crates.io `gpui-base` metadata both point to [`e97fe438129c5e4ccab504f2e6fafd9a4e396bba`][kit]. The [pinned workspace manifest][kit-manifest] and release package metadata establish the versions below.
 
 | Cargo package | Exact version | crates.io SHA-256 |
 | --- | --- | --- |
-| `gpui-base` | `=0.10.0` | `4f4e5aff50636223b268a687ad5788ec54fa77c8e57ca9e53d158f19e0425d95` |
-| `gpui-pre` (Rust import `gpui`) | `=0.3.12` | `29db89613527079737f53752eab27fb65c9a7dd94979256c65a0e590c9fd34d8` |
-| `gpui-pre-platform` (Rust import `gpui_platform`) | `=0.3.12` | `d2b785bdcbd229f762096aebf4f9ae913bdaa9db49794907cabaf516eb55227b` |
+| `gpui-base` | `=0.11.0` | `604d277dd339c63d13a3016d22a84622cc7511fdfd8e88573c0709088ede3500` |
+| `gpui-pre` (Rust import `gpui`) | `=0.3.14` | `ab22c23c1304a0b3f34f64568f59a4ce2abbfab3727273a90c66b37924d31089` |
+| `gpui-pre-platform` (Rust import `gpui_platform`) | `=0.3.14` | `86a2a4a341e905e5dfd6f128ff829509a4053f75e29aa34fa58537a0a3a03ed5` |
 
-Both `gpui-pre` packages set `package.metadata.gpui-pre.zed-rev` to [`d2a4fb6ded7c470be25d1541281da3882495b65b`][zed]. Use exact versions from the same upstream source so Cargo resolves a single GPUI core and platform package identity. In this Base version, `Theme` implements app `Global`. [GPUI Kit Actions][gpui-publish] · [Theme access in theme.rs][base-theme]
+Both `gpui-pre` packages set `package.metadata.gpui-pre.zed-rev` to [`f126950f9d3b62666f97437ae5d4ccac2272c4db`][zed]. Use exact versions from the same upstream source so Cargo resolves a single GPUI core and platform package identity. In this Base version, `Theme` implements app `Global`. [GPUI Kit Actions][gpui-publish] · [Theme access in theme.rs][base-theme]
 
 [compose]: https://dl.google.com/dl/android/maven2/androidx/compose/material3/material3/1.5.0-rc01/material3-1.5.0-rc01-sources.jar
 [android]: https://dl.google.com/dl/android/maven2/androidx/compose/material3/material3-android/1.5.0-rc01/material3-android-1.5.0-rc01-sources.jar
@@ -82,9 +82,9 @@ Both `gpui-pre` packages set `package.metadata.gpui-pre.zed-rev` to [`d2a4fb6ded
 [compose-tree]: https://github.com/androidx/androidx/tree/1f549b6f5ba84cb3553be9c79110c4c5f6413039/compose/material3
 [adaptive-release]: https://developer.android.com/jetpack/androidx/releases/compose-material3-adaptive#1.3.0
 [shapes-release]: https://developer.android.com/jetpack/androidx/releases/graphics#graphics-shapes-1.1.0
-[kit-release]: https://github.com/longbridge/gpui-kit/releases/tag/v0.10.0
-[kit]: https://github.com/longbridge/gpui-kit/tree/f697c3133d55c64fa8a5b67926147fb3dadd276d
-[kit-manifest]: https://github.com/longbridge/gpui-kit/blob/f697c3133d55c64fa8a5b67926147fb3dadd276d/Cargo.toml
-[zed]: https://github.com/zed-industries/zed/commit/d2a4fb6ded7c470be25d1541281da3882495b65b
-[gpui-publish]: https://github.com/longbridge/gpui-kit/actions/runs/42539746081
-[base-theme]: https://github.com/longbridge/gpui-kit/blob/f697c3133d55c64fa8a5b67926147fb3dadd276d/crates/base/src/theme.rs
+[kit-release]: https://github.com/longbridge/gpui-kit/releases/tag/v0.11.0
+[kit]: https://github.com/longbridge/gpui-kit/tree/e97fe438129c5e4ccab504f2e6fafd9a4e396bba
+[kit-manifest]: https://github.com/longbridge/gpui-kit/blob/e97fe438129c5e4ccab504f2e6fafd9a4e396bba/Cargo.toml
+[zed]: https://github.com/zed-industries/zed/commit/f126950f9d3b62666f97437ae5d4ccac2272c4db
+[gpui-publish]: https://github.com/longbridge/gpui-kit/actions/runs/45088262624
+[base-theme]: https://github.com/longbridge/gpui-kit/blob/e97fe438129c5e4ccab504f2e6fafd9a4e396bba/crates/base/src/theme.rs

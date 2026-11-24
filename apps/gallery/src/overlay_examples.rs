@@ -164,6 +164,7 @@ impl ModalExamples {
                                                 ..TitlebarOptions::default()
                                             }),
                                             window_bounds: Some(WindowBounds::centered(
+                                                None,
                                                 size(px(460.), px(320.)),
                                                 cx,
                                             )),

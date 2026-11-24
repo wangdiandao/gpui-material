@@ -131,14 +131,6 @@ impl ThemeScope {
     }
 }
 
-impl IntoElement for ThemeScope {
-    type Element = Self;
-
-    fn into_element(self) -> Self {
-        self
-    }
-}
-
 impl Element for ThemeScope {
     type RequestLayoutState = ();
     type PrepaintState = ();

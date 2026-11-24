@@ -14,8 +14,7 @@ use super::custom_checkbox_colors;
 
 fn checked_boxes(window: &Window) -> usize {
     let checked: Hsla = rgb(0x285844).into();
-    window
-        .painted_quads()
+    crate::painted_quads(window)
         .into_iter()
         .filter(|quad| quad.background.as_solid() == Some(checked))
         .count()
@@ -56,7 +55,10 @@ impl Render for Checkboxes {
             let owner = cx.entity();
             let mut control = Checkbox::new(id, label, state)
                 .colors(colors)
-                .checkmark_stroke(StrokeOptions::default().with_line_width(4.))
+                .checkmark_stroke(StrokeOptions {
+                    line_width: 4.,
+                    ..StrokeOptions::default()
+                })
                 .outline_stroke(if id == "unchecked" { px(0.) } else { px(1.) })
                 .error(error)
                 .disabled(disabled)
@@ -164,8 +166,7 @@ fn checkbox_facade_paints_states_and_observes_controlled_input(cx: &mut TestAppC
             (0xbbb7be, rgb(0x76717a).into(), 1.),
         ] {
             let fill: Hsla = rgb(fill).into();
-            let quad = window
-                .painted_quads()
+            let quad = crate::painted_quads(window)
                 .into_iter()
                 .find(|quad| quad.background.as_solid() == Some(fill))
                 .unwrap();
@@ -178,8 +179,7 @@ fn checkbox_facade_paints_states_and_observes_controlled_input(cx: &mut TestAppC
                 .colors
                 .color(ColorRole::Primary),
         );
-        let default = window
-            .painted_quads()
+        let default = crate::painted_quads(window)
             .into_iter()
             .find(|quad| quad.background.as_solid() == Some(default_fill))
             .unwrap();

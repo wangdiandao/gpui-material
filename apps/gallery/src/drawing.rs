@@ -232,7 +232,11 @@ mod tests {
             let drawing = gpui::AppContext::new(cx, Drawing::new);
             let window = gpui_material::foundation::MaterialRoot::open_window(
                 gpui::WindowOptions {
-                    window_bounds: Some(gpui::WindowBounds::centered(size(px(400.), px(150.)), cx)),
+                    window_bounds: Some(gpui::WindowBounds::centered(
+                        None,
+                        size(px(400.), px(150.)),
+                        cx,
+                    )),
                     ..Default::default()
                 },
                 cx,

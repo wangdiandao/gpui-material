@@ -81,8 +81,7 @@ fn facade_loading_indicators_report_progress_and_stop_idle_frames(cx: &mut TestA
                 assert_eq!(node.label(), Some(label));
                 assert_eq!(node.bounds().size, size(px(48.), px(48.)));
             }
-            let container = window
-                .painted_quads()
+            let container = crate::painted_quads(window)
                 .into_iter()
                 .find(|q| q.background.as_solid() == Some(gpui::rgb(0x334455).into()))
                 .unwrap();
@@ -143,8 +142,7 @@ fn facade_loading_indicators_report_progress_and_stop_idle_frames(cx: &mut TestA
             assert_eq!(slot.bounds().size, size(px(48.), px(48.)));
         }
         assert!(
-            !window
-                .painted_quads()
+            !crate::painted_quads(window)
                 .into_iter()
                 .any(|q| { q.background.as_solid() == Some(gpui::rgb(0x334455).into()) })
         );

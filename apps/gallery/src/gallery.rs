@@ -683,10 +683,8 @@ impl Gallery {
                                                     )
                                                     .shapes(shapes)
                                                     .selected(current == entry.page)
-                                                    .track_focus(
-                                                        &render_handles[entry_ix],
-                                                        Some(row_ix) == tab_stop,
-                                                    )
+                                                    .track_focus(&render_handles[entry_ix])
+                                                    .tab_stop(Some(row_ix) == tab_stop)
                                                     .on_activate(move |window, cx| {
                                                         let _ = owner.update(cx, |this, cx| {
                                                             this.navigate(entry.page, window, cx);

@@ -159,7 +159,9 @@ impl ModalSession {
             let dialog = state.read(cx);
             dialog.open
                 && dialog.generation == self.generation
-                && dialog.focus.contains_focused(window, cx)
+                && dialog.native.as_ref().is_none_or(|native| {
+                    native.child.window_id() == window.window_handle().window_id()
+                })
                 && active_focus_trap(window, cx).is_none_or(|focus| focus == dialog.focus)
         })
     }

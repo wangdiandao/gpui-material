@@ -206,21 +206,28 @@ impl Interaction {
                             .is_some_and(|(trigger, _)| trigger.is_focused(window))))
     }
 
-    fn dismiss(&mut self, window: &mut Window) {
+    fn dismiss(&mut self, window: &mut Window, cx: &App) {
+        // Only suppress focus re-open if focus is currently inside the trigger or tooltip;
+        // otherwise hovering and pressing Escape would lock out the next keyboard Tab.
+        let has_focus = self.surface.contains_focused(window, cx)
+            || self
+                .trigger
+                .as_ref()
+                .is_some_and(|(trigger, _)| trigger.contains_focused(window, cx));
         let changed = self.open
             || self.task.is_some()
             || self.trigger_hover
             || self.surface_hover
             || self.keyboard
             || self.surface_focus
-            || !self.suppress_focus;
+            || self.suppress_focus != has_focus;
         self.open = false;
         self.task = None;
         self.trigger_hover = false;
         self.surface_hover = false;
         self.keyboard = false;
         self.surface_focus = false;
-        self.suppress_focus = true;
+        self.suppress_focus = has_focus;
         if changed {
             window.refresh();
         }
@@ -290,7 +297,8 @@ impl Dismiss {
                 state.update(cx, |state, cx| state.dismiss(cx));
             }
         } else if self.transient.read(cx).is_open(window, cx) {
-            self.transient.update(cx, |state, _| state.dismiss(window));
+            self.transient
+                .update(cx, |state, cx| state.dismiss(window, cx));
             if let Some(callback) = &self.request {
                 callback(window, cx);
             }

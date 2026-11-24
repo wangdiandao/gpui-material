@@ -1,23 +1,24 @@
 use std::rc::Rc;
 
 use gpui::{
-    AccessibleAction, AnyElement, App, BorderStyle, ClickEvent, Corners, Edges, ElementId, Entity,
+    AccessibleAction, AnyElement, App, BorderStyle, ClickEvent, Corners, ElementId, Entity,
     FocusHandle, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce, Role,
     SharedString, StatefulInteractiveElement, Styled, Window, canvas, div, prelude::FluentBuilder,
     px, quad,
 };
 use gpui_base::TestSupportExt as _;
 use gpui_material_foundation::{
-    InteractionFeedback, InteractionSource, InteractionState, ThemeScope, animate, color,
-    current_material_theme, elevation_shadow_pair,
+    InteractionFeedback, InteractionSource, InteractionState, Shape, ThemeScope, animate, color,
+    current_material_theme, elevation_shadow_pair, resolve_edges,
 };
 use gpui_material_theme::{
-    ColorRole, CornerRole, CornerShape, Direction, Elevation, MotionKind, MotionSpec, MotionSpeed,
+    ColorRole, CornerRole, CornerShape, Direction, Elevation, LogicalEdges, MotionKind, MotionSpec,
+    MotionSpeed,
 };
 
 use crate::{
     action::{Activate, activate_feedback, feedback_target, ripple_state},
-    control_style::finite_length,
+    control_style::{ControlBorder, ControlElevations, finite_length},
 };
 
 /// Visual container style for [`Card`].
@@ -30,15 +31,6 @@ pub enum CardVariant {
     Filled,
     /// `Surface` fill framed by a 1 px `OutlineVariant` border.
     Outlined,
-}
-
-/// The card's stroke. A zero-width border removes the stroke.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct CardBorder {
-    /// Stroke thickness in logical pixels.
-    pub width: Pixels,
-    /// Stroke color.
-    pub color: Hsla,
 }
 
 /// Per-instance colors. Omitted fields keep their variant and window defaults.
@@ -54,44 +46,28 @@ pub struct CardColors {
     pub disabled_content: Option<Hsla>,
 }
 
-/// Shadow levels. Each omitted field keeps the variant default for its state.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct CardElevations {
-    /// Elevation while resting.
-    pub resting: Option<Elevation>,
-    /// Elevation while pressed.
-    pub pressed: Option<Elevation>,
-    /// Elevation while keyboard focus is visible.
-    pub focused: Option<Elevation>,
-    /// Elevation while hovered.
-    pub hovered: Option<Elevation>,
-    /// Elevation while marked as dragged via [`Card::dragged`].
-    pub dragged: Option<Elevation>,
-    /// Elevation while disabled.
-    pub disabled: Option<Elevation>,
-}
-
-impl CardElevations {
-    fn resolve(self, variant: CardVariant, state: InteractionState) -> Elevation {
-        let (resting, hovered, dragged) = match variant {
-            CardVariant::Elevated => (Elevation::Level1, Elevation::Level2, Elevation::Level4),
-            CardVariant::Filled => (Elevation::Level0, Elevation::Level1, Elevation::Level3),
-            CardVariant::Outlined => (Elevation::Level0, Elevation::Level0, Elevation::Level3),
-        };
-        if state.disabled {
-            self.disabled.unwrap_or(resting)
-        } else if state.dragged {
-            self.dragged.unwrap_or(dragged)
-        } else if state.pressed {
-            self.pressed.unwrap_or(resting)
-        } else if state.focus_visible {
-            self.focused.unwrap_or(resting)
-        } else if state.hovered {
-            self.hovered.unwrap_or(hovered)
-        } else {
-            self.resting.unwrap_or(resting)
-        }
-    }
+fn resolve_card_elevation(
+    elevations: ControlElevations,
+    variant: CardVariant,
+    state: InteractionState,
+) -> Elevation {
+    let (resting, hovered, dragged) = match variant {
+        CardVariant::Elevated => (Elevation::Level1, Elevation::Level2, Elevation::Level4),
+        CardVariant::Filled => (Elevation::Level0, Elevation::Level1, Elevation::Level3),
+        CardVariant::Outlined => (Elevation::Level0, Elevation::Level0, Elevation::Level3),
+    };
+    let default = if state.disabled {
+        resting
+    } else if state.dragged {
+        dragged
+    } else if state.pressed || state.focus_visible {
+        resting
+    } else if state.hovered {
+        hovered
+    } else {
+        resting
+    };
+    elevations.for_state(state).unwrap_or(default)
 }
 
 /// A static surface or a keyboard-operable action with independent child controls.
@@ -100,15 +76,15 @@ pub struct Card {
     id: ElementId,
     variant: CardVariant,
     children: Vec<AnyElement>,
-    activation: Option<(SharedString, Activate)>,
+    activation: Option<Activate>,
     accessible_label: Option<SharedString>,
     disabled: bool,
     dragged: bool,
     shape: CornerShape,
-    border: Option<CardBorder>,
+    border: Option<ControlBorder>,
     colors: CardColors,
-    elevations: CardElevations,
-    content_padding: Edges<Pixels>,
+    elevations: ControlElevations,
+    content_padding: LogicalEdges,
     gap: Pixels,
     focus: Option<FocusHandle>,
     source: Option<Entity<InteractionSource>>,
@@ -128,8 +104,8 @@ impl Card {
             shape: CornerRole::Medium.shape(),
             border: None,
             colors: CardColors::default(),
-            elevations: CardElevations::default(),
-            content_padding: Edges::all(px(16.)),
+            elevations: ControlElevations::default(),
+            content_padding: LogicalEdges::all(16.),
             gap: px(8.),
             focus: None,
             source: None,
@@ -163,13 +139,11 @@ impl Card {
         self
     }
 
-    /// Makes the card a focusable, keyboard-operable action with the given accessible name and callback.
-    pub fn on_activate(
-        mut self,
-        name: impl Into<SharedString>,
-        handler: impl Fn(&mut Window, &mut App) + 'static,
-    ) -> Self {
-        self.activation = Some((name.into(), Rc::new(handler)));
+    /// Makes the card a focusable, keyboard-operable action with the given callback.
+    ///
+    /// Supply an accessible name with [`Card::accessible_label`].
+    pub fn on_activate(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
+        self.activation = Some(Rc::new(handler));
         self
     }
 
@@ -180,7 +154,7 @@ impl Card {
     }
 
     /// Overrides the card's border width and color.
-    pub fn border(mut self, border: CardBorder) -> Self {
+    pub fn border(mut self, border: ControlBorder) -> Self {
         self.border = Some(border);
         self
     }
@@ -192,19 +166,15 @@ impl Card {
     }
 
     /// Overrides drop-shadow elevation levels per interaction state.
-    pub fn elevations(mut self, elevations: CardElevations) -> Self {
+    pub fn elevations(mut self, elevations: ControlElevations) -> Self {
         self.elevations = elevations;
         self
     }
 
-    /// Sets the card's inner padding in logical pixels. Defaults to 16 dp on all sides.
-    pub fn content_padding(mut self, padding: Edges<Pixels>) -> Self {
-        self.content_padding = Edges {
-            top: finite_length(padding.top),
-            right: finite_length(padding.right),
-            bottom: finite_length(padding.bottom),
-            left: finite_length(padding.left),
-        };
+    /// Sets the card's logical inner padding in density-independent units.
+    /// Defaults to 16 dp on all sides.
+    pub fn content_padding(mut self, padding: LogicalEdges) -> Self {
+        self.content_padding = padding.sanitize();
         self
     }
 
@@ -218,7 +188,7 @@ impl Card {
         self
     }
 
-    /// Names a static (`Role::Group`) card for assistive technology.
+    /// Sets the accessible name exposed to assistive technology for static or actionable cards.
     pub fn accessible_label(mut self, label: impl Into<SharedString>) -> Self {
         self.accessible_label = Some(label.into());
         self
@@ -254,23 +224,34 @@ impl RenderOnce for Card {
         let actionable = self.activation.is_some();
         let enabled = !self.disabled;
         let dragged = enabled && self.dragged;
-        let feedback = ripple_state(&self.id, actionable && enabled, window, cx);
-        let focus = self.focus.filter(|_| actionable).unwrap_or_else(|| {
-            window
-                .use_keyed_state((self.id.clone(), "card-focus"), cx, |_, cx| {
-                    cx.focus_handle()
-                })
-                .read(cx)
-                .clone()
+        let interactive_state = actionable.then(|| {
+            let feedback = ripple_state(&self.id, enabled, window, cx);
+            let focus = self.focus.unwrap_or_else(|| {
+                window
+                    .use_keyed_state((self.id.clone(), "card-focus"), cx, |_, cx| {
+                        cx.focus_handle()
+                    })
+                    .read(cx)
+                    .clone()
+            });
+            (feedback, focus)
         });
         let tracker = self
             .source
             .as_ref()
             .map(|source| InteractionSource::track(source, &self.id, window, cx));
-        let interaction = {
+        let interaction = if let Some((feedback, focus)) = &interactive_state {
             let mut feedback = feedback.borrow_mut();
             feedback.set_dragged(dragged);
-            feedback.track(enabled, &focus, tracker, window, cx)
+            feedback.track(enabled, focus, tracker, window, cx)
+        } else {
+            let mut state = InteractionState::default();
+            state.disabled = !enabled;
+            state.dragged = dragged;
+            if let Some(tracker) = tracker {
+                tracker.record(state, cx);
+            }
+            state
         };
 
         let theme = current_material_theme(window, cx);
@@ -303,7 +284,7 @@ impl RenderOnce for Card {
                 .content
                 .unwrap_or_else(|| tone(ColorRole::OnSurface))
         };
-        let border = self.border.unwrap_or_else(|| CardBorder {
+        let border = self.border.unwrap_or_else(|| ControlBorder {
             // Keep the default card content inset across variants.
             width: px(1.),
             color: if self.variant != CardVariant::Outlined {
@@ -330,7 +311,7 @@ impl RenderOnce for Card {
             .spec(MotionKind::Effects, MotionSpeed::Fast, reduced);
         let elevation = animate(
             (self.id.clone(), "card-shadow"),
-            self.elevations.resolve(self.variant, interaction).dp(),
+            resolve_card_elevation(self.elevations, self.variant, interaction).dp(),
             if enabled {
                 elevation_motion
             } else {
@@ -354,17 +335,23 @@ impl RenderOnce for Card {
             cx,
         )
         .clamp(0., 1.);
-        let geometry = feedback.clone();
-        let paint_feedback = feedback.clone();
+        let geometry = interactive_state
+            .as_ref()
+            .map(|(feedback, _)| feedback.clone());
+        let paint_feedback = interactive_state
+            .as_ref()
+            .map(|(feedback, _)| feedback.clone());
         let shape = self.shape;
         let visual = canvas(
             move |bounds, window, _| {
-                if enabled && (actionable || dragged) {
-                    geometry
-                        .borrow_mut()
-                        .set_rounded_shape(bounds, shape, direction, window);
-                } else {
-                    geometry.borrow_mut().set_shape(None, window);
+                if let Some(geometry) = &geometry {
+                    if enabled {
+                        geometry
+                            .borrow_mut()
+                            .set_rounded_shape(bounds, shape, direction, window);
+                    } else {
+                        geometry.borrow_mut().set_shape(None, window);
+                    }
                 }
                 let [top_left, top_right, bottom_right, bottom_left] = shape
                     .radii(
@@ -392,11 +379,23 @@ impl RenderOnce for Card {
                     border_color,
                     BorderStyle::Solid,
                 ));
-                let feedback = paint_feedback.borrow();
-                if let Some(shape) = feedback.shape() {
+                if let Some(paint_feedback) = &paint_feedback {
+                    let feedback = paint_feedback.borrow();
+                    if let Some(shape) = feedback.shape() {
+                        InteractionFeedback::new(interaction, foreground, ring).paint_with_opacity(
+                            shape,
+                            feedback.ripple(),
+                            layer,
+                            cx.background_executor().now(),
+                            reduced,
+                            window,
+                        );
+                    }
+                } else if dragged && let Some(drag_shape) = Shape::rounded(bounds, shape, direction)
+                {
                     InteractionFeedback::new(interaction, foreground, ring).paint_with_opacity(
-                        shape,
-                        feedback.ripple(),
+                        &drag_shape,
+                        None,
                         layer,
                         cx.background_executor().now(),
                         reduced,
@@ -408,16 +407,17 @@ impl RenderOnce for Card {
         .absolute()
         .inset_0()
         .size_full();
+        let padding = resolve_edges(self.content_padding, direction);
         let content = apply_corner_shape(
             div()
                 .relative()
                 .w_full()
                 .overflow_hidden()
                 .text_color(foreground)
-                .pt(self.content_padding.top + border_width)
-                .pr(self.content_padding.right + border_width)
-                .pb(self.content_padding.bottom + border_width)
-                .pl(self.content_padding.left + border_width)
+                .pt(padding.top + border_width)
+                .pr(padding.right + border_width)
+                .pb(padding.bottom + border_width)
+                .pl(padding.left + border_width)
                 .flex()
                 .flex_col()
                 .gap(self.gap),
@@ -431,8 +431,8 @@ impl RenderOnce for Card {
             .w_full()
             .child(visual)
             .child(content);
-        match self.activation {
-            Some((name, activate)) => {
+        match (self.activation, interactive_state) {
+            (Some(activate), Some((feedback, focus))) => {
                 let activate = Rc::new(ThemeScope::bind_action(
                     move |window, cx| activate(window, cx),
                     window,
@@ -447,7 +447,9 @@ impl RenderOnce for Card {
                     .w_full()
                     .border_2()
                     .border_color(gpui::transparent_black())
-                    .accessibility_label(name)
+                    .when_some(self.accessible_label, |control, label| {
+                        control.accessibility_label(label)
+                    })
                     .when(enabled && !dragged, |control| {
                         feedback_target(control, feedback, true, Some(focus))
                     })
@@ -462,7 +464,10 @@ impl RenderOnce for Card {
                                 cx.stop_propagation();
                                 let native_drag =
                                     matches!(event, ClickEvent::Mouse(_)) && cx.has_active_drag();
-                                if !native_drag && !press.borrow().blocks_activation(event) {
+                                if !dragged
+                                    && !native_drag
+                                    && !press.borrow().blocks_activation(event)
+                                {
                                     activate_feedback(event, &press, window, cx);
                                     activate(window, cx);
                                 }
@@ -471,7 +476,7 @@ impl RenderOnce for Card {
                     .child(surface)
                     .into_any_element()
             }
-            None => div()
+            _ => div()
                 .id(self.id)
                 .test_support()
                 .role(Role::Group)
@@ -502,7 +507,7 @@ mod tests {
 
     #[test]
     fn elevation_overrides_resolve_each_state_and_precedence() {
-        let levels = CardElevations {
+        let levels = ControlElevations {
             resting: Some(Level0),
             hovered: Some(Level1),
             focused: Some(Level2),
@@ -516,40 +521,40 @@ mod tests {
             CardVariant::Outlined,
         ] {
             let mut state = InteractionState::default();
-            assert_eq!(levels.resolve(variant, state), Level0);
+            assert_eq!(resolve_card_elevation(levels, variant, state), Level0);
             state.hovered = true;
-            assert_eq!(levels.resolve(variant, state), Level1);
+            assert_eq!(resolve_card_elevation(levels, variant, state), Level1);
             state.focus_visible = true;
-            assert_eq!(levels.resolve(variant, state), Level2);
+            assert_eq!(resolve_card_elevation(levels, variant, state), Level2);
             state.pressed = true;
-            assert_eq!(levels.resolve(variant, state), Level3);
+            assert_eq!(resolve_card_elevation(levels, variant, state), Level3);
             state.dragged = true;
-            assert_eq!(levels.resolve(variant, state), Level4);
+            assert_eq!(resolve_card_elevation(levels, variant, state), Level4);
             state.disabled = true;
-            assert_eq!(levels.resolve(variant, state), Level5);
+            assert_eq!(resolve_card_elevation(levels, variant, state), Level5);
         }
     }
 
     #[test]
     fn omitted_elevations_keep_the_pinned_variant_values() {
-        let levels = CardElevations::default();
+        let levels = ControlElevations::default();
         for (variant, resting, hovered, dragged) in [
             (CardVariant::Elevated, Level1, Level2, Level4),
             (CardVariant::Filled, Level0, Level1, Level3),
             (CardVariant::Outlined, Level0, Level0, Level3),
         ] {
             let mut state = InteractionState::default();
-            assert_eq!(levels.resolve(variant, state), resting);
+            assert_eq!(resolve_card_elevation(levels, variant, state), resting);
             state.hovered = true;
-            assert_eq!(levels.resolve(variant, state), hovered);
+            assert_eq!(resolve_card_elevation(levels, variant, state), hovered);
             state.focus_visible = true;
-            assert_eq!(levels.resolve(variant, state), resting);
+            assert_eq!(resolve_card_elevation(levels, variant, state), resting);
             state.pressed = true;
-            assert_eq!(levels.resolve(variant, state), resting);
+            assert_eq!(resolve_card_elevation(levels, variant, state), resting);
             state.dragged = true;
-            assert_eq!(levels.resolve(variant, state), dragged);
+            assert_eq!(resolve_card_elevation(levels, variant, state), dragged);
             state.disabled = true;
-            assert_eq!(levels.resolve(variant, state), resting);
+            assert_eq!(resolve_card_elevation(levels, variant, state), resting);
         }
     }
 

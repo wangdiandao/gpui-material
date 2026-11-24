@@ -610,7 +610,7 @@ pub static BREADCRUMBS: Playground = Playground {
         let on_status = ctx.on_status(cx);
         let items = if cfg.option("depth") == "5 levels" {
             vec![
-                BreadcrumbItem::new("home", "Workspace").icon(Icon::new(IconName::Inbox)),
+                BreadcrumbItem::new("home", "Workspace").icon(|| Icon::new(IconName::Inbox)),
                 BreadcrumbItem::new("org", "Engineering"),
                 BreadcrumbItem::new("team", "Desktop UI"),
                 BreadcrumbItem::new("crate", "Components"),
@@ -618,7 +618,7 @@ pub static BREADCRUMBS: Playground = Playground {
             ]
         } else {
             vec![
-                BreadcrumbItem::new("home", "Workspace").icon(Icon::new(IconName::Inbox)),
+                BreadcrumbItem::new("home", "Workspace").icon(|| Icon::new(IconName::Inbox)),
                 BreadcrumbItem::new("projects", "Projects"),
                 BreadcrumbItem::new("roadmap", "2026 Roadmap"),
             ]

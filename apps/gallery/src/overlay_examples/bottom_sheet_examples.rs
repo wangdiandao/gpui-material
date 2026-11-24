@@ -2,7 +2,7 @@ use gpui::{
     AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, div, px,
 };
 use gpui_material::{
-    BottomSheetState, BottomSheetValue, Button, Scaffold, ScaffoldInsets, Sheet, SheetMode, Text,
+    BottomSheetState, BottomSheetValue, Button, LogicalEdges, Scaffold, Sheet, SheetMode, Text,
 };
 
 use crate::story::{section, stack};
@@ -49,7 +49,7 @@ impl Render for BottomSheetExamples {
                                 .handle_label("Resize package sheet")
                                 .handle_content(Text::new("Build packages").id("packages-grip")),
                             )
-                            .content_insets(ScaffoldInsets { bottom: px(72.), ..ScaffoldInsets::default() }),
+                            .content_insets(LogicalEdges { bottom: 72., ..LogicalEdges::default() }),
                     )),
             )
             .child(

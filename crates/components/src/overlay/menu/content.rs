@@ -1,197 +1,31 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
-use crate::menu_appearance::menu_pivot;
-use crate::menu_appearance::{
-    MenuColor, MenuItemStyle, MenuSurfaceStyle, Paint, Palette, axis_padding,
-};
-use crate::{Divider, SemanticTone};
 use gpui::{
-    Anchor, AnyElement, App, Axis, ElementId, FocusHandle, InteractiveElement, IntoElement,
-    ParentElement, Role, SharedString, StatefulInteractiveElement, Styled, Window, div,
-    prelude::FluentBuilder, px,
+    Anchor, AnyElement, App, Axis, FocusHandle, InteractiveElement, IntoElement, ParentElement,
+    Role, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
-use gpui_base::{Positioner, TestSupportExt};
-use gpui_material_foundation::{OverlayMotion, ScaledOverlay};
-use gpui_material_foundation::{ThemeScope, current_material_theme, move_roving_focus};
-use gpui_material_theme::{ColorRole, CornerRole, CornerShape, Direction, StateLayer, TypeRole};
-
-use super::{
-    Action, ItemSlots, Kind, Menu, MenuItem, MenuPresentation, PopupBounds, PresentedMenu,
+use gpui_base::TestSupportExt;
+use gpui_material_foundation::{OverlayMotion, current_material_theme, move_roving_focus};
+use gpui_material_theme::{
+    ColorRole, CornerRole, CornerShape, Direction, LogicalEdges, StateLayer, TypeRole,
 };
 
-pub(super) struct MenuExitRow {
-    label: SharedString,
-    disabled: bool,
-    heading: bool,
-    divider: bool,
-    section: Option<(MenuSurfaceStyle, Rc<[MenuExitRow]>)>,
-    selected: bool,
-    submenu: bool,
-    slots: ItemSlots,
-    tone: SemanticTone,
-    style: MenuItemStyle,
-}
+use crate::menu_appearance::{MenuColor, MenuItemStyle, Paint, Palette};
+use crate::{Divider, SemanticTone};
 
-impl From<&MenuItem> for MenuExitRow {
-    fn from(item: &MenuItem) -> Self {
-        Self {
-            label: item.label.clone(),
-            disabled: item.disabled,
-            heading: matches!(item.kind, Kind::Heading),
-            divider: matches!(item.kind, Kind::Divider),
-            section: match &item.kind {
-                Kind::Section { rows, style, .. } => {
-                    Some((*style, rows.iter().map(Self::from).collect()))
-                }
-                _ => None,
-            },
-            selected: matches!(item.kind, Kind::Check(true, _) | Kind::Select(true, _)),
-            submenu: matches!(item.kind, Kind::Submenu(_)),
-            slots: item.slots.clone(),
-            tone: item.tone,
-            style: item.style,
-        }
-    }
-}
+use super::Menu;
+use super::item::{Action, Kind, MenuItem};
+use super::state::{MenuPresentation, PopupBounds};
 
-pub(super) fn menu_exit(
-    (id, depth): (&ElementId, usize),
-    bounds: &PopupBounds,
-    motion: OverlayMotion,
-    direction: Direction,
-    window: &Window,
-    cx: &App,
-) -> Option<AnyElement> {
-    let exit = bounds.popup.get();
-    if exit.size.width <= px(0.) {
-        return None;
-    }
-    let presented = bounds.presented.borrow();
-    let PresentedMenu {
-        items,
-        presentation,
-    } = presented.as_ref()?;
-    let trigger = bounds.trigger.get();
-    let theme = current_material_theme(window, cx);
-    let paint = Paint {
-        theme: &theme,
-        motion,
-        direction,
-    };
-    let palette = presentation
-        .color
-        .palette(false, presentation.appearance.container);
-    let surface = div()
-        .id(match depth {
-            0 => ElementId::from((id.clone(), "menu-exit")),
-            1 => ElementId::from((id.clone(), "submenu-exit-1")),
-            2 => ElementId::from((id.clone(), "submenu-exit-2")),
-            3 => ElementId::from((id.clone(), "submenu-exit-3")),
-            _ => ElementId::from((id.clone(), format!("submenu-exit-{depth}"))),
-        })
-        .test_support()
-        .h(exit.size.height * motion.scale)
-        .w(exit.size.width * motion.scale)
-        .opacity(motion.alpha)
-        .overflow_y_scroll()
-        .track_scroll(&presentation.scroll)
-        .child(
-            paint
-                .surface(presentation.appearance, palette, false)
-                .w_full()
-                .children(presentation.decoration.as_ref().map(|build| build()))
-                .children(exit_rows(items, paint, presentation.color, palette, false)),
-        )
-        .child(div().absolute().inset_0().occlude());
-    Some(
-        gpui::deferred(Positioner::corner(Anchor::TopLeft, exit.origin).child(
-            ThemeScope::inherit(
-                ScaledOverlay::new(
-                    super::super::text_style(
-                        surface,
-                        TypeRole::LabelLarge,
-                        motion.scale,
-                        window,
-                        cx,
-                    ),
-                    motion,
-                    move |bounds| menu_pivot(bounds, trigger),
-                ),
-                window,
-                cx,
-            ),
-        ))
-        .with_priority(100 + depth)
-        .into_any_element(),
-    )
-}
-
-fn exit_rows(
-    items: &[MenuExitRow],
-    paint: Paint<'_>,
-    preset: MenuColor,
-    palette: Palette,
-    grouped: bool,
-) -> Vec<AnyElement> {
-    items
-        .iter()
-        .enumerate()
-        .map(|(index, item)| {
-            if let Some((style, children)) = &item.section {
-                let palette = preset.palette(true, style.container);
-                return paint
-                    .surface(*style, palette, true)
-                    .child(menu_heading(
-                        item.slots.label(item.label.clone()),
-                        paint,
-                        palette,
-                    ))
-                    .children(exit_rows(children, paint, preset, palette, true))
-                    .into_any_element();
-            }
-            if item.heading {
-                return menu_heading(item.slots.label(item.label.clone()), paint, palette)
-                    .into_any_element();
-            }
-            if item.divider {
-                return menu_divider(paint).into_any_element();
-            }
-            let style = row_shape(item.style, grouped, index, items.len(), item.selected);
-            let (background, ink, supporting, shortcut) = row_colors(
-                item.style,
-                item.tone,
-                paint,
-                palette,
-                item.selected,
-                !item.disabled,
-            );
-            row_layout(div().flex().items_center(), item.style, style, paint)
-                .text_color(ink)
-                .when(item.selected || item.style.container.is_some(), |row| {
-                    row.bg(background)
-                })
-                .children(item.slots.children(
-                    item.label.clone(),
-                    item.selected,
-                    item.submenu,
-                    paint,
-                    (supporting, shortcut),
-                    false,
-                ))
-                .into_any_element()
-        })
-        .collect()
-}
-
-fn menu_divider(paint: Paint<'_>) -> gpui::Div {
+pub(super) fn menu_divider(paint: Paint<'_>) -> gpui::Div {
     div()
         .w_full()
         .py(paint.motion.px(4.))
         .child(Divider::horizontal().thickness(paint.motion.px(1.).max(px(1.))))
 }
 
-fn menu_heading(label: AnyElement, paint: Paint<'_>, palette: Palette) -> gpui::Div {
+pub(super) fn menu_heading(label: AnyElement, paint: Paint<'_>, palette: Palette) -> gpui::Div {
     div()
         .px(paint.motion.px(12.))
         .py(paint.motion.px(8.))
@@ -199,7 +33,7 @@ fn menu_heading(label: AnyElement, paint: Paint<'_>, palette: Palette) -> gpui::
         .child(label)
 }
 
-fn row_shape(
+pub(super) fn row_shape(
     style: MenuItemStyle,
     grouped: bool,
     index: usize,
@@ -227,24 +61,23 @@ fn row_shape(
     }
 }
 
-fn row_layout<E: Styled + FluentBuilder>(
+pub(super) fn row_layout<E: Styled + FluentBuilder>(
     element: E,
     style: MenuItemStyle,
     shape: CornerShape,
     paint: Paint<'_>,
 ) -> E {
+    let min_height = paint.theme.layout.density.visual_size(48.);
     let element = element
         .justify_start()
         .w_full()
-        .min_h(paint.motion.px(48.))
+        .min_h(paint.motion.px(min_height))
         .line_height(paint.motion.px(20. * paint.theme.typography.text_scale()))
         .gap(paint.length(style.spacing.unwrap_or(px(8.))))
         .when(paint.direction == Direction::Rtl, Styled::flex_row_reverse);
     let element = paint.padding(
         element,
-        style
-            .padding
-            .unwrap_or_else(|| axis_padding(px(12.), px(0.))),
+        style.padding.unwrap_or(LogicalEdges::symmetric(12., 0.)),
     );
     paint.shape(element, shape)
 }
@@ -292,7 +125,7 @@ fn row_color_roles(
     }
 }
 
-fn row_colors(
+pub(super) fn row_colors(
     style: MenuItemStyle,
     tone: SemanticTone,
     paint: Paint<'_>,
@@ -620,7 +453,6 @@ mod tests {
         use ColorRole::*;
         let palette = MenuColor::Standard.palette(false, None);
 
-        // Default tone preserves standard menu palette.
         assert_eq!(
             row_color_roles(
                 MenuItemStyle::default(),
@@ -637,7 +469,6 @@ mod tests {
             )
         );
 
-        // Semantic tones tint enabled foreground and selected roles.
         for (tone, role, container, on_container) in [
             (
                 SemanticTone::Danger,
@@ -671,7 +502,6 @@ mod tests {
             assert_eq!(sel_fg, on_container);
         }
 
-        // Disabled appearance takes precedence over semantic tone.
         let (_, disabled_fg, _, disabled_shortcut) = row_color_roles(
             MenuItemStyle::default(),
             SemanticTone::Danger,
@@ -682,7 +512,6 @@ mod tests {
         assert_eq!(disabled_fg, OnSurface);
         assert_eq!(disabled_shortcut, OnSurface);
 
-        // Explicit MenuItemStyle overrides take precedence over semantic tone.
         let style = MenuItemStyle {
             content: Some(Primary),
             selected_container: Some(TertiaryContainer),

@@ -3,9 +3,9 @@ use gpui::{
     prelude::FluentBuilder, px,
 };
 use gpui_material::{
-    Button, ButtonVariant, ControlSize, Icon, IconName, List, ListItem, ListItemAlignment,
-    ListItemColors, ListItemElevations, ListItemPadding, ListItemShapes, ListItemStateColors,
-    ListVariant, SwipeToDismissState, SwipeToDismissValue, Text, foundation::InteractionSource,
+    Button, ButtonVariant, ControlElevations, ControlSize, Icon, IconName, List, ListItem,
+    ListItemAlignment, ListItemColors, ListItemShapes, ListItemStateColors, ListVariant,
+    LogicalEdges, SwipeToDismissState, SwipeToDismissValue, Text, foundation::InteractionSource,
     foundation::color, foundation::window_material_theme, theme::ColorRole, theme::CornerRole,
     theme::Elevation, theme::TypeRole,
 };
@@ -97,8 +97,8 @@ impl Render for ListExamples {
             })
             .long_press_button("notes-details")
             .vertical_alignment(ListItemAlignment::Start)
-            .content_padding(ListItemPadding {
-                start: px(20.),
+            .content_padding(LogicalEdges {
+                start: 20.,
                 ..Default::default()
             })
             .shapes(ListItemShapes {
@@ -106,7 +106,7 @@ impl Render for ListExamples {
                 pressed: Some(CornerRole::Large.shape()),
                 ..Default::default()
             })
-            .elevations(ListItemElevations {
+            .elevations(ControlElevations {
                 hovered: Some(Elevation::Level1),
                 ..Default::default()
             })
@@ -137,7 +137,7 @@ impl Render for ListExamples {
                     ])
                     .when(!self.dismissed, |list| {
                         list.items([ListItem::new("release-download", "Release download")
-                            .supporting_text("Swipe toward the start to remove")
+                            .supporting("Swipe toward the start to remove")
                             .trailing(
                                 Button::new("remove-download", "Remove download")
                                     .variant(ButtonVariant::Text)

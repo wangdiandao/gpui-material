@@ -12,8 +12,8 @@ use gpui::{
 };
 use gpui_base::test_support::find;
 use gpui_material::{
-    Button, DialogCloseReason as Reason, DialogProperties, DialogState, MaterialRoot, Sheet,
-    SheetEdge, SheetMargins, SheetMode, SheetPlacement,
+    Button, DialogCloseReason as Reason, DialogProperties, DialogState, LogicalEdges, MaterialRoot,
+    Sheet, SheetEdge, SheetMode, SheetPlacement,
     foundation::{set_window_material_theme, window_material_theme},
     theme::Direction,
 };
@@ -88,11 +88,11 @@ impl Render for Probe {
                 .mode(self.shared.mode.get())
                 .extent(px(245.))
                 .placement(self.shared.placement.get())
-                .margins(SheetMargins {
-                    top: px(11.),
-                    bottom: px(19.),
-                    start: px(13.),
-                    end: px(27.),
+                .margins(LogicalEdges {
+                    top: 11.,
+                    bottom: 19.,
+                    start: 13.,
+                    end: 27.,
                 })
                 .header_content(div().child("Inspect filters"))
                 .back("Back to inspection", move |_, _| {
@@ -115,7 +115,7 @@ impl Render for Probe {
                     request.requests.borrow_mut().push(reason);
                     request.allow_close.get()
                 })
-                .on_close(move |reason, _, _| closed.closes.borrow_mut().push(reason)),
+                .on_closed(move |reason, _, _| closed.closes.borrow_mut().push(reason)),
             )
     }
 }

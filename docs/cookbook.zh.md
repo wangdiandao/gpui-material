@@ -603,7 +603,7 @@ fn render_overlays(
 在交互控件（`Button`、`Checkbox`、`Radio`、`Switch`、`Chip`、`Surface` 以及 `Slider::track_focus(RangeThumb::End, &focus)`）上通过 `.track_focus(&self.handle)` 绑定调用方持有的 `FocusHandle`，用于删除条目或关闭视图后的焦点恢复。
 
 - 可移除标签将恢复目标传给 `Chip::on_remove(label, Some(self.restore.clone()), handler)`，通过点击、`Backspace` 或 `Delete` 删除时焦点会按预期转移。
-- 自定义虚拟列表可调用 `ListItem::track_focus(&row_focus, is_active_tab_stop)` 提供持久行焦点与单一 roving Tab stop，同时由集合负责完整模型的方向键导航和滚动显示。
+- 自定义虚拟列表可调用 `ListItem::track_focus(&row_focus).tab_stop(is_active_tab_stop)` 提供持久行焦点与单一 roving Tab stop，同时由集合负责完整模型的方向键导航和滚动显示。
 
 ### 使用 `InteractionSource` 观测交互状态
 

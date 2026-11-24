@@ -3,7 +3,7 @@ mod paint;
 
 use gpui::{
     App, Bounds, ContentMask, ElementId, Hsla, IntoElement, ParentElement, Pixels, RenderOnce,
-    SharedString, Styled, Window, canvas, px,
+    SharedString, StatefulInteractiveElement, Styled, Window, canvas, px,
 };
 use gpui_material_foundation::{animate, color, current_material_theme, is_bounds_visible};
 use gpui_material_theme::{ColorRole, Direction, MotionKind, MotionSpec, MotionSpeed};
@@ -18,6 +18,7 @@ const STOP_SIZE: f32 = 4.;
 const LINEAR_AMPLITUDE: f32 = 3.;
 const CIRCULAR_AMPLITUDE: f32 = 1.6;
 const CIRCULAR_WAVELENGTH: f32 = 15.;
+const MIN_WAVELENGTH: f32 = 1.;
 const MAX_WAVES: f32 = 128.;
 
 /// Straight or Expressive wavy active progress indicator.
@@ -118,16 +119,6 @@ impl Progress {
         let track = Stroke::resolve(self.track, color(theme.colors.color(track_role)));
         let reduced = cx.reduce_motion();
         let window_active = window.is_window_active();
-        let effects = theme.motion.spec(
-            MotionKind::Effects,
-            MotionSpeed::Default,
-            reduced || !window_active,
-        );
-        let spatial = theme.motion.spec(
-            MotionKind::Spatial,
-            MotionSpeed::Default,
-            reduced || !window_active,
-        );
         let direction = theme.layout.direction;
         let value = self
             .value
@@ -137,12 +128,19 @@ impl Progress {
         let motion = window.use_keyed_state((self.id.clone(), "progress-motion"), cx, |_, _| {
             ProgressMotion::new(value.unwrap_or(0.4))
         });
-        let target = motion.update(cx, |state, _| {
+        let (target, visible) = motion.update(cx, |state, _| {
             if let Some(value) = value {
                 state.last_measured = value;
             }
-            state.last_measured
+            (state.last_measured, state.visible)
         });
+        let instant = reduced || !window_active || !window.is_visible() || !visible;
+        let effects = theme
+            .motion
+            .spec(MotionKind::Effects, MotionSpeed::Default, instant);
+        let spatial = theme
+            .motion
+            .spec(MotionKind::Spatial, MotionSpeed::Default, instant);
         let mode = animate(
             (self.id.clone(), "indeterminate-mix"),
             f32::from(!measured),
@@ -181,11 +179,14 @@ impl Progress {
         } else {
             0.
         };
-        let wavelength = self.wavelength.unwrap_or(if circular {
-            CIRCULAR_WAVELENGTH
-        } else {
-            40. - 20. * mode
-        });
+        let wavelength = self
+            .wavelength
+            .unwrap_or(if circular {
+                CIRCULAR_WAVELENGTH
+            } else {
+                40. - 20. * mode
+            })
+            .max(MIN_WAVELENGTH);
         let hz = self
             .wave_speed
             .map_or(1., |speed| f64::from(speed) / f64::from(wavelength));
@@ -295,6 +296,12 @@ impl Progress {
             .accessibility_label(self.name)
             .h(px(side))
             .child(picture);
+        if !measured {
+            element = element.a11y_synthetic_children(|node| {
+                node.parent_node().set_live(gpui::accesskit::Live::Polite);
+                node.parent_node().set_live_atomic();
+            });
+        }
         if circular {
             element = element.w(px(side)).flex_none();
         } else {
@@ -411,9 +418,11 @@ macro_rules! progress_api {
                 self
             }
 
-            /// Sets crest spacing in logical pixels.
+            /// Sets crest spacing in logical pixels. Clamped to a minimum of `1 px` to avoid numerical overflow.
             pub fn wavelength(mut self, length: Pixels) -> Self {
-                self.0.wavelength = nonnegative_length(length).filter(|length| *length > 0.);
+                self.0.wavelength = nonnegative_length(length)
+                    .filter(|length| *length > 0.)
+                    .map(|length| length.max(MIN_WAVELENGTH));
                 self
             }
 
@@ -462,5 +471,22 @@ mod tests {
             progress_tone_roles(SemanticTone::Info),
             (Info, InfoContainer)
         );
+    }
+
+    #[test]
+    fn wavelength_clamps_minimum_and_rejects_non_finite_values() {
+        let clamped = LinearProgress::new("p1", "Loading").wavelength(px(f32::MIN_POSITIVE));
+        assert_eq!(clamped.0.wavelength, Some(MIN_WAVELENGTH));
+
+        let sub_pixel = CircularProgress::new("p2", "Loading").wavelength(px(0.25));
+        assert_eq!(sub_pixel.0.wavelength, Some(MIN_WAVELENGTH));
+
+        let valid = LinearProgress::new("p3", "Loading").wavelength(px(12.));
+        assert_eq!(valid.0.wavelength, Some(12.));
+
+        for invalid in [0., -5., f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            let progress = LinearProgress::new("p4", "Loading").wavelength(px(invalid));
+            assert_eq!(progress.0.wavelength, None);
+        }
     }
 }

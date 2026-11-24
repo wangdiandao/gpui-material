@@ -645,7 +645,8 @@ fn track_focus_attaches_caller_handles_to_chip_checkbox_radio_switch_and_card(
                     .child(
                         Card::new("tracked-card")
                             .track_focus(&self.card_focus)
-                            .on_activate("Tracked card", |_, _| {})
+                            .accessible_label("Tracked card")
+                            .on_activate(|_, _| {})
                             .child("Card body"),
                     ),
             )

@@ -276,7 +276,7 @@ fn controlled_menu_applies_only_accepted_requests_and_keeps_nested_escape_local(
                     cx.notify();
                 });
             })
-            .on_dismiss(move |_, cx| {
+            .on_dismiss_request(move |_, cx| {
                 let _ = dismiss.update(cx, |state, _| state.dismissals += 1);
             })
         }

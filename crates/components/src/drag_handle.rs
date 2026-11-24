@@ -1,25 +1,27 @@
+mod pointer;
+mod state;
+
 use std::{ops::RangeInclusive, rc::Rc};
 
 use gpui::{
-    AccessibleAction, App, Bounds, Context, Corners, ElementId, Entity, FocusHandle, Hitbox,
-    HitboxBehavior, HitboxId, Hsla, InteractiveElement, IntoElement, MouseButton, MouseDownEvent,
-    MouseExitEvent, MouseMoveEvent, MouseUpEvent, ParentElement, Pixels, Point, RenderOnce, Role,
-    SharedString, Size, StatefulInteractiveElement, Styled, Subscription, TouchDragEvent,
-    TouchPhase, Window,
+    AccessibleAction, App, Bounds, Corners, ElementId, Entity, HitboxBehavior, Hsla,
+    InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce, Role, SharedString, Size,
+    StatefulInteractiveElement, Styled, Window,
     accesskit::{ActionData, Orientation},
     canvas, div, fill, point, px, size,
 };
 use gpui_base::TestSupportExt as _;
 use gpui_material_foundation::{
-    DragCapture, InteractionFeedback, InteractionSource, InteractionState, InteractionTracker,
-    Shape, color, current_material_theme,
+    InteractionFeedback, InteractionSource, InteractionState, Shape, color, current_material_theme,
 };
-use gpui_material_theme::{ColorRole, CornerRole, CornerShape, Direction};
+use gpui_material_theme::{ColorRole, CornerRole, CornerShape};
+
+use pointer::pointer_listeners;
+use state::{HandleState, ResizeBinding, ResizeRequest, logical_delta};
 
 const REST_SIZE: Size<Pixels> = size(px(4.), px(48.));
 const ACTIVE_SIZE: Size<Pixels> = size(px(12.), px(52.));
 const DEFAULT_STEP: Pixels = px(8.);
-const DRAG_SLOP: Pixels = px(4.);
 
 /// Visual sizes in logical pixels. Omitted values use Material defaults.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -52,25 +54,6 @@ pub struct DragHandleShapes {
     pub pressed: Option<CornerShape>,
     /// Corner shape while actively dragged. Defaults to `CornerRole::Medium`.
     pub dragged: Option<CornerShape>,
-}
-
-type ResizeRequest = Rc<dyn Fn(Pixels, &mut Window, &mut App)>;
-
-struct ResizeBinding {
-    label: SharedString,
-    width: Pixels,
-    min: Pixels,
-    max: Pixels,
-    request: ResizeRequest,
-}
-
-impl ResizeBinding {
-    fn request(&self, width: Pixels, window: &mut Window, cx: &mut App) {
-        let width = width.clamp(self.min, self.max);
-        if width != self.width {
-            (self.request)(width, window, cx);
-        }
-    }
 }
 
 /// A vertical Material handle for a horizontally adjustable boundary.
@@ -196,159 +179,6 @@ fn handle_size(value: Option<Size<Pixels>>, fallback: Size<Pixels>) -> Size<Pixe
     })
 }
 
-struct PointerPress {
-    mouse_capture: Option<(HitboxId, DragCapture)>,
-    origin: Point<Pixels>,
-    width_at_press: Option<Pixels>,
-    last_request: Option<Pixels>,
-    dragged: bool,
-}
-
-impl PointerPress {
-    fn new(
-        origin: Point<Pixels>,
-        width: Option<Pixels>,
-        mouse_capture: Option<(HitboxId, DragCapture)>,
-    ) -> Self {
-        Self {
-            mouse_capture,
-            origin,
-            width_at_press: width,
-            last_request: width,
-            dragged: false,
-        }
-    }
-}
-
-struct HandleState {
-    focus: FocusHandle,
-    press: Option<PointerPress>,
-    hovered: bool,
-    direction: Direction,
-    adjustable: bool,
-    resize_context: Option<Size<Pixels>>,
-    tracker: Option<InteractionTracker>,
-    _blur: Subscription,
-    _activation: Subscription,
-}
-
-impl HandleState {
-    fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let focus = cx.focus_handle().tab_stop(true);
-        let blur = cx.on_blur(&focus, window, |state, window, cx| {
-            state.end(window);
-            state.publish(window, cx);
-        });
-        let activation = cx.observe_window_activation(window, |state, window, cx| {
-            if !window.is_window_active() {
-                state.end(window);
-                state.hovered = false;
-                state.publish(window, cx);
-            }
-        });
-        let handle = window.window_handle();
-        cx.on_release(move |state: &mut Self, cx| {
-            if let Some((hitbox, _)) = state.press.take().and_then(|press| press.mouse_capture) {
-                cx.defer(move |cx| {
-                    let _ = handle.update(cx, |_, window, _| release_pointer(hitbox, window));
-                });
-            }
-        })
-        .detach();
-        Self {
-            focus,
-            press: None,
-            hovered: false,
-            direction: Direction::Ltr,
-            adjustable: false,
-            resize_context: None,
-            tracker: None,
-            _blur: blur,
-            _activation: activation,
-        }
-    }
-
-    fn snapshot(&self, window: &Window) -> InteractionState {
-        let mut state = InteractionState::default();
-        state.hovered = self.hovered;
-        state.pressed = self.press.is_some();
-        state.dragged = self.press.as_ref().is_some_and(|press| press.dragged);
-        state.focus_visible =
-            self.adjustable && self.focus.is_focused(window) && window.last_input_was_keyboard();
-        state
-    }
-
-    fn record(&self, window: &Window, cx: &mut App) {
-        if let Some(tracker) = &self.tracker {
-            tracker.record(self.snapshot(window), cx);
-        }
-    }
-
-    fn publish(&self, window: &mut Window, cx: &mut Context<Self>) {
-        self.record(window, cx);
-        cx.notify();
-        window.refresh();
-    }
-
-    fn end(&mut self, window: &mut Window) {
-        if let Some((hitbox, _)) = self.press.take().and_then(|press| press.mouse_capture) {
-            release_pointer(hitbox, window);
-        }
-    }
-
-    fn final_pointer_width(&self) -> Option<Pixels> {
-        self.press
-            .as_ref()
-            .filter(|press| press.dragged)?
-            .last_request
-    }
-
-    fn mouse_pressed(&self) -> bool {
-        self.press
-            .as_ref()
-            .is_some_and(|press| press.mouse_capture.is_some())
-    }
-
-    fn move_pointer(
-        &mut self,
-        position: Point<Pixels>,
-        resize: Option<&ResizeBinding>,
-    ) -> Option<Pixels> {
-        let press = self.press.as_mut()?;
-        let delta = position - press.origin;
-        if !press.dragged {
-            press.dragged = starts_horizontal_drag(delta);
-        }
-        if !press.dragged {
-            return None;
-        }
-        let resize = resize?;
-        let origin = press.width_at_press?;
-        // Use the physical press origin even when the owner moves the handle
-        // or rejects a request while it is being dragged.
-        let value = (origin + logical_delta(delta.x, self.direction)).clamp(resize.min, resize.max);
-        (press.last_request.replace(value) != Some(value)).then_some(value)
-    }
-}
-
-fn starts_horizontal_drag(delta: Point<Pixels>) -> bool {
-    delta.x.abs() >= DRAG_SLOP && delta.x.abs() > delta.y.abs()
-}
-
-fn release_pointer(id: HitboxId, window: &mut Window) {
-    if window.captured_hitbox() == Some(id) {
-        window.release_pointer();
-    }
-}
-
-fn logical_delta(delta: Pixels, direction: Direction) -> Pixels {
-    if direction == Direction::Rtl {
-        -delta
-    } else {
-        delta
-    }
-}
-
 impl RenderOnce for VerticalDragHandle {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = current_material_theme(window, cx);
@@ -449,7 +279,6 @@ impl RenderOnce for VerticalDragHandle {
             },
         )
         .size_full();
-        let cancel = state.clone();
         let mut root = div()
             .id(self.id)
             .test_support()
@@ -457,16 +286,7 @@ impl RenderOnce for VerticalDragHandle {
             .w(width)
             .h(height)
             .cursor_col_resize()
-            .child(target)
-            .capture_key_down(move |event, window, cx| {
-                if event.keystroke.key == "escape" && cancel.read(cx).press.is_some() {
-                    cancel.update(cx, |state, cx| {
-                        state.end(window);
-                        state.publish(window, cx);
-                    });
-                    cx.stop_propagation();
-                }
-            });
+            .child(target);
         if let Some(resize) = self.resize {
             let step = self.keyboard_step;
             let increase = resize.clone();
@@ -497,6 +317,9 @@ impl RenderOnce for VerticalDragHandle {
                     }
                 })
                 .on_key_down(move |event, window, cx| {
+                    if event.keystroke.modifiers.modified() {
+                        return;
+                    }
                     let width = match event.keystroke.key.as_str() {
                         "left" => resize.width + logical_delta(-step, direction),
                         "right" => resize.width + logical_delta(step, direction),
@@ -510,171 +333,4 @@ impl RenderOnce for VerticalDragHandle {
         }
         root
     }
-}
-
-fn pointer_listeners(
-    state: Entity<HandleState>,
-    hitbox: Hitbox,
-    resize: Option<Rc<ResizeBinding>>,
-    on_resize_end: Option<ResizeRequest>,
-    window: &mut Window,
-) {
-    window.on_mouse_event({
-        let state = state.clone();
-        let focus = resize.is_some();
-        let initial_width = resize.as_ref().map(|resize| resize.width);
-        let hitbox = hitbox.clone();
-        move |event: &MouseDownEvent, phase, window, cx| {
-            if !phase.bubble()
-                || event.button != MouseButton::Left
-                || !hitbox.is_hovered(window)
-                || window.captured_hitbox().is_some()
-                || state.read(cx).press.is_some()
-            {
-                return;
-            }
-            state.update(cx, |state, cx| {
-                if focus {
-                    state.focus.focus(window, cx);
-                }
-                let owner = cx.weak_entity();
-                window.capture_pointer(hitbox.id);
-                let watch = DragCapture::watch_pointer(window, cx, move |window, cx| {
-                    let _ = owner.update(cx, |state, cx| {
-                        state.end(window);
-                        state.hovered = false;
-                        state.publish(window, cx);
-                    });
-                });
-                state.press = Some(PointerPress::new(
-                    event.position,
-                    initial_width,
-                    Some((hitbox.id, watch)),
-                ));
-                state.hovered = true;
-                state.publish(window, cx);
-            });
-            cx.stop_propagation();
-        }
-    });
-    window.on_mouse_event({
-        let state = state.clone();
-        let resize = resize.clone();
-        let hitbox = hitbox.clone();
-        move |event: &MouseMoveEvent, phase, window, cx| {
-            let current = state.read(cx);
-            let press = current.mouse_pressed();
-            // An active gesture still receives moves over other controls.
-            if phase.capture() != press {
-                return;
-            }
-            let hovered = hitbox.is_hovered_at(event.position, window);
-            if !press && hovered == current.hovered {
-                return;
-            }
-            let request = state.update(cx, |state, cx| {
-                state.hovered = hovered;
-                let request = if press && event.pressed_button == Some(MouseButton::Left) {
-                    state.move_pointer(event.position, resize.as_deref())
-                } else {
-                    if press {
-                        state.end(window);
-                    }
-                    None
-                };
-                state.publish(window, cx);
-                request
-            });
-            if let (Some(width), Some(resize)) = (request, &resize) {
-                resize.request(width, window, cx);
-            }
-            if press && event.pressed_button == Some(MouseButton::Left) {
-                cx.stop_propagation();
-            }
-        }
-    });
-    window.on_mouse_event({
-        let state = state.clone();
-        let hitbox = hitbox.clone();
-        let resize = resize.clone();
-        let on_resize_end = on_resize_end.clone();
-        move |event: &MouseUpEvent, phase, window, cx| {
-            if !phase.capture()
-                || event.button != MouseButton::Left
-                || !state.read(cx).mouse_pressed()
-            {
-                return;
-            }
-            let (request, finished) = state.update(cx, |state, cx| {
-                let request = state.move_pointer(event.position, resize.as_deref());
-                state.hovered = hitbox.is_hovered_at(event.position, window);
-                let finished = state.final_pointer_width();
-                state.end(window);
-                state.publish(window, cx);
-                (request, finished)
-            });
-            if let (Some(width), Some(resize)) = (request, &resize) {
-                resize.request(width, window, cx);
-            }
-            if let (Some(position), Some(end)) = (finished, &on_resize_end) {
-                end(position, window, cx);
-            }
-            cx.stop_propagation();
-        }
-    });
-    window.on_mouse_event({
-        let state = state.clone();
-        move |event: &TouchDragEvent, phase, window, cx| {
-            let current = state.read(cx);
-            if event.phase == TouchPhase::Started {
-                if !phase.bubble()
-                    || current.press.is_some()
-                    || !hitbox.is_hovered_at(event.start_position, window)
-                    || !starts_horizontal_drag(event.position - event.start_position)
-                {
-                    return;
-                }
-                window.prevent_default();
-            } else if !phase.capture() || current.press.is_none() || current.mouse_pressed() {
-                return;
-            }
-            let (request, finished) = state.update(cx, |state, cx| {
-                if event.phase == TouchPhase::Started {
-                    let width = resize.as_ref().map(|resize| {
-                        state.focus.focus(window, cx);
-                        resize.width
-                    });
-                    state.press = Some(PointerPress::new(event.start_position, width, None));
-                }
-                let request = if event.phase == TouchPhase::Cancelled {
-                    None
-                } else {
-                    state.move_pointer(event.position, resize.as_deref())
-                };
-                let finished = (event.phase == TouchPhase::Ended)
-                    .then(|| state.final_pointer_width())
-                    .flatten();
-                if matches!(event.phase, TouchPhase::Ended | TouchPhase::Cancelled) {
-                    state.end(window);
-                }
-                state.publish(window, cx);
-                (request, finished)
-            });
-            if let (Some(width), Some(resize)) = (request, &resize) {
-                resize.request(width, window, cx);
-            }
-            if let (Some(position), Some(end)) = (finished, &on_resize_end) {
-                end(position, window, cx);
-            }
-            cx.stop_propagation();
-        }
-    });
-    window.on_mouse_event(move |_: &MouseExitEvent, phase, window, cx| {
-        if phase.bubble() && state.read(cx).hovered {
-            state.update(cx, |state, cx| {
-                state.hovered = false;
-                state.publish(window, cx);
-            });
-        }
-    });
 }

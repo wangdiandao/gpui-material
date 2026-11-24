@@ -76,9 +76,8 @@ pub static CARD: Playground = Playground {
         let mut card = Card::new("pg-card")
             .variant(variant)
             .disabled(cfg.bool("disabled"))
-            .on_activate("Open checklist", move |_, cx| {
-                on_status(format!("Opened card \"{title}\""), cx)
-            });
+            .accessible_label("Open checklist")
+            .on_activate(move |_, cx| on_status(format!("Opened card \"{title}\""), cx));
         if cfg.bool("media") {
             card = card.child(
                 div()
@@ -483,7 +482,7 @@ pub static LIST: Playground = Playground {
                 .selected(selected == title)
                 .on_activate(move |window, cx| on_choice(ix, window, cx));
             if supporting {
-                item = item.supporting_text(sub);
+                item = item.supporting(sub);
             }
             if trailing {
                 item = item.trailing(
@@ -502,7 +501,7 @@ pub static LIST: Playground = Playground {
             "List::new(\"folders\").item(\n    ListItem::new(\"inbox\", \"Inbox\")\n        .leading(Icon::new(IconName::Inbox))",
         );
         if cfg.bool("supporting") {
-            s.push_str("\n        .supporting_text(\"12 unread messages\")");
+            s.push_str("\n        .supporting(\"12 unread messages\")");
         }
         s.push_str("\n)");
         s

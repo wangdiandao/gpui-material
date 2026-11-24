@@ -7,8 +7,8 @@ use gpui::{
 use gpui_material_theme::Direction;
 
 use super::{
-    CIRCULAR_AMPLITUDE, LINEAR_AMPLITUDE, MAX_WAVES, ProgressCap, ProgressStop, ProgressStroke,
-    STROKE_WIDTH, StopPainter, nonnegative_length,
+    CIRCULAR_AMPLITUDE, LINEAR_AMPLITUDE, MAX_WAVES, MIN_WAVELENGTH, ProgressCap, ProgressStop,
+    ProgressStroke, STROKE_WIDTH, StopPainter, nonnegative_length,
 };
 
 #[derive(Clone, Copy)]
@@ -166,7 +166,7 @@ impl ProgressPaint {
         let active = self.active.fitted(height.min(width));
         let track = self.track.fitted(height.min(width));
         let amplitude = self.amplitude * ((height - active.width) / 2.).min(LINEAR_AMPLITUDE);
-        let wavelength = self.wavelength.max(width / MAX_WAVES);
+        let wavelength = self.wavelength.max(MIN_WAVELENGTH).max(width / MAX_WAVES);
         let axis = |x| logical_x(x, width, direction);
         let mid = bounds.center().y;
         let track_sample = |f| {
@@ -278,10 +278,16 @@ fn logical_x(offset: f32, width: f32, direction: Direction) -> f32 {
 }
 
 fn circular_wave_count(radius: f32, wavelength: f32) -> f32 {
+    if !wavelength.is_finite() || wavelength <= 0. {
+        return MAX_WAVES;
+    }
     ((radius * TAU) / wavelength).round().clamp(1., MAX_WAVES)
 }
 
 fn wave_offset(amplitude: f32, cycles: f32, phase: f32) -> f32 {
+    if !amplitude.is_finite() || !cycles.is_finite() || !phase.is_finite() {
+        return 0.;
+    }
     amplitude * ((cycles.rem_euclid(1.) - phase) * TAU).sin()
 }
 

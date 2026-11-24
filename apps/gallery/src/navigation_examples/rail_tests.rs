@@ -11,11 +11,10 @@ use gpui_base::{
     test_support::{find, snapshots},
 };
 use gpui_material::{
-    Badge, Button, DialogCloseReason, DialogProperties, DialogState, Icon, IconName, MaterialTheme,
-    NavigationItem, NavigationItemColors, NavigationItemIconPosition, NavigationItems,
-    NavigationRail, NavigationRailArrangement, NavigationRailColors, NavigationRailPadding,
-    NavigationRailShapes, NavigationRailState, RailModalOptions, RailMode, SheetMargins,
-    SheetPlacement,
+    Badge, Button, DialogCloseReason, DialogProperties, DialogState, Icon, IconName, LogicalEdges,
+    MaterialTheme, NavigationItem, NavigationItemColors, NavigationItemIconPosition,
+    NavigationItems, NavigationRail, NavigationRailArrangement, NavigationRailColors,
+    NavigationRailShapes, NavigationRailState, RailModalOptions, RailMode, SheetPlacement,
     foundation::set_window_material_theme,
     theme::{CornerShape, Direction},
 };
@@ -52,17 +51,17 @@ impl Render for Preview {
             });
         if self.custom_padding {
             mail = mail.indicator_padding(
-                NavigationRailPadding {
-                    start: px(12.),
-                    end: px(6.),
-                    top: px(3.),
-                    bottom: px(5.),
+                LogicalEdges {
+                    start: 12.,
+                    end: 6.,
+                    top: 3.,
+                    bottom: 5.,
                 },
-                NavigationRailPadding {
-                    start: px(18.),
-                    end: px(8.),
-                    top: px(7.),
-                    bottom: px(3.),
+                LogicalEdges {
+                    start: 18.,
+                    end: 8.,
+                    top: 7.,
+                    bottom: 3.,
                 },
             );
         }
@@ -86,18 +85,18 @@ impl Render for Preview {
             .state(&rail)
             .title("Audit rail")
             .expanded_width(self.width)
-            .modal(&modal)
+            .modal_state(&modal)
             .modal_options(RailModalOptions {
                 properties: DialogProperties {
                     dismiss_on_escape: true,
                     dismiss_on_outside_click: false,
                 },
                 placement: SheetPlacement::Detached,
-                margins: SheetMargins {
-                    start: px(18.),
-                    end: px(12.),
-                    top: px(22.),
-                    bottom: px(28.),
+                margins: LogicalEdges {
+                    start: 18.,
+                    end: 12.,
+                    top: 22.,
+                    bottom: 28.,
                 },
                 hide_on_collapse: self.hide_on_collapse,
                 ..Default::default()
@@ -108,14 +107,12 @@ impl Render for Preview {
                     view.allow_close
                 })
             })
-            .on_modal_close(move |reason, _, cx| {
-                report.update(cx, |view, _| view.closed.push(reason))
-            })
-            .content_padding(NavigationRailPadding {
-                start: px(7.),
-                end: px(19.),
-                top: px(5.),
-                bottom: px(8.),
+            .on_closed(move |reason, _, cx| report.update(cx, |view, _| view.closed.push(reason)))
+            .content_padding(LogicalEdges {
+                start: 7.,
+                end: 19.,
+                top: 5.,
+                bottom: 8.,
             })
             .expanded_header_top_padding(px(24.))
             .header_spacing(px(10.))
@@ -213,6 +210,10 @@ fn draw(cx: &mut VisualTestContext) {
     }
 }
 
+fn rail_item(id: &'static str) -> ElementId {
+    (ElementId::from("rail-test-items"), id).into()
+}
+
 fn bounds(cx: &mut VisualTestContext, id: ElementId) -> Bounds<Pixels> {
     cx.update(|window, _| {
         find(window, &[], &id)
@@ -239,14 +240,14 @@ fn painted(cx: &mut VisualTestContext, pigment: u32) -> gpui::Quad {
 fn retained_rail_retargets_and_fits_the_resized_viewport(cx: &mut TestAppContext) {
     let (view, cx) = open(cx, false);
     assert_eq!(frame(cx).size.width, px(96.));
-    let position = bounds(cx, "mail-destination".into()).center();
+    let position = bounds(cx, rail_item("mail-destination")).center();
     cx.simulate_click(position, Modifiers::default());
     draw(cx);
     cx.simulate_keystrokes("down");
     draw(cx);
     cx.update(|window, cx| {
         assert_eq!(
-            find(window, &[], &"archive-destination".into())
+            find(window, &[], &rail_item("archive-destination"))
                 .unwrap()
                 .focused(),
             Some(true)
@@ -287,7 +288,7 @@ fn retained_rail_retargets_and_fits_the_resized_viewport(cx: &mut TestAppContext
         assert_eq!(rail.progress(), 1.);
         assert!(!rail.is_animating());
         assert_eq!(
-            find(window, &[], &"archive-destination".into())
+            find(window, &[], &rail_item("archive-destination"))
                 .unwrap()
                 .focused(),
             Some(true)
@@ -301,7 +302,7 @@ fn retained_rail_retargets_and_fits_the_resized_viewport(cx: &mut TestAppContext
     assert_eq!(frame(cx).size.width, px(0.));
     cx.update(|window, cx| {
         assert_eq!(rail.read(cx).current_value(), RailMode::Hidden);
-        assert!(find(window, &[], &"mail-destination".into()).is_none());
+        assert!(find(window, &[], &rail_item("mail-destination")).is_none());
         rail.update(cx, |rail, cx| rail.snap_to(RailMode::Collapsed, cx));
     });
     draw(cx);
@@ -311,7 +312,7 @@ fn retained_rail_retargets_and_fits_the_resized_viewport(cx: &mut TestAppContext
 #[gpui::test]
 fn rail_indicator_padding_keeps_target_badge_and_layout_in_rtl(cx: &mut TestAppContext) {
     let (view, cx) = open(cx, true);
-    let before = bounds(cx, "mail-destination".into()).size;
+    let before = bounds(cx, rail_item("mail-destination")).size;
     let original = painted(cx, 0x93afdc);
     let scale = cx.update(|window, _| window.scale_factor());
     assert_eq!(original.bounds.size.width, px(56.).scale(scale));
@@ -327,16 +328,16 @@ fn rail_indicator_padding_keeps_target_badge_and_layout_in_rtl(cx: &mut TestAppC
     draw(cx);
     let custom = painted(cx, 0x93afdc);
     assert!(custom.bounds.size.width < original.bounds.size.width);
-    assert_eq!(bounds(cx, "mail-destination".into()).size, before);
+    assert_eq!(bounds(cx, rail_item("mail-destination")).size, before);
     let frame = frame(cx);
     let header = bounds(cx, "header-body".into());
     assert_eq!(header.left() - frame.left(), px(19.));
     assert_eq!(frame.right() - header.right(), px(7.));
-    let mail = bounds(cx, "mail-destination".into());
+    let mail = bounds(cx, rail_item("mail-destination"));
     assert!(mail.top() > header.bottom() + px(10.));
     assert!(bounds(cx, "rail-marker".into()).top() >= mail.bottom());
     cx.update(|window, cx| {
-        let mail = find(window, &[], &"mail-destination".into()).unwrap();
+        let mail = find(window, &[], &rail_item("mail-destination")).unwrap();
         assert_eq!(mail.label(), Some("Mail"));
         assert_eq!(mail.description(), Some("Five unread messages"));
         let rail = view.read(cx).rail.clone();
@@ -353,7 +354,7 @@ fn rail_indicator_padding_keeps_target_badge_and_layout_in_rtl(cx: &mut TestAppC
     });
     draw(cx);
     cx.update(|window, _| {
-        assert!(find(window, &[], &"mail-destination".into()).is_none());
+        assert!(find(window, &[], &rail_item("mail-destination")).is_none());
         let command = find(window, &[], &"custom-rail-command".into()).unwrap();
         assert_eq!(command.role(), Some(Role::Button));
         assert_eq!(command.label(), Some("Custom destination"));

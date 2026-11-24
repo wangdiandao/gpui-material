@@ -269,15 +269,15 @@ use gpui_material::{Surface, Text, theme::ColorRole};`,
     slug: "card",
     group: "basic",
     title: "Card",
-    source: "crates/components/src/display.rs",
+    source: "crates/components/src/card.rs",
     api: "struct.Card.html",
     description: {
       en: "Group related content on a Material surface.",
       zh: "把相关内容组织到同一个 Material 表面上。",
     },
     usage: {
-      en: "Build the card from child elements. Choose Filled, Elevated, or Outlined. Add on_activate with an accessible name when the whole card opens a destination.",
-      zh: "用子元素构成卡片，再选择 Filled、Elevated 或 Outlined。如果整张卡片用于打开目标，给 on_activate 提供无障碍名称。",
+      en: "Build the card from child elements. Choose Filled, Elevated, or Outlined. Add on_activate (and accessible_label) when the whole card opens a destination.",
+      zh: "用子元素构成卡片，再选择 Filled、Elevated 或 Outlined。如果整张卡片用于打开目标，添加 on_activate 与 accessible_label。",
     },
     imports: `use gpui::ParentElement as _;
 use gpui_material::{Card, CardVariant, Text};`,
@@ -289,7 +289,7 @@ use gpui_material::{Card, CardVariant, Text};`,
     slug: "list",
     group: "advanced",
     title: "List / ListItem",
-    source: "crates/components/src/display.rs",
+    source: "crates/components/src/list.rs",
     api: "struct.List.html",
     description: {
       en: "Present rows with labels, supporting text, and actions.",
@@ -604,8 +604,8 @@ let dialog = Dialog::new("delete", &self.dialog, "Delete project?")
       zh: "在侧边轨道上布置主要目的地。",
     },
     usage: {
-      en: "Build the rail from NavigationItems. Bind mode to your window layout, and pass a DialogState to modal to show it as a modal rail.",
-      zh: "用 NavigationItems 构造导航轨道。根据窗口布局设置 mode，向 modal 传入 DialogState 可将轨道用作模态导航。",
+      en: "Build the rail from NavigationItems. Bind mode to your window layout, and pass a DialogState to modal_state to show it as a modal rail.",
+      zh: "用 NavigationItems 构造导航轨道。根据窗口布局设置 mode，向 modal_state 传入 DialogState 可将轨道用作模态导航。",
     },
     imports: "use gpui_material::{NavigationItem, NavigationItems, NavigationRail, RailMode};",
     code: `NavigationRail::new("rail", NavigationItems::new("sections", "Sections", [

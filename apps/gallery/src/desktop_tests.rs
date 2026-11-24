@@ -236,7 +236,7 @@ fn theme_control_stays_clear_of_adaptive_navigation(cx: &mut TestAppContext) {
         open_gallery(cx, false, Story::AdaptiveLayout, false).unwrap()
     });
     cx.simulate_window_resize(handle.into(), size(px(340.), px(560.)));
-    let feed = ElementId::from("adaptive-feed");
+    let feed = ElementId::from((ElementId::from("adaptive-destinations"), "adaptive-feed"));
     cx.update_window(handle.into(), |_, window, cx| {
         window.refresh();
         window.draw(cx).clear(cx);
@@ -400,7 +400,7 @@ fn gallery_lazy_loads_stories_and_preserves_visited_views(cx: &mut TestAppContex
             .expect("adaptive layout story view loaded")
     });
 
-    let feed = ElementId::from("adaptive-feed");
+    let feed = ElementId::from((ElementId::from("adaptive-destinations"), "adaptive-feed"));
     click(cx, handle, feed.clone());
     cx.update_window(handle.into(), |_, window, cx| {
         window.refresh();

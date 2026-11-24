@@ -100,6 +100,7 @@ impl RenderOnce for ListDetail {
         let rtl = current_material_theme(window, cx).layout.direction == Direction::Rtl;
         let show_detail = !single || self.active == ListDetailPane::Detail || self.list.is_none();
         let list = self.list.filter(|_| !single || !show_detail);
+        let root_id = self.id.clone();
         div()
             .id(self.id)
             .test_support()
@@ -109,7 +110,7 @@ impl RenderOnce for ListDetail {
             .when(rtl, Styled::flex_row_reverse)
             .children(list.map(|list| {
                 div()
-                    .id("list-pane")
+                    .id((root_id.clone(), "list-pane"))
                     .test_support()
                     .min_w_0()
                     .min_h_0()
@@ -122,7 +123,7 @@ impl RenderOnce for ListDetail {
             }))
             .children(show_detail.then(|| {
                 div()
-                    .id("detail-pane")
+                    .id((root_id, "detail-pane"))
                     .test_support()
                     .min_w_0()
                     .min_h_0()
@@ -192,6 +193,7 @@ impl RenderOnce for SupportingPane {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let rtl = current_material_theme(window, cx).layout.direction == Direction::Rtl;
         let single = ListDetail::is_single_pane(self.width);
+        let root_id = self.id.clone();
         div()
             .id(self.id)
             .test_support()
@@ -201,7 +203,7 @@ impl RenderOnce for SupportingPane {
             .when(rtl, Styled::flex_row_reverse)
             .children((!single || !self.show_support).then(|| {
                 div()
-                    .id("primary-pane")
+                    .id((root_id.clone(), "primary-pane"))
                     .test_support()
                     .min_w_0()
                     .min_h_0()
@@ -212,7 +214,7 @@ impl RenderOnce for SupportingPane {
             }))
             .children((!single || self.show_support).then(|| {
                 div()
-                    .id("supporting-pane")
+                    .id((root_id, "supporting-pane"))
                     .test_support()
                     .min_w_0()
                     .min_h_0()

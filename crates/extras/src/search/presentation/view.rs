@@ -611,7 +611,7 @@ fn provider_results(
                 });
                 let tab_stop = focus.is_focused(window) || index == entry && !roving;
                 let row = ListItem::new(result.id.clone(), result.label.clone())
-                    .when_some(result.supporting.clone(), ListItem::supporting_text)
+                    .when_some(result.supporting.clone(), ListItem::supporting)
                     .when_some(result.icon, |item, icon| {
                         item.leading(Icon::new(icon).size(px(24.)))
                     });
@@ -621,15 +621,16 @@ fn provider_results(
                 };
                 let state = row_state.clone();
                 let cell_id = (result.id.clone(), "search-result-cell");
-                let row = row
-                    .track_focus(&focus, tab_stop)
-                    .on_activate(move |window, cx| {
-                        state.update(cx, |state, cx| {
-                            if !in_overlay || state.is_open() {
-                                state.select_with_motion(result.clone(), duration, window, cx);
-                            }
+                let row =
+                    row.track_focus(&focus)
+                        .tab_stop(tab_stop)
+                        .on_activate(move |window, cx| {
+                            state.update(cx, |state, cx| {
+                                if !in_overlay || state.is_open() {
+                                    state.select_with_motion(result.clone(), duration, window, cx);
+                                }
+                            });
                         });
-                    });
                 div()
                     .id(cell_id)
                     .children(group.map(|group| {

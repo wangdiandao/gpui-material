@@ -222,10 +222,20 @@ fn supporting_pane_narrow_toggle_and_rtl(cx: &mut TestAppContext) {
         .unwrap();
     };
 
+    let primary_pane: gpui::ElementId = (
+        gpui::ElementId::from("supporting-standalone"),
+        "primary-pane",
+    )
+        .into();
+    let supporting_pane: gpui::ElementId = (
+        gpui::ElementId::from("supporting-standalone"),
+        "supporting-pane",
+    )
+        .into();
     draw(cx);
     cx.update_window(handle.into(), |_, window, _| {
-        assert!(find(window, &[], &"primary-pane".into()).is_some());
-        assert!(find(window, &[], &"supporting-pane".into()).is_none());
+        assert!(find(window, &[], &primary_pane).is_some());
+        assert!(find(window, &[], &supporting_pane).is_none());
     })
     .unwrap();
 
@@ -237,8 +247,8 @@ fn supporting_pane_narrow_toggle_and_rtl(cx: &mut TestAppContext) {
     });
     draw(cx);
     cx.update_window(handle.into(), |_, window, _| {
-        assert!(find(window, &[], &"primary-pane".into()).is_none());
-        assert!(find(window, &[], &"supporting-pane".into()).is_some());
+        assert!(find(window, &[], &primary_pane).is_none());
+        assert!(find(window, &[], &supporting_pane).is_some());
     })
     .unwrap();
 
@@ -250,10 +260,8 @@ fn supporting_pane_narrow_toggle_and_rtl(cx: &mut TestAppContext) {
     });
     draw(cx);
     cx.update_window(handle.into(), |_, window, cx| {
-        let primary = find(window, &[], &"primary-pane".into()).unwrap().bounds();
-        let support = find(window, &[], &"supporting-pane".into())
-            .unwrap()
-            .bounds();
+        let primary = find(window, &[], &primary_pane).unwrap().bounds();
+        let support = find(window, &[], &supporting_pane).unwrap().bounds();
         assert!(primary.right() < support.left());
 
         let mut theme = MaterialTheme::baseline(Appearance::Light);
@@ -263,10 +271,8 @@ fn supporting_pane_narrow_toggle_and_rtl(cx: &mut TestAppContext) {
     .unwrap();
     draw(cx);
     cx.update_window(handle.into(), |_, window, _| {
-        let primary = find(window, &[], &"primary-pane".into()).unwrap().bounds();
-        let support = find(window, &[], &"supporting-pane".into())
-            .unwrap()
-            .bounds();
+        let primary = find(window, &[], &primary_pane).unwrap().bounds();
+        let support = find(window, &[], &supporting_pane).unwrap().bounds();
         assert!(primary.left() > support.right());
     })
     .unwrap();

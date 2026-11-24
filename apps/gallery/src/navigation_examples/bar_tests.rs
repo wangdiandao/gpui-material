@@ -33,7 +33,10 @@ fn set_direction(direction: Direction, window: &mut Window, cx: &mut App) {
 }
 
 fn item(window: &Window, id: &'static str) -> ElementSnapshot {
-    find(window, &[], &id.into()).unwrap()
+    let scoped: ElementId = (ElementId::from("bar"), id).into();
+    find(window, &[], &scoped)
+        .or_else(|| find(window, &[], &id.into()))
+        .unwrap()
 }
 
 fn swatch(width: f32) -> impl IntoElement {

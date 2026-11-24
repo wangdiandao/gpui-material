@@ -10,8 +10,8 @@ use gpui_base::test_support::find;
 use gpui_material::foundation::set_window_material_theme;
 use gpui_material::theme::{CornerShape, Direction, Elevation};
 use gpui_material::{
-    Card, CardBorder, CardColors, CardElevations, CardVariant, InteractionSource, InteractionState,
-    MaterialRoot, MaterialTheme,
+    Card, CardColors, CardVariant, ControlBorder, ControlElevations, InteractionSource,
+    InteractionState, LogicalEdges, MaterialRoot, MaterialTheme,
 };
 
 #[derive(IntoElement)]
@@ -54,7 +54,7 @@ impl Render for Preview {
                 Card::new("elevated")
                     .variant(CardVariant::Elevated)
                     .shape(CornerShape::Radii([9.; 4]))
-                    .border(CardBorder {
+                    .border(ControlBorder {
                         width: px(2.),
                         color: rgb(0x273352).into(),
                     })
@@ -63,7 +63,7 @@ impl Render for Preview {
                         content: Some(rgb(0x3b2500).into()),
                         ..Default::default()
                     })
-                    .elevations(CardElevations {
+                    .elevations(ControlElevations {
                         resting: Some(Elevation::Level2),
                         ..Default::default()
                     })
@@ -99,7 +99,7 @@ impl Render for Preview {
                                 disabled_container: Some(rgb(0xe0d8e5).into()),
                                 disabled_content: Some(rgb(0x615b69).into()),
                             })
-                            .elevations(CardElevations {
+                            .elevations(ControlElevations {
                                 resting: Some(Elevation::Level1),
                                 pressed: Some(Elevation::Level2),
                                 focused: Some(Elevation::Level3),
@@ -110,7 +110,8 @@ impl Render for Preview {
                             .interaction_source(&self.source)
                             .dragged(self.dragged)
                             .disabled(self.disabled)
-                            .on_activate("Open project", move |window, cx| {
+                            .accessible_label("Open project")
+                            .on_activate(move |window, cx| {
                                 activate(&(), window, cx);
                             })
                             .child(InheritedColor(self.colors[1].clone())),
@@ -120,7 +121,7 @@ impl Render for Preview {
                 Card::new("outlined")
                     .variant(CardVariant::Outlined)
                     .shape(CornerShape::Radii([5.; 4]))
-                    .border(CardBorder {
+                    .border(ControlBorder {
                         width: px(0.),
                         color: rgb(0x7d1934).into(),
                     })
@@ -129,14 +130,13 @@ impl Render for Preview {
                         disabled_content: Some(rgb(0x4a5263).into()),
                         ..Default::default()
                     })
-                    .elevations(CardElevations {
+                    .elevations(ControlElevations {
                         disabled: Some(Elevation::Level1),
                         ..Default::default()
                     })
                     .disabled(true)
-                    .on_activate("Unavailable project", |_, _| {
-                        panic!("disabled card activated")
-                    })
+                    .accessible_label("Unavailable project")
+                    .on_activate(|_, _| panic!("disabled card activated"))
                     .interaction_source(&self.source)
                     .child(InheritedColor(self.colors[2].clone())),
             )
@@ -442,7 +442,7 @@ fn disabled_card_supplies_content_color_without_fading_custom_children(cx: &mut 
 
 #[gpui::test]
 fn static_card_supports_accessible_label_padding_gap_and_clipping(cx: &mut TestAppContext) {
-    use gpui::{Edges, WindowOptions, size};
+    use gpui::{WindowOptions, size};
     use gpui_base::TestSupportExt as _;
 
     struct Example;
@@ -451,7 +451,7 @@ fn static_card_supports_accessible_label_padding_gap_and_clipping(cx: &mut TestA
             div().p_4().child(
                 Card::outlined("static-summary")
                     .accessible_label("Summary card")
-                    .content_padding(Edges::all(px(12.)))
+                    .content_padding(LogicalEdges::all(12.))
                     .gap(px(20.))
                     .child(div().id("card-slot-a").test_support().w(px(60.)).h(px(18.)))
                     .child(div().id("card-slot-b").test_support().w(px(80.)).h(px(22.))),

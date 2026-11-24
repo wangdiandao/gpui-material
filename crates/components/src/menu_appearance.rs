@@ -1,9 +1,9 @@
+use gpui::Pixels;
 #[cfg(any(feature = "inputs", feature = "feedback"))]
 use gpui::{Bounds, Div, Hsla, Point, Styled, div, point, px};
-use gpui::{Edges, Pixels};
 #[cfg(any(feature = "inputs", feature = "feedback"))]
-use gpui_material_foundation::{OverlayMotion, color, elevation_shadows};
-use gpui_material_theme::{ColorRole, CornerShape, Elevation};
+use gpui_material_foundation::{OverlayMotion, color, elevation_shadows, resolve_edges};
+use gpui_material_theme::{ColorRole, CornerShape, Elevation, LogicalEdges};
 #[cfg(any(feature = "inputs", feature = "feedback"))]
 use gpui_material_theme::{CornerRole, Direction, MaterialTheme};
 
@@ -25,8 +25,7 @@ pub(crate) fn menu_pivot(menu: Bounds<Pixels>, anchor: Bounds<Pixels>) -> Point<
 }
 
 /// Semantic color presets for Material vertical menus.
-#[cfg(any(feature = "inputs", feature = "feedback"))]
-#[cfg_attr(not(feature = "feedback"), allow(dead_code))]
+#[cfg(feature = "feedback")]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum MenuColor {
     /// Neutral surface container palette (`SurfaceContainer` / `SurfaceContainerLow`).
@@ -49,8 +48,8 @@ pub struct MenuSurfaceStyle {
     pub tonal_elevation: Elevation,
     /// Drop-shadow elevation level. Defaults to `Elevation::Level2` for menus and `Elevation::Level0` for groups.
     pub shadow_elevation: Option<Elevation>,
-    /// Inner padding around menu items. Defaults to `8 px` vertical for menus and `4 px` vertical for groups.
-    pub padding: Option<Edges<Pixels>>,
+    /// Inner logical padding around menu items. Defaults to `8 dp` vertical for menus and `4 dp` vertical for groups.
+    pub padding: Option<LogicalEdges>,
     /// Vertical gap between child items or groups. Defaults to `0 px` for menus and `2 px` for groups.
     pub spacing: Option<Pixels>,
 }
@@ -58,7 +57,16 @@ pub struct MenuSurfaceStyle {
 #[cfg(feature = "inputs")]
 impl MenuSurfaceStyle {
     pub(crate) fn dropdown_surface(self, theme: &MaterialTheme, motion: OverlayMotion) -> Div {
-        let palette = MenuColor::Standard.palette(false, self.container);
+        let palette = Palette {
+            container: self.container.unwrap_or(ColorRole::SurfaceContainer),
+            ink: ColorRole::OnSurface,
+            #[cfg(feature = "feedback")]
+            muted: ColorRole::OnSurfaceVariant,
+            #[cfg(feature = "feedback")]
+            selected: ColorRole::SecondaryContainer,
+            #[cfg(feature = "feedback")]
+            selected_ink: ColorRole::OnSecondaryContainer,
+        };
         Paint {
             theme,
             motion,
@@ -68,7 +76,10 @@ impl MenuSurfaceStyle {
     }
 
     pub(crate) fn popup_vertical_insets(self) -> Pixels {
-        let padding = self.padding.unwrap_or_else(|| axis_padding(px(0.), px(8.)));
+        let padding = self
+            .padding
+            .unwrap_or(LogicalEdges::symmetric(0., 8.))
+            .sanitize();
         let length = |value: Pixels| {
             if f32::from(value).is_finite() {
                 value.max(px(0.))
@@ -76,8 +87,7 @@ impl MenuSurfaceStyle {
                 px(0.)
             }
         };
-        length(padding.top)
-            + length(padding.bottom)
+        px(padding.top + padding.bottom)
             + self.border.map_or(px(0.), |(width, _)| length(width) * 2.)
     }
 }
@@ -90,8 +100,8 @@ pub struct MenuItemStyle {
     pub shape: Option<CornerShape>,
     /// Logical corner shape for selected menu rows.
     pub selected_shape: Option<CornerShape>,
-    /// Inner padding of the menu row.
-    pub padding: Option<Edges<Pixels>>,
+    /// Inner logical padding of the menu row.
+    pub padding: Option<LogicalEdges>,
     /// Horizontal gap between leading, label, and trailing slots.
     pub spacing: Option<Pixels>,
     /// Background color role for unselected rows.
@@ -108,16 +118,18 @@ pub struct MenuItemStyle {
 
 #[cfg(any(feature = "inputs", feature = "feedback"))]
 #[derive(Clone, Copy)]
-#[cfg_attr(not(feature = "feedback"), allow(dead_code))]
 pub(crate) struct Palette {
     pub(crate) container: ColorRole,
     pub(crate) ink: ColorRole,
+    #[cfg(feature = "feedback")]
     pub(crate) muted: ColorRole,
+    #[cfg(feature = "feedback")]
     pub(crate) selected: ColorRole,
+    #[cfg(feature = "feedback")]
     pub(crate) selected_ink: ColorRole,
 }
 
-#[cfg(any(feature = "inputs", feature = "feedback"))]
+#[cfg(feature = "feedback")]
 impl MenuColor {
     pub(crate) fn palette(self, grouped: bool, container: Option<ColorRole>) -> Palette {
         use ColorRole::*;
@@ -168,12 +180,13 @@ impl Paint<'_> {
         color(self.theme.colors.color(role))
     }
 
-    pub(crate) fn padding<E: Styled>(self, element: E, padding: Edges<Pixels>) -> E {
+    pub(crate) fn padding<E: Styled>(self, element: E, padding: LogicalEdges) -> E {
+        let edges = resolve_edges(padding, self.direction);
         element
-            .pt(self.length(padding.top))
-            .pr(self.length(padding.right))
-            .pb(self.length(padding.bottom))
-            .pl(self.length(padding.left))
+            .pt(self.length(edges.top))
+            .pr(self.length(edges.right))
+            .pb(self.length(edges.bottom))
+            .pl(self.length(edges.left))
     }
 
     pub(crate) fn length(self, value: Pixels) -> Pixels {
@@ -246,17 +259,7 @@ impl Paint<'_> {
             surface,
             style
                 .padding
-                .unwrap_or_else(|| axis_padding(px(0.), if group { px(4.) } else { px(8.) })),
+                .unwrap_or_else(|| LogicalEdges::symmetric(0., if group { 4. } else { 8. })),
         )
-    }
-}
-
-#[cfg(any(feature = "inputs", feature = "feedback"))]
-pub(crate) fn axis_padding(x: Pixels, y: Pixels) -> Edges<Pixels> {
-    Edges {
-        top: y,
-        right: x,
-        bottom: y,
-        left: x,
     }
 }

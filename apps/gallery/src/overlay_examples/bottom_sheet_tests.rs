@@ -16,7 +16,7 @@ use gpui_base::{
 };
 use gpui_material::{
     BottomSheetState, BottomSheetThresholds, BottomSheetValue as Value, Button, DialogCloseReason,
-    DialogProperties, MaterialRoot, Scaffold, ScaffoldContentLayout, ScaffoldInsets, Sheet,
+    DialogProperties, LogicalEdges, MaterialRoot, Scaffold, ScaffoldContentLayout, Sheet,
     SheetMode,
 };
 
@@ -78,13 +78,13 @@ impl Render for Fixture {
                 .bg(gpui::rgb(0xaf6baa)),
         )
         .handle_label("Resize activity")
-        .content_insets(ScaffoldInsets {
-            top: px(10.),
-            start: px(14.),
-            ..ScaffoldInsets::default()
+        .content_insets(LogicalEdges {
+            top: 10.,
+            start: 14.,
+            ..LogicalEdges::default()
         })
         .on_dismiss_request(move |_, _, _| !config.reject_close.get())
-        .on_close(move |reason, _, _| closes.closes.borrow_mut().push(reason));
+        .on_closed(move |reason, _, _| closes.closes.borrow_mut().push(reason));
         let opener = Button::new("test-bottom-opener", "Show activities")
             .track_focus(&self.opener)
             .on_activate(move |window, cx| {
@@ -99,9 +99,9 @@ impl Render for Fixture {
                 })
                 .bottom_bar(div().id("snap-navigation").test_support().h(px(35.)))
                 .bottom_sheet(sheet)
-                .content_insets(ScaffoldInsets {
-                    bottom: px(150.),
-                    ..ScaffoldInsets::default()
+                .content_insets(LogicalEdges {
+                    bottom: 150.,
+                    ..LogicalEdges::default()
                 })
                 .into_any_element()
             }
@@ -305,8 +305,8 @@ fn scaffold_bottom_sheet_resolves_visible_occupancy_and_remaining_inset(cx: &mut
         )
     );
     let layout = sheet.config.layout.get().unwrap();
-    assert_eq!(layout.occupied.bottom, px(125.));
-    assert_eq!(layout.padding.bottom, px(25.));
+    assert_eq!(layout.occupied.bottom, 125.);
+    assert_eq!(layout.padding.bottom, 25.);
     let handle = sheet.node("bottom-sheet-resize", cx).unwrap();
     assert_eq!(handle.role(), Some(Role::Button));
     assert_eq!(handle.label(), Some("Resize activity"));
@@ -324,8 +324,8 @@ fn scaffold_bottom_sheet_resolves_visible_occupancy_and_remaining_inset(cx: &mut
     sheet.frame(cx);
     assert_eq!(sheet.position(cx).0, Value::Expanded);
     let layout = sheet.config.layout.get().unwrap();
-    assert_eq!(layout.occupied.bottom, px(295.));
-    assert_eq!(layout.padding.bottom, px(0.));
+    assert_eq!(layout.occupied.bottom, 295.);
+    assert_eq!(layout.padding.bottom, 0.);
     let body = sheet.node("sheet-content", cx).unwrap().bounds();
     let content = sheet.node("sheet-descendant", cx).unwrap().bounds();
     assert_eq!(content.top() - body.top(), px(10.));

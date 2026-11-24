@@ -115,7 +115,7 @@ impl NavigationRailState {
             self.snap_to(mode, cx);
             return;
         }
-        self.sample(cx);
+        let (_, changed) = self.sample(cx);
         if self.target != mode {
             self.target = mode;
             let weights = WidthWeights::for_mode(mode);
@@ -139,6 +139,8 @@ impl NavigationRailState {
                 self.current = mode;
             }
             cx.notify();
+        } else if changed {
+            cx.notify();
         }
     }
 
@@ -150,14 +152,16 @@ impl NavigationRailState {
         self.progress = 1.;
     }
 
-    pub(super) fn sample(&mut self, cx: &mut Context<Self>) -> WidthWeights {
+    /// Samples the active width transition and returns `(weights, changed)` without calling `cx.notify()`.
+    pub(super) fn sample(&mut self, cx: &mut Context<Self>) -> (WidthWeights, bool) {
+        let mut changed = false;
         if self.is_animating() {
             let now = cx.background_executor().now();
             let reduced = cx.reduce_motion();
             let prev = (self.collapsed.value(), self.expanded.value());
             let (c, c_run) = self.collapsed.sample(now, reduced);
             let (e, e_run) = self.expanded.sample(now, reduced);
-            let notify = if !c_run && !e_run {
+            changed = if !c_run && !e_run {
                 self.settle();
                 true
             } else {
@@ -168,16 +172,13 @@ impl NavigationRailState {
                 self.progress = (1. - dist).clamp(0., 1.);
                 (c, e) != prev
             };
-            if notify {
-                let state = cx.weak_entity();
-                cx.defer(move |cx| {
-                    let _ = state.update(cx, |_, cx| cx.notify());
-                });
-            }
         }
-        WidthWeights {
-            collapsed: self.collapsed.value(),
-            expanded: self.expanded.value(),
-        }
+        (
+            WidthWeights {
+                collapsed: self.collapsed.value(),
+                expanded: self.expanded.value(),
+            },
+            changed,
+        )
     }
 }

@@ -76,7 +76,7 @@ fn breadcrumbs_handles_navigation_rtl_max_items_and_width_overflow_menu(cx: &mut
                             "responsive-path",
                             [
                                 BreadcrumbItem::new("home", "Workspace")
-                                    .icon(Icon::new(IconName::Inbox)),
+                                    .icon(|| Icon::new(IconName::Inbox)),
                                 BreadcrumbItem::new("org", "Engineering"),
                                 BreadcrumbItem::new("team", "Desktop UI").disabled(true),
                                 BreadcrumbItem::new("crate", "Components"),

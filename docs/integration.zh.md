@@ -78,7 +78,7 @@ let favorite = font.svg_data(Symbol::Favorite, SymbolAxes::default())?;
 
 ## API 与迁移
 
-Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID 必须唯一，并在重排时保持稳定。`ListItem::track_focus(&FocusHandle, bool)` 允许调用方的虚拟集合提供保留的行焦点及 roving tab stop；该集合还须负责完整模型的导航，并滚动显示屏外目标。现有 `List` API 保持不变。
+Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID 必须唯一，并在重排时保持稳定。`ListItem::track_focus(&FocusHandle)` 配合 `.tab_stop(bool)` 允许调用方的虚拟集合提供保留的行焦点及 roving tab stop；该集合还须负责完整模型的导航，并滚动显示屏外目标。现有 `List` API 保持不变。
 
 `set_material_theme` 使用目标动效方案的 Slow Effects 弹簧过渡应用色彩。切换途中收到新主题时，从当前显示的色谱开始过渡。初始化和减少动态效果模式立即应用色彩。目标排版和布局在请求时生效。应用主题投影把应用色谱和缩放后的文字指标同步给 Base。
 

@@ -164,6 +164,8 @@ fn render_step_header(
         colors.supporting
     };
 
+    let step_elem_id: ElementId = (stepper_id.clone(), item_id).into();
+
     let labels = div()
         .flex()
         .flex_col()
@@ -172,7 +174,7 @@ fn render_step_header(
         .child(
             div().text_color(title_color).child(
                 Text::new(label.clone())
-                    .id((ElementId::from(item_id.clone()), "label"))
+                    .id((step_elem_id.clone(), "label"))
                     .role(if status == StepStatus::Active {
                         TypeRole::TitleSmall
                     } else {
@@ -184,7 +186,7 @@ fn render_step_header(
         .children(supporting.map(|text| {
             div().text_color(supporting_color).child(
                 Text::new(text)
-                    .id((ElementId::from(item_id.clone()), "supporting"))
+                    .id((step_elem_id.clone(), "supporting"))
                     .role(TypeRole::BodySmall)
                     .wrap(),
             )
@@ -202,7 +204,6 @@ fn render_step_header(
         .child(labels);
 
     let aria_name: SharedString = format!("{label}, {}", status.accessible_label()).into();
-    let step_elem_id: ElementId = (stepper_id.clone(), item_id).into();
 
     if interactive {
         let state_layer = colors.state_layer;
@@ -210,7 +211,7 @@ fn render_step_header(
         let click_select = on_select.clone();
         let a11y_select = on_select;
         BaseButton::new(step_elem_id)
-            .role(Role::ListBoxOption)
+            .role(Role::Button)
             .accessibility_label(aria_name)
             .aria_selected(status == StepStatus::Active)
             .aria_position_in_set(index + 1)
@@ -315,6 +316,9 @@ impl RenderOnce for Stepper {
             .aria_label(self.accessible_label)
             .w_full()
             .on_key_down(move |event, window, cx| {
+                if event.keystroke.modifiers.modified() {
+                    return;
+                }
                 if !nav_handles.iter().any(|handle| handle.is_focused(window)) {
                     return;
                 }

@@ -4,14 +4,18 @@ use gpui::{
     AnyElement, App, ElementId, Entity, Hsla, IntoElement, RenderOnce, SharedString, Window,
 };
 use gpui_material_foundation::InteractionSource;
+use gpui_material_theme::LogicalEdges;
 
-use super::rail::{NavigationRailPadding, RailPresentation};
+use super::rail::RailPresentation;
 use super::tabs::TabVariant;
 use crate::{Badge, Icon};
 
-mod render;
+mod palette;
+mod row;
+mod state;
+mod visual;
 
-use render::RowState;
+pub(in crate::navigation) use state::{RowState, row_state_for};
 
 /// Placement of a navigation item's icon relative to its label.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -51,7 +55,7 @@ pub struct NavigationItem {
     pub(super) icon_position: Option<NavigationItemIconPosition>,
     pub(super) label_content: Option<AnyElement>,
     pub(super) badge: Option<Badge>,
-    pub(super) indicator_padding: Option<(NavigationRailPadding, NavigationRailPadding)>,
+    pub(super) indicator_padding: Option<(LogicalEdges, LogicalEdges)>,
     pub(super) colors: NavigationItemColors,
     pub(super) interaction_source: Option<Entity<InteractionSource>>,
     pub(super) disabled: bool,
@@ -106,11 +110,7 @@ impl NavigationItem {
     }
 
     /// Sets the rail indicator's logical content padding without shrinking its target.
-    pub fn indicator_padding(
-        mut self,
-        collapsed: NavigationRailPadding,
-        expanded: NavigationRailPadding,
-    ) -> Self {
+    pub fn indicator_padding(mut self, collapsed: LogicalEdges, expanded: LogicalEdges) -> Self {
         self.indicator_padding = Some((collapsed, expanded));
         self
     }
@@ -222,6 +222,7 @@ impl NavigationItems {
         Option<SharedString>,
         Option<Select>,
         f32,
+        Option<Entity<RowState>>,
     ) {
         (
             self.id,
@@ -230,6 +231,7 @@ impl NavigationItems {
             self.selected,
             self.on_select,
             self.font_scale,
+            self.state,
         )
     }
 
@@ -239,9 +241,7 @@ impl NavigationItems {
     }
 
     fn row_state(&self, window: &mut Window, cx: &mut App) -> Entity<RowState> {
-        window.use_keyed_state((self.id.clone(), "navigation-state"), cx, |_, _| {
-            RowState::default()
-        })
+        row_state_for(&self.id, window, cx)
     }
 }
 

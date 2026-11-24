@@ -346,6 +346,7 @@ impl RenderOnce for AdaptiveNavigation {
             }
             return self.scaffold;
         }
+        let items_id = items.id().clone();
         let is_rail = kind.is_rail();
         let default = if is_rail {
             let mode = if kind == AdaptiveNavigationType::RailExpanded {
@@ -353,7 +354,7 @@ impl RenderOnce for AdaptiveNavigation {
             } else {
                 RailMode::Collapsed
             };
-            let rail = NavigationRail::new("adaptive-rail", items).mode(mode);
+            let rail = NavigationRail::new((items_id.clone(), "adaptive-rail"), items).mode(mode);
             match self.rail {
                 Some(build) => build(kind, rail),
                 None => rail,
@@ -383,7 +384,7 @@ impl RenderOnce for AdaptiveNavigation {
             .when(!is_rail, |content| content.w_full().max_h(available.height))
             .child(content);
         let slot = div()
-            .id("adaptive-navigation-slot")
+            .id((items_id, "adaptive-navigation-slot"))
             .test_support()
             .track_focus(&scope)
             .flex_none()

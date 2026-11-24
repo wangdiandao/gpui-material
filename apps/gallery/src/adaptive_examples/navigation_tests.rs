@@ -137,9 +137,17 @@ fn resize(cx: &mut VisualTestContext, width: f32, height: f32) {
     draw(cx);
 }
 
+fn find_nav(window: &Window, id: &'static str) -> Option<gpui_base::test_support::ElementSnapshot> {
+    let scoped: ElementId = (ElementId::from("adaptive-test-destinations"), id).into();
+    let scaffold_scoped: ElementId = (ElementId::from("adaptive-test-scaffold"), id).into();
+    find(window, &[], &scoped)
+        .or_else(|| find(window, &[], &scaffold_scoped))
+        .or_else(|| find(window, &[], &ElementId::from(id)))
+}
+
 fn bounds(cx: &mut VisualTestContext, id: &'static str) -> Bounds<Pixels> {
     cx.update(|window, _| {
-        find(window, &[], &ElementId::from(id))
+        find_nav(window, id)
             .unwrap_or_else(|| panic!("missing {id}"))
             .bounds()
     })
@@ -147,15 +155,15 @@ fn bounds(cx: &mut VisualTestContext, id: &'static str) -> Bounds<Pixels> {
 
 fn check_focused(cx: &mut VisualTestContext, id: &'static str) {
     cx.update(|window, _| {
-        let snapshot = find(window, &[], &id.into()).unwrap_or_else(|| panic!("missing {id}"));
+        let snapshot = find_nav(window, id).unwrap_or_else(|| panic!("missing {id}"));
         assert_eq!(snapshot.focused(), Some(true), "{id} holds focus");
     });
 }
 
 fn check_selection(cx: &mut VisualTestContext, selected: &'static str, other: &'static str) {
     cx.update(|window, _| {
-        let selected = find(window, &[], &selected.into()).unwrap();
-        let other = find(window, &[], &other.into()).unwrap();
+        let selected = find_nav(window, selected).unwrap();
+        let other = find_nav(window, other).unwrap();
         assert_eq!(selected.role(), Some(Role::ListBoxOption));
         assert_eq!(selected.selected(), Some(true));
         assert_eq!(other.selected(), Some(false));

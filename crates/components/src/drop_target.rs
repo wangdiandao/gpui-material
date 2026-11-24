@@ -6,7 +6,9 @@ use gpui::{
     StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{Button as BaseButton, TestSupportExt};
-use gpui_material_foundation::{InteractionSource, ThemeScope, color, current_material_theme};
+use gpui_material_foundation::{
+    InteractionSource, InteractionState, ThemeScope, color, current_material_theme,
+};
 use gpui_material_theme::{ColorRole, CornerRole, CornerShape, Direction, StateLayer, TypeRole};
 
 use crate::{
@@ -272,24 +274,11 @@ impl<T: 'static> RenderOnce for DropTarget<T> {
             .accessible_label
             .or_else(|| self.title.clone())
             .unwrap_or_else(|| "Drop target".into());
-        let actionable = self.on_activate.is_some();
         let enabled = !self.disabled;
-        let focus = self.focus.filter(|_| actionable).unwrap_or_else(|| {
-            window
-                .use_keyed_state((self.id.clone(), "drop-target-focus"), cx, |_, cx| {
-                    cx.focus_handle()
-                })
-                .read(cx)
-                .clone()
-        });
-        let feedback = ripple_state(&self.id, actionable && enabled, window, cx);
         let tracker = self
             .source
             .as_ref()
             .map(|source| InteractionSource::track(source, &self.id, window, cx));
-        feedback
-            .borrow_mut()
-            .track(enabled, &focus, tracker, window, cx);
 
         let inner_content = match self.content {
             Some(content) => div().w_full().child(content).into_any_element(),
@@ -325,6 +314,18 @@ impl<T: 'static> RenderOnce for DropTarget<T> {
         };
 
         let body = if let Some(on_activate) = self.on_activate {
+            let focus = self.focus.unwrap_or_else(|| {
+                window
+                    .use_keyed_state((self.id.clone(), "drop-target-focus"), cx, |_, cx| {
+                        cx.focus_handle()
+                    })
+                    .read(cx)
+                    .clone()
+            });
+            let feedback = ripple_state(&self.id, enabled, window, cx);
+            feedback
+                .borrow_mut()
+                .track(enabled, &focus, tracker, window, cx);
             let on_activate = Rc::new(ThemeScope::bind_action(
                 move |window, cx| on_activate(window, cx),
                 window,
@@ -366,6 +367,11 @@ impl<T: 'static> RenderOnce for DropTarget<T> {
             .child(inner_content)
             .into_any_element()
         } else {
+            if let Some(tracker) = tracker {
+                let mut state = InteractionState::default();
+                state.disabled = !enabled;
+                tracker.record(state, cx);
+            }
             div()
                 .id((self.id.clone(), "body"))
                 .test_support()

@@ -5,10 +5,10 @@ use gpui::{
 use gpui_material::{
     AppBar, AppBarAlignment, AppBarItem, AppBarRow, AppBarScrollBehavior, AppBarScrollState,
     AppBarVariant, Badge, BottomAppBar, BreadcrumbItem, Breadcrumbs, Button, ButtonVariant,
-    DialogState, Divider, Fab, Icon, IconButton, IconName, NavigationBar, NavigationBarArrangement,
-    NavigationBarLayout, NavigationDrawer, NavigationDrawerMode, NavigationItem,
-    NavigationItemIconPosition, NavigationItems, NavigationRail, NavigationRailColors,
-    NavigationRailPadding, NavigationRailShapes, NavigationRailState, RailModalOptions, RailMode,
+    DialogState, Divider, Fab, Icon, IconButton, IconName, LogicalEdges, NavigationBar,
+    NavigationBarArrangement, NavigationBarLayout, NavigationDrawer, NavigationDrawerMode,
+    NavigationItem, NavigationItemIconPosition, NavigationItems, NavigationRail,
+    NavigationRailColors, NavigationRailShapes, NavigationRailState, RailModalOptions, RailMode,
     Scaffold, StepItem, StepStatus, Stepper, StepperOrientation, TabIndicatorStyle,
     TabIndicatorWidth, TabVariant, Tabs, Text,
     theme::{CornerRole, CornerShape, TypeRole},
@@ -268,17 +268,17 @@ impl NavigationExamples {
                             .accessible_label("rail-unread-status", "Unread updates"),
                     )
                     .indicator_padding(
-                        NavigationRailPadding {
-                            start: px(12.),
-                            end: px(12.),
-                            top: px(4.),
-                            bottom: px(4.),
+                        LogicalEdges {
+                            start: 12.,
+                            end: 12.,
+                            top: 4.,
+                            bottom: 4.,
                         },
-                        NavigationRailPadding {
-                            start: px(18.),
-                            end: px(12.),
-                            top: px(4.),
-                            bottom: px(4.),
+                        LogicalEdges {
+                            start: 18.,
+                            end: 12.,
+                            top: 4.,
+                            bottom: 4.,
                         },
                     )
                 } else {
@@ -386,7 +386,7 @@ impl NavigationExamples {
                     self.items("modal-rail-items", "Modal destinations", 6, true, true, cx),
                 )
                 .mode(RailMode::Hidden)
-                .modal(&self.modal)
+                .modal_state(&self.modal)
                 .modal_options(RailModalOptions {
                     placement: gpui_material::SheetPlacement::Detached,
                     ..Default::default()
@@ -754,7 +754,7 @@ impl NavigationExamples {
                             "gallery-breadcrumbs-full",
                             [
                                 BreadcrumbItem::new("home", "Workspace")
-                                    .icon(Icon::new(IconName::Inbox)),
+                                    .icon(|| Icon::new(IconName::Inbox)),
                                 BreadcrumbItem::new("projects", "Projects"),
                                 BreadcrumbItem::new("2026", "2026 Roadmap"),
                                 BreadcrumbItem::new("q4-plan", "Q4 Plan"),
@@ -837,7 +837,7 @@ impl Render for NavigationExamples {
 #[cfg(all(test, feature = "test-support"))]
 mod tests {
     use gpui::{ElementId, InputEvent, Role, TestAppContext, WindowOptions, size};
-    use gpui_base::test_support::find_all;
+    use gpui_base::test_support::find;
     use gpui_material::{
         foundation::{MaterialRoot, material_theme, set_material_theme},
         theme::Direction,
@@ -859,10 +859,7 @@ mod tests {
             cx.update_window(window.into(), |_, window, cx| {
                 window.refresh();
                 window.draw(cx).clear(cx);
-                find_all(window, &[], &id.into())
-                    .into_iter()
-                    .find(|tab| tab.path().contains(&ElementId::from(row)))
-                    .unwrap()
+                find(window, &[], &(ElementId::from(row), id).into()).unwrap()
             })
             .unwrap()
         };

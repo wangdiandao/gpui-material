@@ -5,8 +5,8 @@ use gpui::{
     Styled, Window, canvas, div, px, size,
 };
 use gpui_material::{
-    AdaptivePane, AdaptivePaneState, Button, ListDetail, PaneAdaptStrategy, PaneBackBehavior,
-    PaneDestination, PaneExpansionAnchor, PaneMargins, PaneOverlayAlignment, PaneRole,
+    AdaptivePane, AdaptivePaneState, Button, ListDetail, LogicalEdges, PaneAdaptStrategy,
+    PaneBackBehavior, PaneDestination, PaneExpansionAnchor, PaneOverlayAlignment, PaneRole,
     PaneSeparator, Scrim, Text,
     foundation::window_material_theme,
     theme::{ColorRole, TypeRole},
@@ -129,8 +129,8 @@ impl Render for ReviewExample {
         .preferred_width(px(340.))
         .preferred_height(px(245.))
         .minimum_width(px(180.))
-        .margins(PaneMargins {
-            bottom: px(12.),
+        .margins(LogicalEdges {
+            bottom: 12.,
             ..Default::default()
         })
         .adapt_with(|viewport, directive| {

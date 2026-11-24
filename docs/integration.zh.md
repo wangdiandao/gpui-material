@@ -12,7 +12,7 @@
 [dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.14" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.14", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui-material = "0.3.3"
+gpui-material = "0.4.0"
 ```
 
 应用直接使用 Base 时也应固定 `gpui-base = "=0.11.0"`。从源码集成时，使用 `{ path = "../gpui-material/crates/material" }` 并固定检出提交。升级后运行 `cargo tree -d` 检查是否存在重复包版本。
@@ -46,7 +46,7 @@ fn main() {
 
 ## Material Symbols
 
-需要完整图标目录时，在 `gpui-material` 之外添加 `gpui-material-design-symbols = "0.3.3"`。从源码集成时使用 `gpui-material-design-symbols = { path = "../gpui-material/crates/design-symbols" }`。图标目录包含固定版本的全部 4,304 个名称，包括别名。通过 `Symbol::ALL` 遍历，或通过 `Symbol::from_name("favorite")` 查找上游名称。[上游码点表和字体资源](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
+需要完整图标目录时，在 `gpui-material` 之外添加 `gpui-material-design-symbols = "0.4.0"`。从源码集成时使用 `gpui-material-design-symbols = { path = "../gpui-material/crates/design-symbols" }`。图标目录包含固定版本的全部 4,304 个名称，包括别名。通过 `Symbol::ALL` 遍历，或通过 `Symbol::from_name("favorite")` 查找上游名称。[上游码点表和字体资源](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
 
 桌面端为 `gpui-material-design-symbols` 启用 `embed-assets`，调用 `SymbolFont::embedded` 加载 Outlined、Rounded 或 Sharp 字体。字体保留 `FILL` 和 `wght`，grade 固定为 0，光学尺寸固定为 24。`SymbolAxes::default()`（在 `const` 上下文中可使用 `SymbolAxes::new()`）使用未填充样式和 400 字重。`.filled(true)` 选择 FILL=1，`Weight::new(550)` 可指定 100–700 范围内的任意整数值，`is_filled()` 和 `get_weight()` 可读取已配置的轴值。
 
@@ -84,6 +84,8 @@ Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID �
 `set_window_material_theme`（与 `window_material_theme` 一起同时在门面根路径和 `foundation` 下导出）设置单个窗口的 Material 主题。通过 `ThemeScope::new(child).theme(theme).direction(Direction::Rtl)` 覆盖子树，两项设置均可省略。仅设置方向时，主题继承自外层。Material 后代、多行 `TextField` 滚动条、延迟退出浮层以及 `ThemeScope::bind_action` 回调优先读取最近的作用域，其次是窗口和应用默认值，且不会篡改 `gpui_base::Theme::global`。独立 Base 控件可调用 `foundation::current_base_theme(window, cx)`（或 `foundation::project_base_theme(theme, cx)`）获取与当前局部作用域一致的 Base Token 与滚动条样式。
 
 应用通过[公开门面](../crates/material/src/lib.rs)集成，包括已记录的 `foundation` 和 `theme` 路径。`gpui-material` 默认启用 `full`，编译全部核心组件分组（`display`、`actions`、`selection`、`inputs`、`surfaces`、`settings-tiles`、`feedback`、`navigation`）。如需极致裁剪，可设置 `default-features = false` 并按需列出特性（例如 `features = ["display"]` 仅启用基础展示原语、`features = ["actions", "inputs"]` 仅编译所选分组，或 `features = ["window-chrome"]` / `features = ["carousel"]` 完全不编译 `gpui-material-components` 及其内嵌 SVG）。按 [README 中的特性名](../README.zh.md)启用可选组件系列，每个可选组件系列仅激活其依赖的核心分组。`date-time` 的 API 及重导出的 `jiff::civil::{Date, Time, Weekday}` 位于 `gpui_material::date_time` 下。`dynamic-color` 和 `serde` 转发到纯主题 crate。公开签名中的 GPUI 和 Base 类型遵循固定的上游版本。Gallery 模块和工作区 crate 的内部组织可能调整。
+
+升级至 0.4.0 时，建议在启动阶段改用单步 `gpui_material::init(theme, cx)`，将 `MaterialTheme` 的 `with_*` 构建器改为裸名（`colors`、`typography`、`motion`、`layout`、`density`、`direction`），并将各组件独立的边距/形状/描边/海拔结构体统一替换为 `LogicalEdges`、`ControlShapes`、`ControlBorder` 与 `ControlElevations`。将 `EmptyState` 更名为 `EmptyView`，将浮层关闭回调统一改为 `.on_closed(...)`；使用 `default-features = false` 时按需显式启用 `display` 或 `settings-tiles` 特性；`date_time` 调用方需从 `chrono` 迁移至 `gpui_material::date_time` 重导出的 `jiff::civil::{Date, Time, Weekday}`。完整破坏性变更见[变更日志](../CHANGELOG.md)。
 
 升级至 0.3.3 时，将直接使用的 GPUI 同步至 `0.3.14`，并将 Base 同步至 `0.11.0`。若直接调用 `foundation::Shape` 裁剪接口，需按 `Option<gpui::Path>` 适配 `clip_rect`、`clip_disc` 和 `clip_convex_polygon`，并将 `clip_path`/`paint_clipped` 替换为 `clip_shape`/`paint_clipped_shape`。
 

@@ -4,6 +4,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+## 0.4.0 - 2026-11-25
+
+Changes since [v0.3.3](https://github.com/wangdiandao/gpui-material/releases/tag/v0.3.3).
+
 ### Breaking API and migration
 
 - **Breaking (`gpui-material-theme`)**: Rename `MaterialTheme` fluent builders from `with_colors`, `with_typography`, `with_motion`, `with_layout`, `with_density`, and `with_direction` to bare names `colors`, `typography`, `motion`, `layout`, `density`, and `direction`.
@@ -80,6 +84,12 @@ See [versioning and releases](docs/release.md) for the release process.
 - Move the light/dark theme toggle permanently to the top bar and remove the floating bottom-right theme toggle `Fab` that obscured component controls; mount `DisplayScrollbar::vertical` on the Gallery scroll container.
 - Eliminate Windows UIA duplicate-name collisions across playground scenario chips, choice controls, switches, and `Overview` buttons; expose tab selection semantics (`Role::TabList` / `Role::Tab` / `selected`) for top-bar sections and `Live preview | Specs` tabs; make the top-bar brand button, `Overview` shape buttons, 44–48 px theme swatches, and all component cards keyboard-focusable and activatable with uniform 2-column card widths.
 - Render playground `Rust code` with a monospace font stack and horizontal scrolling, fix `#playground-event-status` contrast inside local light/dark `ThemeScope` previews, unify `--window-chrome` (`ChromePreview`) surfaces with `ColorRole::SurfaceContainer` and compact `Block close` sizing, and register embedded `IBM Plex Sans` with `DisplayScrollbar` in `gpui-material-gallery-web`.
+
+### Contributors
+
+- [@wangdiandao](https://github.com/wangdiandao)
+
+**Full Changelog** [`v0.3.3...v0.4.0`](https://github.com/wangdiandao/gpui-material/compare/v0.3.3...v0.4.0)
 
 ## 0.3.3 - 2026-11-24
 

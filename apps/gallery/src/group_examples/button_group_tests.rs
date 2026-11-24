@@ -9,8 +9,8 @@ use gpui_base::{
     test_support::{ElementSnapshot, find, snapshots},
 };
 use gpui_material::{
-    Button, ButtonColors, ButtonGroupAlignment, ButtonGroupConnectedShapes, ButtonGroupItemStyle,
-    ButtonGroupSelection, ButtonGroupVariant, ButtonGroupVerticalAlignment, ControlShapes,
+    Button, ButtonColors, ButtonGroupConnectedShapes, ButtonGroupSelection, ButtonGroupVariant,
+    ButtonGroupVerticalAlignment, ButtonSegmentStyle, ContentArrangement, ControlShapes,
     InteractionSource, MaterialRoot, MaterialTheme,
     foundation::set_window_material_theme,
     theme::{CornerShape, Direction},
@@ -52,7 +52,7 @@ impl Render for Preview {
                     });
                 })
                 .compression_limit(px(4.))
-                .style(ButtonGroupItemStyle {
+                .style(ButtonSegmentStyle {
                     colors: ButtonColors {
                         container: Some(rgb(COMMAND_TINT).into()),
                         ..Default::default()
@@ -63,7 +63,7 @@ impl Render for Preview {
                 .weight(1.)
                 .interaction_source(&self.source)
                 .vertical_alignment(ButtonGroupVerticalAlignment::Bottom)
-                .style(ButtonGroupItemStyle {
+                .style(ButtonSegmentStyle {
                     colors: ButtonColors {
                         container: Some(rgb(DETAIL_TINT).into()),
                         checked_container: Some(rgb(DETAIL_CHECKED).into()),
@@ -98,7 +98,7 @@ impl Render for Preview {
                     .variant(self.variant)
                     .shape(ButtonShape::Square)
                     .spacing(px(4.))
-                    .alignment(ButtonGroupAlignment::End)
+                    .alignment(ContentArrangement::End)
                     .vertical_alignment(ButtonGroupVerticalAlignment::Center)
                     .connected_shapes(ButtonGroupConnectedShapes {
                         middle: ControlShapes {

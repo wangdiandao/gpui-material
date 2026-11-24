@@ -18,16 +18,17 @@ use gpui_material_components::{
 use gpui_material_foundation::{
     InteractionSource, animate, current_material_theme, font_cache_revision, move_roving_focus,
 };
-use gpui_material_theme::{Direction, MotionKind, MotionSpeed, Typography};
+use gpui_material_theme::{Density, Direction, MotionKind, MotionSpeed, Typography};
 
 use super::{
-    ButtonGroup, ButtonGroupAlignment, ButtonGroupItem, ButtonGroupSelection, ButtonGroupVariant,
+    ButtonGroup, ButtonGroupItem, ButtonGroupSelection, ButtonGroupVariant,
     ButtonGroupVerticalAlignment, Command, ItemBehavior, ItemContent, SelectionChange,
     ToggleChange,
     layout::{
         effective_expanded_ratio, nonnegative, pressed_widths, visible_count, weighted_widths,
     },
 };
+use crate::ContentArrangement;
 
 struct LabelWidthEntry {
     label: SharedString,
@@ -38,6 +39,7 @@ struct LabelWidthEntry {
 
 struct LabelWidthCache {
     size: ControlSize,
+    density: Density,
     rem_size: Pixels,
     font_revision: u64,
     typography: Typography,
@@ -326,7 +328,7 @@ fn build_group_row(
     scope: &FocusHandle,
     gap: Pixels,
     direction: Direction,
-    alignment: ButtonGroupAlignment,
+    alignment: ContentArrangement,
     vertical_alignment: ButtonGroupVerticalAlignment,
     focus: Vec<(FocusHandle, bool)>,
 ) -> gpui::Stateful<gpui::Div> {
@@ -364,12 +366,12 @@ fn build_group_row(
             }
         });
     row = match alignment {
-        ButtonGroupAlignment::Start => row.justify_start(),
-        ButtonGroupAlignment::Center => row.justify_center(),
-        ButtonGroupAlignment::End => row.justify_end(),
-        ButtonGroupAlignment::SpaceBetween => row.justify_between(),
-        ButtonGroupAlignment::SpaceAround => row.justify_around(),
-        ButtonGroupAlignment::SpaceEvenly => row.justify_evenly(),
+        ContentArrangement::Start => row.justify_start(),
+        ContentArrangement::Center => row.justify_center(),
+        ContentArrangement::End => row.justify_end(),
+        ContentArrangement::SpaceBetween => row.justify_between(),
+        ContentArrangement::SpaceAround => row.justify_around(),
+        ContentArrangement::SpaceEvenly => row.justify_evenly(),
     };
     match vertical_alignment {
         ButtonGroupVerticalAlignment::Top => row.items_start(),
@@ -382,7 +384,8 @@ impl RenderOnce for ButtonGroup {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
-        let minimum = px(theme.layout.density.interactive_size(1.));
+        let density = theme.layout.density;
+        let minimum = px(density.interactive_size(1.));
         let spec = theme
             .motion
             .spec(MotionKind::Spatial, MotionSpeed::Fast, cx.reduce_motion());
@@ -408,6 +411,7 @@ impl RenderOnce for ButtonGroup {
             let mut slot = group_state.label_widths.borrow_mut();
             let cache_valid = slot.as_ref().is_some_and(|cached| {
                 cached.size == self.size
+                    && cached.density == density
                     && cached.rem_size == rem_size
                     && cached.font_revision == font_revision
                     && cached.typography == theme.typography
@@ -415,6 +419,7 @@ impl RenderOnce for ButtonGroup {
             if !cache_valid {
                 *slot = Some(LabelWidthCache {
                     size: self.size,
+                    density,
                     rem_size,
                     font_revision,
                     typography: theme.typography.clone(),
@@ -438,7 +443,7 @@ impl RenderOnce for ButtonGroup {
             .as_ref()
             .and_then(|(width, _)| nonnegative(*width))
             .filter(|width| *width > px(0.))
-            .unwrap_or_else(|| px(split_trailing_size(self.size).1));
+            .unwrap_or_else(|| px(density.interactive_size(split_trailing_size(self.size).1)));
         let width = state.read(cx).width.clone();
         let measured = width.get();
         let available = measured.unwrap_or_else(|| window.viewport_size().width);
@@ -540,7 +545,7 @@ impl RenderOnce for ButtonGroup {
             let button = ButtonPart::new(id, item.label.clone(), width)
                 .size(self.size)
                 .shape(self.shape)
-                .variant(item.appearance.unwrap_or(self.appearance))
+                .variant(item.variant.unwrap_or(self.appearance))
                 .tone(item.tone.unwrap_or(self.tone))
                 .segment(shape)
                 .disabled(item.disabled)
@@ -552,7 +557,10 @@ impl RenderOnce for ButtonGroup {
                     button.on_activate(move |window, cx| action(window, cx))
                 });
             let part = div()
-                .id((ElementId::from("group-item"), item.id.clone()))
+                .id((
+                    ElementId::from((self.id.clone(), "group-item")),
+                    item.id.clone(),
+                ))
                 .flex_none()
                 .child(item.render_member(button, self.shapes.for_segment(shape)));
             row = row.child(match item.vertical_alignment {

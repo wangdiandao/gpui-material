@@ -46,6 +46,8 @@ struct Package {
     name: String,
     version: String,
     source: Option<String>,
+    #[serde(default)]
+    features: BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -98,6 +100,12 @@ pub(crate) fn check() -> Result {
             verify_component_feature_case(package, features, expected).map_err(|e| e.to_string())
         }));
     }
+    tasks.push(Box::new(|| {
+        verify_facade_features_no_leak().map_err(|e| e.to_string())
+    }));
+    tasks.push(Box::new(|| {
+        verify_date_time_jiff_only().map_err(|e| e.to_string())
+    }));
 
     run_bounded(MAX_CONCURRENT_CARGO, tasks)?;
 
@@ -156,7 +164,7 @@ type FeatureCase = (
     Option<&'static [&'static str]>,
 );
 
-fn component_feature_cases() -> [FeatureCase; 17] {
+fn component_feature_cases() -> [FeatureCase; 19] {
     const COMPONENTS: &str = "gpui-material-components";
     const MATERIAL: &str = "gpui-material";
     const EXTRAS: &str = "gpui-material-extras";
@@ -184,13 +192,15 @@ fn component_feature_cases() -> [FeatureCase; 17] {
             Some("navigation"),
             Some(&["actions", "feedback", "navigation"]),
         ),
+        (MATERIAL, None, None),
+        (MATERIAL, Some("display"), Some(&[])),
         (
             MATERIAL,
             Some("actions,inputs"),
             Some(&["actions", "inputs"]),
         ),
-        (MATERIAL, Some("carousel"), Some(&[])),
-        (MATERIAL, Some("window-chrome"), Some(&[])),
+        (MATERIAL, Some("carousel"), None),
+        (MATERIAL, Some("window-chrome"), None),
         (EXTRAS, Some("carousel"), None),
         (EXTRAS, Some("window-chrome"), None),
         (
@@ -210,6 +220,72 @@ fn component_feature_cases() -> [FeatureCase; 17] {
             Some(&["actions", "feedback", "inputs", "surfaces"]),
         ),
     ]
+}
+
+fn verify_facade_features_no_leak() -> Result {
+    let metadata_json = output(
+        "cargo",
+        &["metadata", "--locked", "--no-deps", "--format-version", "1"],
+    )?;
+    #[derive(Deserialize)]
+    struct NoDepsMetadata {
+        packages: Vec<Package>,
+    }
+    let metadata: NoDepsMetadata = serde_json::from_str(&metadata_json)?;
+    let facade = metadata
+        .packages
+        .iter()
+        .find(|pkg| pkg.name == "gpui-material")
+        .ok_or("missing gpui-material package in workspace metadata")?;
+    for forbidden in ["gpui-material-extras", "gpui-material-components"] {
+        if facade.features.contains_key(forbidden) {
+            return Err(format!(
+                "gpui-material leaks implicit dependency feature `{forbidden}`; use `dep:{forbidden}`"
+            )
+            .into());
+        }
+    }
+    Ok(())
+}
+
+fn verify_date_time_jiff_only() -> Result {
+    let tree = output(
+        "cargo",
+        &[
+            "tree",
+            "--locked",
+            "-p",
+            "gpui-material-extras",
+            "--no-default-features",
+            "--features",
+            "date-time",
+            "--depth",
+            "1",
+            "--edges",
+            "normal",
+            "--prefix",
+            "none",
+            "--format",
+            "{p}",
+        ],
+    )?;
+    let mut found_jiff = false;
+    for line in tree.lines() {
+        let name = line.split_whitespace().next().unwrap_or_default();
+        if name == "jiff" {
+            found_jiff = true;
+        }
+        if matches!(name, "chrono" | "web-time") {
+            return Err(format!(
+                "gpui-material-extras (date-time): unexpected direct dependency `{name}`"
+            )
+            .into());
+        }
+    }
+    if !found_jiff {
+        return Err("gpui-material-extras (date-time): expected direct `jiff` dependency".into());
+    }
+    Ok(())
 }
 
 fn verify_component_feature_case(

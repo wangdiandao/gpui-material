@@ -8,7 +8,7 @@
 
 ## 应用初始化与状态所有权
 
-在打开窗口前，使用初始 `MaterialTheme` 调用 `MaterialRoot::init`，再调用 `gpui_material::init_components(cx)` 注册组件快捷键，并通过 `MaterialRoot::open_window` 创建窗口，以便 GPUI Base 统一管理浮层与焦点遍历。
+在打开窗口前，调用 `gpui_material::init(theme, cx)` 单步安装初始 `MaterialTheme`、初始化 `MaterialRoot` 并注册组件快捷键，再通过 `MaterialRoot::open_window` 创建窗口，以便 GPUI Base 统一管理浮层与焦点遍历。
 
 按所有权拆分状态：
 
@@ -103,8 +103,7 @@ fn main() {
     gpui_platform::application()
         .with_quit_mode(QuitMode::LastWindowClosed)
         .run(|cx| {
-            MaterialRoot::init(MaterialTheme::default(), cx);
-            gpui_material::init_components(cx);
+            gpui_material::init(MaterialTheme::default(), cx);
             MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
                 cx.new(|cx| SettingsApp::new(window, cx))
             })

@@ -45,3 +45,4 @@ pub use input::{DragCapture, move_roving_focus};
 pub use interaction::{InteractionSource, InteractionTracker, InteractionUpdate};
 pub use overlay::{Scrim, isolated_scroll, logical_anchor};
 pub use range::{RangeThumb, range_semantics, value_label};
+pub use web_time::Instant;

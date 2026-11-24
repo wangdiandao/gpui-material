@@ -1,6 +1,8 @@
 use std::rc::Rc;
 
-use gpui::{App, Decorations, Pixels, Window, WindowDecorations, WindowOptions, point, px};
+use gpui::{
+    App, Decorations, Pixels, SharedString, Window, WindowDecorations, WindowOptions, point, px,
+};
 
 /// Default logical height for a client-drawn [`super::TitleBar`].
 pub const DEFAULT_TITLE_BAR_HEIGHT: Pixels = px(48.);
@@ -135,6 +137,20 @@ pub(super) fn sanitize_nonnegative(value: Pixels, fallback: Pixels) -> Pixels {
     }
 }
 
+pub(super) fn should_show_title_bar(
+    window: &Window,
+    platform: ChromePlatform,
+    show_caption_buttons: Option<bool>,
+) -> bool {
+    if platform == ChromePlatform::Linux
+        && matches!(window.window_decorations(), Decorations::Server)
+        && show_caption_buttons != Some(true)
+    {
+        return false;
+    }
+    true
+}
+
 pub(super) fn should_show_caption_buttons(
     window: &Window,
     platform: ChromePlatform,
@@ -153,14 +169,14 @@ pub(super) fn should_show_caption_buttons(
     }
 }
 
-pub(super) fn read_window_title(window: &Window) -> String {
+pub(super) fn read_window_title(window: &Window) -> SharedString {
     #[cfg(windows)]
     {
         if let Some(title) = win32::window_title(window) {
             return title;
         }
     }
-    window.window_title()
+    SharedString::from(window.window_title())
 }
 
 pub(super) fn activate_minimize(window: &mut Window) {
@@ -193,7 +209,13 @@ pub(super) fn activate_close(window: &mut Window, cx: &mut App, on_close: Option
 
 #[cfg(windows)]
 mod win32 {
-    use gpui::Window;
+    use std::{
+        cell::RefCell,
+        collections::HashMap,
+        time::{Duration, Instant},
+    };
+
+    use gpui::{SharedString, Window};
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};
     use windows::Win32::{
         Foundation::{HWND, LPARAM, WPARAM},
@@ -202,17 +224,52 @@ mod win32 {
         },
     };
 
-    pub(super) fn window_title(window: &Window) -> Option<String> {
+    const TITLE_CACHE_TTL: Duration = Duration::from_millis(250);
+
+    thread_local! {
+        static TITLE_CACHE: RefCell<HashMap<isize, (Instant, SharedString)>> =
+            RefCell::new(HashMap::new());
+    }
+
+    pub(super) fn window_title(window: &Window) -> Option<SharedString> {
         let hwnd = window_hwnd(window)?;
+        let key = hwnd.0 as isize;
+        let now = Instant::now();
+        if let Some(cached) = TITLE_CACHE.with(|cache| {
+            let cache = cache.borrow();
+            cache.get(&key).and_then(|(at, title)| {
+                (now.saturating_duration_since(*at) < TITLE_CACHE_TTL).then(|| title.clone())
+            })
+        }) {
+            return Some(cached);
+        }
+
         // GPUI's window_title getter currently only reads the platform title on macOS.
         // Windows reads the title from the live HWND into a caller-owned buffer.
         let length = unsafe { GetWindowTextLengthW(hwnd) };
-        if length == 0 {
-            return Some(String::new());
+        if length < 0 {
+            return None;
         }
-        let mut title = vec![0; length as usize + 1];
-        let copied = unsafe { GetWindowTextW(hwnd, &mut title) };
-        Some(String::from_utf16_lossy(&title[..copied as usize]))
+        let title = if length == 0 {
+            SharedString::new_static("")
+        } else {
+            let mut buffer = vec![0u16; length as usize + 1];
+            let copied = unsafe { GetWindowTextW(hwnd, &mut buffer) };
+            if copied < 0 {
+                return None;
+            }
+            let copied = (copied as usize).min(buffer.len());
+            SharedString::from(String::from_utf16_lossy(&buffer[..copied]))
+        };
+
+        TITLE_CACHE.with(|cache| {
+            let mut cache = cache.borrow_mut();
+            if cache.len() >= 32 {
+                cache.retain(|_, (at, _)| now.saturating_duration_since(*at) < TITLE_CACHE_TTL);
+            }
+            cache.insert(key, (now, title.clone()));
+        });
+        Some(title)
     }
 
     pub(super) fn restore_window(window: &Window) -> bool {
@@ -229,8 +286,7 @@ mod win32 {
         };
         // Queue the command so GPUI handles it after the current input dispatch.
         // The HWND comes from the live window, and neither message carries pointers.
-        let _ = unsafe { PostMessageW(Some(hwnd), message, wparam, LPARAM(0)) };
-        true
+        unsafe { PostMessageW(Some(hwnd), message, wparam, LPARAM(0)) }.is_ok()
     }
 
     fn window_hwnd(window: &Window) -> Option<HWND> {

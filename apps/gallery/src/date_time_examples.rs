@@ -7,8 +7,8 @@ use gpui_base::TestSupportExt as _;
 use gpui_material::{
     Button, ButtonVariant, Switch, Text,
     date_time::{
-        DatePicker, DatePickerLocale, DatePickerState, DatePickerVariant, DateSelection, NaiveDate,
-        NaiveTime, ScrollField, ScrollFieldState, TimeFormat, TimePicker, TimePickerLayout,
+        Date, DatePicker, DatePickerLocale, DatePickerState, DatePickerVariant, DateSelection,
+        ScrollField, ScrollFieldState, Time, TimeFormat, TimePicker, TimePickerLayout,
         TimePickerLocale, TimePickerState, TimePickerStyle, TimePickerVariant,
         VibrantTimePickerDialog, Weekday,
     },
@@ -29,9 +29,10 @@ pub(crate) struct DateTimeExamples {
     states: PickerStates,
     first_date: DateSelection,
     second_date: DateSelection,
-    first_time: NaiveTime,
-    second_time: NaiveTime,
-    vibrant_time: NaiveTime,
+    date_locale: DatePickerLocale,
+    first_time: Time,
+    second_time: Time,
+    vibrant_time: Time,
     scroll_locked: bool,
     result: SharedString,
 }
@@ -46,8 +47,19 @@ enum PickerStates {
     },
 }
 
-fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-    NaiveDate::from_ymd_opt(year, month, day).unwrap()
+fn date(year: i16, month: i8, day: i8) -> Date {
+    Date::new(year, month, day).unwrap()
+}
+
+fn parse_dmy(text: &str) -> Option<Date> {
+    let mut parts = text.split('/');
+    let day: i8 = parts.next()?.parse().ok()?;
+    let month: i8 = parts.next()?.parse().ok()?;
+    let year: i16 = parts.next()?.parse().ok()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    Date::new(year, month, day).ok()
 }
 
 impl DateTimeExamples {
@@ -110,9 +122,17 @@ impl DateTimeExamples {
             states,
             first_date: initial_date,
             second_date: initial_date,
-            first_time: NaiveTime::from_hms_opt(14, 35, 0).unwrap(),
-            second_time: NaiveTime::from_hms_opt(9, 15, 0).unwrap(),
-            vibrant_time: NaiveTime::from_hms_opt(23, 59, 0).unwrap(),
+            date_locale: DatePickerLocale::default()
+                .first_day(Weekday::Monday)
+                .input_format(
+                    |date| {
+                        format!("{:02}/{:02}/{:04}", date.day(), date.month(), date.year()).into()
+                    },
+                    parse_dmy,
+                ),
+            first_time: Time::constant(14, 35, 0, 0),
+            second_time: Time::constant(9, 15, 0, 0),
+            vibrant_time: Time::constant(23, 59, 0, 0),
             scroll_locked: false,
             result: "No changes yet".into(),
         }
@@ -142,10 +162,7 @@ impl DateTimeExamples {
         }
     }
 
-    fn on_time(
-        index: usize,
-        cx: &Context<Self>,
-    ) -> impl Fn(NaiveTime, &mut Window, &mut App) + 'static {
+    fn on_time(index: usize, cx: &Context<Self>) -> impl Fn(Time, &mut Window, &mut App) + 'static {
         let view = cx.weak_entity();
         move |value, _, cx| {
             let _ = view.update(cx, |view, cx| {
@@ -154,7 +171,7 @@ impl DateTimeExamples {
                 } else {
                     view.second_time = value;
                 }
-                view.result = format!("Selected {}", value.format("%H:%M")).into();
+                view.result = format!("Selected {:02}:{:02}", value.hour(), value.minute()).into();
                 cx.notify();
             });
         }
@@ -162,12 +179,7 @@ impl DateTimeExamples {
 
     fn dates(&self, states: &[Entity<DatePickerState>; 3], cx: &Context<Self>) -> AnyElement {
         let range = self.story == Story::DateRangePicker;
-        let locale = DatePickerLocale::default()
-            .first_day(Weekday::Mon)
-            .input_format(
-                |date| date.format("%d/%m/%Y").to_string().into(),
-                |text| NaiveDate::parse_from_str(text, "%d/%m/%Y").ok(),
-            );
+        let locale = self.date_locale.clone();
         let calendar = DatePicker::new(
             "calendar-picker",
             if range {
@@ -321,7 +333,9 @@ impl DateTimeExamples {
                     .on_confirm(move |time, _, cx| {
                         let _ = view.update(cx, |view, cx| {
                             view.vibrant_time = time;
-                            view.result = format!("Meeting at {}", time.format("%H:%M")).into();
+                            view.result =
+                                format!("Meeting at {:02}:{:02}", time.hour(), time.minute())
+                                    .into();
                             cx.notify();
                         });
                     }),

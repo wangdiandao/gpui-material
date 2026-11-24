@@ -194,6 +194,7 @@ pub struct SearchState {
     target: SearchValue,
     progress: f32,
     animation: RetargetTransition,
+    last_sampled: Option<gpui_material_foundation::Instant>,
     _input: Subscription,
 }
 
@@ -251,6 +252,7 @@ impl SearchState {
             target: SearchValue::Collapsed,
             progress: 0.,
             animation: RetargetTransition::settled(0.),
+            last_sampled: None,
             _input: subscription,
         }
     }
@@ -331,6 +333,7 @@ impl SearchState {
         }
         self.animation.snap_to(fraction);
         self.progress = fraction;
+        self.last_sampled = None;
         cx.notify();
     }
 
@@ -360,6 +363,7 @@ impl SearchState {
         self.animation
             .animate_to(target.progress(), duration, Easing::EaseInOut, now, false);
         self.progress = self.animation.value();
+        self.last_sampled = None;
         if !self.animation.is_animating() && target == SearchValue::Collapsed {
             self.restore_focus(window, cx);
         }
@@ -439,6 +443,10 @@ impl SearchState {
             return false;
         }
         let now = cx.background_executor().now();
+        if self.last_sampled == Some(now) {
+            return false;
+        }
+        self.last_sampled = Some(now);
         let old = self.progress;
         let (value, running) = self.animation.sample(now, cx.reduce_motion());
         self.progress = value;

@@ -110,8 +110,7 @@ pub const GALLERY_TITLE: &str = "GPUI Material Gallery";
 /// Installs the default Material theme and the component and Gallery keybindings.
 /// Call once per application before opening its first window.
 pub fn init_gallery(cx: &mut App) {
-    MaterialRoot::init(MaterialTheme::default(), cx);
-    gpui_material::init_components(cx);
+    gpui_material::init(MaterialTheme::default(), cx);
     #[cfg(not(target_arch = "wasm32"))]
     cx.bind_keys([KeyBinding::new(
         "escape",

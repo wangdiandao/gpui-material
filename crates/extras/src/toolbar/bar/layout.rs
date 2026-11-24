@@ -1,93 +1,52 @@
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{
-    AnyElement, App, AvailableSpace, BorderStyle, Corners, ElementId, FocusHandle, Hsla,
-    InteractiveElement, IntoElement, IsZero, ParentElement, Pixels, Point, Size, Styled,
-    TextStyleRefinement, Window, canvas, div, prelude::FluentBuilder, px, quad, size,
+    AnyElement, App, BorderStyle, Corners, ElementId, FocusHandle, Hsla, InteractiveElement,
+    IntoElement, IsZero, ParentElement, Pixels, Point, Size, Styled, Window, canvas, div,
+    prelude::FluentBuilder, px, quad, size,
 };
 use gpui_base::TestSupportExt;
 use gpui_material_foundation::{animate, elevation_shadows};
-use gpui_material_theme::{CornerShape, Direction, Elevation, MotionSpec};
+use gpui_material_theme::{CornerShape, Direction, LogicalEdges, MotionSpec, non_negative_f32};
 
-use super::{focus_handle, length};
+use super::focus_handle;
+use crate::ContentArrangement;
 
-/// How a horizontal docked toolbar distributes unused width.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum ToolbarArrangement {
-    /// Packs actions toward the leading edge (respects RTL).
-    #[default]
-    Start,
-    /// Centers actions horizontally within the toolbar strip.
-    Center,
-    /// Packs actions toward the trailing edge (respects RTL).
-    End,
-    /// Distributes remaining space evenly between actions.
-    SpaceBetween,
-    /// Distributes remaining space around each action, with half-size outer margins.
-    SpaceAround,
-    /// Distributes remaining space equally between actions and both outer edges.
-    SpaceEvenly,
-}
-
-/// Logical insets in a toolbar's content area.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct ToolbarPadding {
-    /// Top inset in logical pixels.
-    pub top: Pixels,
-    /// Leading-edge inset in logical pixels (mirrored in RTL).
-    pub start: Pixels,
-    /// Bottom inset in logical pixels.
-    pub bottom: Pixels,
-    /// Trailing-edge inset in logical pixels (mirrored in RTL).
-    pub end: Pixels,
-}
-
-impl ToolbarPadding {
-    pub(super) fn apply<E: Styled>(
-        self,
-        strip: E,
-        direction: Direction,
-        viewport: Size<Pixels>,
-    ) -> E {
-        let dimension = |side, extent| px(length(side).unwrap_or(0.)).min(extent / 2.);
-        let (left, right) = match direction {
-            Direction::Ltr => (self.start, self.end),
-            Direction::Rtl => (self.end, self.start),
-        };
-        strip
-            .pt(dimension(self.top, viewport.height))
-            .pb(dimension(self.bottom, viewport.height))
-            .pl(dimension(left, viewport.width))
-            .pr(dimension(right, viewport.width))
-    }
-}
-
-/// Elevations of an expanded and collapsed toolbar strip.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ToolbarElevations {
-    /// Shadow elevation when the toolbar is expanded.
-    pub expanded: Option<Elevation>,
-    /// Shadow elevation when the toolbar is collapsed.
-    pub collapsed: Option<Elevation>,
+pub(super) fn apply_padding<E: Styled>(
+    padding: LogicalEdges,
+    strip: E,
+    direction: Direction,
+    viewport: Size<Pixels>,
+) -> E {
+    let dimension = |side: f32, extent: Pixels| px(non_negative_f32(side)).min(extent / 2.);
+    let (left, right) = match direction {
+        Direction::Ltr => (padding.start, padding.end),
+        Direction::Rtl => (padding.end, padding.start),
+    };
+    strip
+        .pt(dimension(padding.top, viewport.height))
+        .pb(dimension(padding.bottom, viewport.height))
+        .pl(dimension(left, viewport.width))
+        .pr(dimension(right, viewport.width))
 }
 
 /// Uses nonnegative flexible gaps so constrained children still flow forward.
 /// Each item is at index `2 * item + 1` before any direction reversal.
 pub(super) fn arrange_horizontal(
     children: Vec<AnyElement>,
-    arrangement: ToolbarArrangement,
+    arrangement: ContentArrangement,
     spacing: Pixels,
 ) -> Vec<AnyElement> {
     if children.is_empty() {
         return children;
     }
     let (before, between, after) = match arrangement {
-        ToolbarArrangement::Start => (0., 0., 1.),
-        ToolbarArrangement::Center => (1., 0., 1.),
-        ToolbarArrangement::End => (1., 0., 0.),
-        ToolbarArrangement::SpaceBetween => (0., 1., 0.),
-        ToolbarArrangement::SpaceAround => (0.5, 1., 0.5),
-        ToolbarArrangement::SpaceEvenly => (1., 1., 1.),
+        ContentArrangement::Start => (0., 0., 1.),
+        ContentArrangement::Center => (1., 0., 1.),
+        ContentArrangement::End => (1., 0., 0.),
+        ContentArrangement::SpaceBetween => (0., 1., 0.),
+        ContentArrangement::SpaceAround => (0.5, 1., 0.5),
+        ContentArrangement::SpaceEvenly => (1., 1., 1.),
     };
     let spacer = |weight, minimum| {
         div()
@@ -150,7 +109,6 @@ impl ToolbarSlot {
         expanded: bool,
         horizontal: bool,
         motion: MotionSpec,
-        ink: Hsla,
         window: &mut Window,
         cx: &mut App,
     ) -> Option<(AnyElement, FocusHandle)> {
@@ -164,61 +122,60 @@ impl ToolbarSlot {
             cx,
         )
         .clamp(0., 1.);
-        if fraction == 0. {
+        if !shown && fraction == 0. {
             return None;
         }
-        let bounds = window.use_keyed_state((key, "slot-intrinsic"), cx, |_, _| {
-            Size::<Pixels>::default()
-        });
+        let bounds = window
+            .use_keyed_state((key, "slot-intrinsic"), cx, |_, _| {
+                Rc::new(Cell::new(Size::<Pixels>::default()))
+            })
+            .read(cx)
+            .clone();
         let focus = self.focus.clone();
+        let preferred = bounds.get();
+        let has_preferred = preferred.width > px(0.) || preferred.height > px(0.);
+        let fully_expanded = shown && fraction >= 1. - f32::EPSILON;
         let child = shown.then(|| {
-            let (mut child, _) = self.content();
-            let measured = window.with_text_style(
-                Some(TextStyleRefinement {
-                    color: Some(ink),
-                    ..Default::default()
-                }),
-                |window| {
-                    child.layout_as_root(
-                        size(AvailableSpace::MaxContent, AvailableSpace::MaxContent),
-                        window,
-                        cx,
-                    )
-                },
-            );
-            bounds.update(cx, |size, _| *size = measured);
-            child
+            let bounds = bounds.clone();
+            div().relative().flex_none().child(self.element).child(
+                canvas(
+                    move |rect, window, _| {
+                        if bounds.replace(rect.size) != rect.size && !fully_expanded {
+                            window.request_animation_frame();
+                        }
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .inset_0(),
+            )
         });
-        let preferred = *bounds.read(cx);
-        let footprint = if horizontal {
-            size(preferred.width * fraction, preferred.height)
-        } else {
-            size(preferred.width, preferred.height * fraction)
-        };
-        let host = div()
-            .w(footprint.width)
-            .h(footprint.height)
+        let mut host = div()
+            .id(self.id)
+            .test_support()
+            .track_focus(&self.focus)
+            .tab_stop(false)
+            .relative()
+            .flex()
             .min_w_0()
             .min_h_0()
             .max_w_full()
             .max_h_full()
             .flex_none()
             .overflow_hidden()
-            .children(child.map(|mut child| {
-                canvas(
-                    move |bounds, window, cx| {
-                        child.prepaint_as_root(
-                            bounds.origin,
-                            bounds.size.map(AvailableSpace::Definite),
-                            window,
-                            cx,
-                        );
-                        child
-                    },
-                    |_, mut child, window, cx| child.paint(window, cx),
-                )
-                .size_full()
-            }));
+            .children(child);
+        if !fully_expanded {
+            if has_preferred {
+                let footprint = if horizontal {
+                    size(preferred.width * fraction, preferred.height)
+                } else {
+                    size(preferred.width, preferred.height * fraction)
+                };
+                host = host.w(footprint.width).h(footprint.height);
+            } else {
+                host = host.w(px(0.)).h(px(0.));
+            }
+        }
         Some((host.into_any_element(), focus))
     }
 }

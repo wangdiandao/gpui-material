@@ -29,9 +29,9 @@ impl Render for Controlled {
         )
         .variant(CarouselVariant::FullScreen)
         .height(px(200.))
-        .content_padding(CarouselPadding {
-            start: px(24.),
-            end: px(16.),
+        .content_padding(LogicalEdges {
+            start: 24.,
+            end: 16.,
             ..Default::default()
         })
         .state(&self.state)
@@ -306,7 +306,7 @@ impl Render for Parallax {
                 size(px(230.), px(140.)),
             ))
             .shape(CornerShape::Radii([12., 18., 6., 8.]))
-            .border(CarouselBorder {
+            .border(SurfaceBorder {
                 width: px(2.),
                 color: rgb(0x382d4e).into(),
             })

@@ -1,18 +1,19 @@
-use gpui_material_theme::Direction;
+use gpui_material_theme::{Direction, LogicalEdges};
 
-use super::{CarouselAlignment, CarouselPadding, CarouselVariant};
+use super::{CarouselAlignment, CarouselVariant};
 
 const PADDING: f32 = 16.;
 const GAP: f32 = 8.;
 const FULL_SCREEN_GAP: f32 = 16.;
 const MIN_SMALL: f32 = 40.;
 const MAX_SMALL: f32 = 56.;
+const EPSILON: f32 = 1e-5;
 
 #[derive(Clone, Copy)]
 pub(super) struct LayoutOptions {
     pub(super) alignment: Option<CarouselAlignment>,
     pub(super) spacing: Option<f32>,
-    pub(super) padding: Option<CarouselPadding>,
+    pub(super) padding: Option<LogicalEdges>,
     pub(super) small: (f32, f32),
 }
 
@@ -68,8 +69,8 @@ impl Layout {
             } else {
                 ((padding.start, padding.end), (padding.top, padding.bottom))
             };
-            let (leading, trailing) = fit_padding(viewport, main.0.into(), main.1.into());
-            let (cross_start, cross_end) = fit_padding(cross, across.0.into(), across.1.into());
+            let (leading, trailing) = fit_padding(viewport, main.0, main.1);
+            let (cross_start, cross_end) = fit_padding(cross, across.0, across.1);
             (leading, trailing, cross_start, cross_end)
         } else if vertical {
             (0., 0., 0., 0.)
@@ -176,11 +177,15 @@ impl Layout {
     /// Convert physical scroll to logical page progress. Uncontained mixed
     /// aspect ratios retain each item's actual pixel stride.
     pub(super) fn scroll_delta(&self, position: f32, delta: f32) -> f32 {
+        if !position.is_finite() || !delta.is_finite() {
+            return 0.;
+        }
         if !self.variant.is_uncontained() || self.prefix.len() < 2 {
             return delta / self.step();
         }
-        let base = (position.floor() as usize).min(self.prefix.len() - 1);
-        let progress = position.fract();
+        let clamped_position = position.clamp(0., (self.prefix.len() - 1) as f32);
+        let base = (clamped_position.floor() as usize).min(self.prefix.len() - 1);
+        let progress = clamped_position.fract();
         let maximum = self.maximum_offset();
         let start = self.prefix[base].min(maximum);
         let next = self.prefix[(base + 1).min(self.prefix.len() - 1)].min(maximum);
@@ -196,21 +201,27 @@ impl Layout {
             .partition_point(|&offset| offset < target)
             .saturating_sub(1);
         let next = self.prefix[(end + 1).min(self.prefix.len() - 1)].min(maximum);
-        let fraction = (target - self.prefix[end]) / (next - self.prefix[end]);
-        end as f32 + fraction - position
+        let denom = next - self.prefix[end];
+        if denom <= EPSILON {
+            return 0.;
+        }
+        let fraction = (target - self.prefix[end]) / denom;
+        end as f32 + fraction - clamped_position
     }
 
     fn maximum_offset(&self) -> f32 {
-        (self.prefix.last().unwrap() + self.sizes.last().unwrap()
-            - (self.viewport - self.leading - self.trailing))
-            .max(0.)
+        let (Some(&last_prefix), Some(&last_size)) = (self.prefix.last(), self.sizes.last()) else {
+            return 0.;
+        };
+        (last_prefix + last_size - (self.viewport - self.leading - self.trailing)).max(0.)
     }
 
     pub(super) fn visible(&self, position: f32, direction: Direction) -> Vec<(usize, ItemBounds)> {
         if self.viewport <= 0. || self.sizes.is_empty() {
             return Vec::new();
         }
-        let position = position.clamp(0., (self.sizes.len() - 1) as f32);
+        let position = if position.is_finite() { position } else { 0. }
+            .clamp(0., (self.sizes.len() - 1) as f32);
         let lower = position.floor() as usize;
         let upper = position.ceil() as usize;
         let fraction = position.fract();
@@ -472,11 +483,11 @@ mod tests {
         let options = LayoutOptions {
             alignment: Some(CarouselAlignment::Center),
             spacing: Some(14.),
-            padding: Some(CarouselPadding {
-                start: gpui::px(22.),
-                end: gpui::px(38.),
-                top: gpui::px(5.),
-                bottom: gpui::px(9.),
+            padding: Some(LogicalEdges {
+                start: 22.,
+                end: 38.,
+                top: 5.,
+                bottom: 9.,
             }),
             small: (28., 36.),
         };
@@ -715,5 +726,53 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn scroll_delta_guards_zero_denominator_non_finite_and_empty_items() {
+        // Empty items must not panic in maximum_offset or scroll_delta.
+        let empty = layout(CarouselVariant::Uncontained, 400., 0);
+        assert_eq!(empty.maximum_offset(), 0.);
+        assert_eq!(empty.scroll_delta(0., 25.), 25. / empty.step());
+
+        // Zero-width items with zero spacing produce a zero denominator in uncontained scroll_delta.
+        let degenerate = Layout::new(
+            CarouselVariant::Uncontained,
+            400.,
+            200.,
+            0.,
+            LayoutOptions {
+                spacing: Some(0.),
+                ..LayoutOptions::default()
+            },
+            [1., 1., 1.],
+        );
+        for delta in [-50., 0., 50., f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            for pos in [0., 0.5, 2., f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+                let result = degenerate.scroll_delta(pos, delta);
+                assert!(
+                    result.is_finite(),
+                    "scroll_delta({pos}, {delta}) produced non-finite {result}"
+                );
+            }
+        }
+
+        // Uncontained layout where total content is narrower than viewport (maximum_offset == 0).
+        let fits = Layout::new(
+            CarouselVariant::Uncontained,
+            800.,
+            200.,
+            100.,
+            LayoutOptions::default(),
+            [1., 1.],
+        );
+        assert_eq!(fits.maximum_offset(), 0.);
+        assert_eq!(fits.scroll_delta(0., 30.), 0.);
+        assert_eq!(fits.scroll_delta(1., -30.), 0.);
+        assert!(
+            fits.visible(f32::NAN, Direction::Ltr)
+                .iter()
+                .all(|(_, b)| b.start.is_finite())
+        );
     }
 }

@@ -2207,6 +2207,7 @@ dependencies = [
  "gpui-material-extras",
  "gpui-material-foundation",
  "gpui-material-theme",
+ "gpui-pre",
 ]
 
 [[package]]
@@ -2234,7 +2235,6 @@ dependencies = [
 name = "gpui-material-extras"
 version = "0.3.3"
 dependencies = [
- "chrono",
  "gpui-base",
  "gpui-material-components",
  "gpui-material-foundation",
@@ -2242,7 +2242,6 @@ dependencies = [
  "gpui-pre",
  "jiff",
  "raw-window-handle",
- "web-time",
  "windows 0.62.2",
 ]
 

@@ -71,7 +71,10 @@ impl SearchScrollState {
         held_open: bool,
     ) -> Pixels {
         let offset = linked.map_or(self.supplied, super::presentation::length);
-        let delta = offset - self.last.replace(offset).unwrap_or(px(0.));
+        let delta = match self.last.replace(offset) {
+            Some(previous) => offset - previous,
+            None => px(0.),
+        };
         self.limit = height;
         self.hidden = if offset == px(0.) && delta < px(0.) {
             px(0.)
@@ -79,5 +82,22 @@ impl SearchScrollState {
             (self.hidden + delta).clamp(px(0.), height)
         };
         if held_open { px(0.) } else { self.hidden }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn initial_non_zero_offset_does_not_spuriously_hide_on_first_frame() {
+        let mut state = SearchScrollState::new();
+        assert_eq!(state.measure(Some(px(240.)), px(56.), false), px(0.));
+        assert_eq!(state.hidden_fraction(), 0.);
+        // Subsequent forward scroll hides by the delta from the initial baseline.
+        assert_eq!(state.measure(Some(px(268.)), px(56.), false), px(28.));
+        assert_eq!(state.hidden_fraction(), 0.5);
+        // Scrolling back reveals the bar.
+        assert_eq!(state.measure(Some(px(254.)), px(56.), false), px(14.));
     }
 }

@@ -6,12 +6,13 @@ use gpui::{
     Window, div, prelude::FluentBuilder, px,
 };
 use gpui_material_components::{
-    ButtonColors, ButtonVariant, ControlBorder, ControlElevations, ControlShapes, ControlSize,
-    Icon, IconName, LogicalEdges, Menu, MenuItem, SemanticTone,
+    ButtonVariant, ControlSize, Icon, IconName, Menu, MenuItem, SemanticTone,
     button_composition::{ButtonPart, Segment, label_width, split_trailing_size},
 };
 use gpui_material_foundation::{InteractionSource, current_material_theme};
 use gpui_material_theme::Direction;
+
+use crate::ButtonSegmentStyle;
 
 type Command = Rc<dyn Fn(&mut Window, &mut App)>;
 type Change = Rc<dyn Fn(bool, &mut Window, &mut App)>;
@@ -35,25 +36,9 @@ enum TrailingAction {
     Toggle { selected: bool, change: Change },
 }
 
-/// Optional per-segment appearance. Omitted values keep the selected size
-/// and variant's defaults.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct SplitButtonSegmentStyle {
-    /// Corner shape overrides for resting, pressed, and checked states.
-    pub shapes: ControlShapes,
-    /// Container and content color overrides.
-    pub colors: ButtonColors,
-    /// Optional border override.
-    pub border: Option<ControlBorder>,
-    /// Elevation overrides across interaction states.
-    pub elevations: ControlElevations,
-    /// Optional content padding override.
-    pub padding: Option<LogicalEdges>,
-}
-
 #[derive(Default)]
 struct Part {
-    style: SplitButtonSegmentStyle,
+    style: ButtonSegmentStyle,
     source: Option<Entity<InteractionSource>>,
 }
 
@@ -73,6 +58,7 @@ impl Part {
 #[derive(IntoElement)]
 pub struct SplitButton {
     id: ElementId,
+    accessible_label: Option<SharedString>,
     leading_name: SharedString,
     trailing_name: SharedString,
     leading_content: Leading,
@@ -102,6 +88,7 @@ impl SplitButton {
     ) -> Self {
         Self {
             id: id.into(),
+            accessible_label: None,
             leading_name: leading_name.into(),
             trailing_name: trailing_name.into(),
             leading_content: Leading::Label,
@@ -119,6 +106,12 @@ impl SplitButton {
             on_activate: None,
             focus: None,
         }
+    }
+
+    /// Sets an accessible name for the outer split button group (`Role::Group`).
+    pub fn accessible_label(mut self, label: impl Into<SharedString>) -> Self {
+        self.accessible_label = Some(label.into());
+        self
     }
 
     /// Sets the [`ControlSize`] shared by both segments.
@@ -238,13 +231,13 @@ impl SplitButton {
     }
 
     /// Applies appearance overrides to the leading segment.
-    pub fn leading_style(mut self, style: SplitButtonSegmentStyle) -> Self {
+    pub fn leading_style(mut self, style: ButtonSegmentStyle) -> Self {
         self.leading_style.style = style;
         self
     }
 
     /// Applies appearance overrides to the trailing segment.
-    pub fn trailing_style(mut self, style: SplitButtonSegmentStyle) -> Self {
+    pub fn trailing_style(mut self, style: ButtonSegmentStyle) -> Self {
         self.trailing_style.style = style;
         self
     }
@@ -270,7 +263,9 @@ impl SplitButton {
 
 impl RenderOnce for SplitButton {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let direction = current_material_theme(window, cx).layout.direction;
+        let theme = current_material_theme(window, cx);
+        let direction = theme.layout.direction;
+        let density = theme.layout.density;
         let (primary_focus, trailing_focus) = self.focus.unwrap_or_else(|| {
             window
                 .use_keyed_state((self.id.clone(), "split-focus"), cx, |_, cx| {
@@ -318,7 +313,7 @@ impl RenderOnce for SplitButton {
                 ButtonPart::new(
                     trailing_id,
                     self.trailing_name,
-                    px(split_trailing_size(self.size).1),
+                    px(density.interactive_size(split_trailing_size(self.size).1)),
                 )
             };
             let part = match self.trailing_content {
@@ -364,6 +359,9 @@ impl RenderOnce for SplitButton {
         div()
             .id(self.id)
             .role(Role::Group)
+            .when_some(self.accessible_label, |group, label| {
+                group.aria_label(label)
+            })
             .flex()
             .items_center()
             .min_w_0()
@@ -372,5 +370,40 @@ impl RenderOnce for SplitButton {
             .when(direction == Direction::Rtl, Styled::flex_row_reverse)
             .child(primary)
             .child(trailing)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use gpui_material_components::{ButtonColors, ControlElevations};
+    use gpui_material_theme::{Elevation, LogicalEdges};
+
+    use super::*;
+
+    #[test]
+    fn split_button_sets_outer_group_accessible_label_and_unified_segment_styles() {
+        let leading = ButtonSegmentStyle {
+            colors: ButtonColors {
+                container: Some(gpui::hsla(0.2, 0.5, 0.5, 1.)),
+                ..Default::default()
+            },
+            padding: Some(LogicalEdges::symmetric(14., 4.)),
+            ..Default::default()
+        };
+        let trailing = ButtonSegmentStyle {
+            elevations: ControlElevations {
+                resting: Some(Elevation::Level2),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let button = SplitButton::new("send", "Send", "More send options", [])
+            .accessible_label("Send actions")
+            .leading_style(leading)
+            .trailing_style(trailing);
+
+        assert_eq!(button.accessible_label.as_deref(), Some("Send actions"));
+        assert_eq!(button.leading_style.style, leading);
+        assert_eq!(button.trailing_style.style, trailing);
     }
 }

@@ -7,8 +7,8 @@ use gpui_material::{
     MenuItem, Radio, RadioGroup, Slider, SliderState, StepItem, StepStatus, Stepper,
     StepperOrientation, Switch, TextField, TextFieldState, TextFieldVariant,
     date_time::{
-        DatePicker, DatePickerState, DatePickerVariant, DateSelection, NaiveDate, NaiveTime,
-        TimeFormat, TimePicker, TimePickerState, TimePickerVariant,
+        Date, DatePicker, DatePickerState, DatePickerVariant, DateSelection, Time, TimeFormat,
+        TimePicker, TimePickerState, TimePickerVariant,
     },
     foundation::{color, window_material_theme},
     theme::ColorRole,
@@ -865,7 +865,7 @@ pub static DATE_PICKER: Playground = Playground {
             "pg-date-picker",
             "Choose release date",
             &state,
-            DateSelection::Single(NaiveDate::from_ymd_opt(2026, 11, 22)),
+            DateSelection::Single(Date::new(2026, 11, 22).ok()),
         )
         .variant(variant)
         .disabled(cfg.bool("disabled"))
@@ -906,8 +906,9 @@ pub static DATE_RANGE_PICKER: Playground = Playground {
             })
             .clone();
         let on_status = ctx.on_status(cx);
-        let range =
-            NaiveDate::from_ymd_opt(2026, 11, 20).zip(NaiveDate::from_ymd_opt(2026, 11, 25));
+        let range = Date::new(2026, 11, 20)
+            .ok()
+            .zip(Date::new(2026, 11, 25).ok());
         DatePicker::new(
             "pg-date-range",
             "Choose sprint dates",
@@ -985,7 +986,7 @@ pub static TIME_PICKER: Playground = Playground {
             "pg-time-picker",
             "Schedule reminder",
             &state,
-            NaiveTime::from_hms_opt(9, 30, 0).expect("valid time"),
+            Time::new(9, 30, 0, 0).expect("valid time"),
         )
         .variant(variant)
         .format(format)

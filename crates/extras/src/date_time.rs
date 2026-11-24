@@ -14,11 +14,11 @@ use gpui_material_components::Text;
 use gpui_material_theme::{ColorRole, TypeRole};
 use std::rc::Rc;
 
-pub use chrono::{NaiveDate, NaiveTime, Weekday};
 pub use date::{
     DatePicker, DatePickerColors, DatePickerDisplayMode, DatePickerDraft, DatePickerLocale,
     DatePickerState, DatePickerVariant, DateSelection,
 };
+pub use jiff::civil::{Date, Time, Weekday};
 pub use scroll_field::{ScrollField, ScrollFieldColors, ScrollFieldState};
 pub use time::{
     TimeFormat, TimePicker, TimePickerDialog, TimePickerLayout, TimePickerLocale,

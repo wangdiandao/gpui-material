@@ -8,7 +8,7 @@ This cookbook collects practical patterns for building desktop applications with
 
 ## Application setup and state ownership
 
-Initialize `MaterialRoot` with your initial `MaterialTheme`, call `gpui_material::init_components(cx)` to register component key bindings, and open windows through `MaterialRoot::open_window` so GPUI Base owns overlay layers and focus traversal.
+Call `gpui_material::init(theme, cx)` before opening windows (which installs `MaterialRoot` with your initial `MaterialTheme` and registers component key bindings), and open windows through `MaterialRoot::open_window` so GPUI Base owns overlay layers and focus traversal.
 
 Split state by ownership:
 
@@ -103,8 +103,7 @@ fn main() {
     gpui_platform::application()
         .with_quit_mode(QuitMode::LastWindowClosed)
         .run(|cx| {
-            MaterialRoot::init(MaterialTheme::default(), cx);
-            gpui_material::init_components(cx);
+            gpui_material::init(MaterialTheme::default(), cx);
             MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
                 cx.new(|cx| SettingsApp::new(window, cx))
             })

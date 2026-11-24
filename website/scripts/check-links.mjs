@@ -5,6 +5,7 @@ import { parse } from 'parse5';
 import { components } from '../component/catalog.mjs';
 import { sitePath } from '../src/markdown.mjs';
 
+const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
 const base = sitePath(process.env.PAGES_BASE ?? '/gpui-material/');
 const origin = new URL(process.env.PAGES_ORIGIN || 'https://wangdiandao.github.io').origin;
@@ -62,9 +63,17 @@ const documentedStories = new Set(['introduction', ...components.flatMap(({ stor
 for (const story of galleryStories.difference(documentedStories)) errors.push(`Gallery story has no guide: ${story}`);
 for (const story of documentedStories.difference(galleryStories)) errors.push(`Unknown Gallery story: ${story}`);
 
+for (const { slug, source } of components) {
+  if (!source || !(await stat(join(repoRoot, source)).catch(() => null))?.isFile()) {
+    errors.push(`Component ${slug} references missing source file: ${source ?? '<missing>'}`);
+  }
+}
+
 if (errors.length) {
   console.error(errors.join('\n'));
   process.exitCode = 1;
 } else {
-  console.log(`Checked local links in ${pages.size} pages and ${documentedStories.size - 1} Gallery story IDs.`);
+  console.log(
+    `Checked local links in ${pages.size} pages, ${documentedStories.size - 1} Gallery story IDs, and ${components.length} catalog source files.`
+  );
 }

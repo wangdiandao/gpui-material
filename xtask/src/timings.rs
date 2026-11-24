@@ -1,12 +1,28 @@
 use std::{
     fs::{self, OpenOptions},
     io::{self, Write},
-    path::Path,
+    path::{Path, PathBuf},
     process::Command,
-    time::Instant,
+    time::{Instant, SystemTime},
 };
 
 use crate::{Result, output};
+
+const WARM_LEAF_SOURCE: &str = "apps/gallery/src/main.rs";
+
+struct TempDirGuard(PathBuf);
+
+impl Drop for TempDirGuard {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
+
+fn touch_leaf_source(path: &Path) -> Result {
+    let file = OpenOptions::new().write(true).open(path)?;
+    file.set_modified(SystemTime::now())?;
+    Ok(())
+}
 
 pub(crate) fn measure(report: &Path) -> Result {
     let host = output("rustc", &["-vV"])?;
@@ -43,8 +59,11 @@ pub(crate) fn measure(report: &Path) -> Result {
     )?;
 
     for command in ["check", "build"] {
-        let target_dir = report.join(format!("{command}-target"));
+        let target_dir = TempDirGuard(report.join(format!("{command}-target")));
         for cache in ["cold", "warm"] {
+            if cache == "warm" {
+                touch_leaf_source(Path::new(WARM_LEAF_SOURCE))?;
+            }
             let started = Instant::now();
             let status = Command::new("cargo")
                 .args([
@@ -57,7 +76,7 @@ pub(crate) fn measure(report: &Path) -> Result {
                     target,
                     "--target-dir",
                 ])
-                .arg(&target_dir)
+                .arg(&target_dir.0)
                 .status()?;
             if !status.success() {
                 return Err(io::Error::other(format!(
@@ -67,7 +86,7 @@ pub(crate) fn measure(report: &Path) -> Result {
             }
             let seconds = started.elapsed().as_secs_f64();
             fs::copy(
-                target_dir.join("cargo-timings/cargo-timing.html"),
+                target_dir.0.join("cargo-timings/cargo-timing.html"),
                 report.join(format!("{command}-{cache}.html")),
             )?;
             writeln!(summary, "| `cargo {command}` | {cache} | {seconds:.3} |")?;

@@ -69,7 +69,7 @@ The default workspace members are `gpui-material-theme` and `xtask`. Use `-p gpu
 
 ## Local checks
 
-Stage Markdown additions, renames, and removals before running `xtask` so they appear in the Git index. `cargo xtask check` checks Markdown links, heading anchors, bilingual pairs, generated tokens, and three-platform GPUI/Base dependency graphs.
+Stage Markdown additions, renames, and removals before running `xtask` so they appear in the Git index. `cargo xtask check` validates Markdown links against tracked and staged repository files, heading anchors, bilingual pairs (reporting all broken links and stale records together), generated tokens, and three-platform GPUI/Base dependency graphs. Running `cargo xtask tokens` also refreshes `docs/theme/token-index.i18n.yaml` automatically.
 
 ```powershell
 git diff --check origin/main
@@ -104,7 +104,7 @@ cargo test --locked --release -p gpui-material-gallery --features test-support -
 - `ripple_clip_benchmark` times clipping prebuilt ripple meshes in isolation.
 - `--frame-profile` samples a single native window over 10 seconds after a 2-second warm-up and reports CPU draw time and platform frame submission intervals (p50/p95/p99).
 
-To measure cold and warm Gallery build times into a fresh report directory:
+To measure cold and warm Gallery build times into a fresh report directory (the runner touches a leaf source file before warm measurements and removes its temporary target directories automatically):
 
 ```powershell
 cargo fetch --locked --target x86_64-pc-windows-msvc
@@ -136,7 +136,7 @@ cargo install wasm-bindgen-cli --version 0.2.130 --locked
 npm --prefix website run build:wasm
 ```
 
-In repository settings, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. PRs touching website sources or WASM build inputs run the website build; pushes to `main` touching the website, its build inputs, or `docs/` deploy automatically.
+In repository settings, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. `npm --prefix website run build:wasm` honors `RUSTUP_TOOLCHAIN` and verifies `wasm-bindgen --version`; `npm --prefix website run build` also validates every `source` path in `website/component/catalog.mjs`. PRs touching website sources, `docs/`, or WASM build inputs run the website build; pushes to `main` touching the website, its build inputs, or `docs/` deploy automatically.
 
 <a id="持续集成与合并"></a>
 
@@ -146,11 +146,10 @@ In repository settings, set **Settings → Pages → Build and deployment → So
 
 | Job | Checks |
 | --- | --- |
-| `Change scope` | Classifies changed files and checks diff whitespace. |
-| `Documentation checks` | Runs `cargo xtask docs --check` for documentation and engineering changes. |
-| `Website / Build documentation` | Builds and link-checks the website with the WASM Gallery when website sources or build inputs change. |
-| `Repository checks` | Checks Rust formatting, generated tokens, three-platform dependency graphs, and the default workspace. |
-| `Windows MSVC`, `macOS ARM64`, `Linux x64` | Runs Clippy, workspace tests, headless Gallery UI tests, native Gallery builds, and Rustdoc checks (on Linux x64). |
+| `Change scope` | Classifies changed files (`docs`, `website`, `checks`, `release_scripts`, `native`) and checks diff whitespace. |
+| `Repository checks` | Runs conditional repository-level checks in one job: `cargo xtask docs --check`, Rust formatting, generated tokens, three-platform dependency graphs, default workspace and default-feature Gallery checks (`cargo check --locked -p gpui-material-gallery`), and `release.py` syntax/unit tests. |
+| `Website / Build documentation` | Builds and link-checks the website with the WASM Gallery when website sources, `docs/`, or WASM build inputs change. |
+| `Windows MSVC`, `macOS ARM64`, `Linux x64` | Runs Clippy, workspace tests, headless Gallery UI tests, native Gallery builds (`--all-features`), and Rustdoc checks (on Linux x64). |
 | `CI required` | Confirms the selected jobs passed and unselected jobs were skipped. |
 
 Rust build caches are isolated by platform, saved on `main`, and restored by PRs. Changes to `main` require a PR that is up to date with its base and passes `CI required` under the [review and merge rules](../CONTRIBUTING.md#pr-review-and-merge). For releases, see [versioning and releases](release.md#prepare-and-publish).

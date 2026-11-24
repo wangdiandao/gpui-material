@@ -5,9 +5,14 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const output = fileURLToPath(new URL('../public/wasm/', import.meta.url));
-const toolchain = '+nightly-2026-10-31';
+const rawToolchain = (process.env.RUSTUP_TOOLCHAIN || 'nightly-2026-10-31').trim();
+const toolchain = rawToolchain.startsWith('+') ? rawToolchain : `+${rawToolchain}`;
 const target = 'wasm32-unknown-unknown';
 const release = process.argv.includes('--release');
+const wasmBindgen = process.env.WASM_BINDGEN || 'wasm-bindgen';
+
+execFileSync(wasmBindgen, ['--version'], { cwd: root, stdio: 'inherit' });
+
 const cargo = (args) => execFileSync('cargo', [toolchain, ...args], { cwd: root, encoding: 'utf8' });
 const { target_directory: targetDirectory } = JSON.parse(cargo(['metadata', '--locked', '--no-deps', '--format-version=1']));
 
@@ -17,7 +22,7 @@ execFileSync('cargo', [
 ], { cwd: root, stdio: 'inherit' });
 
 mkdirSync(output, { recursive: true });
-execFileSync(process.env.WASM_BINDGEN || 'wasm-bindgen', [
+execFileSync(wasmBindgen, [
   join(targetDirectory, target, release ? 'release' : 'debug', 'gpui_material_gallery_web.wasm'),
   '--target', 'web', '--no-typescript', '--out-name', 'material-gallery', '--out-dir', output,
 ], { cwd: root, stdio: 'inherit' });

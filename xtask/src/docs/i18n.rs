@@ -11,30 +11,51 @@ use crate::{Result, output};
 
 use super::{ParsedDoc, heading_slug, unique_id};
 
-pub(super) fn check(markdown: &str, docs: &BTreeMap<PathBuf, ParsedDoc>) -> Result {
+pub(super) fn check(markdown: &str, docs: &BTreeMap<PathBuf, ParsedDoc>) -> Result<Vec<String>> {
     let files = markdown.split_terminator('\0').collect::<BTreeSet<_>>();
     let records = output("git", &["ls-files", "-z", "--", "*.i18n.yaml"])?;
     let mut records = records.split_terminator('\0').collect::<BTreeSet<_>>();
     let mut count = 0;
+    let mut errors = Vec::new();
     for path in &files {
         if !in_scope(path) {
             continue;
         }
         if let Some(stem) = path.strip_suffix(".zh.md") {
             if !files.contains(format!("{stem}.md").as_str()) {
-                return Err(format!("{path} has no tracked English counterpart").into());
+                errors.push(format!("{path} has no tracked English counterpart"));
             }
             continue;
         }
-        let pair = Pair::new(path)?;
+        let pair = match Pair::new(path) {
+            Ok(pair) => pair,
+            Err(error) => {
+                errors.push(error.to_string());
+                continue;
+            }
+        };
         if !files.contains(pair.chinese.as_str()) {
-            return Err(format!("{path} has no tracked Chinese counterpart").into());
+            errors.push(format!("{path} has no tracked Chinese counterpart"));
+            continue;
         }
         if !records.remove(pair.record.as_str()) {
-            return Err(format!("{path} has no tracked {}", pair.record).into());
+            errors.push(format!("{path} has no tracked {}", pair.record));
+            continue;
         }
-        let expected = pair.render(docs)?;
-        let current = fs::read_to_string(&pair.record)?.replace("\r\n", "\n");
+        let expected = match pair.render(docs) {
+            Ok(expected) => expected,
+            Err(error) => {
+                errors.push(error.to_string());
+                continue;
+            }
+        };
+        let current = match fs::read_to_string(&pair.record) {
+            Ok(text) => text.replace("\r\n", "\n"),
+            Err(error) => {
+                errors.push(format!("{}: {error}", pair.record));
+                continue;
+            }
+        };
         if current != expected {
             let mut section = "/";
             let mut current_lines = current.lines();
@@ -46,19 +67,19 @@ pub(super) fn check(markdown: &str, docs: &BTreeMap<PathBuf, ParsedDoc>) -> Resu
                     break;
                 }
             }
-            return Err(format!(
+            errors.push(format!(
                 "{} is stale at {section}. Update both pages and run cargo xtask docs --write {path}",
                 pair.record
-            )
-            .into());
+            ));
+            continue;
         }
         count += 1;
     }
-    if let Some(path) = records.first() {
-        return Err(format!("unpaired documentation record: {path}").into());
+    for path in records {
+        errors.push(format!("unpaired documentation record: {path}"));
     }
     println!("Checked {count} bilingual Markdown pairs");
-    Ok(())
+    Ok(errors)
 }
 
 pub(crate) fn write_records(paths: &[&str]) -> Result {
@@ -82,7 +103,6 @@ fn in_scope(path: &str) -> bool {
             | "THIRD_PARTY_NOTICES.md"
             | "THIRD_PARTY_NOTICES.zh.md"
     ) || path.starts_with("docs/")
-        || path.starts_with("experiments/")
 }
 
 struct Pair<'a> {
@@ -232,4 +252,34 @@ fn fingerprint(text: &str) -> u64 {
     text.bytes().fold(0xcbf29ce484222325, |hash, byte| {
         (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn in_scope_excludes_removed_experiments_dir() {
+        assert!(in_scope("README.md"));
+        assert!(in_scope("CONTRIBUTING.zh.md"));
+        assert!(in_scope("docs/development.md"));
+        assert!(!in_scope("experiments/demo.md"));
+        assert!(!in_scope("CHANGELOG.md"));
+    }
+
+    #[test]
+    fn pair_rejects_chinese_and_out_of_scope_paths() {
+        let pair = Pair::new("docs/development.md").unwrap();
+        assert_eq!(pair.chinese, "docs/development.zh.md");
+        assert_eq!(pair.record, "docs/development.i18n.yaml");
+        assert!(Pair::new("docs/development.zh.md").is_err());
+        assert!(Pair::new("experiments/notes.md").is_err());
+        assert!(Pair::new("docs/../development.md").is_err());
+    }
+
+    #[test]
+    fn fingerprint_is_stable() {
+        assert_eq!(fingerprint("hello"), 0xa430d84680aabd0b);
+        assert_ne!(fingerprint("hello"), fingerprint("hello!"));
+    }
 }

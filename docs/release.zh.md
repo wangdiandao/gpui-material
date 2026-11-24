@@ -31,7 +31,7 @@ GitHub Release 提供版本说明及源码归档。检出源码后用 `cargo gal
    - `cargo gallery`：确认窗口标题与图标、缩窄到紧凑布局的切换、状态栏主题与版本号，以及受影响的示例（涉及输入与浮层时附带检查微软拼音与讲述人）。
    - `cargo gallery --window-chrome`：确认标题栏拖拽、双击最大化/还原、悬停最大化触发 Windows 贴靠布局、**Block close** 开关，以及关闭最后一个窗口后进程正常退出。
 3. **预演**：在 `main` 上手动触发 [Release 工作流](../.github/workflows/release.yml)（`version = X.Y.Z`，`publish: false`），核验工作区清单、变更日志提取，并在工作区 MSRV 下从独立下游 crate 检查全部六个库（`gpui-material-theme`、`gpui-material-foundation`、`gpui-material-components`、`gpui-material-extras`、`gpui-material`、`gpui-material-design-symbols`）的打包结果。
-4. **正式发布**：获仓库所有者批准后，在 `main` 上运行 [Release 工作流](../.github/workflows/release.yml)（`version = X.Y.Z`，`publish: true`）。通过 `release` 环境审批后，工作流经由 crates.io Trusted Publishing（OIDC）按依赖顺序发布全部六个库（等待各版本进入 sparse index），并创建带附注的 `vX.Y.Z` tag 与 GitHub Release。
+4. **正式发布**：获仓库所有者批准后，在 `main` 上运行 [Release 工作流](../.github/workflows/release.yml)（`version = X.Y.Z`，`publish: true`）。通过 `release` 环境审批后，工作流经由 crates.io Trusted Publishing（OIDC）按依赖顺序执行 `cargo publish --locked` 发布全部六个库（若目标版本已在 crates.io 存在则幂等跳过上传，继续完成 sparse index 与 SHA-256 核验，便于中途瞬态失败后安全重跑），并创建带附注的 `vX.Y.Z` tag 与 GitHub Release。
 
 <a id="release-workflow-setup"></a>
 

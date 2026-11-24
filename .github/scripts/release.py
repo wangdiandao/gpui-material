@@ -16,6 +16,7 @@ import tempfile
 import time
 import tomllib
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -239,7 +240,11 @@ def cmd_check_ci(args: argparse.Namespace) -> None:
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
-    url = f"https://api.github.com/repos/{args.repo}/commits/{args.sha}/check-runs?per_page=100"
+    encoded_check_name = urllib.parse.quote(args.check_name, safe="")
+    url = (
+        f"https://api.github.com/repos/{args.repo}/commits/{args.sha}/check-runs"
+        f"?check_name={encoded_check_name}&per_page=100"
+    )
     _, raw = http_get(url, headers=headers)
     payload = json.loads(raw.decode("utf-8"))
     runs = [
@@ -568,7 +573,15 @@ def cmd_publish_crates(args: argparse.Namespace) -> None:
     results: list[tuple[str, str]] = []
 
     for crate_name, _ in CRATES:
-        run(["cargo", "publish", "-p", crate_name], cwd=root)
+        existing = crates_io_version(crate_name, version)
+        if existing is not None:
+            print(
+                f"{crate_name} {version} already exists on crates.io; "
+                "skipping upload and verifying registry metadata.",
+                flush=True,
+            )
+        else:
+            run(["cargo", "publish", "--locked", "-p", crate_name], cwd=root)
         meta = wait_for_registry(crate_name, version)
 
         expected_sha = meta["checksum"]

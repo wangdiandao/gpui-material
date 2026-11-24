@@ -12,7 +12,7 @@ Add the facade from crates.io. Match GPUI package identities exactly so the faca
 [dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.14" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.14", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui-material = "0.3.2"
+gpui-material = "0.3.3"
 ```
 
 An application that uses Base directly should also pin `gpui-base = "=0.11.0"`. For a source integration, use `{ path = "../gpui-material/crates/material" }` and pin the checkout commit. After an upgrade, run `cargo tree -d` to check for duplicate package versions.
@@ -45,7 +45,7 @@ fn main() {
 
 ## Material Symbols
 
-Add `gpui-material-design-symbols = "0.3.2"` alongside `gpui-material` for the full Material Symbols catalog. In a source integration, use `gpui-material-design-symbols = { path = "../gpui-material/crates/design-symbols" }`. The catalog contains all 4,304 names at the pinned revision, including aliases. Use `Symbol::ALL` to browse it or `Symbol::from_name("favorite")` to resolve an upstream name. [Upstream codepoints and font assets](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
+Add `gpui-material-design-symbols = "0.3.3"` alongside `gpui-material` for the full Material Symbols catalog. In a source integration, use `gpui-material-design-symbols = { path = "../gpui-material/crates/design-symbols" }`. The catalog contains all 4,304 names at the pinned revision, including aliases. Use `Symbol::ALL` to browse it or `Symbol::from_name("favorite")` to resolve an upstream name. [Upstream codepoints and font assets](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
 
 On desktop, enable `embed-assets` on `gpui-material-design-symbols` and open an Outlined, Rounded, or Sharp font with `SymbolFont::embedded`. The fonts preserve `FILL` and `wght` with grade 0 and optical size 24. `SymbolAxes::default()` (or `SymbolAxes::new()` in `const` contexts) uses an unfilled glyph and weight 400. Use `.filled(true)` for FILL=1, `Weight::new(550)` for an intermediate weight in the inclusive 100–700 range, and `is_filled()` or `get_weight()` to inspect configured axes.
 
@@ -83,6 +83,8 @@ Search and dropdown virtualization require no caller migration. Result and optio
 `foundation::set_window_material_theme` sets the Material theme for one window. Use `ThemeScope::new(child).theme(theme).direction(Direction::Rtl)` to override a subtree. Both builders are optional. Direction alone inherits the surrounding theme. Material descendants, multiline `TextField` scrollbars, deferred exit overlays, and `ThemeScope::bind_action` callbacks resolve the closest scope before the window and application defaults without mutating `gpui_base::Theme::global`. Standalone Base controls can call `foundation::current_base_theme(window, cx)` (or `foundation::project_base_theme(theme, cx)`) to read the matching Base tokens and scrollbar styles for the active local scope.
 
 The supported application entry point is the [public facade](../crates/material/src/lib.rs), including its documented `foundation` and `theme` paths. By default `gpui-material` enables `full`, which compiles all core component groups (`actions`, `selection`, `inputs`, `surfaces`, `feedback`, and `navigation`). To compile only a subset of core components, set `default-features = false` and list the required groups (for example, `features = ["actions", "inputs"]`). Enable optional families at the facade with the [feature names in the README](../README.md); each optional family activates only the core groups it uses. `date-time` exposes its API under `gpui_material::date_time`. `dynamic-color` and `serde` forward to the pure theme crate. GPUI and Base types in public signatures follow the pinned upstream versions. Gallery modules and the internal organization of the workspace crates may change.
+
+When upgrading to 0.3.3, align direct GPUI imports with `0.3.14` and Base imports with `0.11.0`. Callers using `foundation::Shape` clipping helpers should update `clip_rect`, `clip_disc`, and `clip_convex_polygon` for `Option<gpui::Path>` and switch `clip_path`/`paint_clipped` to `clip_shape`/`paint_clipped_shape`.
 
 When upgrading to 0.3.0, replace the `windows-chrome` Cargo feature and `gpui_material::windows_chrome` module path with the cross-platform `window-chrome` feature and `gpui_material::window_chrome` module, and update exhaustive `IconName` matches to cover `IconName::Visibility` and `IconName::VisibilityOff`.
 

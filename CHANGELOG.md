@@ -4,9 +4,28 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
-### Dependencies
+## 0.3.3 - 2026-11-24
+
+Changes since [v0.3.2](https://github.com/wangdiandao/gpui-material/releases/tag/v0.3.2).
+
+### Dependencies and API migration
 
 - Upgrade `gpui-base` to `=0.11.0` and paired `gpui-pre` / `gpui-pre-platform` / `gpui-pre-web` snapshots to `=0.3.14`, enabling upstream IME surrounding-text redaction for masked text fields (`longbridge/gpui-kit#4059`). Downstream apps that import GPUI or Base directly must match the new pins.
+- Adapt `gpui_material::foundation::Shape` to GPUI `0.3.14`'s opaque curve-based `gpui::Path`: `clip_rect`, `clip_disc`, and `clip_convex_polygon` now return `Option<Path>`, `clip_path`/`paint_clipped` are replaced by `clip_shape`/`paint_clipped_shape` accepting `&Shape`, and `Shape::fill_bounds` is added.
+
+### Components
+
+- Avoid animating weighted `ButtonGroup` member widths from the viewport width on initial mount before the container width is measured.
+
+### Gallery
+
+- Display the project SVG logo in the Gallery top bar instead of the placeholder letter badge, and optimize rendering/geometry crates in `[profile.dev.package]` for smoother development builds.
+
+### Contributors
+
+- [@wangdiandao](https://github.com/wangdiandao)
+
+**Full Changelog** [`v0.3.2...v0.3.3`](https://github.com/wangdiandao/gpui-material/compare/v0.3.2...v0.3.3)
 
 ## 0.3.2 - 2026-11-23
 

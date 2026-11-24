@@ -1,22 +1,22 @@
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{
-    Anchor, AnyElement, App, Axis, Bounds, ElementId, FocusHandle, Hsla, InteractiveElement,
-    IntoElement, ParentElement, Pixels, RenderOnce, Rgba, Role, SharedString,
-    StatefulInteractiveElement, Styled, Window, canvas, deferred, div, point,
-    prelude::FluentBuilder, px,
+    Anchor, AnyElement, App, Bounds, ElementId, FocusHandle, Hsla, InteractiveElement, IntoElement,
+    ParentElement, Pixels, RenderOnce, SharedString, Styled, Window, deferred, div, point, px,
 };
-use gpui_base::{Button, FocusTrapElement, Popup, Positioner, TestSupportExt};
-use gpui_material_components::{FabColor, FabSize, FabVisibilityAnimation, Icon, IconName, Text};
+use gpui_base::{FocusTrapElement, Positioner};
+use gpui_material_components::{FabColor, FabSize, FabVisibilityAnimation, Icon, IconName};
 use gpui_material_foundation::{
-    ThemeScope, animate, color, current_material_theme, elevation_shadows, logical_anchor,
-    move_roving_focus,
+    ThemeScope, animate, color, current_material_theme, logical_anchor,
 };
-use gpui_material_theme::{
-    ColorRole, CornerShape, Direction, Elevation, MotionKind, MotionSpeed, TypeRole,
-};
+use gpui_material_theme::{ColorRole, CornerShape, Direction, Elevation, MotionKind, MotionSpeed};
 
 use super::{Invoke, activate_key, focus_handle, style_button};
+
+mod menu;
+mod trigger;
+
+use trigger::{TriggerContent, TriggerRenderContext};
 
 type Expand = Rc<dyn Fn(bool, &mut Window, &mut App)>;
 
@@ -157,11 +157,6 @@ pub struct FabMenuTriggerStyle {
     pub collapsed: FabMenuTriggerAppearance,
     /// Trigger appearance when the menu is expanded.
     pub expanded: FabMenuTriggerAppearance,
-}
-
-enum TriggerContent {
-    Icon(AnyElement),
-    Custom(AnyElement),
 }
 
 /// A floating action button that opens a stack of commands above it.
@@ -351,535 +346,6 @@ struct MenuFocus {
     handles: Vec<(FocusHandle, bool)>,
 }
 
-struct TriggerRenderContext<'a> {
-    id: &'a ElementId,
-    state: &'a Rc<MenuState>,
-    focus: &'a MenuFocus,
-    request: &'a Expand,
-    visual: TriggerVisual,
-    style: MenuStyle,
-    shadow: Hsla,
-    scale: f32,
-    visibility_alpha: f32,
-    open: bool,
-    interactive: bool,
-    has_items: bool,
-}
-
-impl FabMenu {
-    fn prepare_focus(
-        &self,
-        open: bool,
-        was_open: bool,
-        state: &Rc<MenuState>,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> MenuFocus {
-        let interactive = state.interactive.get();
-        let has_items = !self.items.is_empty();
-        let trigger = self
-            .focus
-            .clone()
-            .unwrap_or_else(|| focus_handle(&self.id, "trigger-focus", window, cx));
-        let scope = focus_handle(&self.id, "menu-scope", window, cx);
-        let handles = self
-            .items
-            .iter()
-            .map(|item| {
-                let item_id = ElementId::from((self.id.clone(), item.id.clone()));
-                (focus_handle(&item_id, "focus", window, cx), !item.disabled)
-            })
-            .collect::<Vec<_>>();
-        let first = handles
-            .iter()
-            .find(|(_, enabled)| *enabled)
-            .map(|(handle, _)| handle.clone());
-        let open_focus = first.unwrap_or_else(|| scope.clone());
-        if open && !was_open {
-            let state = state.clone();
-            let open_focus = open_focus.clone();
-            window.defer(cx, move |window, cx| {
-                if state.open.get() {
-                    open_focus.focus(window, cx);
-                }
-            });
-        } else if !open
-            && ((was_open && scope.contains_focused(window, cx))
-                || (!interactive && trigger.is_focused(window)))
-        {
-            let state = state.clone();
-            let trigger_focus = trigger.clone();
-            let previous_focus = window.focused(cx);
-            window.defer(cx, move |window, cx| {
-                let current = window.focused(cx);
-                if state.open.get()
-                    || interactive != state.interactive.get()
-                    || current.is_some() && current != previous_focus
-                {
-                    return;
-                }
-                if interactive && has_items {
-                    trigger_focus.focus(window, cx);
-                } else if current.is_some() {
-                    window.blur(cx);
-                }
-            });
-        }
-        MenuFocus {
-            trigger,
-            scope,
-            open_focus,
-            handles,
-        }
-    }
-
-    fn expansion_request(
-        &self,
-        state: &Rc<MenuState>,
-        focus: &MenuFocus,
-        has_items: bool,
-    ) -> Expand {
-        let state = state.clone();
-        let trigger_focus = focus.trigger.clone();
-        let scope = focus.scope.clone();
-        let open_focus = focus.open_focus.clone();
-        let controlled = self.expanded.is_some();
-        let on_change = self.on_expanded_change.clone();
-        Rc::new(move |expanded, window, cx| {
-            if !state.interactive.get() || !has_items || state.open.get() == expanded {
-                return;
-            }
-            if !controlled {
-                state.open.set(expanded);
-                if expanded {
-                    open_focus.focus(window, cx);
-                } else if scope.contains_focused(window, cx) {
-                    trigger_focus.focus(window, cx);
-                }
-                window.refresh();
-            }
-            if let Some(on_change) = &on_change {
-                on_change(expanded, window, cx);
-            }
-        })
-    }
-
-    fn trigger_visual(
-        &self,
-        palette: (Hsla, Hsla, Hsla, Hsla),
-        cap: f32,
-        reveal: f32,
-        direction: Direction,
-    ) -> TriggerVisual {
-        let (fill, ink, strong_fill, strong_ink) = palette;
-        let (initial_size, initial_radius, initial_icon) = match self.size {
-            FabSize::Small => (56., 16., 24.),
-            FabSize::Medium => (80., 20., 28.),
-            FabSize::Large => (96., 28., 36.),
-        };
-        let collapsed = TriggerVisual {
-            size: initial_size,
-            corners: [initial_radius; 4],
-            icon: initial_icon,
-            fill,
-            ink,
-            elevation: Elevation::Level3.dp(),
-        }
-        .at(self.trigger_style.collapsed, cap, direction);
-        let expanded = TriggerVisual {
-            size: 56.,
-            corners: [28.; 4],
-            icon: 20.,
-            fill: strong_fill,
-            ink: strong_ink,
-            elevation: Elevation::Level3.dp(),
-        }
-        .at(self.trigger_style.expanded, cap, direction);
-        collapsed.interpolate(expanded, reveal)
-    }
-
-    fn render_trigger_layer(
-        &mut self,
-        ctx: &TriggerRenderContext<'_>,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> AnyElement {
-        let content = if ctx.open {
-            self.close_content.take()
-        } else {
-            self.open_content.take()
-        };
-        let icon_size = px(ctx.visual.icon * ctx.scale);
-        let content = match content {
-            Some(TriggerContent::Custom(content)) => content,
-            Some(TriggerContent::Icon(icon)) => icon_content(icon, icon_size).into_any_element(),
-            None => Icon::new(if ctx.open { IconName::Close } else { self.icon })
-                .size(icon_size)
-                .into_any_element(),
-        };
-        let content = decorative_content((ctx.id.clone(), "trigger-content").into(), content)
-            .into_any_element();
-        if !ctx.interactive {
-            return ctx
-                .visual
-                .decorate(
-                    div().bg(ctx.visual.fill).text_color(ctx.visual.ink),
-                    ctx.scale,
-                    ctx.shadow,
-                    content,
-                )
-                .opacity(ctx.visibility_alpha)
-                .into_any_element();
-        }
-        let activate = {
-            let state = ctx.state.clone();
-            let request = ctx.request.clone();
-            move |window: &mut Window, cx: &mut App| request(!state.open.get(), window, cx)
-        };
-        let accessibility = activate.clone();
-        let request_accessibility = ctx.request.clone();
-        let keyboard = activate.clone();
-        let open = ctx.open;
-        let trigger = Button::new((ctx.id.clone(), "trigger"))
-            .track_focus(&ctx.focus.trigger)
-            .accessibility_label(if open {
-                self.close_label.clone()
-            } else {
-                self.open_label.clone()
-            })
-            .aria_expanded(open)
-            .disabled(!ctx.has_items)
-            .when(ctx.has_items, |trigger| {
-                trigger
-                    .on_click(move |_, window, cx| activate(window, cx))
-                    .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
-                        accessibility(window, cx)
-                    })
-                    .on_a11y_action(
-                        if open {
-                            gpui::AccessibleAction::Collapse
-                        } else {
-                            gpui::AccessibleAction::Expand
-                        },
-                        move |_, window, cx| request_accessibility(!open, window, cx),
-                    )
-                    .capture_key_down(move |event, window, cx| {
-                        activate_key(event, window, cx, &keyboard)
-                    })
-            });
-        let trigger = ctx
-            .visual
-            .decorate(
-                style_button(
-                    trigger,
-                    ctx.visual.fill,
-                    ctx.visual.ink,
-                    ctx.style.ring,
-                    ctx.has_items,
-                ),
-                ctx.scale,
-                ctx.shadow,
-                content,
-            )
-            .opacity(ctx.visibility_alpha);
-        let measure_trigger = ctx.state.clone();
-        let trigger = div().relative().child(trigger).child(
-            canvas(
-                move |bounds, _, _| measure_trigger.trigger_bounds.set(bounds),
-                |_, _, _, _| {},
-            )
-            .absolute()
-            .inset_0(),
-        );
-        let mut popup = Popup::new((ctx.id.clone(), "popup"), trigger)
-            .anchor(ctx.style.anchor)
-            .offset(px(8.));
-        if open {
-            let outside = ctx.request.clone();
-            let exclude_trigger = ctx.state.clone();
-            let record_bounds = ctx.state.clone();
-            let panel = div()
-                .id((ctx.id.clone(), "panel"))
-                .occlude()
-                .on_mouse_down_out(move |event, window, cx| {
-                    if !exclude_trigger
-                        .trigger_bounds
-                        .get()
-                        .contains(&event.position)
-                    {
-                        outside(false, window, cx);
-                    }
-                })
-                .child(self.render_actions(
-                    &ctx.focus.handles,
-                    ctx.state,
-                    ctx.request,
-                    ctx.style,
-                    window,
-                ));
-            popup = popup
-                .on_position(move |position, _| record_bounds.bounds.set(position.bounds))
-                .content(ThemeScope::inherit(panel, window, cx));
-        }
-        popup.into_any_element()
-    }
-
-    fn render_actions(
-        &mut self,
-        handles: &[(FocusHandle, bool)],
-        state: &Rc<MenuState>,
-        request: &Expand,
-        style: MenuStyle,
-        window: &Window,
-    ) -> AnyElement {
-        let available_height = (window.viewport_size().height - px(24.)).max(px(0.));
-        let items = std::mem::take(&mut self.items).into_iter().zip(handles);
-        if !state.open.get() {
-            return div()
-                .id((self.id.clone(), "exit"))
-                .test_support()
-                .role(Role::Group)
-                .a11y_synthetic_children(|tree| tree.parent_node().set_hidden())
-                .max_h(available_height)
-                .overflow_y_hidden()
-                .track_scroll(&state.scroll)
-                .children(items.map(|(item, _)| {
-                    let colors = style.colors(&item);
-                    menu_row(menu_pill(div(), item, style, colors), style.anchor)
-                }))
-                .into_any_element();
-        }
-
-        let key_handles = handles.to_vec();
-        let key_scroll = state.scroll.clone();
-        div()
-            .id((self.id.clone(), "actions"))
-            .test_support()
-            .role(Role::Menu)
-            .aria_label(self.open_label.clone())
-            .max_h(available_height)
-            .overflow_y_scroll()
-            .track_scroll(&state.scroll)
-            .on_key_down(move |event, window, cx| {
-                if event.keystroke.modifiers.modified() {
-                    return;
-                }
-                let focus = key_handles
-                    .iter()
-                    .map(|(handle, enabled)| (handle, *enabled))
-                    .collect::<Vec<_>>();
-                if let Some(index) = move_roving_focus(
-                    &focus,
-                    &event.keystroke.key,
-                    Axis::Vertical,
-                    Direction::Ltr,
-                    window,
-                    cx,
-                ) {
-                    key_scroll.scroll_to_item(index);
-                    cx.stop_propagation();
-                }
-            })
-            .children(items.map(|(mut item, (focus, enabled))| {
-                let invoke = item.invoke.take();
-                let request = request.clone();
-                let open = state.clone();
-                let activate = move |window: &mut Window, cx: &mut App| {
-                    if open.open.get() {
-                        request(false, window, cx);
-                        if let Some(invoke) = &invoke {
-                            invoke(window, cx);
-                        }
-                    }
-                };
-                let keyboard = activate.clone();
-                let accessibility = activate.clone();
-                let colors = style.colors(&item);
-                let button = Button::new((self.id.clone(), item.id.clone()))
-                    .role(Role::MenuItem)
-                    .accessibility_label(item.label.clone())
-                    .track_focus(focus)
-                    .disabled(!enabled)
-                    .when(*enabled, |button| {
-                        button
-                            .on_click(move |_, window, cx| activate(window, cx))
-                            .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
-                                accessibility(window, cx)
-                            })
-                            .capture_key_down(move |event, window, cx| {
-                                activate_key(event, window, cx, &keyboard)
-                            })
-                    });
-                menu_row(
-                    menu_pill(
-                        style_button(button, colors.0, colors.1, style.ring, *enabled),
-                        item,
-                        style,
-                        colors,
-                    ),
-                    style.anchor,
-                )
-            }))
-            .into_any_element()
-    }
-}
-
-fn menu_row(child: impl IntoElement, anchor: Anchor) -> impl IntoElement {
-    let row = div().flex().px(px(4.)).py(px(2.));
-    match anchor {
-        Anchor::BottomLeft => row.justify_start(),
-        Anchor::BottomCenter => row.justify_center(),
-        _ => row.justify_end(),
-    }
-    .child(child)
-}
-
-fn icon_content(icon: AnyElement, side: Pixels) -> gpui::Div {
-    div()
-        .size(side)
-        .flex_none()
-        .flex()
-        .items_center()
-        .justify_center()
-        .overflow_hidden()
-        .text_size(side)
-        .line_height(side)
-        .child(icon)
-}
-
-fn decorative_content(id: ElementId, content: impl IntoElement) -> impl IntoElement {
-    div()
-        .id(id)
-        .role(Role::Group)
-        .a11y_synthetic_children(|tree| tree.parent_node().set_hidden())
-        .min_w_0()
-        .max_w_full()
-        .overflow_hidden()
-        .child(content)
-}
-
-fn menu_pill<E>(element: E, item: FabMenuItem, style: MenuStyle, (fill, ink): (Hsla, Hsla)) -> E
-where
-    E: Styled + ParentElement + FluentBuilder,
-{
-    let width = style.max_width * style.reveal;
-    let label = item.content.unwrap_or_else(|| {
-        Text::new(item.label)
-            .role(TypeRole::TitleMedium)
-            .into_any_element()
-    });
-    element
-        .flex()
-        .flex_row()
-        .flex_none()
-        .when(style.rtl, Styled::flex_row_reverse)
-        .items_center()
-        .justify_end()
-        .overflow_hidden()
-        .min_h(px(56.))
-        .max_w(width)
-        .rounded_full()
-        .bg(fill)
-        .text_color(ink)
-        .opacity(style.alpha)
-        .px(px(24.).min(width / 3.))
-        .gap(px(8.))
-        .children(item.icon.map(|icon| {
-            icon_content(icon, px(24.))
-                .id((ElementId::from("fab-menu-icon"), item.id.clone()))
-                .role(Role::Group)
-                .a11y_synthetic_children(|tree| tree.parent_node().set_hidden())
-        }))
-        .child(decorative_content(
-            (ElementId::from("fab-menu-label"), item.id).into(),
-            label,
-        ))
-}
-
-#[derive(Clone, Copy)]
-struct TriggerVisual {
-    size: f32,
-    corners: [f32; 4],
-    icon: f32,
-    fill: Hsla,
-    ink: Hsla,
-    elevation: f32,
-}
-
-impl TriggerVisual {
-    fn at(self, appearance: FabMenuTriggerAppearance, cap: f32, direction: Direction) -> Self {
-        let dimension = |value: Option<Pixels>, default| {
-            value
-                .map(f32::from)
-                .filter(|value| value.is_finite() && *value > 0.)
-                .unwrap_or(default)
-        };
-        let size = dimension(appearance.size, self.size).min(cap);
-        Self {
-            size,
-            corners: appearance
-                .shape
-                .unwrap_or(CornerShape::Radii(self.corners))
-                .radii(size, size, direction),
-            icon: dimension(appearance.icon_size, self.icon).min(size),
-            fill: appearance.container_color.unwrap_or(self.fill),
-            ink: appearance.content_color.unwrap_or(self.ink),
-            elevation: appearance.elevation.map_or(self.elevation, Elevation::dp),
-        }
-    }
-
-    fn interpolate(self, end: Self, fraction: f32) -> Self {
-        let mix = |a, b| a + (b - a) * fraction;
-        let color = |a, b| {
-            if fraction == 0. {
-                return a;
-            }
-            if fraction == 1. {
-                return b;
-            }
-            let a = Rgba::from(a);
-            let b = Rgba::from(b);
-            Rgba {
-                r: mix(a.r, b.r),
-                g: mix(a.g, b.g),
-                b: mix(a.b, b.b),
-                a: mix(a.a, b.a),
-            }
-            .into()
-        };
-        Self {
-            size: mix(self.size, end.size),
-            corners: std::array::from_fn(|index| mix(self.corners[index], end.corners[index])),
-            icon: mix(self.icon, end.icon),
-            fill: color(self.fill, end.fill),
-            ink: color(self.ink, end.ink),
-            elevation: mix(self.elevation, end.elevation),
-        }
-    }
-
-    fn decorate<E: Styled + ParentElement>(
-        self,
-        element: E,
-        scale: f32,
-        shadow: Hsla,
-        content: AnyElement,
-    ) -> E {
-        let [tl, tr, br, bl] = self.corners.map(|radius| px(radius * scale));
-        element
-            .size(px(self.size * scale))
-            .flex_none()
-            .flex()
-            .justify_center()
-            .items_center()
-            .rounded_tl(tl)
-            .rounded_tr(tr)
-            .rounded_br(br)
-            .rounded_bl(bl)
-            .shadow(elevation_shadows(self.elevation * scale, scale, shadow))
-            .child(content)
-    }
-}
-
 impl RenderOnce for FabMenu {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let retained = window.use_keyed_state((self.id.clone(), "menu-state"), cx, |_, _| {
@@ -1039,5 +505,33 @@ fn fab_roles(value: FabColor) -> (ColorRole, ColorRole, ColorRole, ColorRole) {
             OnSecondaryContainer,
         ),
         FabColor::TertiaryStrong => (Tertiary, OnTertiary, TertiaryContainer, OnTertiaryContainer),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use gpui::{ElementId, SharedString};
+
+    use super::menu::item_part_id;
+
+    #[test]
+    fn fab_menu_item_part_ids_are_scoped_by_menu_id() {
+        let first_icon = item_part_id(
+            &ElementId::from("menu-a"),
+            "fab-menu-icon",
+            SharedString::from("copy"),
+        );
+        let second_icon = item_part_id(
+            &ElementId::from("menu-b"),
+            "fab-menu-icon",
+            SharedString::from("copy"),
+        );
+        let first_label = item_part_id(
+            &ElementId::from("menu-a"),
+            "fab-menu-label",
+            SharedString::from("copy"),
+        );
+        assert_ne!(first_icon, second_icon);
+        assert_ne!(first_icon, first_label);
     }
 }

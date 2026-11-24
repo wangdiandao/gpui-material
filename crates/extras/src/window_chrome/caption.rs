@@ -161,6 +161,7 @@ impl CaptionButtons {
 
 impl RenderOnce for CaptionButtons {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let parent_id = self.id.clone();
         let buttons = div().id(self.id);
         if !should_show_caption_buttons(window, self.platform, self.show) {
             return buttons;
@@ -175,50 +176,57 @@ impl RenderOnce for CaptionButtons {
         );
         let rtl = current_material_theme(window, cx).layout.direction == Direction::Rtl;
 
+        let minimize = show_minimize.then(|| {
+            title_bar_control(
+                &parent_id,
+                CaptionButton::Minimize,
+                self.platform,
+                button_width,
+                self.colors,
+                self.labels.for_control(CaptionButton::Minimize),
+                None,
+                window,
+                cx,
+            )
+        });
+        let maximize = show_maximize.then(|| {
+            let control = if window.is_maximized() {
+                CaptionButton::Restore
+            } else {
+                CaptionButton::Maximize
+            };
+            title_bar_control(
+                &parent_id,
+                control,
+                self.platform,
+                button_width,
+                self.colors,
+                self.labels.for_control(control),
+                None,
+                window,
+                cx,
+            )
+        });
+        let close = title_bar_control(
+            &parent_id,
+            CaptionButton::Close,
+            self.platform,
+            button_width,
+            self.colors,
+            self.labels.for_control(CaptionButton::Close),
+            self.on_close,
+            window,
+            cx,
+        );
+
         buttons
             .flex()
             .items_stretch()
             .flex_shrink_0()
             .when(rtl, |buttons| buttons.flex_row_reverse())
-            .when(show_minimize, |buttons| {
-                buttons.child(title_bar_control(
-                    CaptionButton::Minimize,
-                    self.platform,
-                    button_width,
-                    self.colors,
-                    self.labels.for_control(CaptionButton::Minimize),
-                    None,
-                    window,
-                    cx,
-                ))
-            })
-            .when(show_maximize, |buttons| {
-                let control = if window.is_maximized() {
-                    CaptionButton::Restore
-                } else {
-                    CaptionButton::Maximize
-                };
-                buttons.child(title_bar_control(
-                    control,
-                    self.platform,
-                    button_width,
-                    self.colors,
-                    self.labels.for_control(control),
-                    None,
-                    window,
-                    cx,
-                ))
-            })
-            .child(title_bar_control(
-                CaptionButton::Close,
-                self.platform,
-                button_width,
-                self.colors,
-                self.labels.for_control(CaptionButton::Close),
-                self.on_close,
-                window,
-                cx,
-            ))
+            .when_some(minimize, |buttons, button| buttons.child(button))
+            .when_some(maximize, |buttons, button| buttons.child(button))
+            .child(close)
     }
 }
 
@@ -258,15 +266,21 @@ impl CaptionButton {
 
 #[allow(clippy::too_many_arguments)]
 fn title_bar_control(
+    parent_id: &ElementId,
     control: CaptionButton,
     platform: ChromePlatform,
     button_width: Pixels,
     colors: CaptionButtonColors,
     label: SharedString,
     on_close: Option<CloseHandler>,
-    window: &Window,
-    cx: &App,
-) -> impl IntoElement {
+    window: &mut Window,
+    cx: &mut App,
+) -> impl IntoElement + use<> {
+    let key = ElementId::from((ElementId::from((parent_id.clone(), control.id())), "focus"));
+    let focus_handle = window
+        .use_keyed_state(key, cx, |_, cx| cx.focus_handle().tab_stop(true))
+        .read(cx)
+        .clone();
     let theme = current_material_theme(window, cx);
     let tone = |role| color(theme.colors.color(role));
     let foreground = if window.is_window_active() {
@@ -334,6 +348,7 @@ fn title_bar_control(
         })
         .role(Role::Button)
         .aria_label(label)
+        .track_focus(&focus_handle)
         .tab_index(0)
         .focus_visible(move |style| style.border_color(ring))
         .hover(move |style| style.bg(hover_fill).text_color(hover_text))

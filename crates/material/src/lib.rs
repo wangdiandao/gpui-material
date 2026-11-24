@@ -1,33 +1,36 @@
 //! Material 3 Expressive controls and theme for GPUI applications.
 //!
-//! Initialize [MaterialRoot] and call [init_components] before opening windows.
+//! Call [`init`] with the initial [`MaterialTheme`] before opening windows.
 //! Compose controls with GPUI elements and keep controlled selection and
 //! command outcomes in the application. Sliders use a retained `SliderState` entity.
+#![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![deny(rustdoc::broken_intra_doc_links)]
 
+#[cfg(feature = "display")]
 pub use gpui_material_components::*;
+#[cfg(any(feature = "expressive-groups", feature = "toolbars"))]
+pub use gpui_material_extras::ContentArrangement;
 #[cfg(feature = "date-time")]
 pub use gpui_material_extras::date_time;
 #[cfg(feature = "window-chrome")]
 pub use gpui_material_extras::window_chrome;
 #[cfg(feature = "expressive-groups")]
 pub use gpui_material_extras::{
-    ButtonGroup, ButtonGroupAlignment, ButtonGroupConnectedShapes, ButtonGroupItem,
-    ButtonGroupItemStyle, ButtonGroupSelection, ButtonGroupVariant, ButtonGroupVerticalAlignment,
-    SplitButton, SplitButtonSegmentStyle,
+    ButtonGroup, ButtonGroupConnectedShapes, ButtonGroupItem, ButtonGroupSelection,
+    ButtonGroupVariant, ButtonGroupVerticalAlignment, ButtonSegmentStyle, SplitButton,
 };
 #[cfg(feature = "carousel")]
 pub use gpui_material_extras::{
-    Carousel, CarouselAlignment, CarouselBorder, CarouselFling, CarouselFlingContext, CarouselItem,
-    CarouselPadding, CarouselParallax, CarouselState, CarouselVariant,
+    Carousel, CarouselAlignment, CarouselFling, CarouselFlingContext, CarouselItem,
+    CarouselParallax, CarouselState, CarouselVariant,
 };
 #[cfg(feature = "toolbars")]
 pub use gpui_material_extras::{
     FabMenu, FabMenuAlignment, FabMenuItem, FabMenuItemColors, FabMenuTriggerAppearance,
-    FabMenuTriggerStyle, Toolbar, ToolbarAction, ToolbarArrangement, ToolbarColor, ToolbarColors,
-    ToolbarElevations, ToolbarExitDirection, ToolbarFabPosition, ToolbarFling, ToolbarOrientation,
-    ToolbarPadding, ToolbarPlacement, ToolbarScrollBehavior, ToolbarScrollState,
+    FabMenuTriggerStyle, Toolbar, ToolbarAction, ToolbarColor, ToolbarColors, ToolbarExitDirection,
+    ToolbarFabPosition, ToolbarFling, ToolbarOrientation, ToolbarPlacement, ToolbarScrollBehavior,
+    ToolbarScrollState,
 };
 #[cfg(feature = "search")]
 pub use gpui_material_extras::{
@@ -40,7 +43,38 @@ pub use gpui_material_foundation::{
     InteractionSource, InteractionState, InteractionUpdate, MaterialRoot, PolygonMorph, Scrim,
     Shape, ShapeFit, ShapeMorph, ShapeMorphSequence, ShapePolygon, Surface, SurfaceBorder,
     SurfaceFeedback, ThemeScope, current_base_theme, current_material_theme, material_theme,
-    project_base_theme, set_material_theme,
+    project_base_theme, set_material_theme, set_window_material_theme, window_material_theme,
 };
 pub use gpui_material_theme as theme;
+#[cfg(not(feature = "display"))]
+pub use gpui_material_theme::LogicalEdges;
 pub use gpui_material_theme::{MaterialShape, MaterialTheme};
+
+/// Installs the application [`MaterialTheme`], initializes [`MaterialRoot`], and
+/// registers component keybindings when component features are enabled.
+///
+/// Call once per application before opening windows.
+pub fn init(theme: MaterialTheme, cx: &mut gpui::App) {
+    MaterialRoot::init(theme, cx);
+    #[cfg(feature = "display")]
+    gpui_material_components::init_components(cx);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn root_exports_init_window_theme_and_logical_edges() {
+        let _init: fn(MaterialTheme, &mut gpui::App) = init;
+        let _get_window_theme: for<'a, 'b> fn(
+            &'b gpui::Window,
+            &'a gpui::App,
+        ) -> &'a MaterialTheme = window_material_theme;
+        let _set_window_theme: fn(Option<MaterialTheme>, &mut gpui::Window, &mut gpui::App) =
+            set_window_material_theme;
+        let edges = LogicalEdges::symmetric(16.0, 8.0);
+        assert_eq!(edges.start, 16.0);
+        assert_eq!(edges.top, 8.0);
+    }
+}

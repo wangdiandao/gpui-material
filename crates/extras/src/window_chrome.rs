@@ -21,7 +21,9 @@ pub use platform::{
     title_bar_window_options_with_height,
 };
 
-use platform::{CloseHandler, read_window_title, sanitize_nonnegative, sanitize_positive};
+use platform::{
+    CloseHandler, read_window_title, sanitize_nonnegative, sanitize_positive, should_show_title_bar,
+};
 
 /// Optional color overrides for [`TitleBar`]. Omitted fields resolve from the
 /// current window Material theme.
@@ -142,7 +144,7 @@ impl TitleBar {
         self
     }
 
-    /// Sets the logical leading inset reserved for macOS traffic light buttons
+    /// Sets the logical physical-left inset reserved for macOS traffic light buttons
     /// when not fullscreen. Defaults to [`DEFAULT_MACOS_TRAFFIC_LIGHT_PADDING`] (78 px).
     pub fn traffic_light_padding(mut self, padding: Pixels) -> Self {
         self.traffic_light_padding =
@@ -195,6 +197,11 @@ impl TitleBar {
 
 impl RenderOnce for TitleBar {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let platform = self.platform;
+        if !should_show_title_bar(window, platform, self.show_caption_buttons) {
+            return div().id(self.id).test_support();
+        }
+
         let theme = current_material_theme(window, cx);
         let rtl = theme.layout.direction == Direction::Rtl;
         let tone = |role| color(theme.colors.color(role));
@@ -226,18 +233,12 @@ impl RenderOnce for TitleBar {
             sanitize_positive(size, px(type_style.size))
         });
 
-        let title_text = self
-            .title
-            .unwrap_or_else(|| SharedString::from(read_window_title(window)));
+        let title_text = self.title.unwrap_or_else(|| read_window_title(window));
         let fullscreen = window.is_fullscreen();
-        let platform = self.platform;
         let show_traffic_light_inset = platform.uses_traffic_lights() && !fullscreen;
         let has_leading = self.leading.is_some();
-        let title_start_pad = if show_traffic_light_inset || has_leading {
-            px(8.)
-        } else {
-            px(16.)
-        };
+        let start_has_inset = (!rtl && show_traffic_light_inset) || has_leading;
+        let title_start_pad = if start_has_inset { px(8.) } else { px(16.) };
 
         let drag_region = div()
             .flex()
@@ -284,7 +285,7 @@ impl RenderOnce for TitleBar {
                     .child(title_text),
             );
 
-        let caption_buttons = CaptionButtons::new("caption-buttons")
+        let caption_buttons = CaptionButtons::new((self.id.clone(), "caption-buttons"))
             .colors(self.caption_colors)
             .labels(self.caption_labels)
             .with_button_width_override(self.caption_button_width)
@@ -292,6 +293,34 @@ impl RenderOnce for TitleBar {
             .with_show_override(self.show_caption_buttons)
             .with_close_handler(self.on_close);
 
+        let content_row = div()
+            .flex()
+            .flex_1()
+            .min_w_0()
+            .items_stretch()
+            .when(rtl, |row| row.flex_row_reverse())
+            .when_some(self.leading, |row, leading| {
+                row.child(
+                    div()
+                        .flex()
+                        .flex_shrink_0()
+                        .items_center()
+                        .when(!show_traffic_light_inset && !rtl, |slot| slot.pl(px(8.)))
+                        .when(rtl, |slot| slot.pr(px(8.)))
+                        .child(leading),
+                )
+            })
+            .child(drag_region)
+            .when_some(self.content, |row, content| {
+                row.child(div().flex().min_w_0().items_center().child(content))
+            })
+            .when_some(self.trailing, |row, trailing| {
+                row.child(div().flex().min_w_0().items_center().child(trailing))
+            })
+            .child(caption_buttons);
+
+        // Keep the outer bar in physical LTR order so macOS traffic-light padding
+        // always stays on the physical left, even when the logical content row is RTL.
         div()
             .id(self.id.clone())
             .flex()
@@ -300,7 +329,6 @@ impl RenderOnce for TitleBar {
             .min_h(self.height)
             .flex_shrink_0()
             .items_stretch()
-            .when(rtl, |bar| bar.flex_row_reverse())
             .bg(background)
             .text_color(foreground)
             .when_some(self.colors.border, |bar, border| {
@@ -312,28 +340,11 @@ impl RenderOnce for TitleBar {
                         .id((self.id.clone(), "traffic-light-inset"))
                         .w(self.traffic_light_padding)
                         .h_full()
-                        .flex_shrink_0(),
-                )
-            })
-            .when_some(self.leading, |bar, leading| {
-                bar.child(
-                    div()
-                        .flex()
                         .flex_shrink_0()
-                        .items_center()
-                        .when(!show_traffic_light_inset && !rtl, |slot| slot.pl(px(8.)))
-                        .when(!show_traffic_light_inset && rtl, |slot| slot.pr(px(8.)))
-                        .child(leading),
+                        .test_support(),
                 )
             })
-            .child(drag_region)
-            .when_some(self.content, |bar, content| {
-                bar.child(div().flex().min_w_0().items_center().child(content))
-            })
-            .when_some(self.trailing, |bar, trailing| {
-                bar.child(div().flex().min_w_0().items_center().child(trailing))
-            })
-            .child(caption_buttons)
+            .child(content_row)
             .test_support()
     }
 }

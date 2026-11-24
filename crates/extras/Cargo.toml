@@ -30,7 +30,6 @@ search = [
     "gpui-material-components/feedback",
     "dep:gpui-material-foundation",
     "dep:gpui-material-theme",
-    "dep:web-time",
 ]
 toolbars = [
     "dep:gpui",
@@ -42,7 +41,6 @@ toolbars = [
     "dep:gpui-material-theme",
 ]
 date-time = [
-    "dep:chrono",
     "dep:jiff",
     "dep:gpui",
     "dep:gpui-base",
@@ -56,18 +54,16 @@ date-time = [
 window-chrome = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-foundation", "dep:gpui-material-theme", "dep:raw-window-handle", "dep:windows"]
 
 [dependencies]
-chrono = { version = "0.4.45", default-features = false, optional = true }
-jiff = { version = "1.0", default-features = false, optional = true }
+jiff = { workspace = true, optional = true }
 gpui = { workspace = true, optional = true }
 gpui-base = { workspace = true, optional = true }
 gpui-material-components = { workspace = true, optional = true, default-features = false }
 gpui-material-foundation = { workspace = true, optional = true }
 gpui-material-theme = { workspace = true, optional = true }
-web-time = { workspace = true, optional = true }
 
 [target.'cfg(windows)'.dependencies]
-raw-window-handle = { version = "0.6.2", optional = true }
-windows = { version = "0.62.2", features = ["Win32_UI_WindowsAndMessaging"], optional = true }
+raw-window-handle = { workspace = true, optional = true }
+windows = { workspace = true, features = ["Win32_UI_WindowsAndMessaging"], optional = true }
 
 [package.metadata.docs.rs]
 features = [

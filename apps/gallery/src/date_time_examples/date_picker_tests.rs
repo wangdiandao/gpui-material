@@ -13,7 +13,7 @@ use gpui_material::{
     Button, DialogCloseReason, DialogProperties, MaterialRoot, Text,
     date_time::{
         DatePicker, DatePickerColors, DatePickerDisplayMode as Mode, DatePickerDraft as Draft,
-        DatePickerLocale, DatePickerState, DatePickerVariant as Variant, DateSelection, NaiveDate,
+        DatePickerLocale, DatePickerState, DatePickerVariant as Variant, DateSelection, Weekday,
     },
 };
 
@@ -104,7 +104,7 @@ impl Render for Probe {
                             .on_activate(move |window, cx| action.activate(window, cx))
                     })
                     .on_confirm(move |value, _, _| confirm.selected.borrow_mut().push(value))
-                    .on_close(move |reason, _, _| dismiss.closed.borrow_mut().push(reason)),
+                    .on_closed(move |reason, _, _| dismiss.closed.borrow_mut().push(reason)),
             )
     }
 }
@@ -125,13 +125,37 @@ impl Harness {
             let events = Rc::new(Events::default());
             let target = cx.focus_handle();
             let opener = cx.focus_handle();
+            const MONTHS: [&str; 12] = [
+                "January",
+                "February",
+                "March",
+                "April",
+                "May",
+                "June",
+                "July",
+                "August",
+                "September",
+                "October",
+                "November",
+                "December",
+            ];
             let locale = DatePickerLocale::default()
-                .first_day(gpui_material::date_time::Weekday::Mon)
+                .first_day(Weekday::Monday)
                 .input_format(
-                    |date| date.format("%d/%m/%Y").to_string().into(),
-                    |text| NaiveDate::parse_from_str(text, "%d/%m/%Y").ok(),
+                    |date| {
+                        format!("{:02}/{:02}/{:04}", date.day(), date.month(), date.year()).into()
+                    },
+                    super::parse_dmy,
                 )
-                .accessible_date_format(|date| format!("Date {}", date.format("%d %B %Y")).into());
+                .accessible_date_format(|date| {
+                    format!(
+                        "Date {:02} {} {:04}",
+                        date.day(),
+                        MONTHS[(date.month() - 1) as usize],
+                        date.year(),
+                    )
+                    .into()
+                });
             let mut retained = None;
             let window = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
                 let state = cx.new(|cx| {

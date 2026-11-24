@@ -17,8 +17,9 @@ GPUI Material 提供 Material 的 Token、主题、视觉状态、布局和组�
 | `gpui-material-components` | → foundation，必要时 → theme。提供轻量核心展示原语及按组划分的核心组件特性（`actions`、`selection`、`inputs`、`surfaces`、`feedback`、`navigation`；`default = ["full"]`）。 |
 | `gpui-material-extras` | → components（仅启用各组件族所需的组件分组）、foundation 和所需的 theme API。按组件族启用，独立声明额外依赖。 |
 | `gpui-material-design-symbols` | 提供完整 Material Symbols 目录的配套库，从可变字形轮廓生成 SVG。应用将结果传给 `Icon::svg_data`。[集成方法](integration.zh.md#material-symbols) |
-| `gpui-material` | → 已交付的公开实现 crate，转发核心组件分组（`default = ["full"]`）及可选的 extras 和主题特性。 |
+| `gpui-material` | → 已交付的公开实现 crate。将 `gpui-material-components` 设为可选依赖（通过 `display` 与各核心组件分组启用，`default = ["full"]`），并用显式 `dep:` 转发 extras 与主题特性，使仅启用 `carousel` 或 `window-chrome` 时完全不编译 `gpui-material-components`。 |
 | `gpui-material-gallery` | → 已交付的门面。同一个包提供 `gpui_material_story` 库和桌面可执行程序，排除在 Workspace 默认构建之外。 |
+| `gpui-material-gallery-web` | → `gpui_material_story`（以 `default-features = false` 依赖 `apps/gallery`）、`gpui-pre-web` 与 `wasm-bindgen`。位于 `apps/gallery-web` 的浏览器 WASM Gallery 宿主，排除在 Workspace 默认构建之外。 |
 | `xtask` | 文档与依赖检查、构建计时和 Token 离线生成。保持 GPUI 无关。 |
 
 controls/display 可被 inputs、overlays、navigation 使用。TextField 的编辑模型向组合层提供编辑命令，ExposedDropdown 和编辑菜单由组合层衔接。navigation 使用 slot 接入搜索和工具条。实现 crate 通过底层接口共享代码，门面仅负责用户入口。生产依赖链使用 gpui-base，`gpui-component` 作为上游集成参考。
@@ -53,7 +54,7 @@ Foundation 为各组件族共享排版、涟漪反馈和桌面阴影投影。按
 | [`material-color-utils 0.1.3`][mcu-rust] | HCT、色板和动态语义色。关闭默认 feature，避免 `image`、`serde`、`rayon`；直接依赖 `bon`、`indexmap`、`papaya`、`thiserror`。包内 LICENSE 为 Apache-2.0。 | 库类型由 `theme` 内部适配。 |
 | [`polymorpher 0.1.4`][polymorpher] | 圆角多边形和 morph，保留默认空 feature，只使用基础几何；直接依赖 `euclid`。Apache-2.0。 | GPUI 路径转换与几何适配集中在 foundation。 |
 | [Material Symbols][symbols] | 使用固定版本的必要资源，应用可替换图标。Apache-2.0。 | 逐项登记分发资产和许可证。 |
-| `chrono 0.4.45` 与 [Base Calendar][calendar] | `date-time` 特性在 extras 中启用直接 `chrono` 依赖并关闭其默认特性，与 Base/GPUI 解析到同一包。MIT 或 Apache-2.0。 | Base 管理日历及日期范围的草稿状态；`chrono` 提供边界检查的日历运算与日期时间类型；应用通过格式化和解析接口控制本地化显示与输入。 |
+| `jiff 1.0` 与 [Base Calendar][calendar] | `date-time` 特性在 extras 中启用直接 `jiff` 依赖并关闭默认特性，不拉入 `chrono` 或 `web-time`。MIT 或 Unlicense。 | Base 管理日历及日期范围的草稿状态；`jiff::civil::{Date, Time, Weekday}` 提供边界检查的日历运算与日期时间类型；应用通过格式化和解析接口控制本地化显示与输入。 |
 | [`rust-i18n 4.2.4`][i18n] | 可选应用适配，MIT。项目默认使用可覆盖文案和格式化器，该候选会引入宏与支持库。 | 翻译库类型由应用适配封装。 |
 
 extras 按实际需要定义 `expressive-groups`、`search`、`date-time`、`carousel` 等组件族。主题支持静态数据，`dynamic-color` 与 `serde` 按需启用，图片提色优先留在工具层。组件所需键盘、语义和动效属于完整行为。

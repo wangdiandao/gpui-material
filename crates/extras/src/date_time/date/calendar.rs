@@ -1,24 +1,23 @@
 use std::rc::Rc;
 
-use chrono::{Datelike, Days};
 use gpui::{
     AccessibleAction, AnyElement, App, ElementId, Entity, FocusHandle, Hsla,
     InteractiveElement as _, IntoElement, ParentElement as _, Pixels, Role, SharedString,
     StatefulInteractiveElement as _, Styled as _, Window, div, prelude::FluentBuilder as _, px,
 };
 use gpui_base::{
-    Button as BaseButton, Date, TestSupportExt as _, actions::Confirm as ConfirmAction,
+    Button as BaseButton, Date as BaseDate, TestSupportExt as _, actions::Confirm as ConfirmAction,
 };
 use gpui_material_components::{
     Button, ButtonColors, ButtonVariant, DialogCloseReason, Icon, IconButton, IconName, Text,
 };
 use gpui_material_foundation::{color, current_material_theme, text_style};
 use gpui_material_theme::{ColorRole, Direction, TypeRole, TypographyEmphasis};
+use jiff::{ToSpan as _, civil::Date};
 
 use super::{
-    DatePickerColors, DatePickerLocale, DatePickerState, DockedActions, NaiveDate, from_base_date,
-    state::{MonthCache, calendar_start, first_of_month},
-    to_base_date,
+    state::{DatePickerState, MonthCache, calendar_start, first_of_month},
+    types::{DatePickerColors, DatePickerLocale, DockedActions},
 };
 
 const YEARS_PER_PAGE: i32 = 12;
@@ -41,11 +40,11 @@ fn year_choices(
     cx: &App,
 ) -> AnyElement {
     let model = state.read(cx);
-    let first = model.limits.bounds.start().year();
-    let last = model.limits.bounds.end().year();
+    let first = i32::from(model.limits.bounds.start().year());
+    let last = i32::from(model.limits.bounds.end().year());
     let displayed = model.displayed_month();
-    let today = from_base_date(model.calendar.read(cx).today());
-    let selected_year = displayed.year();
+    let today = model.calendar.read(cx).today();
+    let selected_year = i32::from(displayed.year());
     let direction = current_material_theme(window, cx).layout.direction;
     let rtl = direction == Direction::Rtl;
     let page_change = |delta: i32| {
@@ -66,7 +65,7 @@ fn year_choices(
         let enabled = model.limits.accepts_year(year);
         let content = if selected {
             colors.selected_year
-        } else if today.year() == year {
+        } else if i32::from(today.year()) == year {
             colors.current_year
         } else {
             colors.year
@@ -95,7 +94,8 @@ fn year_choices(
             .on_activate(move |window, cx| {
                 state.update(cx, |model, cx| {
                     if model.limits.accepts_year(year)
-                        && let Some(target) = NaiveDate::from_ymd_opt(year, displayed.month(), 1)
+                        && let Ok(year_i16) = i16::try_from(year)
+                        && let Ok(target) = Date::new(year_i16, displayed.month(), 1)
                     {
                         model.set_displayed_month(target, cx);
                         model.day.focus(window, cx);
@@ -166,7 +166,7 @@ fn year_choices(
 fn activate_day(
     state: &Entity<DatePickerState>,
     docked: Option<&DockedActions>,
-    date: NaiveDate,
+    date: Date,
     window: &mut Window,
     cx: &mut App,
 ) {
@@ -188,11 +188,11 @@ struct CalendarContext<'a> {
     cache: &'a MonthCache,
     docked: &'a Option<DockedActions>,
     colors: DatePickerColors,
-    month: NaiveDate,
-    start: NaiveDate,
-    draft: Date,
-    today: NaiveDate,
-    cursor: NaiveDate,
+    month: Date,
+    start: Date,
+    draft: BaseDate,
+    today: Date,
+    cursor: Date,
     direction: Direction,
     cell: Pixels,
     focus_cursor: bool,
@@ -275,8 +275,10 @@ fn calendar_header(ctx: &CalendarContext<'_>, model: &DatePickerState) -> impl I
             )
             .on_activate(move |_, cx| {
                 show_years.update(cx, |model, cx| {
-                    model.year_page =
-                        Some(year_page(month.year(), model.limits.bounds.start().year()));
+                    model.year_page = Some(year_page(
+                        i32::from(month.year()),
+                        i32::from(model.limits.bounds.start().year()),
+                    ));
                     cx.notify();
                 });
             }),
@@ -295,10 +297,10 @@ fn calendar_header(ctx: &CalendarContext<'_>, model: &DatePickerState) -> impl I
 
 fn weekday_row(ctx: &CalendarContext<'_>) -> impl IntoElement {
     let rtl = ctx.direction == Direction::Rtl;
-    let weekdays = (0..7).map(|offset| {
+    let weekdays = (0_i64..7).map(|offset| {
         let weekday = ctx
             .start
-            .checked_add_days(Days::new(offset))
+            .checked_add(offset.days())
             .unwrap_or(ctx.start)
             .weekday();
         div()
@@ -309,7 +311,7 @@ fn weekday_row(ctx: &CalendarContext<'_>) -> impl IntoElement {
             .when_some(ctx.colors.weekday, gpui::Styled::text_color)
             .child(
                 Text::new((ctx.locale.weekday)(weekday))
-                    .id(("weekday", weekday.num_days_from_monday()))
+                    .id(("weekday", weekday.to_monday_zero_offset() as usize))
                     .role(TypeRole::BodySmall),
             )
     });
@@ -362,23 +364,23 @@ fn day_colors(
 fn day_cell(
     ctx: &CalendarContext<'_>,
     model: &DatePickerState,
-    offset: u64,
+    offset: i64,
     window: &Window,
 ) -> AnyElement {
     let Some(date) = ctx
         .start
-        .checked_add_days(Days::new(offset))
+        .checked_add(offset.days())
+        .ok()
         .filter(|date| date.month() == ctx.month.month())
     else {
         return div().size(ctx.cell).into_any_element();
     };
     let rtl = ctx.direction == Direction::Rtl;
     let enabled = model.limits.accepts(date);
-    let base_date = to_base_date(date);
-    let active = base_date.is_some_and(|d| ctx.draft.is_active(&d));
-    let range = base_date.is_some_and(|d| ctx.draft.is_in_range(&d));
-    let leading = range && base_date.is_some() && ctx.draft.start() == base_date;
-    let trailing = range && base_date.is_some() && ctx.draft.end() == base_date;
+    let active = ctx.draft.is_active(&date);
+    let range = ctx.draft.is_in_range(&date);
+    let leading = range && ctx.draft.start() == Some(date);
+    let trailing = range && ctx.draft.end() == Some(date);
     let focus = ctx.cursor == date;
     let is_today = date == ctx.today;
     let show_focus_ring = focus && ctx.focus_cursor && window.last_input_was_keyboard();
@@ -484,12 +486,12 @@ fn calendar_grid(
         activate_day(&key_selection, key_actions.as_ref(), cursor, window, cx);
     });
     let confirm = select.clone();
-    let rows = (0..6)
+    let rows = (0_i64..6)
         .map(|week| {
             div()
                 .flex()
                 .when(rtl, gpui::Styled::flex_row_reverse)
-                .children((0..7).map(|day| day_cell(ctx, model, week * 7 + day, window)))
+                .children((0_i64..7).map(|day| day_cell(ctx, model, week * 7 + day, window)))
         })
         .collect::<Vec<_>>();
     div()
@@ -514,15 +516,28 @@ fn calendar_grid(
             if !keyboard_focus.is_focused(window) {
                 return;
             }
+            let modifiers = event.keystroke.modifiers;
             if matches!(event.keystroke.key.as_str(), "enter" | "space") {
+                if modifiers.modified() {
+                    return;
+                }
                 select(window, cx);
                 cx.stop_propagation();
+                return;
+            }
+            let allowed_modifiers = if matches!(event.keystroke.key.as_str(), "pageup" | "pagedown")
+            {
+                !modifiers.alt && !modifiers.shift && !modifiers.platform && !modifiers.function
+            } else {
+                !modifiers.modified()
+            };
+            if !allowed_modifiers {
                 return;
             }
             if keys.update(cx, |model, cx| {
                 model.navigate(
                     &event.keystroke.key,
-                    event.keystroke.modifiers.control,
+                    modifiers.control,
                     direction,
                     first_day,
                     cx,
@@ -562,7 +577,7 @@ pub(super) fn calendar(
         month,
         start: calendar_start(month, locale.first_day),
         draft: model.calendar.read(cx).date(),
-        today: from_base_date(model.calendar.read(cx).today()),
+        today: model.calendar.read(cx).today(),
         cursor: model.cursor,
         direction: current_material_theme(window, cx).layout.direction,
         cell: (width / 7.).clamp(px(16.), px(48.)),

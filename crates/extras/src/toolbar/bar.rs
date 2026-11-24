@@ -4,16 +4,18 @@ use gpui::{
     AnyElement, App, ElementId, Entity, Hsla, IntoElement, Pixels, ScrollHandle, SharedString,
     Window, px,
 };
-use gpui_material_components::{ButtonColors, FabColor, IconName};
-use gpui_material_theme::{CornerShape, MotionSpec};
+use gpui_material_components::{ButtonColors, ControlElevations, FabColor, IconName};
+use gpui_material_theme::{CornerShape, LogicalEdges, MotionSpec};
 
 use super::{Invoke, activate_key, focus_handle, style_button};
+use crate::ContentArrangement;
 
+mod actions;
 mod layout;
+mod palette;
 mod render;
 mod scroll;
 
-pub use layout::{ToolbarArrangement, ToolbarElevations, ToolbarPadding};
 use scroll::length;
 pub use scroll::{ToolbarExitDirection, ToolbarFling, ToolbarScrollBehavior, ToolbarScrollState};
 
@@ -183,12 +185,12 @@ pub struct Toolbar {
     trailing: Option<AnyElement>,
     leading_expanded: Option<bool>,
     trailing_expanded: Option<bool>,
-    arrangement: Option<ToolbarArrangement>,
+    arrangement: Option<ContentArrangement>,
     spacing: Pixels,
     expanded_height: Option<Pixels>,
-    padding: Option<ToolbarPadding>,
+    padding: Option<LogicalEdges>,
     shape: Option<CornerShape>,
-    elevations: ToolbarElevations,
+    elevations: ControlElevations,
     colors: ToolbarColors,
     fab_color: Option<FabColor>,
     fab_colors: ButtonColors,
@@ -226,7 +228,7 @@ impl Toolbar {
             expanded_height: None,
             padding: None,
             shape: None,
-            elevations: ToolbarElevations::default(),
+            elevations: ControlElevations::default(),
             colors: ToolbarColors::default(),
             fab_color: None,
             fab_colors: ButtonColors::default(),
@@ -326,7 +328,7 @@ impl Toolbar {
     }
 
     /// Distributes free space in a horizontal docked toolbar.
-    pub fn arrangement(mut self, arrangement: ToolbarArrangement) -> Self {
+    pub fn arrangement(mut self, arrangement: ContentArrangement) -> Self {
         self.arrangement = Some(arrangement);
         self
     }
@@ -344,7 +346,7 @@ impl Toolbar {
     }
 
     /// Overrides the logical content padding inside the toolbar strip.
-    pub fn padding(mut self, padding: ToolbarPadding) -> Self {
+    pub fn padding(mut self, padding: LogicalEdges) -> Self {
         self.padding = Some(padding);
         self
     }
@@ -355,8 +357,12 @@ impl Toolbar {
         self
     }
 
-    /// Overrides the shadow elevations for expanded and collapsed states.
-    pub fn elevations(mut self, elevations: ToolbarElevations) -> Self {
+    /// Overrides the shadow elevations for expanded (`resting`) and collapsed (`disabled`) states.
+    ///
+    /// Floating toolbars default to [`gpui_material_theme::Elevation::Level3`] when expanded
+    /// and [`gpui_material_theme::Elevation::Level0`] when collapsed; docked toolbars default
+    /// to [`gpui_material_theme::Elevation::Level0`].
+    pub fn elevations(mut self, elevations: ControlElevations) -> Self {
         self.elevations = elevations;
         self
     }

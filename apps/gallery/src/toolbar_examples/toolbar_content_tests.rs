@@ -9,10 +9,10 @@ use gpui_base::{
     test_support::{ElementSnapshot, find},
 };
 use gpui_material::{
-    Button, ButtonColors, FabColor, IconName, MaterialRoot, MaterialTheme, TextField,
-    TextFieldState, Toolbar, ToolbarAction, ToolbarArrangement, ToolbarColors, ToolbarElevations,
-    ToolbarExitDirection, ToolbarFabPosition, ToolbarFling, ToolbarOrientation, ToolbarPadding,
-    ToolbarPlacement, ToolbarScrollBehavior, ToolbarScrollState,
+    Button, ButtonColors, ContentArrangement, ControlElevations, FabColor, IconName, LogicalEdges,
+    MaterialRoot, MaterialTheme, TextField, TextFieldState, Toolbar, ToolbarAction, ToolbarColors,
+    ToolbarExitDirection, ToolbarFabPosition, ToolbarFling, ToolbarOrientation, ToolbarPlacement,
+    ToolbarScrollBehavior, ToolbarScrollState,
     foundation::set_window_material_theme,
     theme::{CornerShape, CubicBezier, Direction, Elevation, MotionSpec},
 };
@@ -98,15 +98,10 @@ fn toolbar_content_keeps_native_editor_focus_and_independent_slots_during_resize
                 )
                 .placement(self.placement)
                 .orientation(self.orientation)
-                .arrangement(ToolbarArrangement::SpaceBetween)
+                .arrangement(ContentArrangement::SpaceBetween)
                 .spacing(px(6.))
                 .expanded_height(px(76.))
-                .padding(ToolbarPadding {
-                    start: px(7.),
-                    end: px(11.),
-                    top: px(3.),
-                    bottom: px(5.),
-                })
+                .padding(LogicalEdges::new(3., 11., 5., 7.))
                 .shape(CornerShape::Radii([6., 12., 18., 8.]))
                 .colors(ToolbarColors {
                     container: Some(BAR),
@@ -309,9 +304,10 @@ fn toolbar_exit_scroll_retargets_and_keeps_the_adjacent_fab_available(cx: &mut T
                         container: Some(BAR),
                         ..Default::default()
                     })
-                    .elevations(ToolbarElevations {
-                        expanded: Some(Elevation::Level2),
-                        collapsed: Some(Elevation::Level0),
+                    .elevations(ControlElevations {
+                        resting: Some(Elevation::Level2),
+                        disabled: Some(Elevation::Level0),
+                        ..Default::default()
                     })
                     .fab(
                         ToolbarFabPosition::End,

@@ -11,6 +11,8 @@ use gpui_material_components::{
 };
 use gpui_material_foundation::InteractionSource;
 
+use crate::ContentArrangement;
+
 mod layout;
 mod render;
 
@@ -30,24 +32,6 @@ pub enum ButtonGroupVariant {
     Standard,
     /// Adjoining segmented buttons with shared inner corners.
     Connected,
-}
-
-/// Logical horizontal arrangement of visible members and the overflow trigger.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub enum ButtonGroupAlignment {
-    /// Packs members toward the leading edge (respects RTL).
-    #[default]
-    Start,
-    /// Centers members within the available horizontal space.
-    Center,
-    /// Packs members toward the trailing edge (respects RTL).
-    End,
-    /// Distributes remaining space evenly between members.
-    SpaceBetween,
-    /// Distributes remaining space around each member, with half-size outer margins.
-    SpaceAround,
-    /// Distributes remaining space equally between members and both outer edges.
-    SpaceEvenly,
 }
 
 /// Vertical cross-axis alignment for members inside a [`ButtonGroup`] row.
@@ -87,9 +71,10 @@ impl ButtonGroupConnectedShapes {
     }
 }
 
-/// Per-member appearance overrides. Omitted fields keep group or Material defaults.
+/// Per-segment appearance overrides shared by [`ButtonGroupItem`] and [`crate::SplitButton`].
+/// Omitted fields keep group, size, variant, or Material defaults.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct ButtonGroupItemStyle {
+pub struct ButtonSegmentStyle {
     /// Corner shape overrides for resting, pressed, and checked states.
     pub shapes: ControlShapes,
     /// Container and content color overrides.
@@ -102,7 +87,7 @@ pub struct ButtonGroupItemStyle {
     pub padding: Option<LogicalEdges>,
 }
 
-impl ButtonGroupItemStyle {
+impl ButtonSegmentStyle {
     fn apply(self, button: ButtonPart, shapes: ControlShapes) -> ButtonPart {
         button
             .shapes(ControlShapes {
@@ -166,10 +151,10 @@ pub struct ButtonGroupItem {
     behavior: ItemBehavior,
     content: ItemContent,
     overflow_content: Option<Decoration>,
-    appearance: Option<ButtonVariant>,
+    variant: Option<ButtonVariant>,
     tone: Option<SemanticTone>,
     icon_width: IconButtonWidth,
-    style: ButtonGroupItemStyle,
+    style: ButtonSegmentStyle,
     weight: f32,
     compression_limit: Option<Pixels>,
     vertical_alignment: Option<ButtonGroupVerticalAlignment>,
@@ -199,10 +184,10 @@ impl ButtonGroupItem {
             behavior: ItemBehavior::Grouped(None),
             content: ItemContent::Label,
             overflow_content: None,
-            appearance: None,
+            variant: None,
             tone: None,
             icon_width: IconButtonWidth::Uniform,
-            style: ButtonGroupItemStyle::default(),
+            style: ButtonSegmentStyle::default(),
             weight: 0.,
             compression_limit: None,
             vertical_alignment: None,
@@ -276,8 +261,8 @@ impl ButtonGroupItem {
     }
 
     /// Overrides the group's default [`ButtonVariant`] for this member.
-    pub fn appearance(mut self, appearance: ButtonVariant) -> Self {
-        self.appearance = Some(appearance);
+    pub fn variant(mut self, variant: ButtonVariant) -> Self {
+        self.variant = Some(variant);
         self
     }
 
@@ -288,7 +273,7 @@ impl ButtonGroupItem {
     }
 
     /// Applies per-member visual style overrides.
-    pub fn style(mut self, style: ButtonGroupItemStyle) -> Self {
+    pub fn style(mut self, style: ButtonSegmentStyle) -> Self {
         self.style = style;
         self
     }
@@ -339,7 +324,7 @@ pub struct ButtonGroup {
     overflow_label: SharedString,
     shape: ButtonShape,
     shapes: ButtonGroupConnectedShapes,
-    alignment: ButtonGroupAlignment,
+    alignment: ContentArrangement,
     vertical_alignment: ButtonGroupVerticalAlignment,
     spacing: Option<Pixels>,
     expanded_ratio: f32,
@@ -370,7 +355,7 @@ impl ButtonGroup {
             overflow_label: "More actions".into(),
             shape: ButtonShape::Round,
             shapes: ButtonGroupConnectedShapes::default(),
-            alignment: ButtonGroupAlignment::default(),
+            alignment: ContentArrangement::default(),
             vertical_alignment: ButtonGroupVerticalAlignment::default(),
             spacing: None,
             expanded_ratio: 0.15,
@@ -484,8 +469,8 @@ impl ButtonGroup {
         self
     }
 
-    /// Sets the horizontal alignment of visible members within the group row.
-    pub fn alignment(mut self, alignment: ButtonGroupAlignment) -> Self {
+    /// Sets the horizontal arrangement of visible members within the group row.
+    pub fn alignment(mut self, alignment: ContentArrangement) -> Self {
         self.alignment = alignment;
         self
     }

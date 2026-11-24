@@ -11,25 +11,27 @@ publish = ["crates-io"]
 
 [features]
 default = ["full"]
-actions = ["gpui-material-components/actions"]
-selection = ["gpui-material-components/selection"]
-inputs = ["gpui-material-components/inputs"]
-surfaces = ["gpui-material-components/surfaces"]
-settings-tiles = ["gpui-material-components/settings-tiles"]
-feedback = ["gpui-material-components/feedback"]
-navigation = ["gpui-material-components/navigation"]
-full = ["gpui-material-components/full"]
-carousel = ["gpui-material-extras/carousel"]
+display = ["dep:gpui-material-components"]
+actions = ["display", "gpui-material-components/actions"]
+selection = ["display", "gpui-material-components/selection"]
+inputs = ["display", "gpui-material-components/inputs"]
+surfaces = ["display", "gpui-material-components/surfaces"]
+settings-tiles = ["display", "gpui-material-components/settings-tiles"]
+feedback = ["display", "gpui-material-components/feedback"]
+navigation = ["display", "gpui-material-components/navigation"]
+full = ["display", "gpui-material-components/full"]
+carousel = ["dep:gpui-material-extras", "gpui-material-extras/carousel"]
 dynamic-color = ["gpui-material-theme/dynamic-color"]
 serde = ["gpui-material-theme/serde"]
-expressive-groups = ["gpui-material-extras/expressive-groups"]
-search = ["gpui-material-extras/search"]
-toolbars = ["gpui-material-extras/toolbars"]
-date-time = ["gpui-material-extras/date-time"]
-window-chrome = ["gpui-material-extras/window-chrome"]
+expressive-groups = ["display", "dep:gpui-material-extras", "gpui-material-extras/expressive-groups"]
+search = ["display", "dep:gpui-material-extras", "gpui-material-extras/search"]
+toolbars = ["display", "dep:gpui-material-extras", "gpui-material-extras/toolbars"]
+date-time = ["display", "dep:gpui-material-extras", "gpui-material-extras/date-time"]
+window-chrome = ["dep:gpui-material-extras", "gpui-material-extras/window-chrome"]
 
 [dependencies]
-gpui-material-components = { workspace = true, default-features = false }
+gpui.workspace = true
+gpui-material-components = { workspace = true, default-features = false, optional = true }
 gpui-material-extras = { workspace = true, optional = true }
 gpui-material-foundation.workspace = true
 gpui-material-theme.workspace = true

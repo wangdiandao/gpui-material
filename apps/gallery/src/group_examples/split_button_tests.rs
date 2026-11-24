@@ -8,8 +8,9 @@ use gpui::{
 };
 use gpui_base::test_support::find;
 use gpui_material::{
-    ButtonColors, ButtonVariant, ControlBorder, ControlElevations, ControlShapes, Icon, IconName,
-    InteractionSource, LogicalEdges, MaterialRoot, MenuItem, SplitButton, SplitButtonSegmentStyle,
+    ButtonColors, ButtonSegmentStyle, ButtonVariant, ControlBorder, ControlElevations,
+    ControlShapes, Icon, IconName, InteractionSource, LogicalEdges, MaterialRoot, MenuItem,
+    SplitButton,
     foundation::{color, set_window_material_theme, window_material_theme},
     theme::{ColorRole, CornerShape, Direction, Elevation},
 };
@@ -81,7 +82,7 @@ impl Render for Example {
         .trailing_disabled(self.disable_trailing)
         .leading_content(swatch(56., self.leading.clone()))
         .trailing_content(swatch(52., self.trailing.clone()))
-        .leading_style(SplitButtonSegmentStyle {
+        .leading_style(ButtonSegmentStyle {
             colors: ButtonColors {
                 container: Some(ink(LEADING)),
                 content: Some(ink(0x182940)),
@@ -108,7 +109,7 @@ impl Render for Example {
                 ..Default::default()
             },
         })
-        .trailing_style(SplitButtonSegmentStyle {
+        .trailing_style(ButtonSegmentStyle {
             colors: ButtonColors {
                 container: Some(ink(TRAILING)),
                 content: Some(ink(0x254434)),

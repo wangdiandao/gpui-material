@@ -33,15 +33,14 @@ fn main() {
     gpui_platform::application()
         .with_quit_mode(QuitMode::LastWindowClosed)
         .run(|cx| {
-            MaterialRoot::init(MaterialTheme::default(), cx);
-            gpui_material::init_components(cx);
+            gpui_material::init(MaterialTheme::default(), cx);
             MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| cx.new(|_| Demo))
                 .expect("open Material window");
         });
 }
 ```
 
-`MaterialRoot::init` 安装应用主题并初始化 Base。`init_components` 安装组件键绑定。通过 `MaterialRoot::open_window` 打开的窗口带有管理浮层和焦点遍历的 Base 根节点。受控值和命令结果由应用持有。`SliderState` 和 `TextFieldState` 等实体状态应跨渲染保留。
+`gpui_material::init` 单步完成应用主题安装、Base 初始化，并在启用组件特性时注册组件键绑定（内部调用 `MaterialRoot::init` 以及在 `display` 启用时调用 `init_components`）。通过 `MaterialRoot::open_window` 打开的窗口带有管理浮层和焦点遍历的 Base 根节点。受控值和命令结果由应用持有。`SliderState` 和 `TextFieldState` 等实体状态应跨渲染保留。
 
 <a id="material-symbols"></a>
 
@@ -82,9 +81,9 @@ Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID �
 
 `set_material_theme` 使用目标动效方案的 Slow Effects 弹簧过渡应用色彩。切换途中收到新主题时，从当前显示的色谱开始过渡。初始化和减少动态效果模式立即应用色彩。目标排版和布局在请求时生效。应用主题投影把应用色谱和缩放后的文字指标同步给 Base。
 
-`foundation::set_window_material_theme` 设置单个窗口的 Material 主题。通过 `ThemeScope::new(child).theme(theme).direction(Direction::Rtl)` 覆盖子树，两项设置均可省略。仅设置方向时，主题继承自外层。Material 后代、多行 `TextField` 滚动条、延迟退出浮层以及 `ThemeScope::bind_action` 回调优先读取最近的作用域，其次是窗口和应用默认值，且不会篡改 `gpui_base::Theme::global`。独立 Base 控件可调用 `foundation::current_base_theme(window, cx)`（或 `foundation::project_base_theme(theme, cx)`）获取与当前局部作用域一致的 Base Token 与滚动条样式。
+`set_window_material_theme`（与 `window_material_theme` 一起同时在门面根路径和 `foundation` 下导出）设置单个窗口的 Material 主题。通过 `ThemeScope::new(child).theme(theme).direction(Direction::Rtl)` 覆盖子树，两项设置均可省略。仅设置方向时，主题继承自外层。Material 后代、多行 `TextField` 滚动条、延迟退出浮层以及 `ThemeScope::bind_action` 回调优先读取最近的作用域，其次是窗口和应用默认值，且不会篡改 `gpui_base::Theme::global`。独立 Base 控件可调用 `foundation::current_base_theme(window, cx)`（或 `foundation::project_base_theme(theme, cx)`）获取与当前局部作用域一致的 Base Token 与滚动条样式。
 
-应用通过[公开门面](../crates/material/src/lib.rs)集成，包括已记录的 `foundation` 和 `theme` 路径。`gpui-material` 默认启用 `full`，编译全部核心组件分组（`actions`、`selection`、`inputs`、`surfaces`、`feedback`、`navigation`）。如需只编译部分核心组件，可设置 `default-features = false` 并按需列出分组（例如 `features = ["actions", "inputs"]`）。按 [README 中的特性名](../README.zh.md)启用可选组件系列，每个可选组件系列仅激活其依赖的核心分组。`date-time` 的 API 位于 `gpui_material::date_time` 下。`dynamic-color` 和 `serde` 转发到纯主题 crate。公开签名中的 GPUI 和 Base 类型遵循固定的上游版本。Gallery 模块和工作区 crate 的内部组织可能调整。
+应用通过[公开门面](../crates/material/src/lib.rs)集成，包括已记录的 `foundation` 和 `theme` 路径。`gpui-material` 默认启用 `full`，编译全部核心组件分组（`display`、`actions`、`selection`、`inputs`、`surfaces`、`settings-tiles`、`feedback`、`navigation`）。如需极致裁剪，可设置 `default-features = false` 并按需列出特性（例如 `features = ["display"]` 仅启用基础展示原语、`features = ["actions", "inputs"]` 仅编译所选分组，或 `features = ["window-chrome"]` / `features = ["carousel"]` 完全不编译 `gpui-material-components` 及其内嵌 SVG）。按 [README 中的特性名](../README.zh.md)启用可选组件系列，每个可选组件系列仅激活其依赖的核心分组。`date-time` 的 API 及重导出的 `jiff::civil::{Date, Time, Weekday}` 位于 `gpui_material::date_time` 下。`dynamic-color` 和 `serde` 转发到纯主题 crate。公开签名中的 GPUI 和 Base 类型遵循固定的上游版本。Gallery 模块和工作区 crate 的内部组织可能调整。
 
 升级至 0.3.3 时，将直接使用的 GPUI 同步至 `0.3.14`，并将 Base 同步至 `0.11.0`。若直接调用 `foundation::Shape` 裁剪接口，需按 `Option<gpui::Path>` 适配 `clip_rect`、`clip_disc` 和 `clip_convex_polygon`，并将 `clip_path`/`paint_clipped` 替换为 `clip_shape`/`paint_clipped_shape`。
 

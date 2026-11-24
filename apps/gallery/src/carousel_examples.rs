@@ -3,11 +3,10 @@ use gpui::{
     SharedString, StatefulInteractiveElement as _, Styled, Window, div, px,
 };
 use gpui_material::{
-    Button, Carousel, CarouselAlignment, CarouselBorder, CarouselFling, CarouselItem,
-    CarouselPadding, CarouselParallax, CarouselState, CarouselVariant, Icon, IconName, Surface,
-    Text,
+    Button, Carousel, CarouselAlignment, CarouselFling, CarouselItem, CarouselParallax,
+    CarouselState, CarouselVariant, Icon, IconName, Surface, SurfaceBorder, Text,
     foundation::{color, window_material_theme},
-    theme::{ColorRole, CornerShape, TypeRole},
+    theme::{ColorRole, CornerShape, LogicalEdges, TypeRole},
 };
 
 use crate::story::{section, stack};
@@ -176,19 +175,14 @@ impl Render for CarouselExamples {
                 .state(position)
                 .alignment(CarouselAlignment::Center)
                 .item_spacing(px(12.))
-                .content_padding(CarouselPadding {
-                    start: px(20.),
-                    end: px(20.),
-                    top: px(8.),
-                    bottom: px(8.),
-                })
+                .content_padding(LogicalEdges::symmetric(20., 8.))
                 .small_item_widths(px(48.), px(64.))
                 .fling_behavior(CarouselFling::SingleAdvance)
                 .height(px(180.)),
             );
         let theme = window_material_theme(window, cx);
         let backdrop = color(theme.colors.color(ColorRole::Surface));
-        let border = CarouselBorder {
+        let border = SurfaceBorder {
             width: px(1.),
             color: color(theme.colors.color(ColorRole::Outline)),
         };

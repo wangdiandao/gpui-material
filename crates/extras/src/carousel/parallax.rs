@@ -3,17 +3,8 @@ use gpui::{
     GlobalElementId, Hsla, InspectorElementId, IntoElement, LayoutId, PathBuilder, Pixels, Point,
     Window, point, px, quad, size,
 };
-use gpui_material_foundation::{color, current_material_theme};
+use gpui_material_foundation::{SurfaceBorder, color, current_material_theme};
 use gpui_material_theme::{ColorRole, CornerRole, CornerShape};
-
-/// A stroke drawn inside the parallax mask in logical pixels.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct CarouselBorder {
-    /// Border stroke thickness in logical pixels.
-    pub width: Pixels,
-    /// Border stroke color.
-    pub color: Hsla,
-}
 
 /// Clips and translates arbitrary scrollable content at the viewport edges.
 ///
@@ -25,7 +16,7 @@ pub struct CarouselParallax {
     axis: Axis,
     viewport: Option<Bounds<Pixels>>,
     shape: CornerShape,
-    border: Option<CarouselBorder>,
+    border: Option<SurfaceBorder>,
     backdrop: Option<Hsla>,
 }
 
@@ -61,7 +52,7 @@ impl CarouselParallax {
     }
 
     /// Draws an inner border stroke around the masked region.
-    pub fn border(mut self, border: CarouselBorder) -> Self {
+    pub fn border(mut self, border: SurfaceBorder) -> Self {
         self.border = Some(border);
         self
     }
@@ -118,25 +109,29 @@ impl Mask {
                 lerp(1. / 3., 0.5, 1., 16. / 9.)
             };
             // Recenter part of the content as either viewport edge crops it.
+            // Evaluate both edges independently so items wider than the viewport
+            // clip on both sides rather than leaving the trailing edge unclipped.
             if start < clip_start {
                 let distance = (clip_start - start).min(extent);
                 crop_start = distance * (1. - intensity);
-                translate = distance * intensity;
-            } else if end > clip_end {
+                translate += distance * intensity;
+            }
+            if end > clip_end {
                 let distance = (end - clip_end).min(extent);
                 crop_end = distance * (1. - intensity);
-                translate = -distance * intensity;
+                translate -= distance * intensity;
             }
         }
+        let cropped_extent = (extent - crop_start - crop_end).max(px(0.));
         let (crop, cropped_size, offset) = match axis {
             Axis::Horizontal => (
                 point(crop_start, px(0.)),
-                size(extent - crop_start - crop_end, item.size.height),
+                size(cropped_extent, item.size.height),
                 point(translate, px(0.)),
             ),
             Axis::Vertical => (
                 point(px(0.), crop_start),
-                size(item.size.width, extent - crop_start - crop_end),
+                size(item.size.width, cropped_extent),
                 point(px(0.), translate),
             ),
         };
@@ -281,5 +276,45 @@ fn paint_corners(bounds: Bounds<Pixels>, radii: [Pixels; 4], backdrop: Hsla, win
     }
     if let Ok(path) = cutouts.build() {
         window.paint_path(path, backdrop);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wide_item_clips_both_edges_on_horizontal_and_vertical_axes() {
+        let viewport = Bounds::new(point(px(50.), px(40.)), size(px(200.), px(120.)));
+
+        // Horizontally wider than the viewport: overflows both left and right edges.
+        let wide_h = Bounds::new(point(px(0.), px(40.)), size(px(400.), px(100.)));
+        let mask_h = Mask::new(wide_h, viewport, Axis::Horizontal, false);
+        assert!(
+            mask_h.bounds.left() > wide_h.left(),
+            "left edge should be cropped, got {:?}",
+            mask_h.bounds
+        );
+        assert!(
+            mask_h.bounds.right() < wide_h.right(),
+            "right edge should be cropped, got {:?}",
+            mask_h.bounds
+        );
+        assert!(mask_h.bounds.size.width > px(0.));
+
+        // Vertically taller than the viewport: overflows both top and bottom edges.
+        let tall_v = Bounds::new(point(px(50.), px(0.)), size(px(100.), px(300.)));
+        let mask_v = Mask::new(tall_v, viewport, Axis::Vertical, false);
+        assert!(
+            mask_v.bounds.top() > tall_v.top(),
+            "top edge should be cropped, got {:?}",
+            mask_v.bounds
+        );
+        assert!(
+            mask_v.bounds.bottom() < tall_v.bottom(),
+            "bottom edge should be cropped, got {:?}",
+            mask_v.bounds
+        );
+        assert!(mask_v.bounds.size.height > px(0.));
     }
 }

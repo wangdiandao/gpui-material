@@ -10,17 +10,22 @@ use gpui_material_components::{
 };
 use gpui_material_foundation::{color, current_material_theme};
 use gpui_material_theme::{ColorRole, CornerShape};
+use jiff::civil::Time;
 
 use super::{
-    NaiveTime, TimeFormat, TimePickerLayout, TimePickerLocale, TimePickerPanel, TimePickerSegment,
-    TimePickerState, TimePickerStyle, TimePickerVariant,
+    controls::TimePickerPanel,
+    state::TimePickerState,
+    types::{
+        TimeFormat, TimePickerLayout, TimePickerLocale, TimePickerSegment, TimePickerStyle,
+        TimePickerVariant,
+    },
 };
 use crate::date_time::Confirm;
 
 type ActionSlot = Box<dyn FnOnce(DialogAction) -> AnyElement>;
 pub(super) type ModeSlot = Box<dyn FnOnce(TimePickerModeAction) -> AnyElement>;
 type DismissRequest = Rc<dyn Fn(DialogCloseReason, &mut Window, &mut App) -> bool>;
-type OnClose = Rc<dyn Fn(DialogCloseReason, &mut Window, &mut App)>;
+type OnClosed = Rc<dyn Fn(DialogCloseReason, &mut Window, &mut App)>;
 
 /// A request to switch between the current input and picker modes.
 #[derive(Clone)]
@@ -94,9 +99,9 @@ pub struct TimeDialog<const VIBRANT: bool> {
     show_toggle: bool,
     show_dismiss: bool,
     properties: DialogProperties,
-    on_confirm: Option<Confirm<NaiveTime>>,
+    on_confirm: Option<Confirm<Time>>,
     on_dismiss_request: Option<DismissRequest>,
-    on_close: Option<OnClose>,
+    on_closed: Option<OnClosed>,
 }
 
 impl<const VIBRANT: bool> TimeDialog<VIBRANT> {
@@ -124,7 +129,7 @@ impl<const VIBRANT: bool> TimeDialog<VIBRANT> {
             properties: DialogProperties::default(),
             on_confirm: None,
             on_dismiss_request: None,
-            on_close: None,
+            on_closed: None,
         }
     }
 
@@ -209,11 +214,8 @@ impl<const VIBRANT: bool> TimeDialog<VIBRANT> {
         self
     }
 
-    /// Registers a callback invoked with the confirmed [`NaiveTime`] when accepted.
-    pub fn on_confirm(
-        mut self,
-        confirm: impl Fn(NaiveTime, &mut Window, &mut App) + 'static,
-    ) -> Self {
+    /// Registers a callback invoked with the confirmed [`Time`] when accepted.
+    pub fn on_confirm(mut self, confirm: impl Fn(Time, &mut Window, &mut App) + 'static) -> Self {
         self.on_confirm = Some(Rc::new(confirm));
         self
     }
@@ -228,11 +230,11 @@ impl<const VIBRANT: bool> TimeDialog<VIBRANT> {
     }
 
     /// Registers a callback invoked after the dialog closes, with the [`DialogCloseReason`].
-    pub fn on_close(
+    pub fn on_closed(
         mut self,
         callback: impl Fn(DialogCloseReason, &mut Window, &mut App) + 'static,
     ) -> Self {
-        self.on_close = Some(Rc::new(callback));
+        self.on_closed = Some(Rc::new(callback));
         self
     }
 }
@@ -275,7 +277,7 @@ impl<const VIBRANT: bool> RenderOnce for TimeDialog<VIBRANT> {
         let dismiss_state = self.state.clone();
         let close_state = self.state;
         let confirm = self.on_confirm;
-        let close = self.on_close;
+        let closed = self.on_closed;
         let dismiss_request = self.on_dismiss_request;
         let mut dialog = Dialog::new(self.id, &model.dialog, self.name)
             .show_title(!VIBRANT || self.title.is_some())
@@ -322,6 +324,7 @@ impl<const VIBRANT: bool> RenderOnce for TimeDialog<VIBRANT> {
             })
             .on_closed(move |reason, window, cx| {
                 let value = close_state.update(cx, |state, cx| {
+                    state.dial_dragging = false;
                     state.discard_composition(window, cx);
                     state.sync_wheels(cx);
                     state.value()
@@ -331,8 +334,8 @@ impl<const VIBRANT: bool> RenderOnce for TimeDialog<VIBRANT> {
                 {
                     confirm(value, window, cx);
                 }
-                if let Some(close) = &close {
-                    close(reason, window, cx);
+                if let Some(closed) = &closed {
+                    closed(reason, window, cx);
                 }
             });
         if let Some(shape) = self.shape {
@@ -354,7 +357,7 @@ impl<const VIBRANT: bool> RenderOnce for TimeDialog<VIBRANT> {
 }
 
 struct TimeOptions {
-    value: NaiveTime,
+    value: Time,
     format: TimeFormat,
     variant: TimePickerVariant,
     layout: TimePickerLayout,
@@ -368,13 +371,13 @@ pub struct TimePicker {
     label: SharedString,
     state: Entity<TimePickerState>,
     options: TimeOptions,
-    confirm: Option<Confirm<NaiveTime>>,
+    confirm: Option<Confirm<Time>>,
     style: TimePickerStyle,
     colors: DialogColors,
     show_mode_toggle: bool,
     properties: DialogProperties,
     on_dismiss_request: Option<DismissRequest>,
-    on_close: Option<OnClose>,
+    on_closed: Option<OnClosed>,
     disabled: bool,
 }
 
@@ -384,7 +387,7 @@ impl TimePicker {
         id: impl Into<ElementId>,
         label: impl Into<SharedString>,
         state: &Entity<TimePickerState>,
-        value: NaiveTime,
+        value: Time,
     ) -> Self {
         Self {
             id: id.into(),
@@ -403,7 +406,7 @@ impl TimePicker {
             show_mode_toggle: true,
             properties: DialogProperties::default(),
             on_dismiss_request: None,
-            on_close: None,
+            on_closed: None,
             disabled: false,
         }
     }
@@ -466,11 +469,11 @@ impl TimePicker {
     }
 
     /// Registers a callback invoked after the dialog closes, with the [`DialogCloseReason`].
-    pub fn on_close(
+    pub fn on_closed(
         mut self,
         callback: impl Fn(DialogCloseReason, &mut Window, &mut App) + 'static,
     ) -> Self {
-        self.on_close = Some(Rc::new(callback));
+        self.on_closed = Some(Rc::new(callback));
         self
     }
 
@@ -480,11 +483,8 @@ impl TimePicker {
         self
     }
 
-    /// Registers a callback invoked with the confirmed [`NaiveTime`] when accepted.
-    pub fn on_confirm(
-        mut self,
-        callback: impl Fn(NaiveTime, &mut Window, &mut App) + 'static,
-    ) -> Self {
+    /// Registers a callback invoked with the confirmed [`Time`] when accepted.
+    pub fn on_confirm(mut self, callback: impl Fn(Time, &mut Window, &mut App) + 'static) -> Self {
         self.confirm = Some(Rc::new(callback));
         self
     }
@@ -527,7 +527,7 @@ impl RenderOnce for TimePicker {
             .properties(self.properties);
         dialog.on_confirm = self.confirm;
         dialog.on_dismiss_request = self.on_dismiss_request;
-        dialog.on_close = self.on_close;
+        dialog.on_closed = self.on_closed;
         div().child(trigger).child(dialog)
     }
 }

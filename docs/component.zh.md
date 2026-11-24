@@ -472,17 +472,18 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ## 可选组件
 
-核心组件默认通过 `full` 全部启用。在 `gpui-material`（或 `gpui-material-components`）上关闭默认特性后，仅编译轻量核心（`Text`、`Icon`、`IconName`、`Avatar`、`AvatarGroup`、`EmptyView`、`Skeleton`、`Badge`、`Divider`、`DisplayScrollbar`、`ControlSize`、`LogicalEdges`、`SemanticTone`、`MaterialElementExt` 及 `init_components`）和所选分组：
+核心组件默认通过 `full` 全部启用。在 `gpui-material` 上关闭默认特性并启用 `display`（或在 `gpui-material-components` 上关闭默认特性），仅编译轻量展示核心（`Text`、`Icon`、`IconName`、`Avatar`、`AvatarGroup`、`EmptyView`、`Skeleton`、`Badge`、`Divider`、`DisplayScrollbar`、`ControlSize`、`LogicalEdges`、`SemanticTone`、`MaterialElementExt` 及 `init_components`）和所选分组；在 `gpui-material` 上仅启用 `carousel` 或 `window-chrome` 时完全不编译 `gpui-material-components` 及其内嵌 SVG：
 
 | 核心特性 | 组件 | 隐含分组 |
 | --- | --- | --- |
-| `actions` | `Button`、`ToggleButton`、`IconButton`、`IconToggleButton`、`Fab`、`ExtendedFab` 及控件样式 | — |
-| `selection` | `Checkbox`、`Radio`、`RadioGroup`、`Switch`、`Chip`、`ChipGroup`、`Slider` | — |
-| `inputs` | `TextField`、`TextFieldState`、`TextAreaState`、`ExposedDropdown`、`ExposedDropdownState` | `actions` |
-| `surfaces` | `Card`、`DropTarget`、`List`、`ListItem`、`ListSection`、`SwipeToDismiss`、`VerticalDragHandle` | `actions` |
-| `settings-tiles` | `SwitchTile`、`CheckboxTile`、`RadioTile`、`SliderTile`、`ChoiceTile`、`ChoiceOption`、`ListSection` | `surfaces`、`selection`、`feedback` |
-| `feedback` | `Banner`、`CircularProgress`、`LinearProgress`、`LoadingIndicator`、`PullToRefresh`、`Dialog`、`Sheet`、`BottomSheet*`、`Menu`、`Snackbar`、`SnackbarHost`、`Tooltip`、`Label` | `actions` |
-| `navigation` | `AppBar`、`AppBarRow`、`AppBarColumn`、`BottomAppBar`、`Breadcrumbs`、`Tabs`、`NavigationBar`、`NavigationRail`、`NavigationDrawer`、`Stepper`、`AdaptiveNavigation`、`Scaffold`、`ListDetail`、`SupportingPane`、`Feed`、`AdaptivePane` | `actions`、`feedback` |
+| `display` | `Text`、`Icon`、`IconName`、`Avatar`、`AvatarGroup`、`EmptyView`、`Skeleton`、`Badge`、`Divider`、`DisplayScrollbar`、`ControlSize`、`LogicalEdges`、`SemanticTone`、`MaterialElementExt`、`init_components` | — |
+| `actions` | `Button`、`ToggleButton`、`IconButton`、`IconToggleButton`、`Fab`、`ExtendedFab` 及控件样式 | `display` |
+| `selection` | `Checkbox`、`Radio`、`RadioGroup`、`Switch`、`Chip`、`ChipGroup`、`Slider` | `display` |
+| `inputs` | `TextField`、`TextFieldState`、`TextAreaState`、`ExposedDropdown`、`ExposedDropdownState` | `display`、`actions` |
+| `surfaces` | `Card`、`DropTarget`、`List`、`ListItem`、`ListSection`、`SwipeToDismiss`、`VerticalDragHandle` | `display`、`actions` |
+| `settings-tiles` | `SwitchTile`、`CheckboxTile`、`RadioTile`、`SliderTile`、`ChoiceTile`、`ChoiceOption`、`ListSection` | `display`、`surfaces`、`selection`、`feedback` |
+| `feedback` | `Banner`、`CircularProgress`、`LinearProgress`、`LoadingIndicator`、`PullToRefresh`、`Dialog`、`Sheet`、`BottomSheet*`、`Menu`、`Snackbar`、`SnackbarHost`、`Tooltip`、`Label` | `display`、`actions` |
+| `navigation` | `AppBar`、`AppBarRow`、`AppBarColumn`、`BottomAppBar`、`Breadcrumbs`、`Tabs`、`NavigationBar`、`NavigationRail`、`NavigationDrawer`、`Stepper`、`AdaptiveNavigation`、`Scaffold`、`ListDetail`、`SupportingPane`、`Feed`、`AdaptivePane` | `display`、`actions`、`feedback` |
 | `full` | 启用上述全部核心组件分组（默认） | 全部核心分组 |
 
 在 `gpui-material` 依赖上启用可选组件族 feature，各组件族仅激活其依赖的核心组件分组。日期选择器、时间选择器和滚动选择字段从 `gpui_material::date_time` 导入。
@@ -529,11 +530,11 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ### 按钮组
 
-`ButtonGroup::new(id, name, items)` 使用稳定的成员标识，并提供一个 Tab 焦点。左右方向键移动焦点，保留选中状态。导航会跳过禁用成员，视觉顺序和方向键随窗口书写方向调整。使用 `ButtonGroup::connected(id, name, items)` 或 `.variant(ButtonGroupVariant::Connected)` 连接相邻成员。Standard 和 Connected 默认间距分别为 12 和 2 个逻辑像素。可通过 `.spacing(width)` 覆盖间距，使用 `.alignment(ButtonGroupAlignment)` 设置逻辑横向排列，使用 `.vertical_alignment(ButtonGroupVerticalAlignment)` 设置纵向对齐，默认 Top。成员可以单独设置纵向对齐。可在 `ButtonGroup` 或单个 `ButtonGroupItem` 上设置 `.tone(SemanticTone)`，同步应用到可见按钮与溢出 `MenuItem`。
+`ButtonGroup::new(id, name, items)` 使用稳定的成员标识，并提供一个 Tab 焦点。左右方向键移动焦点，保留选中状态。导航会跳过禁用成员，视觉顺序和方向键随窗口书写方向调整。使用 `ButtonGroup::connected(id, name, items)` 或 `.variant(ButtonGroupVariant::Connected)` 连接相邻成员。Standard 和 Connected 默认间距分别为 12 和 2 个逻辑像素。可通过 `.spacing(width)` 覆盖间距，使用 `.alignment(ContentArrangement)` 设置逻辑横向排列，使用 `.vertical_alignment(ButtonGroupVerticalAlignment)` 设置纵向对齐，默认 Top。成员可以单独设置纵向对齐。可在 `ButtonGroup` 或单个 `ButtonGroupItem` 上设置 `.tone(SemanticTone)`，同步应用到可见按钮与溢出 `MenuItem`。
 
 `ButtonGroupItem::new(id, name)` 在启用组选择时使用 `.selection(mode, selected_ids)` 和 `.on_change(...)`。针对常见的单选场景，`.single_select(selected, |id, window, cx| ...)` 配置 `ButtonGroupSelection::SingleRequired` 并直接传入新选中的 `SharedString`，`.single_optional_select(selected, |id, window, cx| ...)` 则配置可取消选中的 `ButtonGroupSelection::Single` 并传入 `Option<SharedString>`。Single 和 Multiple 允许取消选中，Required 模式会保留最后一个选中项。应用处理请求并提供当前选择。`.action(callback)` 在任一组内建立独立命令，`.toggle(selected, callback)` 建立单独受控的切换控件。`.on_activate(...)` 为 Actions 模式下的成员提供命令。
 
-使用 `.leading_icon(|| ...)` 在标签旁加入图标，用 `.icon_only(|| ...)` 以图标替代标签，或通过 `.content(width, || ...)` 提供带首选逻辑宽度的装饰内容。构造器名称用于无障碍和默认溢出菜单行。`.icon_width(IconButtonWidth)` 选择纯图标尺寸。`.appearance(ButtonVariant)` 和 `.style(ButtonGroupItemStyle)` 分别覆盖成员的外观预设，以及静止、按下、选中形状、配色、描边、阴影和逻辑内边距。通过 `.shape(ButtonShape::Square)` 可将默认 Round 外侧形状改为方形。`.connected_shapes(ButtonGroupConnectedShapes)` 为首段、中间段、尾段和单一段设置各状态形状。成员设置的形状字段优先。
+使用 `.leading_icon(|| ...)` 在标签旁加入图标，用 `.icon_only(|| ...)` 以图标替代标签，或通过 `.content(width, || ...)` 提供带首选逻辑宽度的装饰内容。构造器名称用于无障碍和默认溢出菜单行。`.icon_width(IconButtonWidth)` 选择纯图标尺寸。`.variant(ButtonVariant)` 和 `.style(ButtonSegmentStyle)` 分别覆盖成员的外观预设，以及静止、按下、选中形状、配色、描边、阴影和逻辑内边距。通过 `.shape(ButtonShape::Square)` 可将默认 Round 外侧形状改为方形。`.connected_shapes(ButtonGroupConnectedShapes)` 为首段、中间段、尾段和单一段设置各状态形状。成员设置的形状字段优先。
 
 `.weight(weight)` 按比例分配非加权成员与最小目标宽度剩余的空间。默认权重为零。`.expanded_ratio(ratio)` 默认为 `0.15`，仅作用于 `Standard` 按钮组：按下的成员会向左右可见邻项借用宽度，而 `Connected` 按钮组保持各段宽度不变。`.compression_limit(px(...))` 限制成员可让出的宽度，默认保留至少 24 个逻辑像素。带内置标签的按钮被压缩窄于首选宽度时，会优先收缩左右水平内边距（每侧至少保留 4 个逻辑像素，或调用方设定的更小值），空间仍不足时再单行省略。`.interaction_source(&source)` 使用 `ElementId::from((group_id, item_id))` 观察可见成员，宽度动画读取同一按压状态。减少动态效果时立即应用目标宽度。
 
@@ -545,7 +546,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 尾段默认打开指定的菜单，菜单关闭时焦点返回触发按钮。通过 `.on_trailing_activate(callback)` 设置独立命令，或通过 `.trailing_toggle(selected, callback)` 设置受控切换。尾段命令与切换按最后一次设置生效，并取代构造器提供的菜单。激活切换时请求下一状态，选中值仍由调用方持有。`.disabled(true)` 禁用前段命令，`.trailing_disabled(true)` 单独禁用尾段。菜单为空时，默认菜单触发按钮禁用。两段在 RTL 中镜像，键盘先访问前段再访问尾段。
 
-Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供基础外观。`.tone(SemanticTone)`、`.leading_tone(SemanticTone)` 与 `.trailing_tone(SemanticTone)` 为整组或各分段独立应用语义色板。`.spacing(width)` 设置段间距，默认 2 dp。用 `.leading_style(SplitButtonSegmentStyle)` 和 `.trailing_style(SplitButtonSegmentStyle)` 单独配置每段。可通过 `ControlShapes` 设置静止、按下、选中时的逻辑圆角，通过 `ButtonColors` 设置各状态配色，用 `ControlBorder` 设置描边、`ControlElevations` 设置阴影及 `LogicalEdges` 设置逻辑内边距。省略的字段沿用该段默认值。已选中的尾段切换和已打开的菜单使用选中外观，菜单触发器保留按钮语义。选中外观默认增大尾段内侧圆角。未设置选中颜色时沿用启用配色，禁用配色优先。减少动效时立即应用目标形状。
+Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供基础外观。`.tone(SemanticTone)`、`.leading_tone(SemanticTone)` 与 `.trailing_tone(SemanticTone)` 为整组或各分段独立应用语义色板。`.spacing(width)` 设置段间距，默认 2 dp。用 `.leading_style(ButtonSegmentStyle)` 和 `.trailing_style(ButtonSegmentStyle)` 单独配置每段。可通过 `ControlShapes` 设置静止、按下、选中时的逻辑圆角，通过 `ButtonColors` 设置各状态配色，用 `ControlBorder` 设置描边、`ControlElevations` 设置阴影及 `LogicalEdges` 设置逻辑内边距。省略的字段沿用该段默认值。已选中的尾段切换和已打开的菜单使用选中外观，菜单触发器保留按钮语义。选中外观默认增大尾段内侧圆角。未设置选中颜色时沿用启用配色，禁用配色优先。减少动效时立即应用目标形状。
 
 使用 `.leading_interaction_source(&source)` 和 `.trailing_interaction_source(&source)` 传入调用方持有的交互源，可分别用 `ElementId::from((id, "primary"))` 和 `ElementId::from((id, "secondary"))` 读取快照。同一个实体可以观察两个标识。更换交互源时，对应段的快照会从原交互源清除。
 
@@ -565,9 +566,9 @@ Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供
 
 `Toolbar::new(id, name, actions)` 默认创建采用 Standard 配色的横向悬浮工具栏。通过 `ToolbarAction::new(id, label, IconName)` 或 `ToolbarAction::with_icon(id, label, || ...)`（自定义图标）构造操作项，行内按钮与收起的溢出 `MenuItem` 均会渲染对应图标。`.content(element)` 在生成的操作项前插入任意内容，包括可编辑文本框。`.leading_content(element)` 和 `.trailing_content(element)` 在该区域前后加入插槽。插槽默认随 `.expanded(expanded)` 与内容滚动展开或收起。可通过 `.leading_expanded(bool)` 或 `.trailing_expanded(bool)` 单独设置。拥有焦点的插槽保留至其中的控件失去焦点。嵌入控件管理自身的键盘和输入行为。生成的操作项继续支持方向键导航，收起的次要操作移入有名称的溢出菜单。
 
-通过 `.placement(ToolbarPlacement::Docked)` 使用停靠工具栏。横向停靠栏有空余空间时，可用 `.arrangement(ToolbarArrangement)` 按逻辑 Start、Center、End、SpaceBetween、SpaceAround 或 SpaceEvenly 排列。`.spacing(pixels)` 设置最小间距，默认 4 dp。`.expanded_height(pixels)` 设置横向停靠栏展开时的固定高度。省略设置时沿用现有布局。横向顺序和逻辑内边距在 RTL 中镜像，纵向插槽保持从上到下的顺序。为工具栏提供有界的主轴尺寸，以便空间缩小时滚动到获得焦点的控件。
+通过 `.placement(ToolbarPlacement::Docked)` 使用停靠工具栏。横向停靠栏有空余空间时，可用 `.arrangement(ContentArrangement)` 按逻辑 Start、Center、End、SpaceBetween、SpaceAround 或 SpaceEvenly 排列。`.spacing(pixels)` 设置最小间距，默认 4 dp。`.expanded_height(pixels)` 设置横向停靠栏展开时的固定高度。省略设置时沿用现有布局。横向顺序和逻辑内边距在 RTL 中镜像，纵向插槽保持从上到下的顺序。为工具栏提供有界的主轴尺寸，以便空间缩小时滚动到获得焦点的控件。
 
-通过 `.padding(ToolbarPadding { top, start, bottom, end })`、`.shape(CornerShape)`、`.colors(ToolbarColors)` 和 `.elevations(ToolbarElevations)` 设置实例外观。悬浮栏仍默认使用圆角，停靠栏仍默认使用直角。工具栏配色包括容器色、继承的内容色及选中操作色。高度层级随展开状态变化，默认为零。`.fab(...)` 在悬浮栏旁放置拥有独立名称和焦点的悬浮操作按钮。通过 `.fab_color(FabColor)` 和 `.fab_colors(ButtonColors)` 单独配置该按钮。`.fab_content(position, element)` 可在相同位置放入自定义控件。停靠栏的主操作由内容或操作列表提供。
+通过 `.padding(LogicalEdges)`、`.shape(CornerShape)`、`.colors(ToolbarColors)` 和 `.elevations(ControlElevations)` 设置实例外观。悬浮栏仍默认使用圆角与展开态 M3 Level 3 阴影，停靠栏仍默认使用直角与零高度层级。`ControlElevations.resting` 覆盖展开态高度层级，`ControlElevations.disabled` 覆盖收起态高度层级。工具栏配色包括容器色、继承的内容色及选中操作色。`.fab(...)` 在悬浮栏旁放置拥有独立名称和焦点的悬浮操作按钮。通过 `.fab_color(FabColor)` 和 `.fab_colors(ButtonColors)` 单独配置该按钮。`.fab_content(position, element)` 可在相同位置放入自定义控件。停靠栏的主操作由内容或操作列表提供。
 
 使用 `.track_scroll(&handle)` 读取滚动视图的纵向偏移，或通过 `.scroll_state(&state)` 接入保留的 `Entity<ToolbarScrollState>`，并调用 `set_content_offset(offset, cx)`。同时设置时由滚动句柄提供偏移。使用从内容顶部起算的非负逻辑像素距离。`.scroll_behavior(ToolbarScrollBehavior)` 设置展开和收起阈值，默认从最后一次换向起各累计 40 dp。设置 `exit_direction` 后，向前滚动将工具栏移向逻辑 Start、End、Top 或 Bottom，反向滚动使其返回。工具栏保留布局占位，到达隐藏端点时移除其中的控件，内部控件持有焦点时保持可见。相邻的悬浮操作按钮保持可用。省略退出方向时，滚动只改变展开状态。
 
@@ -581,19 +582,19 @@ Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供
 
 构建状态时用 `.initial_month(date)`、`.date_bounds(range)`、`.disabled_dates(predicate)` 和 `.disabled_years(predicate)` 配置日期约束。显示的月份归一到月首，并限制在日期范围内。日历可显示禁用年份，但这些日期无法选取，年份列表也会禁用对应项。用 `displayed_month()` 和 `set_displayed_month(date, cx)` 读写当前月份。用 `draft(cx)` 读取草稿，或用 `set_draft(DatePickerDraft, window, cx)` 更新。日期范围可暂时只有开始日期。对草稿调用 `selection()` 可获取完整的候选值。无效或禁用的端点会被拒绝。`display_mode()` 和 `set_display_mode(mode, window, cx)` 在 `Calendar` 与 `Input` 间切换。用 `.show_mode_toggle(false)` 隐藏切换控件。通过 `input_editors(cx)` 可获取开始日期的保留编辑器，以及范围选择时的结束日期编辑器。
 
-用 `.docked_anchor(|field| ...)` 自定义停靠式 `TextField`。保留传入的字段，以继续使用 Base 编辑器、无障碍语义与日历触发控件。末尾操作打开日历。输入法组合完成后，按 Enter 可接受有效的输入。日期范围输入用 “ – ” 分隔两个端点。`DatePickerLocale` 配置输入格式、解析、每周首日与日历标签。用 `.accessible_date_format(|date| ...)` 独立设置日期和选择状态的播报格式。
+用 `.docked_anchor(|field| ...)` 自定义停靠式 `TextField`。保留传入的字段，以继续使用 Base 编辑器、无障碍语义与日历触发控件。末尾操作打开日历。输入法组合完成后，按 Enter 可接受有效的输入。日期范围输入同时支持 `" - "` 与 `" – "` 分隔两个端点。`DatePickerLocale` 配置 `jiff::civil::Date` 输入格式、解析、每周首日（`jiff::civil::Weekday`）与日历标签。用 `.accessible_date_format(|date| ...)` 独立设置日期和选择状态的播报格式。
 
-用 `.title_content` 和 `.headline_content` 替换可见标题与选择摘要，打开控件与日历状态仍保留无障碍描述。用 `.confirm_content(|confirm| ...)` 和 `.dismiss_content(|dismiss| ...)` 提供模态操作，并将激活连接到传入的 `DialogAction`。确认会验证当前草稿，未完成或无效时保持打开。`.properties(DialogProperties)` 控制 Escape 和外部点击关闭。`.on_dismiss_request` 可拒绝 Escape 和外部点击关闭，`.on_close` 对一次接受的关闭操作报告一次原因。程序主动关闭会更新 `last_close_reason(cx)`。用 `.colors(DatePickerColors)` 配置容器、标题、摘要、导航、年份与日期状态以及输入编辑器。
+用 `.title_content` 和 `.headline_content` 替换可见标题与选择摘要，打开控件与日历状态仍保留无障碍描述。用 `.confirm_content(|confirm| ...)` 和 `.dismiss_content(|dismiss| ...)` 提供模态操作，并将激活连接到传入的 `DialogAction`。确认会验证当前草稿，未完成或无效时保持打开。`.properties(DialogProperties)` 控制 Escape 和外部点击关闭。`.on_dismiss_request` 可拒绝 Escape 和外部点击关闭，`.on_closed` 对一次接受的关闭操作报告一次原因。程序主动关闭会更新 `last_close_reason(cx)`。用 `.colors(DatePickerColors)` 配置容器、标题、摘要、导航、年份与日期状态以及输入编辑器。
 
 ### 时间选择器
 
-`TimePicker::new(id, label, &state, value)` 提供打开标准对话框的触发按钮，每次打开都用应用已提交的值创建精确到分钟的草稿。默认使用表盘、24 小时制和自动布局。通过 `.variant(TimePickerVariant::Input)` 或 `.variant(TimePickerVariant::Scroll)` 设置初始模式，使用 `.format(TimeFormat::TwelveHour)` 启用上午和下午选择，支持 `.disabled(bool)`、`.show_mode_toggle(bool)`、`.colors(DialogColors)`、`.properties(DialogProperties)`、`.on_dismiss_request(...)`、`.on_close(...)` 和 `.on_confirm(...)` 配置对话框并将确认的草稿应用到程序状态中；通过 `TimePickerState::trigger_focus()` 读取触发器焦点句柄。表盘支持自动、横向和纵向布局。两种窗口方向下表盘都按顺时针排列，字段顺序按窗口方向镜像。
+`TimePicker::new(id, label, &state, value)` 提供打开标准对话框的触发按钮，每次打开都用应用已提交的值创建精确到分钟的 `jiff::civil::Time` 草稿。默认使用表盘、24 小时制和自动布局。通过 `.variant(TimePickerVariant::Input)` 或 `.variant(TimePickerVariant::Scroll)` 设置初始模式，使用 `.format(TimeFormat::TwelveHour)` 启用上午和下午选择，支持 `.disabled(bool)`、`.show_mode_toggle(bool)`、`.colors(DialogColors)`、`.properties(DialogProperties)`、`.on_dismiss_request(...)`、`.on_closed(...)` 和 `.on_confirm(...)` 配置对话框并将确认的草稿应用到程序状态中；通过 `TimePickerState::trigger_focus()` 读取触发器焦点句柄。表盘支持自动、横向和纵向布局，并支持按住指针沿表盘连续拖拽选值（释放后自动平滑切换至分钟）。遵循 M3 与 Unicode BiDi 规范，两种窗口方向下表盘均保持顺时针，数字时间 `HH:MM` 字段始终保持左时右分。
 
 每个选择器通过 `cx.new(|cx| TimePickerState::new(window, cx))` 创建一个 `Entity<TimePickerState>`。独立挂载时，`TimePickerPanel::new(id, &state)` 使用状态中的模式，`TimePickerPanel::dial(id, &state)` 和 `TimePickerPanel::input(id, &state)` 分别固定显示表盘和输入面板，`TimeScroll::new(id, &state)` 显示两个鲜明配色的滚动字段。每个状态只挂载一个面板。用 `.layout(...)` 设置表盘布局，或用 `.mode_toggle_content(...)` 在独立输入或滚动字段旁放置切换控件。小时和分钟各自循环。每个字段有独立的无障碍名称、当前值、焦点和方向键操作。滚轮归位后将选中的值写入草稿。启用减少动效时立即归位。
 
 通过实体读取最近的有效 `value()`、`hour()`（0–23）、`minute()`（0–59）、`segment()`、`mode()` 和 `format()`。使用 `set_value`、`set_hour` 或 `set_minute` 从外部修改时间。越界数值会被拒绝，保留当前编辑值。使用 `set_segment`、`set_mode`、`set_format` 和 `set_locale` 改变呈现方式或活动字段。`TimePickerLocale` 可设置数字格式与解析、分隔符、字段与时段名称及验证消息。输入过程中，`hour_input(cx)` 和 `minute_input(cx)` 可以包含未完成的文本。用 `set_hour_input` 和 `set_minute_input` 可从外部写入本地化原始文本。每次有效编辑会更新对应的草稿分量。`is_pm()` 返回当前是否为下午，`is_hour_input_valid(cx)`、`is_minute_input_valid(cx)` 和 `is_input_valid(cx)` 分别检查小时、分钟和两者。切换到另一模式会从草稿恢复有效文本。输入法处于组合态时，确认和模式切换会等到组合结束。选择器收到 Escape 时会先结束组合，保持对话框打开。
 
-应用自定义触发器可挂载 `TimePickerDialog::new(id, title, &state)` 或 `VibrantTimePickerDialog::new(id, name, &state)`，并在触发时调用 `state.open(value, window, cx)`。鲜明配色对话框采用表层容器色和大圆角。即使标题在视觉上隐藏，辅助技术也能读出其名称。两种对话框默认都根据保留的模式显示对应面板。通过 `.body(...)` 放入固定面板时，让保留的模式与面板匹配，使焦点和验证对应。用 `.body(...)` 放入自定义控件，`.title_content(...)` 替换可见标题，或用 `.mode_toggle_content(|action| ...)` 替换模式切换控件。调用该操作的 `activate(window, cx)` 切换模式并转移焦点。`.show_mode_toggle(false)` 和 `.show_dismiss(false)` 隐藏对应的默认控件。通过 `.confirm_content(|action| ...)` 和 `.dismiss_content(|action| ...)` 将自定义控件接入同一对话框流程。用 `.properties(...)` 配置 Escape 与外部点击关闭。`.on_dismiss_request(...)` 可以拒绝这些请求，`.on_close(...)` 在接受用户关闭时收到一次关闭原因。取消、Escape 和外部点击都不会确认。确认时如果存在无效输入，对话框保持打开，将对应字段标记为无效并聚焦首个无效字段。接受关闭后，Material 对话框会恢复先前的焦点。调用 `state.close(window, cx)` 可通过代码关闭，无需触发用户关闭回调。
+应用自定义触发器可挂载 `TimePickerDialog::new(id, title, &state)` 或 `VibrantTimePickerDialog::new(id, name, &state)`，并在触发时调用 `state.open(value, window, cx)`。鲜明配色对话框采用表层容器色和大圆角。即使标题在视觉上隐藏，辅助技术也能读出其名称。两种对话框默认都根据保留的模式显示对应面板。通过 `.body(...)` 放入固定面板时，让保留的模式与面板匹配，使焦点和验证对应。用 `.body(...)` 放入自定义控件，`.title_content(...)` 替换可见标题，或用 `.mode_toggle_content(|action| ...)` 替换模式切换控件。调用该操作的 `activate(window, cx)` 切换模式并转移焦点。`.show_mode_toggle(false)` 和 `.show_dismiss(false)` 隐藏对应的默认控件。通过 `.confirm_content(|action| ...)` 和 `.dismiss_content(|action| ...)` 将自定义控件接入同一对话框流程。用 `.properties(...)` 配置 Escape 与外部点击关闭。`.on_dismiss_request(...)` 可以拒绝这些请求，`.on_closed(...)` 在接受用户关闭时收到一次关闭原因。取消、Escape 和外部点击都不会确认。确认时如果存在无效输入，对话框保持打开，将对应字段标记为无效并聚焦首个无效字段。接受关闭后，Material 对话框会恢复先前的焦点。调用 `state.close(window, cx)` 可通过代码关闭，无需触发用户关闭回调。
 
 通过选择器、面板或对话框的 `.style(TimePickerStyle)` 覆盖时间字段与时段选择器的形状、面板和表盘的配色、表盘指针和标签、时间及上午下午的选中与未选中颜色、时段描边、描边文本字段的配色和滚动字段配色。省略的颜色及形状采用预设以及当前窗口主题。用对话框的 `.shape(...)` 和 `.colors(DialogColors)` 独立调整外壳。
 
@@ -609,8 +610,8 @@ Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供
 
 通过 `Carousel::new(id, label, items)` 构造轮播，为每个条目提供唯一且稳定的 ID。可用 `cx.new(|_| CarouselState::new(initial_index))` 创建 `Entity<CarouselState>`，并通过 `.state(&state)` 接入。观察该实体即可读取 `current_item()`、`current_item_id()` 和相对最接近条目的带符号偏移 `current_item_offset_fraction()`。条目移动时位置随目标 ID 保持，目标被移除时回到经过边界限制的原索引。初始索引和空列表期间发出的请求会在条目到达后生效。通过 `scroll_to_item(index, cx)` 立即定位，通过 `animate_scroll_to_item(index, cx)` 按窗口动效设置移动。两种方法都会限制索引范围。每个实体对应一个轮播。未接入实体时，轮播按元素 ID 保留自身位置。
 
-通过 `.alignment(CarouselAlignment::Start)` 或 `.alignment(CarouselAlignment::Center)` 设置 Multi-browse、Hero 和 Centered Hero 的对齐方式。Centered Hero 默认居中，其他内含布局默认起始侧对齐。六种布局均支持 `.item_spacing(px(...))` 和 `.content_padding(CarouselPadding { start, end, top, bottom })`。`start` 和 `end` 是逻辑方向边。横向布局默认使用 8 px 间距、16 px 起始侧内边距和 8 px 交叉轴内边距。内含布局还有 16 px 末尾侧内边距。Full-screen 默认使用 16 px 间距和零内边距。`.small_item_widths(min, max)` 设置小条目的正数宽度上下限，默认范围为 40–56 px。视口过窄时布局可简化为一个焦点条目。
+通过 `.alignment(CarouselAlignment::Start)` 或 `.alignment(CarouselAlignment::Center)` 设置 Multi-browse、Hero 和 Centered Hero 的对齐方式。Centered Hero 默认居中，其他内含布局默认起始侧对齐。六种布局均支持 `.item_spacing(px(...))` 和 `.content_padding(LogicalEdges)`。`start` 和 `end` 是逻辑方向边。横向布局默认使用 8 px 间距、16 px 起始侧内边距和 8 px 交叉轴内边距。内含布局还有 16 px 末尾侧内边距。Full-screen 默认使用 16 px 间距和零内边距。`.small_item_widths(min, max)` 设置小条目的正数宽度上下限，默认范围为 40–56 px。视口过窄时布局可简化为一个焦点条目。
 
 `.user_scroll_enabled(false)` 关闭滚轮、触控板、键盘导航及无障碍滚动，条目仍可激活，应用仍可定位。内含布局和 Full-screen 默认吸附到最近的定位线，非内含布局默认自由滚动，可通过 `.snap_scrolling(true)` 启用吸附。`.fling_behavior(...)` 可选择自由滚动、就近吸附、单条目推进，或根据 `CarouselFlingContext` 自定义最终条目。逐格滚轮与无障碍滚动请求按条目移动。定位动画和吸附遵循减少动态效果设置。
 
-在可滚动布局中，用 `CarouselParallax::new(content)` 包装任意 GPUI 内容。效果默认使用 GPUI 当前裁剪区域作为视口，也可通过 `.viewport(bounds)` 传入窗口坐标下的视口。纵向布局使用 `.axis(Axis::Vertical)`。条目进出视口时，内容逐步裁剪和平移，布局尺寸保持固定。减少动态效果设置保留视口裁剪，并跳过附加的视差平移。通过 `.shape(CornerShape)` 和 `.border(CarouselBorder)` 配置匹配的圆角和描边。GPUI 使用矩形区域裁剪内容，圆角处通过 Material Surface 颜色覆盖，也可通过 `.backdrop(color)` 设置与均匀父背景匹配的不透明色。图案或透明背景可使用直角保留原背景。
+在可滚动布局中，用 `CarouselParallax::new(content)` 包装任意 GPUI 内容。效果默认使用 GPUI 当前裁剪区域作为视口，也可通过 `.viewport(bounds)` 传入窗口坐标下的视口。纵向布局使用 `.axis(Axis::Vertical)`。条目进出视口时，内容逐步裁剪和平移，布局尺寸保持固定。减少动态效果设置保留视口裁剪，并跳过附加的视差平移。通过 `.shape(CornerShape)` 和 `.border(SurfaceBorder)` 配置匹配的圆角和描边。GPUI 使用矩形区域裁剪内容，圆角处通过 Material Surface 颜色覆盖，也可通过 `.backdrop(color)` 设置与均匀父背景匹配的不透明色。图案或透明背景可使用直角保留原背景。

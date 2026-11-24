@@ -241,7 +241,12 @@ fn docked_search_composes_grouped_results_with_an_external_viewport_and_ime(
         assert_eq!(current.requests.len(), 1);
         assert_eq!(current.state.read(cx).query(), "manual");
         assert_eq!(current.scroll.item_count(), 1000);
-        let headings = find_all(window, &[], &"search-group-title".into());
+        let group_title_id: ElementId = (
+            ElementId::from((ElementId::from("custom-search"), "search-view")),
+            "search-group-title",
+        )
+            .into();
+        let headings = find_all(window, &[], &group_title_id);
         assert!(headings.len() > 1);
         assert!(
             headings
@@ -308,13 +313,16 @@ fn docked_search_composes_grouped_results_with_an_external_viewport_and_ime(
     cx.update(|window, _| {
         let row = find(window, &[], &("row", 500_usize).into()).unwrap();
         assert!(row.visible());
-        assert!(
-            find_all(window, &[], &"search-group-title".into())
-                .iter()
-                .all(|title| title
-                    .label()
-                    .is_some_and(|label| label.starts_with("Updated group ")))
-        );
+        let group_title_id: ElementId = (
+            ElementId::from((ElementId::from("custom-search"), "search-view")),
+            "search-group-title",
+        )
+            .into();
+        assert!(find_all(window, &[], &group_title_id).iter().all(|title| {
+            title
+                .label()
+                .is_some_and(|label| label.starts_with("Updated group "))
+        }));
     });
 }
 

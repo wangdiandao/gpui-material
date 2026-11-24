@@ -33,15 +33,14 @@ fn main() {
     gpui_platform::application()
         .with_quit_mode(QuitMode::LastWindowClosed)
         .run(|cx| {
-            MaterialRoot::init(MaterialTheme::default(), cx);
-            gpui_material::init_components(cx);
+            gpui_material::init(MaterialTheme::default(), cx);
             MaterialRoot::open_window(WindowOptions::default(), cx, |_, cx| cx.new(|_| Demo))
                 .expect("open Material window");
         });
 }
 ```
 
-`MaterialRoot::init` installs the application theme and initializes Base. `init_components` installs component key bindings. The window opened through `MaterialRoot::open_window` has the Base root that manages overlays and focus traversal. The application owns controlled values and command outcomes. Keep entity-backed state, such as `SliderState` and `TextFieldState`, alive across renders.
+`gpui_material::init` installs the application theme, initializes Base, and registers component key bindings when component features are enabled (internally calling `MaterialRoot::init` and, when `display` is enabled, `init_components`). The window opened through `MaterialRoot::open_window` has the Base root that manages overlays and focus traversal. The application owns controlled values and command outcomes. Keep entity-backed state, such as `SliderState` and `TextFieldState`, alive across renders.
 
 ## Material Symbols
 
@@ -80,9 +79,9 @@ Search and dropdown virtualization require no caller migration. Result and optio
 
 `set_material_theme` transitions application colors with the destination motion scheme's Slow Effects spring. A new request starts from the displayed palette. Initialization and reduced motion apply colors immediately. The destination typography and layout take effect when the change is requested. Base receives the application palette and scaled text metrics through the application theme projection.
 
-`foundation::set_window_material_theme` sets the Material theme for one window. Use `ThemeScope::new(child).theme(theme).direction(Direction::Rtl)` to override a subtree. Both builders are optional. Direction alone inherits the surrounding theme. Material descendants, multiline `TextField` scrollbars, deferred exit overlays, and `ThemeScope::bind_action` callbacks resolve the closest scope before the window and application defaults without mutating `gpui_base::Theme::global`. Standalone Base controls can call `foundation::current_base_theme(window, cx)` (or `foundation::project_base_theme(theme, cx)`) to read the matching Base tokens and scrollbar styles for the active local scope.
+`set_window_material_theme` (also available as `foundation::set_window_material_theme`, alongside `window_material_theme`) sets the Material theme for one window. Use `ThemeScope::new(child).theme(theme).direction(Direction::Rtl)` to override a subtree. Both builders are optional. Direction alone inherits the surrounding theme. Material descendants, multiline `TextField` scrollbars, deferred exit overlays, and `ThemeScope::bind_action` callbacks resolve the closest scope before the window and application defaults without mutating `gpui_base::Theme::global`. Standalone Base controls can call `foundation::current_base_theme(window, cx)` (or `foundation::project_base_theme(theme, cx)`) to read the matching Base tokens and scrollbar styles for the active local scope.
 
-The supported application entry point is the [public facade](../crates/material/src/lib.rs), including its documented `foundation` and `theme` paths. By default `gpui-material` enables `full`, which compiles all core component groups (`actions`, `selection`, `inputs`, `surfaces`, `feedback`, and `navigation`). To compile only a subset of core components, set `default-features = false` and list the required groups (for example, `features = ["actions", "inputs"]`). Enable optional families at the facade with the [feature names in the README](../README.md); each optional family activates only the core groups it uses. `date-time` exposes its API under `gpui_material::date_time`. `dynamic-color` and `serde` forward to the pure theme crate. GPUI and Base types in public signatures follow the pinned upstream versions. Gallery modules and the internal organization of the workspace crates may change.
+The supported application entry point is the [public facade](../crates/material/src/lib.rs), including its documented `foundation` and `theme` paths. By default `gpui-material` enables `full`, which compiles all core component groups (`display`, `actions`, `selection`, `inputs`, `surfaces`, `settings-tiles`, `feedback`, and `navigation`). To compile a minimal slice, set `default-features = false` and list only the required features (for example, `features = ["display"]` for lightweight display primitives, `features = ["actions", "inputs"]` for selected core groups, or `features = ["window-chrome"]` / `features = ["carousel"]` without compiling `gpui-material-components` or its embedded SVGs at all). Enable optional families at the facade with the [feature names in the README](../README.md); each optional family activates only the core groups it uses. `date-time` exposes its API and `jiff::civil::{Date, Time, Weekday}` re-exports under `gpui_material::date_time`. `dynamic-color` and `serde` forward to the pure theme crate. GPUI and Base types in public signatures follow the pinned upstream versions. Gallery modules and the internal organization of the workspace crates may change.
 
 When upgrading to 0.3.3, align direct GPUI imports with `0.3.14` and Base imports with `0.11.0`. Callers using `foundation::Shape` clipping helpers should update `clip_rect`, `clip_disc`, and `clip_convex_polygon` for `Option<gpui::Path>` and switch `clip_path`/`paint_clipped` to `clip_shape`/`paint_clipped_shape`.
 

@@ -11,9 +11,8 @@ use gpui_base::test_support::{ElementSnapshot, find};
 use gpui_material::{
     Button, DialogCloseReason, MaterialRoot, Text,
     date_time::{
-        NaiveTime, ScrollFieldColors, TimeFormat, TimePickerDialog, TimePickerLocale,
-        TimePickerPanel, TimePickerSegment, TimePickerState, TimePickerStyle, TimePickerVariant,
-        TimeScroll,
+        ScrollFieldColors, Time, TimeFormat, TimePickerDialog, TimePickerLocale, TimePickerPanel,
+        TimePickerSegment, TimePickerState, TimePickerStyle, TimePickerVariant, TimeScroll,
     },
     material_theme, set_material_theme,
     theme::{CornerShape, Direction},
@@ -120,12 +119,7 @@ fn dial_can_choose_24_hour_inner_ring_then_adjust_minute_by_keyboard(cx: &mut Te
     frame(window, cx);
     click(window, "confirm", cx);
     assert_eq!(element(window, opener, cx).focused(), Some(true));
-    cx.update(|cx| {
-        assert_eq!(
-            view.read(cx).first_time,
-            NaiveTime::from_hms_opt(18, 36, 0).unwrap()
-        )
-    });
+    cx.update(|cx| assert_eq!(view.read(cx).first_time, Time::constant(18, 36, 0, 0)));
 }
 
 #[gpui::test]
@@ -148,12 +142,7 @@ fn invalid_time_stays_open_and_cancel_preserves_value(cx: &mut TestAppContext) {
     cx.simulate_keystrokes(window, "escape");
     frame(window, cx);
     assert_eq!(element(window, opener.clone(), cx).focused(), Some(true));
-    cx.update(|cx| {
-        assert_eq!(
-            view.read(cx).second_time,
-            NaiveTime::from_hms_opt(9, 15, 0).unwrap()
-        )
-    });
+    cx.update(|cx| assert_eq!(view.read(cx).second_time, Time::constant(9, 15, 0, 0)));
 
     click(window, opener.clone(), cx);
     cx.simulate_keystrokes(window, select_all);
@@ -161,12 +150,7 @@ fn invalid_time_stays_open_and_cancel_preserves_value(cx: &mut TestAppContext) {
     click(window, part("time-input-picker", "pm"), cx);
     click(window, "confirm", cx);
     assert_eq!(element(window, opener, cx).focused(), Some(true));
-    cx.update(|cx| {
-        assert_eq!(
-            view.read(cx).second_time,
-            NaiveTime::from_hms_opt(12, 15, 0).unwrap()
-        )
-    });
+    cx.update(|cx| assert_eq!(view.read(cx).second_time, Time::constant(12, 15, 0, 0)));
 }
 
 #[gpui::test]
@@ -223,12 +207,7 @@ fn vibrant_time_scroll_wraps_validates_and_restores_focus(cx: &mut TestAppContex
         element(window, "open-vibrant-time", cx).focused(),
         Some(true)
     );
-    cx.update(|cx| {
-        assert_eq!(
-            view.read(cx).vibrant_time,
-            NaiveTime::from_hms_opt(13, 8, 0).unwrap()
-        )
-    });
+    cx.update(|cx| assert_eq!(view.read(cx).vibrant_time, Time::constant(13, 8, 0, 0)));
 
     click(window, "open-vibrant-time", cx);
     click(window, part("vibrant-time", "am"), cx);
@@ -237,12 +216,7 @@ fn vibrant_time_scroll_wraps_validates_and_restores_focus(cx: &mut TestAppContex
         element(window, "open-vibrant-time", cx).focused(),
         Some(true)
     );
-    cx.update(|cx| {
-        assert_eq!(
-            view.read(cx).vibrant_time,
-            NaiveTime::from_hms_opt(13, 8, 0).unwrap()
-        )
-    });
+    cx.update(|cx| assert_eq!(view.read(cx).vibrant_time, Time::constant(13, 8, 0, 0)));
 }
 
 struct StandaloneTime {
@@ -292,7 +266,7 @@ fn standalone_time_panels_share_external_state_locale_and_rtl(cx: &mut TestAppCo
             let picker = cx.new(|cx| {
                 let mut time = TimePickerState::new(window, cx);
                 time.set_mode(TimePickerVariant::Scroll, window, cx);
-                time.set_value(NaiveTime::from_hms_opt(23, 59, 45).unwrap(), window, cx);
+                time.set_value(Time::constant(23, 59, 45, 0), window, cx);
                 time.set_locale(
                     TimePickerLocale::default()
                         .numbers(
@@ -326,7 +300,7 @@ fn standalone_time_panels_share_external_state_locale_and_rtl(cx: &mut TestAppCo
     let minute = part("standalone-time", "minute-scroll");
     assert!(
         element(window, hour.clone(), cx).bounds().left()
-            > element(window, minute.clone(), cx).bounds().left()
+            < element(window, minute.clone(), cx).bounds().left()
     );
     assert_eq!(element(window, hour.clone(), cx).value(), Some("23 u"));
     click(window, hour.clone(), cx);
@@ -414,7 +388,7 @@ impl Render for CustomTimeDialog {
             .child(
                 Button::new("custom-time-trigger", "Open schedule").on_activate(
                     move |window, cx| {
-                        state.update(cx, |state, cx| state.open(NaiveTime::MIN, window, cx));
+                        state.update(cx, |state, cx| state.open(Time::midnight(), window, cx));
                     },
                 ),
             )
@@ -427,7 +401,7 @@ impl Render for CustomTimeDialog {
                         requests.borrow_mut().push(reason);
                         allow.get()
                     })
-                    .on_close(move |reason, _, _| closes.borrow_mut().push(reason)),
+                    .on_closed(move |reason, _, _| closes.borrow_mut().push(reason)),
             )
     }
 }
@@ -531,7 +505,7 @@ fn time_picker_exposes_trigger_focus_disabled_and_dialog_options(cx: &mut TestAp
                         "enabled-tp",
                         "Alarm time",
                         &self.enabled_state,
-                        NaiveTime::from_hms_opt(9, 15, 0).unwrap(),
+                        Time::constant(9, 15, 0, 0),
                     )
                     .show_mode_toggle(false)
                     .colors(DialogColors::default())
@@ -543,14 +517,14 @@ fn time_picker_exposes_trigger_focus_disabled_and_dialog_options(cx: &mut TestAp
                         req.borrow_mut().push(reason);
                         allow.get()
                     })
-                    .on_close(move |reason, _, _| closes.borrow_mut().push(reason)),
+                    .on_closed(move |reason, _, _| closes.borrow_mut().push(reason)),
                 )
                 .child(
                     TimePicker::new(
                         "disabled-tp",
                         "Disabled time",
                         &self.disabled_state,
-                        NaiveTime::MIN,
+                        Time::midnight(),
                     )
                     .disabled(true),
                 )

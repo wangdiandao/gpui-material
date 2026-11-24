@@ -766,7 +766,7 @@ use gpui_material::{Card, Feed, Text};`,
     slug: "split-button",
     group: "basic",
     title: "SplitButton",
-    source: "crates/extras/src/groups.rs",
+    source: "crates/extras/src/split_button.rs",
     feature: "expressive-groups",
     description: {
       en: "Expose a primary command next to a menu of related commands.",
@@ -893,7 +893,7 @@ TimePicker::new("reminder", "Reminder time", &self.picker, self.time)
     slug: "carousel",
     group: "advanced",
     title: "Carousel",
-    source: "crates/extras/src/carousel/mod.rs",
+    source: "crates/extras/src/carousel.rs",
     feature: "carousel",
     description: {
       en: "Browse a collection using one of six Material layouts.",

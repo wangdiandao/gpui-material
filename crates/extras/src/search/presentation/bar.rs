@@ -138,7 +138,7 @@ impl SearchBar {
 
 impl RenderOnce for SearchBar {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let view = self.view;
+        let mut view = self.view;
         let state = view.state.clone();
         if state.read(cx).is_animating()
             && state.update(cx, |model, cx| model.sample_animation(window, cx))
@@ -146,6 +146,7 @@ impl RenderOnce for SearchBar {
         {
             window.request_animation_frame();
         }
+        view.sampled_in_bar = true;
         let model = state.read(cx);
         let focus = self.track_focus.unwrap_or_else(|| model.trigger.clone());
         let scope = model.scope.clone();
@@ -159,6 +160,7 @@ impl RenderOnce for SearchBar {
         };
         let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
+        let default_height = px(theme.layout.density.interactive_size(56.));
         let viewport = window.viewport_size();
         let size_limit = (viewport.width - px(16.)).max(px(1.));
         let width = match (self.collapsed_width, view.focused_width) {
@@ -196,12 +198,12 @@ impl RenderOnce for SearchBar {
             .when(direction == Direction::Rtl, Styled::flex_row_reverse)
             .children(
                 self.leading
-                    .map(|element| div().id("leading").child(element)),
+                    .map(|element| div().id((self.id.clone(), "leading")).child(element)),
             )
             .child(button)
             .children(
                 self.trailing
-                    .map(|element| div().id("trailing").child(element)),
+                    .map(|element| div().id((self.id.clone(), "trailing")).child(element)),
             );
 
         if !visible {
@@ -211,6 +213,7 @@ impl RenderOnce for SearchBar {
                     trigger,
                     scroll,
                     self.linked_scroll,
+                    default_height,
                     focused,
                     window,
                     cx,
@@ -222,7 +225,7 @@ impl RenderOnce for SearchBar {
             scroll.update(cx, |scroll, _| {
                 scroll.measure(
                     self.linked_scroll.as_ref().map(|handle| -handle.offset().y),
-                    px(56.),
+                    default_height,
                     true,
                 );
             });
@@ -260,7 +263,7 @@ fn render_docked_overlay(
     let options = view.popup;
     let outside = state.clone();
     let mount = div()
-        .id("docked-search")
+        .id((id.clone(), "docked-search"))
         .role(Role::Dialog)
         .aria_label(label)
         .track_focus(&scope)
@@ -282,7 +285,9 @@ fn render_docked_overlay(
             })
             .read(cx)
             .clone();
-        mount.focus_trap("docked-search", &focus).into_any_element()
+        mount
+            .focus_trap((id.clone(), "docked-search-trap"), &focus)
+            .into_any_element()
     } else {
         mount.into_any_element()
     };
@@ -394,18 +399,20 @@ fn backdrop(
         })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn scroll_trigger(
     id: ElementId,
     trigger: impl IntoElement,
     state: Entity<SearchScrollState>,
     linked: Option<ScrollHandle>,
+    default_height: Pixels,
     held_open: bool,
     window: &mut Window,
     cx: &mut App,
 ) -> AnyElement {
     let size = window
         .use_keyed_state((id.clone(), "search-scroll-height"), cx, |_, _| {
-            Rc::new(Cell::new(px(56.)))
+            Rc::new(Cell::new(default_height))
         })
         .read(cx)
         .clone();

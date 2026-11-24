@@ -1,392 +1,27 @@
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{
-    Anchor, AnyElement, App, Axis, ElementId, FocusHandle, Hsla, InteractiveElement, IntoElement,
-    ParentElement, Pixels, Point, RenderOnce, Role, ScrollHandle, SharedString, Size,
-    StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
+    App, Axis, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce, Role,
+    ScrollHandle, Size, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
+    px,
 };
-use gpui_base::{Button, TestSupportExt};
-use gpui_material_components::{Fab, FabColor, FabSize, Icon, IconName, Menu, MenuItem};
+use gpui_base::TestSupportExt;
+use gpui_material_components::ControlElevations;
 use gpui_material_foundation::{animate, color, current_material_theme, move_roving_focus};
-use gpui_material_theme::{
-    ColorRole, CornerShape, Direction, Elevation, MotionKind, MotionScheme, MotionSpec, MotionSpeed,
-};
+use gpui_material_theme::{CornerShape, Direction, Elevation, MotionKind, MotionSpec, MotionSpeed};
 
 use super::{
-    ActionIcon, FabContent, Invoke, Toolbar, ToolbarAction, ToolbarColor, ToolbarElevations,
-    ToolbarExitDirection, ToolbarFab, ToolbarFabPosition, ToolbarOrientation, ToolbarPlacement,
-    ToolbarScrollBehavior, ToolbarScrollState, activate_key, focus_handle,
-    layout::{StripGeometry, ToolbarSlot, arrange_horizontal},
-    style_button,
+    FabContent, Toolbar, ToolbarFabPosition, ToolbarOrientation, ToolbarPlacement,
+    actions::{
+        partition_actions, render_fab, render_overflow_menu, render_visible_actions,
+        sync_focused_scroll,
+    },
+    focus_handle,
+    layout::{StripGeometry, ToolbarSlot, apply_padding, arrange_horizontal},
+    palette::{
+        ScrollPresentation, ToolbarPalette, resolve_scroll_presentation, resolve_target_elevation,
+    },
 };
-
-impl ActionIcon {
-    fn render_inline(&self) -> AnyElement {
-        match self {
-            Self::Symbol(icon) => Icon::new(*icon).size(px(24.)).into_any_element(),
-            Self::Custom(build) => build(),
-        }
-    }
-
-    fn render_overflow(&self) -> AnyElement {
-        match self {
-            Self::Symbol(icon) => Icon::new(*icon).size(px(20.)).into_any_element(),
-            Self::Custom(build) => build(),
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-struct ToolbarPalette {
-    surface: Hsla,
-    ink: Hsla,
-    selected_fill: Hsla,
-    selected_ink: Hsla,
-    ring: Hsla,
-    shadow: Hsla,
-    default_fab_color: FabColor,
-}
-
-impl ToolbarPalette {
-    fn resolve(toolbar: &Toolbar, tone: impl Fn(ColorRole) -> Hsla) -> Self {
-        let (surface_role, content_role, selected_role, selected_ink_role, default_fab_color) =
-            match toolbar.color {
-                ToolbarColor::Standard => (
-                    ColorRole::SurfaceContainer,
-                    ColorRole::OnSurfaceVariant,
-                    ColorRole::SecondaryContainer,
-                    ColorRole::OnSecondaryContainer,
-                    FabColor::Primary,
-                ),
-                ToolbarColor::Vibrant => (
-                    ColorRole::PrimaryContainer,
-                    ColorRole::OnPrimaryContainer,
-                    ColorRole::SurfaceContainer,
-                    ColorRole::OnSurface,
-                    FabColor::Tertiary,
-                ),
-            };
-        Self {
-            surface: toolbar
-                .colors
-                .container
-                .unwrap_or_else(|| tone(surface_role)),
-            ink: toolbar.colors.content.unwrap_or_else(|| tone(content_role)),
-            selected_fill: toolbar
-                .colors
-                .selected_container
-                .unwrap_or_else(|| tone(selected_role)),
-            selected_ink: toolbar
-                .colors
-                .selected_content
-                .unwrap_or_else(|| tone(selected_ink_role)),
-            ring: tone(ColorRole::Secondary),
-            shadow: tone(ColorRole::Shadow),
-            default_fab_color,
-        }
-    }
-}
-
-struct ScrollPresentation {
-    slide: Point<Pixels>,
-    hidden_strip: bool,
-}
-
-#[allow(clippy::too_many_arguments)]
-fn resolve_scroll_presentation(
-    toolbar: &mut Toolbar,
-    footprint: &Rc<Cell<Size<Pixels>>>,
-    behavior: ToolbarScrollBehavior,
-    scheme: MotionScheme,
-    reduced: bool,
-    exposed: bool,
-    rtl: bool,
-    window: &mut Window,
-    cx: &mut App,
-) -> ScrollPresentation {
-    let limit = behavior.exit_direction.map_or(0., |edge| {
-        let size = footprint.get();
-        f32::from(match edge {
-            ToolbarExitDirection::Start | ToolbarExitDirection::End => size.width,
-            ToolbarExitDirection::Top | ToolbarExitDirection::Bottom => size.height,
-        })
-    });
-    let scroll_state = toolbar.scroll_state.take().or_else(|| {
-        (toolbar.scroll.is_some() || toolbar.scroll_behavior.is_some()).then(|| {
-            window.use_keyed_state((toolbar.id.clone(), "scroll-expansion"), cx, |_, _| {
-                ToolbarScrollState::new()
-            })
-        })
-    });
-    let Some(state) = scroll_state else {
-        return ScrollPresentation {
-            slide: Point::default(),
-            hidden_strip: false,
-        };
-    };
-    let linked = toolbar.scroll.as_ref().map(|scroll| -scroll.offset().y);
-    let position = state.update(cx, |state, _| state.prepare(linked, limit, behavior));
-    let fraction = animate(
-        (toolbar.id.clone(), "toolbar-scroll"),
-        position.target,
-        position.motion.spec(behavior, scheme, reduced),
-        window,
-        cx,
-    )
-    .clamp(0., 1.);
-    toolbar.expanded &= position.expanded;
-    state.update(cx, |state, cx| {
-        if state.display(position, fraction, limit, exposed) {
-            cx.notify();
-        }
-    });
-    let distance = px(if exposed { 0. } else { fraction * limit });
-    let hidden_strip = limit > 0. && distance >= px(limit);
-    let slide = match behavior.exit_direction {
-        Some(ToolbarExitDirection::Top) => gpui::point(px(0.), -distance),
-        Some(ToolbarExitDirection::Bottom) => gpui::point(px(0.), distance),
-        Some(ToolbarExitDirection::Start) if rtl => gpui::point(distance, px(0.)),
-        Some(ToolbarExitDirection::End) if !rtl => gpui::point(distance, px(0.)),
-        Some(ToolbarExitDirection::Start | ToolbarExitDirection::End) => {
-            gpui::point(-distance, px(0.))
-        }
-        None => Point::default(),
-    };
-    ScrollPresentation {
-        slide,
-        hidden_strip,
-    }
-}
-
-fn partition_actions(
-    id: &ElementId,
-    actions: Vec<ToolbarAction>,
-    expanded: bool,
-    window: &mut Window,
-    cx: &mut App,
-) -> (Vec<(ToolbarAction, FocusHandle)>, Vec<ToolbarAction>) {
-    let mut visible = Vec::new();
-    let mut hidden = Vec::new();
-    for action in actions {
-        let action_id = ElementId::from((id.clone(), action.id.clone()));
-        let handle = focus_handle(&action_id, "focus", window, cx);
-        // Keep the active keyboard target mounted during scroll collapse.
-        if expanded || !action.secondary || handle.is_focused(window) {
-            visible.push((action, handle));
-        } else {
-            hidden.push(action);
-        }
-    }
-    (visible, hidden)
-}
-
-fn render_fab(
-    toolbar: &Toolbar,
-    fab: ToolbarFab,
-    fab_focus: &FocusHandle,
-    default_color: FabColor,
-) -> AnyElement {
-    let content = match fab.content {
-        FabContent::Standard {
-            icon,
-            label,
-            invoke,
-        } => Fab::new((toolbar.id.clone(), "fab"), label, Icon::new(icon))
-            .track_focus(fab_focus)
-            .color(toolbar.fab_color.unwrap_or(default_color))
-            .colors(toolbar.fab_colors)
-            .size(if toolbar.expanded {
-                FabSize::Small
-            } else {
-                FabSize::Medium
-            })
-            .on_activate(move |window, cx| invoke(window, cx))
-            .into_any_element(),
-        FabContent::Custom(content) => content,
-    };
-    div().flex_none().child(content).into_any_element()
-}
-
-fn render_visible_actions(
-    id: &ElementId,
-    visible: Vec<(ToolbarAction, FocusHandle)>,
-    first_tab: Option<usize>,
-    palette: ToolbarPalette,
-) -> Vec<(AnyElement, FocusHandle)> {
-    visible
-        .into_iter()
-        .enumerate()
-        .map(|(index, (action, handle))| {
-            let callback = action.invoke;
-            let selected = action.selected.unwrap_or(false);
-            let fill = if selected {
-                palette.selected_fill
-            } else {
-                palette.surface
-            };
-            let foreground = if !action.enabled {
-                palette.ink.opacity(0.38)
-            } else if selected {
-                palette.selected_ink
-            } else {
-                palette.ink
-            };
-            let button = Button::new((id.clone(), action.id))
-                .track_focus(&handle)
-                .tab_stop(first_tab == Some(index))
-                .accessibility_label(action.label)
-                .disabled(!action.enabled)
-                .size(px(48.))
-                .flex_none()
-                .rounded_full()
-                .child(action.icon.render_inline())
-                .when_some(action.selected, |button, selected| {
-                    button.aria_toggled(if selected {
-                        gpui::accesskit::Toggled::True
-                    } else {
-                        gpui::accesskit::Toggled::False
-                    })
-                })
-                .when_some(callback.filter(|_| action.enabled), |button, callback| {
-                    let key = callback.clone();
-                    let a11y = callback.clone();
-                    button
-                        .on_click(move |_, window, cx| callback(window, cx))
-                        .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
-                            a11y(window, cx)
-                        })
-                        .capture_key_down(move |event, window, cx| {
-                            activate_key(event, window, cx, &*key)
-                        })
-                });
-            (
-                style_button(button, fill, foreground, palette.ring, action.enabled)
-                    .into_any_element(),
-                handle,
-            )
-        })
-        .collect()
-}
-
-#[allow(clippy::too_many_arguments)]
-fn render_overflow_menu(
-    id: &ElementId,
-    overflow_label: SharedString,
-    hidden: Vec<ToolbarAction>,
-    overflow_focus: FocusHandle,
-    is_tab_stop: bool,
-    horizontal: bool,
-    palette: ToolbarPalette,
-) -> (AnyElement, FocusHandle) {
-    let entries = hidden.into_iter().map(|action| {
-        let icon = action.icon;
-        let item = MenuItem::new(action.id, action.label)
-            .disabled(!action.enabled)
-            .leading(move || icon.render_overflow());
-        let item = if let Some(selected) = action.selected {
-            item.checked(selected)
-        } else {
-            item
-        };
-        if let Some(invoke) = action.invoke {
-            item.on_activate(move |window, cx| invoke(window, cx))
-        } else {
-            item
-        }
-    });
-    let trigger_id = id.clone();
-    let scroll_focus = overflow_focus.clone();
-    let trigger = move |open, toggle: Invoke| {
-        let focus = overflow_focus.clone();
-        let accessibility_toggle = toggle.clone();
-        let button = Button::new((trigger_id, "overflow"))
-            .accessibility_label(overflow_label)
-            .aria_expanded(open)
-            .track_focus(&overflow_focus)
-            .tab_stop(is_tab_stop)
-            .size(px(48.))
-            .rounded_full()
-            .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
-                focus.focus(window, cx);
-                toggle(window, cx);
-            })
-            .on_a11y_action(
-                if open {
-                    gpui::AccessibleAction::Collapse
-                } else {
-                    gpui::AccessibleAction::Expand
-                },
-                {
-                    let focus = overflow_focus.clone();
-                    move |_, window, cx| {
-                        focus.focus(window, cx);
-                        accessibility_toggle(window, cx);
-                    }
-                },
-            )
-            .child(Icon::new(IconName::ArrowDropDown).size(px(24.)));
-        style_button(button, palette.surface, palette.ink, palette.ring, true).into_any_element()
-    };
-    (
-        div()
-            .flex_none()
-            .child(
-                Menu::composed((id.clone(), "overflow-menu"), entries, trigger).anchor(
-                    if horizontal {
-                        Anchor::BottomRight
-                    } else {
-                        Anchor::LeftCenter
-                    },
-                ),
-            )
-            .into_any_element(),
-        scroll_focus,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-fn sync_focused_scroll(
-    id: &ElementId,
-    strip_children: &[(AnyElement, FocusHandle)],
-    first_command: usize,
-    first_tab: Option<usize>,
-    arranged: bool,
-    mirrored: bool,
-    toolbar_scroll: &ScrollHandle,
-    window: &mut Window,
-    cx: &mut App,
-) {
-    // Direct child indices include slot and spacer elements. The scroll handle
-    // uses their physical order, including the reversal of a horizontal RTL strip.
-    let mut children_count = strip_children.len();
-    if arranged && children_count > 0 {
-        children_count = children_count * 2 + 1;
-    }
-    let reveal_index = strip_children
-        .iter()
-        .position(|(_, handle)| handle.contains_focused(window, cx))
-        .or_else(|| first_tab.map(|index| first_command + index))
-        .map(|index| {
-            let index = if arranged { index * 2 + 1 } else { index };
-            if mirrored {
-                children_count - index - 1
-            } else {
-                index
-            }
-        });
-    let reveal = window.use_keyed_state((id.clone(), "focused-action"), cx, |_, _| {
-        None::<(usize, Size<Pixels>)>
-    });
-    let target = reveal_index.map(|index| (index, toolbar_scroll.bounds().size));
-    reveal.update(cx, |previous, _| {
-        if *previous != target {
-            if let Some((index, _)) = target {
-                toolbar_scroll.scroll_to_item(index);
-            }
-            *previous = target;
-        }
-    });
-}
 
 impl RenderOnce for Toolbar {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
@@ -395,6 +30,7 @@ impl RenderOnce for Toolbar {
         }
         let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
+        let density = theme.layout.density;
         let horizontal = self.orientation == ToolbarOrientation::Horizontal;
         let rtl = direction == Direction::Rtl;
         let docked = self.placement == ToolbarPlacement::Docked;
@@ -423,22 +59,15 @@ impl RenderOnce for Toolbar {
         } = resolve_scroll_presentation(
             &mut self, &footprint, behavior, scheme, reduced, exposed, rtl, window, cx,
         );
-        let custom_surface = self.shape.is_some()
-            || self.elevations != ToolbarElevations::default()
-            || behavior.exit_direction.is_some()
-            || self.content.is_some()
-            || self.leading.is_some()
-            || self.trailing.is_some()
-            || self.arrangement.is_some() && docked && horizontal;
-        let elevation = if self.elevations != ToolbarElevations::default() {
-            let elevation = if self.expanded {
-                self.elevations.expanded
-            } else {
-                self.elevations.collapsed
-            };
+        let target_elevation =
+            resolve_target_elevation(self.placement, self.expanded, self.elevations);
+        let uses_elevation = !docked
+            || target_elevation != Elevation::Level0
+            || self.elevations != ControlElevations::default();
+        let elevation = if uses_elevation {
             animate(
                 (self.id.clone(), "toolbar-elevation"),
-                elevation.unwrap_or(Elevation::Level0).dp(),
+                target_elevation.dp(),
                 transition,
                 window,
                 cx,
@@ -447,12 +76,21 @@ impl RenderOnce for Toolbar {
         } else {
             0.
         };
+        let custom_surface = self.shape.is_some()
+            || uses_elevation
+            || behavior.exit_direction.is_some()
+            || self.content.is_some()
+            || self.leading.is_some()
+            || self.trailing.is_some()
+            || self.arrangement.is_some() && docked && horizontal;
         let arrangement = self.arrangement.filter(|_| docked && horizontal);
         let spacing = self.spacing.min(if horizontal {
             viewport.width
         } else {
             viewport.height
         });
+        let strip_min = px(density.interactive_size(64.));
+        let action_size = px(density.interactive_size(48.));
         let toolbar_scroll = window
             .use_keyed_state((self.id.clone(), "action-scroll"), cx, |_, _| {
                 ScrollHandle::new()
@@ -512,8 +150,8 @@ impl RenderOnce for Toolbar {
             .when(docked && !horizontal, Styled::h_full)
             .when_else(
                 horizontal,
-                |strip| strip.min_h(px(64.)),
-                |strip| strip.min_w(px(64.)),
+                |strip| strip.min_h(strip_min),
+                |strip| strip.min_w(strip_min),
             )
             .when_else(
                 horizontal,
@@ -535,10 +173,11 @@ impl RenderOnce for Toolbar {
                 spacing
             });
         if let Some(padding) = self.padding {
-            action_strip = padding.apply(action_strip, direction, viewport);
+            action_strip = apply_padding(padding, action_strip, direction, viewport);
         }
 
-        let mut commands = render_visible_actions(&self.id, visible, first_tab, palette);
+        let mut commands =
+            render_visible_actions(&self.id, visible, first_tab, action_size, palette);
         if has_more {
             let count = bar_order.len();
             commands.push(render_overflow_menu(
@@ -548,6 +187,8 @@ impl RenderOnce for Toolbar {
                 overflow_focus,
                 first_tab == Some(count - 1),
                 horizontal,
+                direction,
+                action_size,
                 palette,
             ));
         }
@@ -558,20 +199,13 @@ impl RenderOnce for Toolbar {
         } else {
             let mut side = |part, element, expanded: Option<bool>| {
                 let slot = ToolbarSlot::new(&self.id, part, element, window, cx);
-                // Intrinsic measurement and prepaint must see the same GPUI
-                // ID path for stateful controls like an editor.
-                window.with_id(self.id.clone(), |window| {
-                    window.with_id((self.id.clone(), "actions"), |window| {
-                        slot.expandable(
-                            expanded.unwrap_or(self.expanded),
-                            horizontal,
-                            transition,
-                            palette.ink,
-                            window,
-                            cx,
-                        )
-                    })
-                })
+                slot.expandable(
+                    expanded.unwrap_or(self.expanded),
+                    horizontal,
+                    transition,
+                    window,
+                    cx,
+                )
             };
             let leading = self
                 .leading
@@ -701,5 +335,79 @@ impl RenderOnce for Toolbar {
                 .children(fab_element)
                 .into_any_element()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use gpui_material_components::ControlElevations;
+    use gpui_material_theme::{Elevation, LogicalEdges};
+
+    use super::*;
+    use crate::ContentArrangement;
+
+    #[test]
+    fn floating_toolbar_defaults_to_level3_when_expanded_and_level0_when_collapsed() {
+        assert_eq!(
+            resolve_target_elevation(
+                ToolbarPlacement::Floating,
+                true,
+                ControlElevations::default()
+            ),
+            Elevation::Level3
+        );
+        assert_eq!(
+            resolve_target_elevation(
+                ToolbarPlacement::Floating,
+                false,
+                ControlElevations::default()
+            ),
+            Elevation::Level0
+        );
+        assert_eq!(
+            resolve_target_elevation(ToolbarPlacement::Docked, true, ControlElevations::default()),
+            Elevation::Level0
+        );
+        assert_eq!(
+            resolve_target_elevation(
+                ToolbarPlacement::Docked,
+                false,
+                ControlElevations::default()
+            ),
+            Elevation::Level0
+        );
+    }
+
+    #[test]
+    fn control_elevations_override_expanded_and_collapsed_toolbar_levels() {
+        let overrides = ControlElevations {
+            resting: Some(Elevation::Level1),
+            disabled: Some(Elevation::Level2),
+            ..Default::default()
+        };
+        assert_eq!(
+            resolve_target_elevation(ToolbarPlacement::Floating, true, overrides),
+            Elevation::Level1
+        );
+        assert_eq!(
+            resolve_target_elevation(ToolbarPlacement::Floating, false, overrides),
+            Elevation::Level2
+        );
+    }
+
+    #[test]
+    fn toolbar_builder_accepts_unified_primitives() {
+        let toolbar = Toolbar::new("bar", "Actions", [])
+            .arrangement(ContentArrangement::SpaceEvenly)
+            .padding(LogicalEdges::new(4., 8., 6., 10.))
+            .elevations(ControlElevations {
+                resting: Some(Elevation::Level2),
+                disabled: Some(Elevation::Level0),
+                ..Default::default()
+            });
+        assert_eq!(toolbar.arrangement, Some(ContentArrangement::SpaceEvenly));
+        assert_eq!(toolbar.padding, Some(LogicalEdges::new(4., 8., 6., 10.)));
+        assert_eq!(toolbar.elevations.resting, Some(Elevation::Level2));
+        assert_eq!(toolbar.elevations.disabled, Some(Elevation::Level0));
     }
 }

@@ -4,10 +4,10 @@ use gpui::{
     prelude::FluentBuilder, px,
 };
 use gpui_material::{
-    Button, FabColor, FabMenu, FabMenuAlignment, FabMenuItem, FabMenuTriggerAppearance,
-    FabMenuTriggerStyle, FabSize, Icon, IconName, NavigationBar, NavigationItem, NavigationItems,
-    Scaffold, Switch, Text, TextField, TextFieldState, Toolbar, ToolbarAction, ToolbarArrangement,
-    ToolbarColor, ToolbarFabPosition, ToolbarOrientation, ToolbarPlacement,
+    Button, ContentArrangement, FabColor, FabMenu, FabMenuAlignment, FabMenuItem,
+    FabMenuTriggerAppearance, FabMenuTriggerStyle, FabSize, Icon, IconName, NavigationBar,
+    NavigationItem, NavigationItems, Scaffold, Switch, Text, TextField, TextFieldState, Toolbar,
+    ToolbarAction, ToolbarColor, ToolbarFabPosition, ToolbarOrientation, ToolbarPlacement,
     theme::{CornerShape, TypeRole},
 };
 
@@ -273,7 +273,7 @@ impl ToolbarExamples {
                 section("Editable docked toolbar").child(
                     Toolbar::new("editable-toolbar", "Editable document toolbar", [])
                         .placement(ToolbarPlacement::Docked)
-                        .arrangement(ToolbarArrangement::SpaceBetween)
+                        .arrangement(ContentArrangement::SpaceBetween)
                         .shape(CornerShape::Radii([10., 10., 0., 0.]))
                         .leading_content(Button::new("editor-filter", "Filter documents"))
                         .content(div().w(px(192.)).child(TextField::new(

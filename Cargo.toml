@@ -20,7 +20,9 @@ gpui-material-components = { version = "=0.3.3", path = "crates/components", def
 gpui-material-extras = { version = "=0.3.3", path = "crates/extras" }
 gpui-material-foundation = { version = "=0.3.3", path = "crates/foundation" }
 gpui-material-theme = { version = "=0.3.3", path = "crates/theme" }
+jiff = { version = "1.0", default-features = false }
 js-sys = "0.3.107"
+raw-window-handle = "0.6.2"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 wasm-bindgen = "0.2.130"

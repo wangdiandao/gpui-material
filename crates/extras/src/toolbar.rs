@@ -11,9 +11,8 @@ mod bar;
 mod fab_menu;
 
 pub use bar::{
-    Toolbar, ToolbarAction, ToolbarArrangement, ToolbarColor, ToolbarColors, ToolbarElevations,
-    ToolbarExitDirection, ToolbarFabPosition, ToolbarFling, ToolbarOrientation, ToolbarPadding,
-    ToolbarPlacement, ToolbarScrollBehavior, ToolbarScrollState,
+    Toolbar, ToolbarAction, ToolbarColor, ToolbarColors, ToolbarExitDirection, ToolbarFabPosition,
+    ToolbarFling, ToolbarOrientation, ToolbarPlacement, ToolbarScrollBehavior, ToolbarScrollState,
 };
 pub use fab_menu::{
     FabMenu, FabMenuAlignment, FabMenuItem, FabMenuItemColors, FabMenuTriggerAppearance,

@@ -763,3 +763,99 @@ fn standard_button_group_borrows_neighbor_width_on_press(cx: &mut TestAppContext
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn weighted_button_group_does_not_animate_from_viewport_width_on_mount(cx: &mut TestAppContext) {
+    struct NarrowWeightedGroup;
+
+    impl Render for NarrowWeightedGroup {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
+            div().max_w(px(290.)).child(
+                ButtonGroup::connected(
+                    "period-mount",
+                    "Period",
+                    [
+                        ButtonGroupItem::new("day", "Day").weight(1.),
+                        ButtonGroupItem::new("week", "Week").weight(2.),
+                        ButtonGroupItem::new("month", "Month"),
+                        ButtonGroupItem::new("quarter", "Quarter"),
+                        ButtonGroupItem::new("year", "Year"),
+                    ],
+                )
+                .shape(ButtonShape::Square)
+                .appearance(ButtonVariant::FilledTonal)
+                .overflow_trigger(px(52.), |_| div().child("More"))
+                .single_select("week", |_, _, _| {}),
+            )
+        }
+    }
+
+    let handle: Handle = cx.update(|cx| {
+        crate::init_gallery(cx);
+        cx.set_reduce_motion(false);
+        let view = cx.new(|_| NarrowWeightedGroup);
+        MaterialRoot::open_window(WindowOptions::default(), cx, |_, _| view)
+            .unwrap()
+            .into()
+    });
+    cx.simulate_window_resize(handle, size(px(960.), px(480.)));
+
+    // First draw measures the 290px container; second draw lays out weighted items
+    // and initializes their width channels settled at the measured widths.
+    for _ in 0..2 {
+        cx.update_window(handle, |_, window, cx| {
+            window.simulate_next_frame(cx);
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+    }
+
+    let item_width = |window: &Window, id: &'static str| {
+        find(
+            window,
+            &[],
+            &ElementId::from((ElementId::from("period-mount"), SharedString::from(id))),
+        )
+        .unwrap_or_else(|| panic!("missing member {id}"))
+        .bounds()
+        .size
+        .width
+    };
+
+    let (day, week, month, overflow) = cx
+        .update_window(handle, |_, window, _| {
+            (
+                item_width(window, "day"),
+                item_width(window, "week"),
+                item_width(window, "month"),
+                item_width(window, "overflow"),
+            )
+        })
+        .unwrap();
+
+    // Total width including 3 connected gaps (2px each) must already fit within 290px.
+    let total = day + week + month + overflow + px(6.);
+    assert!(
+        total <= px(291.),
+        "expected weighted group to settle inside 290px immediately, got {total:?} (day={day:?}, week={week:?}, month={month:?}, overflow={overflow:?})"
+    );
+    assert!(week > day);
+
+    // Drawing another frame must not shrink/animate the widths further.
+    cx.update_window(handle, |_, window, cx| {
+        window.simulate_next_frame(cx);
+        window.refresh();
+        window.draw(cx).clear(cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+
+    cx.update_window(handle, |_, window, _| {
+        assert_eq!(item_width(window, "day"), day);
+        assert_eq!(item_width(window, "week"), week);
+        assert_eq!(item_width(window, "month"), month);
+    })
+    .unwrap();
+}

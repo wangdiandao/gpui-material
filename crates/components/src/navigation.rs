@@ -6,6 +6,7 @@ mod breadcrumbs;
 mod drawer;
 mod items;
 mod multi_pane;
+mod overflow_strip;
 mod rail;
 mod scaffold;
 mod stepper;
@@ -17,10 +18,10 @@ pub use adaptive_navigation::{
     AdaptiveNavigationVisibility,
 };
 pub use app_bar::{
-    AppBar, AppBarAlignment, AppBarColors, AppBarColumn, AppBarItem, AppBarMenuState,
-    AppBarPadding, AppBarRow, AppBarScrollBehavior, AppBarScrollState, AppBarVariant,
+    AppBar, AppBarAlignment, AppBarColors, AppBarColumn, AppBarItem, AppBarMenuState, AppBarRow,
+    AppBarScrollBehavior, AppBarScrollState, AppBarVariant,
 };
-pub use bottom_app_bar::{BottomAppBar, BottomAppBarColors, BottomAppBarPadding};
+pub use bottom_app_bar::{BottomAppBar, BottomAppBarColors};
 pub use breadcrumbs::{BreadcrumbItem, Breadcrumbs, BreadcrumbsColors};
 pub use drawer::{
     NavigationDrawer, NavigationDrawerColors, NavigationDrawerEntry, NavigationDrawerMode,
@@ -32,12 +33,12 @@ pub use items::{
 };
 pub use multi_pane::{
     AdaptivePane, AdaptivePaneLayout, AdaptivePaneState, PaneAdaptStrategy, PaneBackBehavior,
-    PaneDestination, PaneExpansionAnchor, PaneLayoutDirective, PaneLayoutValue, PaneMargins,
+    PaneDestination, PaneExpansionAnchor, PaneLayoutDirective, PaneLayoutValue,
     PaneOverlayAlignment, PanePlacement, PaneRole, PaneSeparator,
 };
 pub use rail::{
-    NavigationRail, NavigationRailArrangement, NavigationRailColors, NavigationRailPadding,
-    NavigationRailShapes, NavigationRailState, RailModalOptions, RailMode,
+    NavigationRail, NavigationRailArrangement, NavigationRailColors, NavigationRailShapes,
+    NavigationRailState, RailModalOptions, RailMode,
 };
 pub use scaffold::{Scaffold, ScaffoldContentLayout, ScaffoldFabPosition};
 pub use stepper::{StepItem, StepStatus, Stepper, StepperColors, StepperOrientation};

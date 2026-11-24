@@ -1,7 +1,4 @@
-use std::{
-    cell::{Cell, RefCell},
-    rc::Rc,
-};
+use std::rc::Rc;
 
 use gpui::{
     AccessibleAction, AnyElement, App, AvailableSpace, Bounds, ContentMask, Element, ElementId,
@@ -13,13 +10,15 @@ use gpui_base::Button;
 use gpui_material_foundation::current_material_theme;
 use gpui_material_theme::Direction;
 
-use crate::{ButtonColors, IconButton, Menu, MenuItem};
+use crate::{
+    ButtonColors, IconButton, Menu, MenuItem,
+    navigation::overflow_strip::{OverflowMenuController, OverflowStripHandle},
+};
 
 const TRIGGER_SIZE: Pixels = px(48.);
 type OnActivate = Rc<dyn Fn(&mut Window, &mut App)>;
 type MenuItemBuilder = Box<dyn FnOnce(AppBarMenuState) -> MenuItem>;
 type OverflowIndicator = Box<dyn FnOnce(AppBarMenuState) -> AnyElement>;
-type DisplacedFocus = Rc<RefCell<Option<(ElementId, FocusHandle)>>>;
 
 enum ItemContent {
     Clickable {
@@ -89,9 +88,16 @@ impl AppBarItem {
         self
     }
 
-    fn prepare(self, ink: Hsla, window: &mut Window, cx: &mut App) -> Prepared {
+    fn prepare(
+        self,
+        strip_id: &ElementId,
+        ink: Hsla,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Prepared {
+        let scoped_id: ElementId = (strip_id.clone(), self.id.to_string()).into();
         let focus = window
-            .use_keyed_state((self.id.clone(), "app-bar-item"), cx, |_, cx| {
+            .use_keyed_state((scoped_id.clone(), "app-bar-item"), cx, |_, cx| {
                 cx.focus_handle()
             })
             .read(cx)
@@ -102,7 +108,7 @@ impl AppBarItem {
                 icon,
                 on_activate,
             } => {
-                let mut inline = IconButton::new(self.id.clone(), label.clone(), icon())
+                let mut inline = IconButton::new(scoped_id.clone(), label.clone(), icon())
                     .colors(ButtonColors {
                         content: Some(ink),
                         ..Default::default()
@@ -112,10 +118,10 @@ impl AppBarItem {
                 if let Some(on_activate) = on_activate.clone() {
                     inline = inline.on_activate(move |window, cx| on_activate(window, cx));
                 }
-                let id = self.id.clone();
+                let menu_id = scoped_id.clone();
                 let disabled = self.disabled;
                 let menu = move |_| {
-                    let mut item = MenuItem::new(id, label)
+                    let mut item = MenuItem::new(menu_id, label)
                         .leading(move || icon())
                         .disabled(disabled);
                     if let Some(on_activate) = on_activate {
@@ -127,7 +133,7 @@ impl AppBarItem {
             }
             ItemContent::Custom { inline, menu } => (
                 div()
-                    .id(self.id.clone())
+                    .id(scoped_id.clone())
                     .track_focus(&focus)
                     .child(inline)
                     .into_any_element(),
@@ -162,42 +168,28 @@ struct Prepared {
 /// Handle to the active strip's overflow menu, available to its item and trigger builders.
 #[derive(Clone)]
 pub struct AppBarMenuState {
-    shown: Rc<Cell<bool>>,
-    has_overflow: Rc<Cell<bool>>,
-    view: gpui::EntityId,
+    controller: OverflowMenuController,
 }
 
 impl AppBarMenuState {
     /// Returns whether the overflow menu is currently open.
     pub fn is_showing(&self) -> bool {
-        self.shown.get()
+        self.controller.is_showing()
     }
 
     /// Opens the overflow menu if any items are currently overflowed.
     pub fn show(&self, window: &mut Window, cx: &mut App) {
-        if self.has_overflow.get() {
-            self.set(true, window, cx);
-        }
+        self.controller.show(window, cx);
     }
 
     /// Closes the overflow menu.
     pub fn dismiss(&self, window: &mut Window, cx: &mut App) {
-        self.set(false, window, cx);
+        self.controller.dismiss(window, cx);
     }
 
     fn set(&self, shown: bool, window: &mut Window, cx: &mut App) {
-        if self.shown.replace(shown) != shown {
-            cx.notify(self.view);
-            window.refresh();
-        }
+        self.controller.set(shown, window, cx);
     }
-}
-
-struct OverflowState {
-    shown: Rc<Cell<bool>>,
-    has_overflow: Rc<Cell<bool>>,
-    focus: FocusHandle,
-    displaced: DisplacedFocus,
 }
 
 struct Strip {
@@ -334,35 +326,24 @@ struct StripLayout {
     axis: Axis,
     direction: Direction,
     ink: Hsla,
-    menu: AppBarMenuState,
-    overflow_focus: FocusHandle,
-    displaced: DisplacedFocus,
+    overflow: OverflowStripHandle<ElementId>,
 }
 
 impl StripLayout {
     fn new(strip: Strip, axis: Axis, window: &mut Window, cx: &mut App) -> Self {
-        let overflow =
-            window.use_keyed_state((strip.id.clone(), "app-bar-overflow"), cx, |_, cx| {
-                OverflowState {
-                    shown: Rc::new(Cell::new(false)),
-                    has_overflow: Rc::new(Cell::new(false)),
-                    focus: cx.focus_handle(),
-                    displaced: Rc::new(RefCell::new(None)),
-                }
-            });
-        let overflow = overflow.read(cx);
+        let overflow = OverflowStripHandle::use_state(&strip.id, "app-bar-overflow", window, cx);
         Self {
             strip,
             axis,
             direction: current_material_theme(window, cx).layout.direction,
             ink: window.text_style().color,
-            menu: AppBarMenuState {
-                shown: overflow.shown.clone(),
-                has_overflow: overflow.has_overflow.clone(),
-                view: window.current_view(),
-            },
-            overflow_focus: overflow.focus.clone(),
-            displaced: overflow.displaced.clone(),
+            overflow,
+        }
+    }
+
+    fn menu_state(&self) -> AppBarMenuState {
+        AppBarMenuState {
+            controller: self.overflow.controller.clone(),
         }
     }
 
@@ -374,58 +355,38 @@ impl StripLayout {
         window: &mut Window,
         cx: &mut App,
     ) {
-        let in_overflow = self.overflow_focus.is_focused(window);
-        let previous_overflow = self.menu.has_overflow.replace(overflow);
-        let menu_was_open = self.menu.is_showing();
-        let mut displaced = self.displaced.borrow_mut();
-        if overflow
-            && let Some(hidden) = items[shown..]
+        let hidden_focused = overflow.then(|| {
+            items[shown..]
                 .iter()
                 .find(|item| item.focus.contains_focused(window, cx))
-        {
-            let old_focus = window.focused(cx).unwrap_or_else(|| hidden.focus.clone());
-            *displaced = Some((hidden.id.clone(), old_focus));
-            focus_after_layout(self.overflow_focus.clone(), window, cx);
-            return;
-        }
-        if !overflow && previous_overflow {
-            self.menu.shown.set(false);
-        }
-        let returned = displaced
-            .as_ref()
-            .filter(|(id, _)| {
+                .map(|item| (item.id.clone(), item.focus.clone()))
+        });
+        self.overflow.transfer_focus(
+            overflow,
+            hidden_focused.flatten(),
+            |id| {
                 items[..shown]
                     .iter()
                     .any(|item| item.enabled && item.id == *id)
-            })
-            .map(|(_, focus)| focus.clone());
-        let restore = if !overflow && (in_overflow || menu_was_open) {
-            returned.or_else(|| {
+            },
+            || {
                 items[..shown]
                     .iter()
                     .find(|item| item.enabled)
                     .map(|item| item.focus.clone())
-            })
-        } else if in_overflow {
-            returned
-        } else {
-            None
-        };
-        if let Some(focus) = restore {
-            displaced.take();
-            focus_after_layout(focus, window, cx);
-        } else if !overflow {
-            displaced.take();
-        }
+            },
+            window,
+            cx,
+        );
     }
 
     fn overflow_menu(&mut self, hidden: &mut [Prepared], size: Size<Pixels>) -> AnyElement {
-        let state = self.menu.clone();
+        let state = self.menu_state();
         let entries: Vec<_> = hidden
             .iter_mut()
             .filter_map(|item| item.menu.take().map(|build| build(state.clone())))
             .collect();
-        let trigger_focus = self.overflow_focus.clone();
+        let trigger_focus = self.overflow.focus.clone();
         let label = self.strip.overflow_label.clone();
         let trigger_id = ElementId::from((self.strip.id.clone(), "overflow"));
         let ink = self.ink;
@@ -475,16 +436,6 @@ impl StripLayout {
     }
 }
 
-fn focus_after_layout(target: FocusHandle, window: &mut Window, cx: &mut App) {
-    let origin = window.focused(cx);
-    window.on_next_frame(move |window, cx| {
-        let current = window.focused(cx);
-        if current.is_none() || current == origin {
-            target.focus(window, cx);
-        }
-    });
-}
-
 impl Element for StripLayout {
     type RequestLayoutState = Vec<Prepared>;
     type PrepaintState = (usize, Option<AnyElement>);
@@ -512,9 +463,10 @@ impl Element for StripLayout {
         window: &mut Window,
         cx: &mut App,
     ) -> (LayoutId, Self::RequestLayoutState) {
+        let strip_id = self.strip.id.clone();
         let items: Vec<_> = std::mem::take(&mut self.strip.items)
             .into_iter()
-            .map(|item| item.prepare(self.ink, window, cx))
+            .map(|item| item.prepare(&strip_id, self.ink, window, cx))
             .collect();
         let limited = items.len() > self.strip.max_item_count;
         let preferred_count = if limited {
@@ -641,4 +593,19 @@ fn fit<I: Clone + ExactSizeIterator<Item = Pixels>>(
             remaining >= px(0.)
         })
         .count()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fit;
+    use gpui::px;
+
+    #[test]
+    fn fit_keeps_all_when_within_limit_and_reserves_trigger_on_overflow() {
+        let widths = [px(48.), px(48.), px(48.)];
+        assert_eq!(fit(widths.into_iter(), 5, px(200.), px(48.)), 3);
+        assert_eq!(fit(widths.into_iter(), 2, px(200.), px(48.)), 1);
+        assert_eq!(fit(widths.into_iter(), 5, px(120.), px(48.)), 1);
+        assert_eq!(fit(widths.into_iter(), 5, px(40.), px(48.)), 0);
+    }
 }

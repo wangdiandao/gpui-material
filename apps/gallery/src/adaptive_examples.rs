@@ -466,16 +466,22 @@ mod tests {
             .unwrap();
             draw(cx);
         };
+        let detail_pane: ElementId = (ElementId::from("inbox-layout"), "detail-pane").into();
+        let list_pane: ElementId = (ElementId::from("inbox-layout"), "list-pane").into();
+        let adaptive_inbox: ElementId =
+            (ElementId::from("adaptive-destinations"), "adaptive-inbox").into();
+        let scaffold_content: ElementId =
+            (ElementId::from("adaptive-scaffold"), "scaffold-content").into();
         resize(cx, 599.);
         click(
             cx,
             (ElementId::from(("document", 2_usize)), "activate").into(),
         );
-        assert!(observe(cx, "detail-pane".into()).is_some());
-        assert!(observe(cx, "list-pane".into()).is_none());
+        assert!(observe(cx, detail_pane.clone()).is_some());
+        assert!(observe(cx, list_pane.clone()).is_none());
         click(cx, "adaptive-back".into());
-        assert!(observe(cx, "list-pane".into()).is_some());
-        assert!(observe(cx, "detail-pane".into()).is_none());
+        assert!(observe(cx, list_pane.clone()).is_some());
+        assert!(observe(cx, detail_pane.clone()).is_none());
         click(
             cx,
             (ElementId::from(("document", 2_usize)), "activate").into(),
@@ -486,12 +492,12 @@ mod tests {
                 .detail_scroll
                 .set_offset(point(px(0.), px(-120.)));
         });
-        click(cx, "adaptive-inbox".into());
+        click(cx, adaptive_inbox.clone());
 
         for width in [599., 600., 839., 840., 936., 1040., 839., 599., 1040.] {
             resize(cx, width);
-            let item = observe(cx, "adaptive-inbox".into()).unwrap();
-            let content = observe(cx, "scaffold-content".into()).unwrap().bounds();
+            let item = observe(cx, adaptive_inbox.clone()).unwrap();
+            let content = observe(cx, scaffold_content.clone()).unwrap().bounds();
             assert_eq!(item.selected(), Some(true));
             assert_eq!(
                 item.focused(),
@@ -503,8 +509,8 @@ mod tests {
             } else {
                 assert!(item.bounds().right() <= content.left());
             }
-            assert_eq!(observe(cx, "list-pane".into()).is_some(), width >= 936.);
-            assert!(observe(cx, "detail-pane".into()).is_some());
+            assert_eq!(observe(cx, list_pane.clone()).is_some(), width >= 936.);
+            assert!(observe(cx, detail_pane.clone()).is_some());
             cx.update(|cx| {
                 let example = example.read(cx);
                 assert_eq!(example.document, 2);
@@ -520,18 +526,15 @@ mod tests {
         });
         draw(cx);
         assert!(
-            observe(cx, "adaptive-inbox".into())
-                .unwrap()
-                .bounds()
-                .left()
-                >= observe(cx, "scaffold-content".into())
+            observe(cx, adaptive_inbox.clone()).unwrap().bounds().left()
+                >= observe(cx, scaffold_content.clone())
                     .unwrap()
                     .bounds()
                     .right()
         );
         assert!(
-            observe(cx, "list-pane".into()).unwrap().bounds().left()
-                > observe(cx, "detail-pane".into()).unwrap().bounds().right()
+            observe(cx, list_pane).unwrap().bounds().left()
+                > observe(cx, detail_pane).unwrap().bounds().right()
         );
     }
 }

@@ -10,9 +10,9 @@ use gpui_base::{
     test_support::{find, find_all},
 };
 use gpui_material::{
-    Button, Fab, Icon, IconName, MaterialRoot, Scaffold, ScaffoldContentLayout,
-    ScaffoldFabPosition, ScaffoldInsets,
-    foundation::{set_window_material_theme, window_material_theme},
+    Button, Fab, Icon, IconName, LogicalEdges, MaterialRoot, Scaffold, ScaffoldContentLayout,
+    ScaffoldFabPosition,
+    foundation::{resolve_edges, set_window_material_theme, window_material_theme},
     theme::Direction,
 };
 
@@ -23,7 +23,7 @@ struct Example {
     fab: bool,
     position: Option<ScaffoldFabPosition>,
     snackbar: bool,
-    insets: ScaffoldInsets,
+    insets: LogicalEdges,
     manual: bool,
     resolved: Rc<Cell<Option<ScaffoldContentLayout>>>,
     applied: Rc<Cell<usize>>,
@@ -39,7 +39,7 @@ impl Default for Example {
             fab: false,
             position: None,
             snackbar: false,
-            insets: ScaffoldInsets::default(),
+            insets: LogicalEdges::default(),
             manual: false,
             resolved: Rc::default(),
             applied: Rc::default(),
@@ -64,7 +64,7 @@ impl Render for Example {
             Scaffold::with_layout("example-scaffold", move |layout, _, _| {
                 resolved.set(Some(layout));
                 applied.set(applied.get() + 1);
-                let p = layout.padding.resolve(layout.direction);
+                let p = resolve_edges(layout.padding, layout.direction);
                 div()
                     .size_full()
                     .pt(p.top)
@@ -110,7 +110,12 @@ impl Render for Example {
 }
 
 fn bounds(id: &'static str, window: &Window) -> Bounds<Pixels> {
-    find(window, &[], &id.into()).unwrap().bounds()
+    let target: gpui::ElementId = if id == "scaffold-content" {
+        (gpui::ElementId::from("example-scaffold"), id).into()
+    } else {
+        id.into()
+    };
+    find(window, &[], &target).unwrap().bounds()
 }
 
 fn open(
@@ -133,11 +138,11 @@ fn scaffold_resolves_occupied_space_and_consumes_insets_once(cx: &mut TestAppCon
         cx,
         Example {
             manual: true,
-            insets: ScaffoldInsets {
-                top: px(14.),
-                start: px(12.),
-                bottom: px(16.),
-                end: px(7.),
+            insets: LogicalEdges {
+                top: 14.,
+                start: 12.,
+                bottom: 16.,
+                end: 7.,
             },
             ..Default::default()
         },
@@ -168,17 +173,17 @@ fn scaffold_resolves_occupied_space_and_consumes_insets_once(cx: &mut TestAppCon
     assert_eq!(body, layout.bounds);
     assert_eq!(
         layout.occupied,
-        ScaffoldInsets {
-            top: px(40.),
-            start: px(64.),
-            bottom: px(56.),
-            end: px(0.),
+        LogicalEdges {
+            top: 40.,
+            start: 64.,
+            bottom: 56.,
+            end: 0.,
         }
     );
     assert_eq!(
         layout.padding,
-        ScaffoldInsets {
-            end: px(7.),
+        LogicalEdges {
+            end: 7.,
             ..Default::default()
         }
     );
@@ -187,11 +192,11 @@ fn scaffold_resolves_occupied_space_and_consumes_insets_once(cx: &mut TestAppCon
     assert_eq!(root.bottom() - content.bottom(), px(56.));
     assert_eq!(root.right() - content.right(), px(7.));
 
-    let large = ScaffoldInsets {
-        top: px(90.),
-        start: px(110.),
-        bottom: px(92.),
-        end: px(17.),
+    let large = LogicalEdges {
+        top: 90.,
+        start: 110.,
+        bottom: 92.,
+        end: 17.,
     };
     cx.update(|cx| {
         view.update(cx, |view, cx| {
@@ -207,26 +212,26 @@ fn scaffold_resolves_occupied_space_and_consumes_insets_once(cx: &mut TestAppCon
     assert_eq!(root.size, size(px(520.), px(420.)));
     assert_eq!(
         layout.occupied,
-        ScaffoldInsets {
-            top: px(50.),
-            start: px(80.),
-            bottom: px(66.),
-            end: px(0.),
+        LogicalEdges {
+            top: 50.,
+            start: 80.,
+            bottom: 66.,
+            end: 0.,
         }
     );
     assert_eq!(
         layout.padding,
-        ScaffoldInsets {
-            top: px(40.),
-            start: px(30.),
-            bottom: px(26.),
-            end: px(17.),
+        LogicalEdges {
+            top: 40.,
+            start: 30.,
+            bottom: 26.,
+            end: 17.,
         }
     );
-    assert_eq!(manual.left() - root.left(), large.start);
-    assert_eq!(manual.top() - root.top(), large.top);
-    assert_eq!(root.bottom() - manual.bottom(), large.bottom);
-    assert_eq!(root.right() - manual.right(), large.end);
+    assert_eq!(manual.left() - root.left(), px(large.start));
+    assert_eq!(manual.top() - root.top(), px(large.top));
+    assert_eq!(root.bottom() - manual.bottom(), px(large.bottom));
+    assert_eq!(root.right() - manual.right(), px(large.end));
 
     cx.update(|cx| {
         view.update(cx, |view, cx| {
@@ -258,10 +263,10 @@ fn scaffold_resolves_occupied_space_and_consumes_insets_once(cx: &mut TestAppCon
     let (layout, root, body, content) = draw(cx);
     assert_eq!(layout.direction, Direction::Rtl);
     assert_eq!(body, root);
-    assert_eq!(layout.occupied, ScaffoldInsets::default());
+    assert_eq!(layout.occupied, LogicalEdges::default());
     assert_eq!(layout.padding, large);
-    assert_eq!(content.left() - root.left(), large.end);
-    assert_eq!(root.right() - content.right(), large.start);
+    assert_eq!(content.left() - root.left(), px(large.end));
+    assert_eq!(root.right() - content.right(), px(large.start));
 
     cx.update_window(handle, |_, window, cx| {
         window.activate_window();
@@ -342,9 +347,9 @@ fn scaffold_fab_positions_and_snackbar_keep_independent_slots(cx: &mut TestAppCo
             cx.update(|cx| {
                 view.update(cx, |view, cx| {
                     view.position = Some(position);
-                    view.insets.bottom = px(9.);
-                    view.insets.start = px(80.);
-                    view.insets.end = px(24.);
+                    view.insets.bottom = 9.;
+                    view.insets.start = 80.;
+                    view.insets.end = 24.;
                     cx.notify();
                 })
             });
@@ -418,8 +423,8 @@ fn scaffold_fab_positions_and_snackbar_keep_independent_slots(cx: &mut TestAppCo
             view.bottom = None;
             view.rail = None;
             view.snackbar = false;
-            view.insets.start = px(0.);
-            view.insets.end = px(0.);
+            view.insets.start = 0.;
+            view.insets.end = 0.;
             cx.notify();
         })
     });

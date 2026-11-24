@@ -761,7 +761,7 @@ impl DatePicker {
             dialog = dialog.dismiss_content(build);
         }
         if let Some(closed) = self.closed {
-            dialog = dialog.on_close(move |reason, window, cx| closed(reason, window, cx));
+            dialog = dialog.on_closed(move |reason, window, cx| closed(reason, window, cx));
         }
         div()
             .children(trigger.map(|(trigger, _)| trigger))

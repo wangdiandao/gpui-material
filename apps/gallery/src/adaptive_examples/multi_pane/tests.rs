@@ -7,9 +7,9 @@ use gpui::{
 };
 use gpui_base::test_support::find;
 use gpui_material::{
-    AdaptivePane, AdaptivePaneState, Button, ListDetail, MaterialTheme, PaneAdaptStrategy,
-    PaneBackBehavior, PaneDestination, PaneExpansionAnchor, PaneLayoutDirective, PaneLayoutValue,
-    PaneMargins, PaneOverlayAlignment, PanePlacement, PaneRole, PaneSeparator, Scrim,
+    AdaptivePane, AdaptivePaneState, Button, ListDetail, LogicalEdges, MaterialTheme,
+    PaneAdaptStrategy, PaneBackBehavior, PaneDestination, PaneExpansionAnchor, PaneLayoutDirective,
+    PaneLayoutValue, PaneOverlayAlignment, PanePlacement, PaneRole, PaneSeparator, Scrim,
     SupportingPane, foundation::set_window_material_theme, theme::Direction,
 };
 
@@ -71,9 +71,9 @@ impl Render for Preview {
         .preferred_width(px(130.))
         .preferred_height(px(108.))
         .minimum_width(px(90.))
-        .margins(PaneMargins {
-            start: px(6.),
-            top: px(4.),
+        .margins(LogicalEdges {
+            start: 6.,
+            top: 4.,
             ..Default::default()
         })
         .entry_focus(&self.focus[2]);
@@ -189,19 +189,19 @@ fn navigate(cx: &mut VisualTestContext, view: &Entity<Preview>, role: PaneRole, 
 #[gpui::test]
 fn three_pane_boundaries_follow_roles_and_snap_only_on_completed_drag(cx: &mut TestAppContext) {
     let (preview, cx) = open(cx, (3, 1), true);
-    let divider = ("pane-separator", 3_usize);
-    let other_divider = ("pane-separator", 2_usize);
+    let divider: ElementId = (ElementId::from("layout"), "pane-separator-3").into();
+    let other_divider: ElementId = (ElementId::from("layout"), "pane-separator-2").into();
     let list = found(cx, "master").unwrap();
     let detail = found(cx, "detail").unwrap();
     let extra = found(cx, "extra").unwrap();
     assert!(list.right() < detail.left() && detail.right() < extra.left());
-    assert!(found(cx, other_divider).is_some());
+    assert!(found(cx, other_divider.clone()).is_some());
     cx.update(|window, _| {
-        let split = find(window, &[], &divider.into()).unwrap();
+        let split = find(window, &[], &divider).unwrap();
         assert_eq!(split.role(), Some(Role::Slider));
         assert_eq!(split.label(), Some("Resize main divider"));
     });
-    let point = found(cx, divider).unwrap().center();
+    let point = found(cx, divider.clone()).unwrap().center();
     let moved = point + gpui::point(px(128.), px(0.));
     cx.simulate_mouse_down(point, MouseButton::Left, Modifiers::default());
     cx.simulate_mouse_move(moved, MouseButton::Left, Modifiers::default());
@@ -226,7 +226,7 @@ fn three_pane_boundaries_follow_roles_and_snap_only_on_completed_drag(cx: &mut T
         Some(PaneExpansionAnchor::Proportion(0.5))
     );
 
-    let start = found(cx, divider).unwrap().center();
+    let start = found(cx, divider.clone()).unwrap().center();
     let end = start - gpui::point(px(50.), px(0.));
     cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::default());
     cx.simulate_mouse_move(end, MouseButton::Left, Modifiers::default());
@@ -251,10 +251,7 @@ fn three_pane_boundaries_follow_roles_and_snap_only_on_completed_drag(cx: &mut T
             accepted
         );
         assert!(window.captured_hitbox().is_none());
-        assert_eq!(
-            find(window, &[], &divider.into()).unwrap().focused(),
-            Some(true)
-        );
+        assert_eq!(find(window, &[], &divider).unwrap().focused(), Some(true));
         let mut theme = MaterialTheme::default();
         theme.layout.direction = Direction::Rtl;
         set_window_material_theme(Some(theme), window, cx);
@@ -283,7 +280,7 @@ fn three_pane_boundaries_follow_roles_and_snap_only_on_completed_drag(cx: &mut T
         );
     }
     change_layout(cx, &preview, |view| view.dimensions = (2, 1));
-    assert!(found(cx, divider).is_some());
+    assert!(found(cx, divider.clone()).is_some());
     assert!(found(cx, other_divider).is_none());
     change_layout(cx, &preview, |view| view.dimensions = (1, 1));
     assert!(found(cx, divider).is_none());

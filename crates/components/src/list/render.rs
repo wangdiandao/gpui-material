@@ -1,465 +1,31 @@
-use std::{
-    cell::{Cell, RefCell},
-    rc::Rc,
-};
+use std::{cell::Cell, rc::Rc};
 
 use gpui::{
-    AccessibleAction, AnyElement, App, BorderStyle, ClickEvent, Corners, Div, ElementId,
-    FocusHandle, Hsla, InteractiveElement, IntoElement, Keystroke, ParentElement, Pixels, Role,
-    SharedString, Stateful, StatefulInteractiveElement, Styled, Window, accesskit::Toggled, canvas,
-    div, prelude::FluentBuilder, px, quad,
+    AnyElement, App, FocusHandle, InteractiveElement, IntoElement, ParentElement, Role, Styled,
+    Window, accesskit::Toggled, div, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
 use gpui_material_foundation::{
-    InteractionFeedback, InteractionSource, InteractionState, ThemeScope, animate, color,
-    current_material_theme, elevation_shadow_pair,
+    InteractionSource, ThemeScope, animate, color, current_material_theme,
 };
-use gpui_material_theme::{
-    ColorRole, CornerShape, Direction, MotionKind, MotionSpec, MotionSpeed, TypeRole,
-};
+use gpui_material_theme::{ColorRole, CornerShape, MotionKind, MotionSpec, MotionSpeed};
 
 use crate::{
-    Button, ButtonVariant, ControlSize, SwipeToDismiss, Text,
-    action::{Activate, FeedbackState, activate_feedback, feedback_target, ripple_state},
-    control_style::finite_length,
+    SwipeToDismiss,
+    action::{Activate, ripple_state},
 };
 
 use super::long_press::LongPress;
-use super::style::{ListItemAlignment, ListItemPadding, ListItemShapes, RowColors};
-use super::{Expansion, ListItem, SecondaryAction, Slot, ValueChange};
-
-impl Slot {
-    fn render(self, id: &'static str, role: TypeRole, tint: Hsla, wrap: bool) -> AnyElement {
-        let content = match self {
-            Self::Text(value) => Text::new(value)
-                .id(id)
-                .role(role)
-                .when(wrap, Text::wrap)
-                .into_any_element(),
-            Self::Custom(element) => element,
-        };
-        inherit_color((ElementId::from(id), "slot"), content, Some(tint))
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn render_visual_canvas(
-    radii: [f32; 4],
-    full: f32,
-    direction: Direction,
-    enabled: bool,
-    elevation: f32,
-    shadow: Hsla,
-    container: Hsla,
-    content_tint: Hsla,
-    ring: Hsla,
-    interaction: InteractionState,
-    layer: f32,
-    reduced: bool,
-    feedback: &Rc<RefCell<FeedbackState>>,
-) -> impl IntoElement {
-    let geometry = feedback.clone();
-    let ink = feedback.clone();
-    canvas(
-        move |bounds, window, _| {
-            let extent = f32::from(bounds.size.width.min(bounds.size.height)) * 0.5;
-            let shape = CornerShape::Radii(radii.map(|radius| radius + (extent - radius) * full));
-            let [top_left, top_right, bottom_right, bottom_left] = shape
-                .radii(
-                    bounds.size.width.into(),
-                    bounds.size.height.into(),
-                    direction,
-                )
-                .map(px);
-            if enabled {
-                geometry
-                    .borrow_mut()
-                    .set_rounded_shape(bounds, shape, direction, window);
-            } else {
-                geometry.borrow_mut().set_shape(None, window);
-            }
-            Corners {
-                top_left,
-                top_right,
-                bottom_right,
-                bottom_left,
-            }
-        },
-        move |bounds, corners, window, cx| {
-            if let Some(shadows) = elevation_shadow_pair(elevation, 1., shadow) {
-                window.paint_drop_shadows(bounds, corners, &shadows);
-            }
-            window.paint_quad(quad(
-                bounds,
-                corners,
-                container,
-                px(0.),
-                gpui::transparent_black(),
-                BorderStyle::Solid,
-            ));
-            let feedback = ink.borrow();
-            if let Some(shape) = feedback.shape() {
-                // Base's outer ring keeps the existing list focus geometry.
-                let mut visual_interaction = interaction;
-                visual_interaction.focus_visible = false;
-                InteractionFeedback::new(visual_interaction, content_tint, ring)
-                    .paint_with_opacity(
-                        shape,
-                        feedback.ripple(),
-                        layer,
-                        cx.background_executor().now(),
-                        reduced,
-                        window,
-                    );
-            }
-        },
-    )
-    .absolute()
-    .inset_0()
-}
-
-#[allow(clippy::too_many_arguments)]
-fn render_content_slot(
-    label: SharedString,
-    content: Option<AnyElement>,
-    overline: Option<Slot>,
-    supporting: Option<Slot>,
-    colors: &RowColors,
-    long_press: Option<&Rc<LongPress>>,
-    enabled: bool,
-    dragged: bool,
-    text_height: Option<Rc<Cell<Pixels>>>,
-) -> Div {
-    div()
-        .relative()
-        .flex()
-        .flex_col()
-        .flex_1()
-        .min_w_0()
-        .overflow_hidden()
-        .text_color(colors.content)
-        .children(
-            overline
-                .map(|slot| slot.render("overline", TypeRole::LabelSmall, colors.overline, false)),
-        )
-        .child(
-            div()
-                .id("headline-slot")
-                .test_support()
-                .child(content.unwrap_or_else(|| Text::new(label).id("label").into_any_element())),
-        )
-        .children(
-            supporting.map(|slot| {
-                slot.render("supporting", TypeRole::BodyMedium, colors.supporting, true)
-            }),
-        )
-        .children(
-            long_press
-                .filter(|_| enabled && !dragged)
-                .map(|press| press.target()),
-        )
-        .when_some(text_height, |slot, text_height| {
-            slot.child(
-                canvas(
-                    move |bounds, window, _| {
-                        if text_height.replace(bounds.size.height) != bounds.size.height {
-                            window.refresh();
-                        }
-                    },
-                    |_, _, _, _| {},
-                )
-                .absolute()
-                .inset_0(),
-            )
-        })
-}
-
-#[allow(clippy::too_many_arguments)]
-fn render_surface(
-    height: f32,
-    three_lines: bool,
-    alignment: ListItemAlignment,
-    padding: Option<ListItemPadding>,
-    layout: gpui_material_theme::LayoutPolicy,
-    visual: impl IntoElement,
-    leading: Option<AnyElement>,
-    content: Div,
-    trailing: Option<AnyElement>,
-    footer: Option<AnyElement>,
-    long_press: Option<&SecondaryAction>,
-    long_press_button: Option<ElementId>,
-    colors: &RowColors,
-    enabled: bool,
-    dragged: bool,
-) -> Stateful<Div> {
-    let padding = padding.unwrap_or_else(|| {
-        let vertical = px(if three_lines { 12. } else { 10. });
-        ListItemPadding {
-            top: vertical,
-            bottom: vertical,
-            ..ListItemPadding::default()
-        }
-    });
-    let (left, right) = layout.horizontal(finite_length(padding.start), finite_length(padding.end));
-    let press_button = long_press.zip(long_press_button).map(|(press, id)| {
-        let invoke = press.handler.clone();
-        Button::new(id, press.label.clone())
-            .variant(ButtonVariant::Text)
-            .size(ControlSize::ExtraSmall)
-            .disabled(!enabled || dragged)
-            .on_activate(move |window, cx| invoke(window, cx))
-    });
-    let alignment = if alignment == ListItemAlignment::Auto {
-        if three_lines {
-            ListItemAlignment::Start
-        } else {
-            ListItemAlignment::Center
-        }
-    } else {
-        alignment
-    };
-    fn align_row<E: Styled>(row: E, alignment: ListItemAlignment) -> E {
-        match alignment {
-            ListItemAlignment::Start => row.items_start(),
-            ListItemAlignment::End => row.items_end(),
-            _ => row.items_center(),
-        }
-    }
-    if let Some(footer) = footer {
-        let header = align_row(div().flex().w_full().gap(px(12.)), alignment)
-            .when(layout.direction == Direction::Rtl, Styled::flex_row_reverse)
-            .children(leading.map(|element| inherit_color("leading-slot", element, colors.leading)))
-            .child(content)
-            .children(
-                trailing.map(|element| inherit_color("trailing-slot", element, colors.trailing)),
-            )
-            .children(press_button.map(|button| div().id("long-press-slot").child(button)));
-        return div()
-            .id("list-surface")
-            .relative()
-            .min_h(px(height))
-            .w_full()
-            .flex()
-            .flex_col()
-            .gap(px(6.))
-            .pl(left)
-            .pr(right)
-            .pt(finite_length(padding.top))
-            .pb(finite_length(padding.bottom))
-            .child(visual)
-            .child(header)
-            .child(div().id("footer-slot").w_full().child(footer));
-    }
-    div()
-        .id("list-surface")
-        .relative()
-        .min_h(px(height))
-        .w_full()
-        .flex()
-        .map(|row| align_row(row, alignment))
-        .gap(px(12.))
-        .pl(left)
-        .pr(right)
-        .pt(finite_length(padding.top))
-        .pb(finite_length(padding.bottom))
-        .when(layout.direction == Direction::Rtl, Styled::flex_row_reverse)
-        .child(visual)
-        .children(leading.map(|element| inherit_color("leading-slot", element, colors.leading)))
-        .child(content)
-        .children(trailing.map(|element| inherit_color("trailing-slot", element, colors.trailing)))
-        .children(press_button.map(|button| div().id("long-press-slot").child(button)))
-}
-
-fn render_expanded_content(
-    expansion: Option<Expansion>,
-    interactive: bool,
-    enabled: bool,
-    focus: &FocusHandle,
-    window: &mut Window,
-    cx: &mut App,
-) -> Option<Stateful<Div>> {
-    expansion.and_then(|expansion| {
-        let scope = window
-            .use_keyed_state("disclosure-focus", cx, |_, cx| {
-                cx.focus_handle().tab_stop(false)
-            })
-            .read(cx)
-            .clone();
-        if !expansion.expanded && interactive && enabled && scope.contains_focused(window, cx) {
-            focus.focus(window, cx);
-        }
-        expansion.expanded.then(|| {
-            div()
-                .id("list-expanded-content")
-                .track_focus(&scope)
-                .child(expansion.content)
-        })
-    })
-}
-
-#[allow(clippy::too_many_arguments)]
-fn wrap_interactive_row(
-    id: &ElementId,
-    label: SharedString,
-    aria_description: Option<SharedString>,
-    surface: Stateful<Div>,
-    focus: FocusHandle,
-    tab_stop: bool,
-    selected: bool,
-    enabled: bool,
-    dragged: bool,
-    checked: Option<Toggled>,
-    checked_role: Role,
-    invalid: bool,
-    expanded: Option<bool>,
-    menu_a11y_toggle: Option<Activate>,
-    ring: Hsla,
-    feedback: Rc<RefCell<FeedbackState>>,
-    primary: Option<Activate>,
-    expanded_change: Option<ValueChange>,
-    secondary_action: Option<SecondaryAction>,
-    long_press: Option<Rc<LongPress>>,
-    window: &Window,
-    cx: &App,
-) -> AnyElement {
-    let activate = feedback.clone();
-    let mut control = gpui_base::Button::new((id.clone(), "activate"))
-        .track_focus(&focus)
-        .tab_stop(tab_stop)
-        .w_full()
-        .accessibility_label(label)
-        .when_some(aria_description, |control, description| {
-            control.aria_description(description)
-        })
-        .disabled(!enabled)
-        .selected(selected)
-        .when_some(checked, |control, checked| {
-            control.role(checked_role).aria_toggled(checked)
-        })
-        .when(invalid, |control| {
-            control.a11y_synthetic_children(|tree| {
-                tree.parent_node()
-                    .set_invalid(gpui::accesskit::Invalid::True);
-            })
-        })
-        .when_some(expanded, |control, expanded| {
-            control.aria_expanded(expanded)
-        })
-        .border_2()
-        .border_color(gpui::transparent_black())
-        .rounded_md()
-        .focus_visible(move |style| style.border_color(ring))
-        .when(enabled && !dragged, |control| {
-            feedback_target(control, feedback, true, Some(focus.clone()))
-        });
-    if let Some(toggle) = menu_a11y_toggle.filter(|_| enabled && !dragged) {
-        let return_focus = focus.clone();
-        control = control.on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
-            return_focus.focus(window, cx);
-            toggle(window, cx);
-        });
-    } else if let Some(primary) = primary.filter(|_| enabled && !dragged) {
-        let invoke = primary.clone();
-        let hold = long_press.clone();
-        control = control
-            .on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
-                invoke(window, cx)
-            })
-            .on_click(move |event, window, cx| {
-                cx.stop_propagation();
-                let native_drag = matches!(event, ClickEvent::Mouse(_)) && cx.has_active_drag();
-                let allowed = !native_drag
-                    && !activate.borrow().blocks_activation(event)
-                    && !hold
-                        .as_ref()
-                        .is_some_and(|hold| hold.blocks_activation(event));
-                if allowed || matches!(event, ClickEvent::Mouse(_)) {
-                    activate_feedback(event, &activate, window, cx);
-                }
-                if allowed {
-                    primary(window, cx);
-                }
-            });
-    }
-    if let Some((expanded, change)) = expanded
-        .zip(expanded_change)
-        .filter(|_| enabled && !dragged)
-    {
-        let change =
-            ThemeScope::bind_action(move |window, cx| change(!expanded, window, cx), window, cx);
-        control = control.on_a11y_action(
-            if expanded {
-                AccessibleAction::Collapse
-            } else {
-                AccessibleAction::Expand
-            },
-            move |_, window, cx| change(window, cx),
-        );
-    }
-    if let Some((secondary, hold)) = secondary_action
-        .zip(long_press)
-        .filter(|_| enabled && !dragged)
-    {
-        let invoke = secondary.handler.clone();
-        control = control
-            .aria_description(secondary.label)
-            .on_a11y_action(AccessibleAction::ShowContextMenu, move |_, window, cx| {
-                invoke(window, cx)
-            })
-            .on_key_down(move |event, window, cx| {
-                if !focus.is_focused(window) {
-                    return;
-                }
-                if event.keystroke.key == "escape" {
-                    hold.cancel();
-                }
-                if is_long_press_shortcut(&event.keystroke) {
-                    cx.stop_propagation();
-                    if !event.is_held {
-                        (secondary.handler)(window, cx);
-                    }
-                }
-            });
-    }
-    control.child(surface).into_any_element()
-}
-
-fn wrap_static_row(
-    surface: Stateful<Div>,
-    disabled: bool,
-    checked: Option<Toggled>,
-    checked_role: Role,
-    invalid: bool,
-    expanded: Option<bool>,
-) -> AnyElement {
-    surface
-        .when_some(checked, |row, checked| {
-            row.role(checked_role).aria_toggled(checked)
-        })
-        .when_some(expanded, |row, expanded| {
-            row.when(checked.is_none(), |row| row.role(Role::Group))
-                .aria_expanded(expanded)
-        })
-        .when(
-            invalid || (disabled && (checked.is_some() || expanded.is_some())),
-            |row| {
-                row.a11y_synthetic_children(move |tree| {
-                    let node = tree.parent_node();
-                    if disabled && (checked.is_some() || expanded.is_some()) {
-                        node.set_disabled();
-                    }
-                    if invalid {
-                        node.set_invalid(gpui::accesskit::Invalid::True);
-                    }
-                })
-            },
-        )
-        .into_any_element()
-}
+use super::row_wrapper::{render_expanded_content, wrap_interactive_row, wrap_static_row};
+use super::style::{ListItemShapes, resolve_list_elevation};
+use super::surface::{
+    list_item_min_height, render_content_slot, render_surface, render_visual_canvas,
+};
+use super::{ListItem, Slot};
 
 impl ListItem {
     pub(super) fn render_row(
-        self,
+        mut self,
         resting: CornerShape,
         selected_shape: CornerShape,
         focus: Option<(FocusHandle, bool)>,
@@ -467,11 +33,13 @@ impl ListItem {
         cx: &mut App,
     ) -> AnyElement {
         let (focus, tab_stop) = focus.unwrap_or_else(|| {
-            let focus = window
-                .use_keyed_state("focus", cx, |_, cx| cx.focus_handle())
-                .read(cx)
-                .clone();
-            (focus, true)
+            let focus = self.focus.take().unwrap_or_else(|| {
+                window
+                    .use_keyed_state((self.id.clone(), "focus"), cx, |_, cx| cx.focus_handle())
+                    .read(cx)
+                    .clone()
+            });
+            (focus, self.tab_stop.unwrap_or(true))
         });
         let primary = self.primary_action().map(|primary| {
             let bound: Activate = Rc::new(ThemeScope::bind_action(
@@ -564,7 +132,7 @@ impl ListItem {
         .clamp(0., 1.);
         let elevation = animate(
             "elevation",
-            self.elevations.resolve(interaction).dp(),
+            resolve_list_elevation(self.elevations, interaction).dp(),
             if enabled {
                 spatial
             } else {
@@ -588,11 +156,13 @@ impl ListItem {
             || text_height
                 .as_ref()
                 .is_some_and(|text_height| text_height.get() > px(44.));
-        let height = match (self.overline.is_some(), self.supporting.is_some()) {
-            _ if three_lines => 88.,
-            (false, false) => 56.,
-            _ => 72.,
-        };
+        let height = list_item_min_height(
+            self.overline.is_some(),
+            self.supporting.is_some(),
+            three_lines,
+            interactive,
+            layout.density,
+        );
         let radii = match shape {
             CornerShape::Radii(radii) => radii,
             CornerShape::Full => [height * 0.5; 4],
@@ -637,9 +207,6 @@ impl ListItem {
             self.overline,
             self.supporting,
             &colors,
-            long_press.as_ref(),
-            enabled,
-            dragged,
             text_height,
         );
         let surface = render_surface(
@@ -654,33 +221,35 @@ impl ListItem {
             self.trailing,
             self.footer,
             secondary_action.as_ref(),
+            long_press.as_ref(),
             self.long_press_button,
             &colors,
             enabled,
             dragged,
         );
-        #[cfg(feature = "feedback")]
+        #[cfg(feature = "settings-tiles")]
         let (menu_open, menu_a11y_toggle) = match self.menu_trigger {
             Some((open, toggle)) => (Some(open), Some(toggle)),
             None => (None, None),
         };
-        #[cfg(not(feature = "feedback"))]
+        #[cfg(not(feature = "settings-tiles"))]
         let (menu_open, menu_a11y_toggle): (Option<bool>, Option<Activate>) = (None, None);
         let expanded =
             menu_open.or_else(|| self.expansion.as_ref().map(|expansion| expansion.expanded));
         let checked = self.checked;
         let expanded_content =
             render_expanded_content(self.expansion, interactive, enabled, &focus, window, cx);
-        let aria_description = self.aria_description;
+        let id = self.id;
         let row = if interactive {
-            wrap_interactive_row(
-                &self.id,
-                self.label.clone(),
-                aria_description.clone(),
+            let interactive_row = wrap_interactive_row(
+                &id,
+                self.label,
+                self.aria_description,
                 surface,
                 focus,
                 tab_stop,
                 self.selected,
+                self.selectable,
                 enabled,
                 dragged,
                 checked,
@@ -696,61 +265,39 @@ impl ListItem {
                 long_press,
                 window,
                 cx,
-            )
+            );
+            // Keep the outer layout container free of duplicate ARIA role/selected
+            // attributes so interactive rows expose a single unified accessible node.
+            div()
+                .id(id.clone())
+                .test_support()
+                .flex()
+                .flex_col()
+                .w_full()
+                .child(interactive_row)
+                .children(expanded_content)
+                .into_any_element()
         } else {
             wrap_static_row(
-                surface,
+                id.clone(),
+                self.label,
+                self.aria_description,
+                self.selected,
+                self.selectable,
                 self.disabled,
                 checked,
                 self.checked_role,
                 self.invalid,
                 expanded,
+                surface,
+                expanded_content,
             )
         };
-        let id = self.id;
-        let row = div()
-            .id(id.clone())
-            .role(Role::ListItem)
-            .test_support()
-            .aria_selected(self.selected)
-            .when(!interactive, |row| {
-                row.aria_label(self.label)
-                    .when_some(aria_description, |row, description| {
-                        row.aria_description(description)
-                    })
-            })
-            .flex()
-            .flex_col()
-            .w_full()
-            .child(row)
-            .children(expanded_content);
         match self.swipe {
             Some(swipe) => (swipe.configure)(SwipeToDismiss::new((id, "swipe"), &swipe.state, row))
                 .when(self.disabled, |swipe| swipe.gestures_enabled(false))
                 .into_any_element(),
-            None => row.into_any_element(),
+            None => row,
         }
     }
-}
-
-fn inherit_color(id: impl Into<ElementId>, element: AnyElement, color: Option<Hsla>) -> AnyElement {
-    // Each slot owns a separate identity scope, including elements that use
-    // implicit IDs such as Text and Icon.
-    div()
-        .id(id)
-        .test_support()
-        .when_some(color, Styled::text_color)
-        .child(element)
-        .into_any_element()
-}
-
-fn is_long_press_shortcut(keystroke: &Keystroke) -> bool {
-    let modifiers = keystroke.modifiers;
-    let is_shift_f10 = keystroke.key == "f10"
-        && modifiers.shift
-        && !modifiers.control
-        && !modifiers.alt
-        && !modifiers.platform;
-    let is_context_menu = keystroke.key == "contextmenu" && !modifiers.modified();
-    is_shift_f10 || is_context_menu
 }

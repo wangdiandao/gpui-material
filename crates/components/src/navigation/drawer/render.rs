@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
 use gpui::{
     AccessibleAction, AnyElement, App, Axis, ElementId, FocusHandle, Hsla, InteractiveElement,
-    IntoElement, ParentElement, RenderOnce, Role, ScrollHandle, SharedString,
+    IntoElement, ParentElement, Pixels, RenderOnce, Role, ScrollHandle, SharedString,
     StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{Button as BaseButton, TestSupportExt};
@@ -15,7 +13,7 @@ use gpui_material_theme::{ColorRole, CornerShape, Direction, StateLayer, TypeRol
 
 use crate::{
     Badge, Divider, Sheet, SheetColors, SheetEdge, SheetMode, Text,
-    navigation::items::{NavigationItem, Select},
+    navigation::items::{NavigationItem, Select, row_state_for},
 };
 
 use super::{
@@ -23,8 +21,7 @@ use super::{
 };
 
 #[derive(Default)]
-struct DrawerState {
-    handles: HashMap<SharedString, FocusHandle>,
+struct DrawerScrollState {
     scroll: ScrollHandle,
 }
 
@@ -80,6 +77,7 @@ fn render_destination(
     is_tab_stop: bool,
     on_select: Option<Select>,
     colors: &ResolvedDrawerColors,
+    row_height: Pixels,
     font_scale: f32,
     rtl: bool,
     window: &mut Window,
@@ -131,7 +129,7 @@ fn render_destination(
 
     let label_elem = item.label_content.unwrap_or_else(|| {
         Text::new(item.label.clone())
-            .id((ElementId::from(item.id.clone()), "drawer-label"))
+            .id((id.clone(), "drawer-label"))
             .role(if selected {
                 TypeRole::LabelLarge
             } else {
@@ -153,7 +151,7 @@ fn render_destination(
 
     let row = div()
         .w_full()
-        .min_h(px(56.))
+        .min_h(row_height)
         .px(px(16.))
         .rounded_full()
         .bg(indicator_bg)
@@ -229,12 +227,20 @@ impl RenderOnce for NavigationDrawer {
         let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
         let rtl = direction == Direction::Rtl;
+        let row_height = px(theme.layout.density.interactive_size(56.));
         let viewport_width = window.viewport_size().width;
         let resolved_width = self.width.min(viewport_width.max(px(0.)));
         let colors = self.colors.resolve(window, cx);
 
-        let (collection_id, nav_label, initial_items, selected, on_select, font_scale) =
-            self.items.into_drawer_parts();
+        let (
+            collection_id,
+            nav_label,
+            initial_items,
+            selected,
+            on_select,
+            font_scale,
+            retained_state,
+        ) = self.items.into_drawer_parts();
 
         let mut combined: Vec<NavigationDrawerEntry> =
             Vec::with_capacity(initial_items.len() + self.entries.len());
@@ -253,10 +259,14 @@ impl RenderOnce for NavigationDrawer {
             combined.push(entry);
         }
 
-        let drawer_state =
-            window.use_keyed_state((self.id.clone(), "navigation-drawer-state"), cx, |_, _| {
-                DrawerState::default()
-            });
+        let nav_state = retained_state.unwrap_or_else(|| row_state_for(&collection_id, window, cx));
+        let scroll = window
+            .use_keyed_state((self.id.clone(), "navigation-drawer-scroll"), cx, |_, _| {
+                DrawerScrollState::default()
+            })
+            .read(cx)
+            .scroll
+            .clone();
 
         let item_ids: Vec<(SharedString, bool)> = combined
             .iter()
@@ -265,17 +275,8 @@ impl RenderOnce for NavigationDrawer {
                 _ => None,
             })
             .collect();
-
-        let (handles, scroll) = drawer_state.update(cx, |state, cx| {
-            let mut previous = std::mem::take(&mut state.handles);
-            let mut map = HashMap::with_capacity(item_ids.len());
-            for (id, _) in &item_ids {
-                let handle = previous.remove(id).unwrap_or_else(|| cx.focus_handle());
-                map.insert(id.clone(), handle);
-            }
-            state.handles = map.clone();
-            (map, state.scroll.clone())
-        });
+        let ordered_ids: Vec<SharedString> = item_ids.iter().map(|(id, _)| id.clone()).collect();
+        let handles = nav_state.update(cx, |state, cx| state.sync_focus_map(&ordered_ids, cx));
 
         let enabled_items: Vec<(SharedString, FocusHandle)> = item_ids
             .iter()
@@ -301,6 +302,7 @@ impl RenderOnce for NavigationDrawer {
         let total = item_ids.len();
 
         let mut rows: Vec<AnyElement> = Vec::with_capacity(combined.len());
+        let mut dest_row_indices: Vec<usize> = Vec::with_capacity(total);
         let mut destination_index = 0usize;
         for (entry_index, entry) in combined.into_iter().enumerate() {
             match entry {
@@ -310,6 +312,7 @@ impl RenderOnce for NavigationDrawer {
                     let is_selected = selected.as_ref() == Some(&item.id);
                     let handle = &handles[&item.id];
                     let is_tab_stop = tab_stop.as_ref() == Some(&item.id);
+                    dest_row_indices.push(rows.len());
                     rows.push(render_destination(
                         &collection_id,
                         item,
@@ -320,6 +323,7 @@ impl RenderOnce for NavigationDrawer {
                         is_tab_stop,
                         on_select.clone(),
                         &colors,
+                        row_height,
                         font_scale,
                         rtl,
                         window,
@@ -369,6 +373,7 @@ impl RenderOnce for NavigationDrawer {
         let is_modal = self.mode == NavigationDrawerMode::Modal;
         let title = self.headline.clone().unwrap_or_else(|| nav_label.clone());
 
+        let key_scroll = scroll.clone();
         let destination_list = div()
             .id((self.id.clone(), "drawer-destinations"))
             .test_support()
@@ -384,6 +389,9 @@ impl RenderOnce for NavigationDrawer {
             .flex_col()
             .gap(px(2.))
             .on_key_down(move |event, window, cx| {
+                if event.keystroke.modifiers.modified() {
+                    return;
+                }
                 if !nav_handles.iter().any(|handle| handle.is_focused(window)) {
                     return;
                 }
@@ -392,16 +400,17 @@ impl RenderOnce for NavigationDrawer {
                     .zip(&nav_enabled)
                     .map(|(handle, enabled)| (handle, *enabled))
                     .collect();
-                if move_roving_focus(
+                if let Some(target) = move_roving_focus(
                     &items,
                     &event.keystroke.key,
                     Axis::Vertical,
                     direction,
                     window,
                     cx,
-                )
-                .is_some()
-                {
+                ) {
+                    if let Some(&row_index) = dest_row_indices.get(target) {
+                        key_scroll.scroll_to_item(row_index);
+                    }
                     cx.stop_propagation();
                     window.refresh();
                 }
@@ -481,7 +490,7 @@ impl RenderOnce for NavigationDrawer {
                     sheet.on_dismiss_request(move |reason, window, cx| cb(reason, window, cx))
                 })
                 .when_some(self.on_closed, |sheet, cb| {
-                    sheet.on_close(move |reason, window, cx| cb(reason, window, cx))
+                    sheet.on_closed(move |reason, window, cx| cb(reason, window, cx))
                 })
                 .into_any_element();
         }

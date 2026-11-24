@@ -1,27 +1,24 @@
-mod menu;
-mod tooltip;
-
-pub use menu::{Menu, MenuColor, MenuItem, MenuItemStyle};
-pub(crate) use tooltip::init as init_tooltip;
-pub use tooltip::{
-    Label, Tooltip, TooltipCaret, TooltipColors, TooltipPlacement, TooltipPositioner, TooltipState,
-};
 mod bottom_sheet;
 mod dialog;
+mod menu;
+mod modal;
 mod sheet;
-pub use bottom_sheet::{BottomSheetState, BottomSheetThresholds, BottomSheetValue};
+mod snackbar;
+mod tooltip;
 
+pub use bottom_sheet::{BottomSheetState, BottomSheetThresholds, BottomSheetValue};
 pub use dialog::{
     Dialog, DialogAction, DialogCloseReason, DialogColors, DialogProperties, DialogState,
     DialogVariant,
 };
-pub use sheet::{
-    Sheet, SheetClose, SheetColors, SheetEdge, SheetMargins, SheetMode, SheetPlacement,
-};
-mod snackbar;
-
+pub use menu::{Menu, MenuColor, MenuItem, MenuItemStyle};
+pub use sheet::{Sheet, SheetClose, SheetColors, SheetEdge, SheetMode, SheetPlacement};
 pub use snackbar::{
     Snackbar, SnackbarColors, SnackbarHost, SnackbarId, SnackbarParts, SnackbarResult,
+};
+pub(crate) use tooltip::init as init_tooltip;
+pub use tooltip::{
+    Label, Tooltip, TooltipCaret, TooltipColors, TooltipPlacement, TooltipPositioner, TooltipState,
 };
 
 /// Wrapping overlay copy uses the same theme font and type role as shaped

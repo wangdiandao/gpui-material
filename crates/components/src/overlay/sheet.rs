@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
 use gpui::{
-    AnyElement, App, Edges, ElementId, Entity, Hsla, IntoElement, Pixels, SharedString, Size,
-    Window, px, radians,
+    AnyElement, App, ElementId, Entity, Hsla, IntoElement, Pixels, SharedString, Size, Window, px,
+    radians,
 };
-use gpui_material_theme::{ColorRole, CornerShape, Elevation};
+use gpui_material_theme::{ColorRole, CornerShape, Elevation, LogicalEdges};
 
-use crate::{Icon, IconButton, IconName, ScaffoldInsets};
+use crate::{Icon, IconButton, IconName};
 
 use super::bottom_sheet::{BottomSheetState, BottomSheetThresholds};
 use super::dialog::{
@@ -14,7 +14,8 @@ use super::dialog::{
     ModalSession,
 };
 
-mod gesture;
+mod chrome;
+mod geometry;
 mod render;
 
 /// Edge of the window or layout container to which a [`Sheet`] attaches.
@@ -45,68 +46,8 @@ pub enum SheetPlacement {
     /// Flush against the window or container edge.
     #[default]
     Docked,
-    /// Inset from the edges using [`SheetMargins`] with rounded corners on all sides.
+    /// Inset from the edges using [`LogicalEdges`] margins with rounded corners on all sides.
     Detached,
-}
-
-/// Logical detached margins in pixels. The default is 16 px on each side.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct SheetMargins {
-    /// Top inset in logical pixels.
-    pub top: Pixels,
-    /// Bottom inset in logical pixels.
-    pub bottom: Pixels,
-    /// Logical start inset in logical pixels.
-    pub start: Pixels,
-    /// Logical end inset in logical pixels.
-    pub end: Pixels,
-}
-
-impl Default for SheetMargins {
-    fn default() -> Self {
-        Self {
-            top: px(16.),
-            bottom: px(16.),
-            start: px(16.),
-            end: px(16.),
-        }
-    }
-}
-
-impl SheetMargins {
-    fn fit(self, viewport: Size<Pixels>, rtl: bool) -> Edges<Pixels> {
-        let (start, end) =
-            fit_margins(self.start, self.end, (viewport.width - px(48.)).max(px(0.)));
-        let (top, bottom) = fit_margins(
-            self.top,
-            self.bottom,
-            (viewport.height - px(48.)).max(px(0.)),
-        );
-        let (left, right) = if rtl { (end, start) } else { (start, end) };
-        Edges {
-            top,
-            bottom,
-            left,
-            right,
-        }
-    }
-}
-
-fn fit_margins(a: Pixels, b: Pixels, available: Pixels) -> (Pixels, Pixels) {
-    let sanitize = |margin: Pixels| {
-        if f32::from(margin).is_finite() {
-            margin.clamp(px(0.), available)
-        } else {
-            px(0.)
-        }
-    };
-    let (a, b) = (sanitize(a), sanitize(b));
-    if a + b > available {
-        let factor = available / (a + b);
-        (a * factor, b * factor)
-    } else {
-        (a, b)
-    }
 }
 
 /// Optional local colors for the sheet and its adornments.
@@ -159,7 +100,7 @@ impl SheetClose {
 
 type CloseSlot = Box<dyn FnOnce(SheetClose) -> AnyElement>;
 
-type Change = Rc<dyn Fn(bool, &mut Window, &mut App)>;
+pub(super) type Change = Rc<dyn Fn(bool, &mut Window, &mut App)>;
 
 enum SheetBinding {
     Immediate(Entity<DialogState>),
@@ -179,7 +120,7 @@ pub struct Sheet {
     extent: Pixels,
     expansion: Option<(bool, Change)>,
     placement: SheetPlacement,
-    margins: SheetMargins,
+    margins: LogicalEdges,
     header: Option<AnyElement>,
     show_header: bool,
     back: Option<AnyElement>,
@@ -191,7 +132,7 @@ pub struct Sheet {
     edge_divider: bool,
     properties: DialogProperties,
     on_dismiss_request: Option<ModalDismissRequest>,
-    on_close: Option<ModalClosed>,
+    on_closed: Option<ModalClosed>,
     layer: usize,
     shape: Option<CornerShape>,
     container_role: Option<ColorRole>,
@@ -209,7 +150,7 @@ pub struct Sheet {
     handle_content: Option<AnyElement>,
     handle_label: SharedString,
     thresholds: BottomSheetThresholds,
-    content_insets: ScaffoldInsets,
+    content_insets: LogicalEdges,
 }
 
 impl Sheet {
@@ -259,7 +200,7 @@ impl Sheet {
             extent: px(320.),
             expansion: None,
             placement: SheetPlacement::Docked,
-            margins: SheetMargins::default(),
+            margins: LogicalEdges::all(16.),
             header: None,
             show_header: true,
             back: None,
@@ -271,7 +212,7 @@ impl Sheet {
             edge_divider: false,
             properties: DialogProperties::default(),
             on_dismiss_request: None,
-            on_close: None,
+            on_closed: None,
             layer: 0,
             shape: None,
             container_role: None,
@@ -289,7 +230,7 @@ impl Sheet {
             handle_content: None,
             handle_label: "Resize bottom sheet".into(),
             thresholds: BottomSheetThresholds::default(),
-            content_insets: ScaffoldInsets::default(),
+            content_insets: LogicalEdges::ZERO,
         }
     }
 
@@ -348,8 +289,8 @@ impl Sheet {
     }
 
     /// Sets logical padding within the bottom sheet's scrolling content.
-    pub fn content_insets(mut self, insets: ScaffoldInsets) -> Self {
-        self.content_insets = insets.normalized();
+    pub fn content_insets(mut self, insets: LogicalEdges) -> Self {
+        self.content_insets = insets.sanitize();
         self
     }
 
@@ -368,8 +309,11 @@ impl Sheet {
     }
 
     /// Sets expanded height for a bottom sheet, or width for a side sheet.
+    /// Non-finite values are ignored.
     pub fn extent(mut self, extent: Pixels) -> Self {
-        self.extent = extent.max(px(48.));
+        if f32::from(extent).is_finite() {
+            self.extent = extent.max(px(48.));
+        }
         self
     }
 
@@ -390,8 +334,8 @@ impl Sheet {
     }
 
     /// Sets the logical inset margins used when [`SheetPlacement::Detached`] is active.
-    pub fn margins(mut self, margins: SheetMargins) -> Self {
-        self.margins = margins;
+    pub fn margins(mut self, margins: LogicalEdges) -> Self {
+        self.margins = margins.sanitize();
         self
     }
 
@@ -488,11 +432,11 @@ impl Sheet {
     }
 
     /// Receives accepted modal closes or requests to remove a Standard sheet.
-    pub fn on_close(
+    pub fn on_closed(
         mut self,
         close: impl Fn(DialogCloseReason, &mut Window, &mut App) + 'static,
     ) -> Self {
-        self.on_close = Some(Rc::new(close));
+        self.on_closed = Some(Rc::new(close));
         self
     }
 

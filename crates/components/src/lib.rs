@@ -9,14 +9,17 @@
 )]
 mod action;
 mod avatar;
-#[cfg_attr(not(any(feature = "actions", feature = "selection")), allow(dead_code))]
+#[cfg_attr(
+    not(any(feature = "actions", feature = "selection", feature = "surfaces")),
+    allow(dead_code)
+)]
 mod control_style;
 mod display;
 mod display_scrollbar;
 mod empty_view;
 mod ext;
 mod icon;
-mod insets;
+#[cfg(any(feature = "feedback", feature = "inputs"))]
 mod menu_appearance;
 mod skeleton;
 mod text;
@@ -32,7 +35,7 @@ pub use empty_view::EmptyView;
 pub use ext::MaterialElementExt;
 pub use gpui_material_theme::LogicalEdges;
 pub use icon::{Icon, IconName};
-pub use insets::ScaffoldInsets;
+#[cfg(any(feature = "feedback", feature = "inputs"))]
 pub use menu_appearance::MenuSurfaceStyle;
 pub use skeleton::{Skeleton, SkeletonColors};
 pub use text::Text;
@@ -53,7 +56,7 @@ pub use button::{
 };
 #[cfg(feature = "actions")]
 pub use control_style::ButtonColors;
-#[cfg(any(feature = "actions", feature = "selection"))]
+#[cfg(any(feature = "actions", feature = "selection", feature = "surfaces"))]
 pub use control_style::{ControlBorder, ControlElevations, ControlShapes};
 #[cfg(feature = "actions")]
 pub use fab::{
@@ -96,20 +99,20 @@ mod settings_tiles;
 mod swipe_to_dismiss;
 
 #[cfg(feature = "surfaces")]
-pub use card::{Card, CardBorder, CardColors, CardElevations, CardVariant};
+pub use card::{Card, CardColors, CardVariant};
 #[cfg(any(feature = "surfaces", feature = "navigation"))]
 pub use drag_handle::{DragHandleColors, DragHandleShapes, DragHandleSizes, VerticalDragHandle};
 #[cfg(feature = "surfaces")]
 pub use drop_target::{DropTarget, DropTargetColors};
 #[cfg(feature = "surfaces")]
 pub use list::{
-    List, ListItem, ListItemAlignment, ListItemColors, ListItemElevations, ListItemPadding,
-    ListItemShapes, ListItemStateColors, ListVariant,
+    List, ListItem, ListItemAlignment, ListItemColors, ListItemShapes, ListItemStateColors,
+    ListVariant,
 };
-#[cfg(all(feature = "surfaces", feature = "selection"))]
-pub use settings_tiles::{CheckboxTile, RadioTile, SliderTile, SwitchTile};
-#[cfg(all(feature = "surfaces", feature = "feedback"))]
-pub use settings_tiles::{ChoiceOption, ChoiceTile};
+#[cfg(feature = "settings-tiles")]
+pub use settings_tiles::{
+    CheckboxTile, ChoiceOption, ChoiceTile, RadioTile, SliderTile, SwitchTile,
+};
 #[cfg(feature = "surfaces")]
 pub use settings_tiles::{ListSection, ListSectionItem};
 #[cfg(feature = "surfaces")]
@@ -134,8 +137,8 @@ pub use loading_indicator::{LoadingIndicator, LoadingIndicatorShape, LoadingIndi
 pub use overlay::{
     BottomSheetState, BottomSheetThresholds, BottomSheetValue, Dialog, DialogAction,
     DialogCloseReason, DialogColors, DialogProperties, DialogState, DialogVariant, Label, Menu,
-    MenuColor, MenuItem, MenuItemStyle, Sheet, SheetClose, SheetColors, SheetEdge, SheetMargins,
-    SheetMode, SheetPlacement, Snackbar, SnackbarColors, SnackbarHost, SnackbarId, SnackbarParts,
+    MenuColor, MenuItem, MenuItemStyle, Sheet, SheetClose, SheetColors, SheetEdge, SheetMode,
+    SheetPlacement, Snackbar, SnackbarColors, SnackbarHost, SnackbarId, SnackbarParts,
     SnackbarResult, Tooltip, TooltipCaret, TooltipColors, TooltipPlacement, TooltipPositioner,
     TooltipState,
 };
@@ -161,7 +164,23 @@ pub use input::{
 mod navigation;
 
 #[cfg(feature = "navigation")]
-pub use navigation::*;
+pub use navigation::{
+    AdaptiveNavigation, AdaptiveNavigationInfo, AdaptiveNavigationState, AdaptiveNavigationType,
+    AdaptiveNavigationVisibility, AdaptivePane, AdaptivePaneLayout, AdaptivePaneState, AppBar,
+    AppBarAlignment, AppBarColors, AppBarColumn, AppBarItem, AppBarMenuState, AppBarRow,
+    AppBarScrollBehavior, AppBarScrollState, AppBarVariant, BottomAppBar, BottomAppBarColors,
+    BreadcrumbItem, Breadcrumbs, BreadcrumbsColors, Feed, ListDetail, ListDetailPane,
+    NavigationBar, NavigationBarArrangement, NavigationBarColors, NavigationBarLayout,
+    NavigationDrawer, NavigationDrawerColors, NavigationDrawerEntry, NavigationDrawerMode,
+    NavigationDrawerSection, NavigationItem, NavigationItemColors, NavigationItemIconPosition,
+    NavigationItems, NavigationRail, NavigationRailArrangement, NavigationRailColors,
+    NavigationRailShapes, NavigationRailState, PaneAdaptStrategy, PaneBackBehavior,
+    PaneDestination, PaneExpansionAnchor, PaneLayoutDirective, PaneLayoutValue,
+    PaneOverlayAlignment, PanePlacement, PaneRole, PaneSeparator, RailModalOptions, RailMode,
+    Scaffold, ScaffoldContentLayout, ScaffoldFabPosition, StepItem, StepStatus, Stepper,
+    StepperColors, StepperOrientation, SupportingPane, TabIndicatorLayout, TabIndicatorStyle,
+    TabIndicatorWidth, TabVariant, Tabs, TabsColors,
+};
 
 /// Installs component keybindings after initializing the Material root.
 pub fn init_components(cx: &mut gpui::App) {

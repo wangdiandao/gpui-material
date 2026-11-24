@@ -14,9 +14,10 @@ actions = []
 selection = []
 inputs = ["actions"]
 surfaces = ["actions"]
+settings-tiles = ["surfaces", "selection", "feedback"]
 feedback = ["actions"]
 navigation = ["actions", "feedback"]
-full = ["actions", "selection", "inputs", "surfaces", "feedback", "navigation"]
+full = ["actions", "selection", "inputs", "surfaces", "settings-tiles", "feedback", "navigation"]
 
 [dependencies]
 gpui.workspace = true

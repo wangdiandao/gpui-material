@@ -7,9 +7,9 @@ use gpui::{
 };
 use gpui_base::{TestSupportExt as _, test_support::find};
 use gpui_material::{
-    AppBar, AppBarAlignment, AppBarColors, AppBarColumn, AppBarItem, AppBarMenuState,
-    AppBarPadding, AppBarRow, AppBarScrollBehavior, AppBarScrollState, AppBarVariant, Button, Icon,
-    IconName, MaterialRoot, MenuItem, Scaffold,
+    AppBar, AppBarAlignment, AppBarColors, AppBarColumn, AppBarItem, AppBarMenuState, AppBarRow,
+    AppBarScrollBehavior, AppBarScrollState, AppBarVariant, Button, Icon, IconName, LogicalEdges,
+    MaterialRoot, MenuItem, Scaffold,
     foundation::{set_window_material_theme, window_material_theme},
     theme::{CubicBezier, Direction, MotionSpec},
 };
@@ -86,7 +86,7 @@ impl Render for Headings {
         let occupied = self.occupied.clone();
         div().w(px(350.)).h(px(290.)).child(
             Scaffold::with_layout("page", move |layout, _, _| {
-                occupied.set(layout.occupied.top);
+                occupied.set(px(layout.occupied.top));
                 div()
             })
             .app_bar(
@@ -130,11 +130,11 @@ impl Render for Headings {
                         navigation: Some(pigment(NAVIGATION)),
                         actions: Some(pigment(ACTIONS)),
                     })
-                    .content_padding(AppBarPadding {
-                        start: px(11.),
-                        end: px(23.),
-                        top: px(2.),
-                        bottom: px(4.),
+                    .content_padding(LogicalEdges {
+                        start: 11.,
+                        end: 23.,
+                        top: 2.,
+                        bottom: 4.,
                     })
                     .collapsed_height(px(60.))
                     .expanded_height(px(150.))
@@ -478,19 +478,23 @@ fn app_bar_actions_overflow_without_duplicate_controls_and_restore_keyboard_focu
     });
     let row_overflow = ElementId::from((ElementId::from("row"), "overflow"));
     let column_overflow = ElementId::from((ElementId::from("column"), "overflow"));
+    let col_open = ElementId::from((ElementId::from("column"), "column-open"));
+    let col_rename = ElementId::from((ElementId::from("column"), "column-rename"));
+    let first_action = ElementId::from((ElementId::from("row"), "first-action"));
+    let last_action = ElementId::from((ElementId::from("row"), "last-action"));
     cx.update_window(handle, |_, window, cx| {
         draw(window, cx);
         assert!(find(window, &[], &row_overflow).is_none());
-        let column = find(window, &[], &"column-open".into()).unwrap();
+        let column = find(window, &[], &col_open).unwrap();
         let more = find(window, &[], &column_overflow).unwrap();
         assert!(column.bounds().bottom() <= more.bounds().top());
-        assert!(find(window, &[], &"column-rename".into()).is_none());
+        assert!(find(window, &[], &col_rename).is_none());
         for _ in 0..3 {
             window.focus_next(cx);
             draw(window, cx);
         }
         assert_eq!(
-            find(window, &[], &"last-action".into()).unwrap().focused(),
+            find(window, &[], &last_action).unwrap().focused(),
             Some(true)
         );
         view.update(cx, |view, cx| {
@@ -503,12 +507,12 @@ fn app_bar_actions_overflow_without_duplicate_controls_and_restore_keyboard_focu
         draw(window, cx);
         window.simulate_next_frame(cx);
         draw(window, cx);
-        let first = find(window, &[], &"first-action".into()).unwrap();
+        let first = find(window, &[], &first_action).unwrap();
         let more = find(window, &[], &row_overflow).unwrap();
         assert!(more.bounds().right() <= first.bounds().left());
         assert_eq!(more.label(), Some("More record actions"));
         assert_eq!(more.focused(), Some(true));
-        assert!(find(window, &[], &"last-action".into()).is_none());
+        assert!(find(window, &[], &last_action).is_none());
         assert!(find(window, &[], &"export-menu".into()).is_none());
 
         key("enter", window, cx);
@@ -529,11 +533,13 @@ fn app_bar_actions_overflow_without_duplicate_controls_and_restore_keyboard_focu
         assert_eq!(export.label(), Some("Export records"));
         assert_eq!(export.focused(), Some(true));
         assert_eq!(
-            find(window, &[], &"unavailable".into()).unwrap().disabled(),
+            find(window, &[], &(ElementId::from("row"), "unavailable").into())
+                .unwrap()
+                .disabled(),
             Some(true)
         );
         assert_eq!(
-            find(window, &[], &"last-action".into()).unwrap().role(),
+            find(window, &[], &last_action).unwrap().role(),
             Some(Role::MenuItem)
         );
 
@@ -580,11 +586,11 @@ fn app_bar_actions_overflow_without_duplicate_controls_and_restore_keyboard_focu
         draw(window, cx);
         assert!(find(window, &[], &row_overflow).is_none());
         assert_eq!(
-            find(window, &[], &"last-action".into()).unwrap().focused(),
+            find(window, &[], &last_action).unwrap().focused(),
             Some(true)
         );
         assert_eq!(
-            find(window, &[], &"last-action".into()).unwrap().role(),
+            find(window, &[], &last_action).unwrap().role(),
             Some(Role::Button)
         );
     })

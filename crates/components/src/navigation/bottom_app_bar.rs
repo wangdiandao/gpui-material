@@ -4,12 +4,12 @@ use gpui::{
     Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
-use gpui_material_foundation::{Surface, animate, current_material_theme};
+use gpui_material_foundation::{Surface, animate, current_material_theme, resolve_edges};
 use gpui_material_theme::{
-    ColorRole, CornerRole, Direction, Elevation, MotionKind, MotionSpec, MotionSpeed,
+    ColorRole, CornerRole, Direction, Elevation, LogicalEdges, MotionKind, MotionSpec, MotionSpeed,
 };
 
-use super::app_bar::{AppBarScrollBehavior, AppBarScrollState};
+use super::app_bar::{self, AppBarScrollBehavior, AppBarScrollState};
 
 /// Optional pigment overrides for [`BottomAppBar`]. Omitted fields use the window theme.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -20,31 +20,6 @@ pub struct BottomAppBarColors {
     pub content: Option<Hsla>,
 }
 
-/// Logical insets inside a [`BottomAppBar`].
-/// Defaults follow Material 3 (4 dp leading icon inset, 16 dp trailing FAB inset, 12 dp vertical).
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct BottomAppBarPadding {
-    /// Logical start inset in pixels.
-    pub start: Pixels,
-    /// Logical end inset in pixels.
-    pub end: Pixels,
-    /// Top inset in pixels.
-    pub top: Pixels,
-    /// Bottom inset in pixels.
-    pub bottom: Pixels,
-}
-
-impl Default for BottomAppBarPadding {
-    fn default() -> Self {
-        Self {
-            start: px(4.),
-            end: px(16.),
-            top: px(12.),
-            bottom: px(12.),
-        }
-    }
-}
-
 /// Material 3 Bottom App Bar (80 dp default height, `SurfaceContainer`, `Elevation::Level2`).
 /// Mounts seamlessly in [`crate::Scaffold::bottom_bar`] or standalone layouts.
 #[derive(IntoElement)]
@@ -52,9 +27,9 @@ pub struct BottomAppBar {
     id: ElementId,
     actions: Vec<AnyElement>,
     fab: Option<AnyElement>,
-    height: Pixels,
+    height: Option<Pixels>,
     colors: BottomAppBarColors,
-    padding: BottomAppBarPadding,
+    padding: LogicalEdges,
     elevation: Elevation,
     scroll: Option<ScrollHandle>,
     scroll_behavior: Option<(AppBarScrollBehavior, Entity<AppBarScrollState>)>,
@@ -65,15 +40,18 @@ impl BottomAppBar {
     /// Default Material 3 bottom app bar height (80 dp).
     pub const DEFAULT_HEIGHT: Pixels = px(80.);
 
+    /// Default Material 3 bottom app bar padding (4 dp start, 16 dp end, 12 dp vertical).
+    pub const DEFAULT_PADDING: LogicalEdges = LogicalEdges::new(12., 16., 12., 4.);
+
     /// Creates a bottom app bar with the given element ID and default Material 3 styling.
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
             actions: Vec::new(),
             fab: None,
-            height: Self::DEFAULT_HEIGHT,
+            height: None,
             colors: BottomAppBarColors::default(),
-            padding: BottomAppBarPadding::default(),
+            padding: Self::DEFAULT_PADDING,
             elevation: Elevation::Level2,
             scroll: None,
             scroll_behavior: None,
@@ -99,11 +77,11 @@ impl BottomAppBar {
         self
     }
 
-    /// Sets the bar height in logical pixels. Defaults to 80 dp.
+    /// Sets the bar height in logical pixels. Defaults to 80 dp scaled by theme density.
     pub fn height(mut self, height: Pixels) -> Self {
         let value = f32::from(height);
         if value.is_finite() && value > 0. {
-            self.height = height;
+            self.height = Some(height);
         }
         self
     }
@@ -115,8 +93,8 @@ impl BottomAppBar {
     }
 
     /// Overrides logical inner insets.
-    pub fn padding(mut self, padding: BottomAppBarPadding) -> Self {
-        self.padding = padding;
+    pub fn padding(mut self, padding: LogicalEdges) -> Self {
+        self.padding = padding.sanitize();
         self
     }
 
@@ -149,27 +127,27 @@ impl BottomAppBar {
     }
 }
 
-fn sanitize_padding(value: Pixels) -> Pixels {
-    let raw = f32::from(value);
-    if raw.is_finite() && raw >= 0. {
-        value
-    } else {
-        px(0.)
-    }
-}
-
 impl RenderOnce for BottomAppBar {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = current_material_theme(window, cx);
         let direction = theme.layout.direction;
         let rtl = direction == Direction::Rtl;
-        let full_height = f32::from(self.height);
+        let full_height = self.height.map_or_else(
+            || {
+                theme
+                    .layout
+                    .density
+                    .interactive_size(f32::from(Self::DEFAULT_HEIGHT))
+            },
+            f32::from,
+        );
+        let full_height_px = px(full_height);
 
         let collapsed_fraction = if let Some((behavior, state)) = &self.scroll_behavior {
             let handle_offset = self
                 .scroll
                 .as_ref()
-                .map(|handle| (-f32::from(handle.offset().y)).max(0.));
+                .map(|handle| app_bar::length(-handle.offset().y).unwrap_or(0.));
             let position = state.update(cx, |state, _| {
                 state.prepare(handle_offset, full_height, Some(*behavior), true)
             });
@@ -188,11 +166,12 @@ impl RenderOnce for BottomAppBar {
                 cx,
             )
             .clamp(0., 1.);
-            state.update(cx, |state, cx| {
-                if state.display(position, fraction) {
-                    cx.notify();
-                }
-            });
+            if state.update(cx, |state, _| state.display(position, fraction)) {
+                let weak = state.downgrade();
+                window.defer(cx, move |_, cx| {
+                    let _ = weak.update(cx, |_, cx| cx.notify());
+                });
+            }
             fraction
         } else {
             0.
@@ -227,12 +206,7 @@ impl RenderOnce for BottomAppBar {
                 .into_any_element();
         }
 
-        let (left, right) = theme.layout.horizontal(
-            sanitize_padding(self.padding.start),
-            sanitize_padding(self.padding.end),
-        );
-        let top = sanitize_padding(self.padding.top);
-        let bottom = sanitize_padding(self.padding.bottom);
+        let edges = resolve_edges(self.padding, direction);
 
         let actions_row = div()
             .id((self.id.clone(), "actions"))
@@ -245,11 +219,11 @@ impl RenderOnce for BottomAppBar {
 
         let bar_row = div()
             .w_full()
-            .h(self.height)
-            .pl(left)
-            .pr(right)
-            .pt(top)
-            .pb(bottom)
+            .h(full_height_px)
+            .pl(edges.left)
+            .pr(edges.right)
+            .pt(edges.top)
+            .pb(edges.bottom)
             .flex()
             .items_center()
             .justify_between()

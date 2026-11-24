@@ -495,7 +495,9 @@ impl AdaptivePaneState {
             let raw = if timing == Timing::Seek {
                 sought
             } else {
-                ((now - motion.started).as_secs_f32() / duration.as_secs_f32()).clamp(0., 1.)
+                (now.saturating_duration_since(motion.started).as_secs_f32()
+                    / duration.as_secs_f32())
+                .clamp(0., 1.)
             };
             if raw >= 1. && timing == Timing::Animate {
                 self.motion = None;

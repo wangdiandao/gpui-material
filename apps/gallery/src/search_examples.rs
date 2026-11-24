@@ -232,7 +232,7 @@ fn search_preview_updates_results_and_restores_focus(cx: &mut gpui::TestAppConte
 fn large_search_virtualizes_variable_rows_and_navigates_by_stable_id(
     cx: &mut gpui::TestAppContext,
 ) {
-    use gpui::{IntoElement, Role};
+    use gpui::IntoElement;
     use gpui_base::test_support::{find, snapshots};
     use gpui_material::{MaterialRoot, SearchRequest};
 
@@ -314,7 +314,10 @@ fn large_search_virtualizes_variable_rows_and_navigates_by_stable_id(
     cx.update_window(handle.into(), |_, window, _| {
         let count = snapshots(window)
             .iter()
-            .filter(|item| item.role() == Some(Role::ListItem))
+            .filter(|item| {
+                item.label()
+                    .is_some_and(|label| label.starts_with("Result "))
+            })
             .count();
         assert!(count > 0 && count < 30, "rendered {count} rows");
         assert!(find(window, &[], &"result-1000".into()).is_none());

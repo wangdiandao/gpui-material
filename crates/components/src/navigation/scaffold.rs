@@ -6,10 +6,10 @@ use gpui::{
     prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
-use gpui_material_foundation::current_material_theme;
-use gpui_material_theme::Direction;
+use gpui_material_foundation::{current_material_theme, resolve_edges};
+use gpui_material_theme::{Direction, LogicalEdges};
 
-use crate::{ScaffoldInsets, Sheet};
+use crate::Sheet;
 
 /// Positions a scaffold's floating action within the usable content width.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -31,9 +31,9 @@ pub struct ScaffoldContentLayout {
     /// Window-local bounds after the scaffold has allocated its bars and rail.
     pub bounds: Bounds<Pixels>,
     /// Space already allocated to the bars and rail.
-    pub occupied: ScaffoldInsets,
+    pub occupied: LogicalEdges,
     /// Remaining insets for the body or a child inside its scroll area.
-    pub padding: ScaffoldInsets,
+    pub padding: LogicalEdges,
     /// Active layout direction from the window theme.
     pub direction: Direction,
 }
@@ -60,7 +60,7 @@ pub struct Scaffold {
     fab: Option<AnyElement>,
     snackbar: Option<AnyElement>,
     fab_position: ScaffoldFabPosition,
-    content_insets: ScaffoldInsets,
+    content_insets: LogicalEdges,
 }
 
 impl Scaffold {
@@ -94,7 +94,7 @@ impl Scaffold {
             fab: None,
             snackbar: None,
             fab_position: ScaffoldFabPosition::default(),
-            content_insets: ScaffoldInsets::default(),
+            content_insets: LogicalEdges::ZERO,
         }
     }
 
@@ -142,8 +142,8 @@ impl Scaffold {
 
     /// Sets minimum distances from the scaffold's edges to usable content.
     /// Space occupied by bars and the rail counts toward those distances.
-    pub fn content_insets(mut self, insets: ScaffoldInsets) -> Self {
-        self.content_insets = insets.normalized();
+    pub fn content_insets(mut self, insets: LogicalEdges) -> Self {
+        self.content_insets = insets.sanitize();
         self
     }
 }
@@ -160,12 +160,12 @@ impl RenderOnce for Scaffold {
             (_, fab) => (fab, self.snackbar, None),
         };
         let needs_layout = overlay.is_some()
-            || insets != ScaffoldInsets::default()
+            || insets != LogicalEdges::ZERO
             || matches!(self.content, Content::Builder(_));
         let geometry = Rc::new(ScaffoldGeometry::default());
         let body_geometry = geometry.clone();
         let body = div()
-            .id("scaffold-content")
+            .id((self.id.clone(), "scaffold-content"))
             .test_support()
             .relative()
             .flex()
@@ -181,13 +181,13 @@ impl RenderOnce for Scaffold {
                         fab,
                         snackbar,
                         position,
-                        insets.resolve(direction),
+                        resolve_edges(insets, direction),
                         direction,
                     )),
                 content => body.child(
                     laid_out_slot(move |bounds, window, cx| {
                         let layout = body_geometry.resolve(bounds, insets, direction);
-                        let padding = layout.padding.resolve(direction);
+                        let padding = resolve_edges(layout.padding, direction);
                         let content = match content {
                             Content::Element(content) => body_wrapper()
                                 .pt(padding.top)
@@ -260,7 +260,7 @@ impl RenderOnce for Scaffold {
                         .layout
                         .get()
                         .unwrap_or_else(|| geometry.resolve(root, insets, direction));
-                    end_overlay(fab, snackbar, root, layout, insets.bottom)
+                    end_overlay(fab, snackbar, root, layout, px(insets.bottom))
                 })
                 .absolute()
                 .inset_0()
@@ -282,33 +282,31 @@ impl ScaffoldGeometry {
     fn resolve(
         &self,
         bounds: Bounds<Pixels>,
-        requested: ScaffoldInsets,
+        requested: LogicalEdges,
         direction: Direction,
     ) -> ScaffoldContentLayout {
         let root = self.root.get().unwrap_or(bounds);
-        let occupied = ScaffoldInsets {
-            top: (bounds.top() - root.top()).max(px(0.)),
-            start: if direction == Direction::Rtl {
+        let occupied = LogicalEdges {
+            top: f32::from((bounds.top() - root.top()).max(px(0.))),
+            start: f32::from(if direction == Direction::Rtl {
                 (root.right() - bounds.right()).max(px(0.))
             } else {
                 (bounds.left() - root.left()).max(px(0.))
-            },
-            bottom: (root.bottom() - bounds.bottom()).max(px(0.)),
-            end: px(0.),
+            }),
+            bottom: f32::from((root.bottom() - bounds.bottom()).max(px(0.))),
+            end: 0.,
         };
-        let top = (requested.top - occupied.top)
-            .max(px(0.))
-            .min(bounds.size.height);
-        let start = (requested.start - occupied.start)
-            .max(px(0.))
-            .min(bounds.size.width);
-        let padding = ScaffoldInsets {
+        let height = f32::from(bounds.size.height);
+        let width = f32::from(bounds.size.width);
+        let top = (requested.top - occupied.top).max(0.).min(height);
+        let start = (requested.start - occupied.start).max(0.).min(width);
+        let padding = LogicalEdges {
             top,
             start,
             bottom: (requested.bottom - occupied.bottom)
-                .max(px(0.))
-                .min(bounds.size.height - top),
-            end: requested.end.min(bounds.size.width - start),
+                .max(0.)
+                .min((height - top).max(0.)),
+            end: requested.end.min((width - start).max(0.)),
         };
         let layout = ScaffoldContentLayout {
             bounds,
@@ -382,7 +380,7 @@ fn end_overlay(
     layout: ScaffoldContentLayout,
     bottom_inset: Pixels,
 ) -> Div {
-    let padding = layout.padding.resolve(layout.direction);
+    let padding = resolve_edges(layout.padding, layout.direction);
     let bottom = bottom_inset.min(root.size.height);
     let fab = fab_row(ScaffoldFabPosition::EndOverlay, layout.direction)
         .items_end()
@@ -390,7 +388,7 @@ fn end_overlay(
         .when(snackbar.is_some(), |fab| {
             // Reserve the taller of the bottom bar and the FAB band. The
             // button stays at the bottom of the band even with a tall bar.
-            fab.min_h((layout.occupied.bottom + px(16.) - bottom).max(px(0.)))
+            fab.min_h((px(layout.occupied.bottom) + px(16.) - bottom).max(px(0.)))
                 .pt(px(8.))
         })
         .child(fab);

@@ -2,23 +2,25 @@ use std::rc::Rc;
 
 use gpui::{
     AnyElement, App, Axis, ElementId, Entity, FocusHandle, InteractiveElement, IntoElement,
-    ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Window,
-    accesskit::Toggled, div, prelude::FluentBuilder, px,
+    KeyDownEvent, ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement,
+    Styled, Window, accesskit::Toggled, div, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
 use gpui_material_foundation::{InteractionSource, current_material_theme, move_roving_focus};
-use gpui_material_theme::{CornerRole, CornerShape};
+use gpui_material_theme::{CornerRole, CornerShape, Direction, LogicalEdges};
 
-use crate::{SemanticTone, SwipeToDismiss, SwipeToDismissState, action::Activate};
+use crate::{
+    SemanticTone, SwipeToDismiss, SwipeToDismissState, action::Activate,
+    control_style::ControlElevations,
+};
 
 mod long_press;
 mod render;
+mod row_wrapper;
 mod style;
+mod surface;
 
-pub use style::{
-    ListItemAlignment, ListItemColors, ListItemElevations, ListItemPadding, ListItemShapes,
-    ListItemStateColors,
-};
+pub use style::{ListItemAlignment, ListItemColors, ListItemShapes, ListItemStateColors};
 
 /// Layout and corner-grouping style for [`List`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -28,6 +30,81 @@ pub enum ListVariant {
     Standard,
     /// Expressive segmented rows separated by a 2 px gap with rounded outer corners and 4 px inner corners.
     Segmented,
+}
+
+pub(crate) fn segmented_corners(
+    variant: ListVariant,
+    ix: usize,
+    last: usize,
+) -> (CornerShape, CornerShape) {
+    match variant {
+        ListVariant::Standard => (CornerRole::None.shape(), CornerRole::None.shape()),
+        ListVariant::Segmented => {
+            let top = if ix == 0 { 16. } else { 4. };
+            let bottom = if ix == last { 16. } else { 4. };
+            (
+                CornerShape::Radii([top, top, bottom, bottom]),
+                CornerRole::Large.shape(),
+            )
+        }
+    }
+}
+
+pub(crate) fn compute_roving_tab_stop(
+    focus: &[FocusHandle],
+    enabled: &[bool],
+    selected: &[bool],
+    window: &Window,
+) -> Option<usize> {
+    focus
+        .iter()
+        .enumerate()
+        .position(|(ix, focus)| enabled[ix] && focus.is_focused(window))
+        .or_else(|| {
+            selected
+                .iter()
+                .enumerate()
+                .position(|(ix, is_selected)| enabled[ix] && *is_selected)
+        })
+        .or_else(|| enabled.iter().position(|enabled| *enabled))
+}
+
+pub(crate) fn handle_vertical_roving_key(
+    navigation: &[FocusHandle],
+    enabled: &[bool],
+    event: &KeyDownEvent,
+    direction: Direction,
+    window: &mut Window,
+    cx: &mut App,
+) -> bool {
+    if event.keystroke.modifiers.modified() {
+        return false;
+    }
+    // Nested controls keep their own arrow-key behavior.
+    if !navigation.iter().any(|focus| focus.is_focused(window)) {
+        return false;
+    }
+    let items: Vec<_> = navigation
+        .iter()
+        .zip(enabled)
+        .map(|(focus, enabled)| (focus, *enabled))
+        .collect();
+    if move_roving_focus(
+        &items,
+        &event.keystroke.key,
+        Axis::Vertical,
+        direction,
+        window,
+        cx,
+    )
+    .is_some()
+    {
+        cx.stop_propagation();
+        window.refresh();
+        true
+    } else {
+        false
+    }
 }
 
 type ValueChange = Rc<dyn Fn(bool, &mut Window, &mut App)>;
@@ -82,18 +159,20 @@ pub struct ListItem {
     invalid: bool,
     footer: Option<AnyElement>,
     aria_description: Option<SharedString>,
-    #[cfg(feature = "feedback")]
+    #[cfg(feature = "settings-tiles")]
     menu_trigger: Option<(bool, Activate)>,
     selected: bool,
+    selectable: bool,
     disabled: bool,
     dragged: bool,
-    focus: Option<(FocusHandle, bool)>,
+    focus: Option<FocusHandle>,
+    tab_stop: Option<bool>,
     tone: SemanticTone,
     shapes: ListItemShapes,
     colors: ListItemColors,
-    elevations: ListItemElevations,
+    elevations: ControlElevations,
     alignment: ListItemAlignment,
-    padding: Option<ListItemPadding>,
+    padding: Option<LogicalEdges>,
     source: Option<Entity<InteractionSource>>,
 }
 
@@ -121,16 +200,18 @@ impl ListItem {
             invalid: false,
             footer: None,
             aria_description: None,
-            #[cfg(feature = "feedback")]
+            #[cfg(feature = "settings-tiles")]
             menu_trigger: None,
             selected: false,
+            selectable: false,
             disabled: false,
             dragged: false,
             focus: None,
+            tab_stop: None,
             tone: SemanticTone::Default,
             shapes: ListItemShapes::default(),
             colors: ListItemColors::default(),
-            elevations: ListItemElevations::default(),
+            elevations: ControlElevations::default(),
             alignment: ListItemAlignment::Auto,
             padding: None,
             source: None,
@@ -144,7 +225,7 @@ impl ListItem {
     }
 
     /// Sets secondary supporting text displayed below the headline.
-    pub fn supporting_text(mut self, text: impl Into<SharedString>) -> Self {
+    pub fn supporting(mut self, text: impl Into<SharedString>) -> Self {
         self.supporting = Some(Slot::Text(text.into()));
         self
     }
@@ -182,6 +263,7 @@ impl ListItem {
     /// Sets whether the row is visually highlighted as selected.
     pub fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
+        self.selectable = true;
         self
     }
 
@@ -289,7 +371,7 @@ impl ListItem {
     }
 
     /// Overrides drop-shadow elevation levels per interaction state.
-    pub fn elevations(mut self, elevations: ListItemElevations) -> Self {
+    pub fn elevations(mut self, elevations: ControlElevations) -> Self {
         self.elevations = elevations;
         self
     }
@@ -300,9 +382,9 @@ impl ListItem {
         self
     }
 
-    /// Overrides the row's logical inner padding.
-    pub fn content_padding(mut self, padding: ListItemPadding) -> Self {
-        self.padding = Some(padding);
+    /// Overrides the row's logical inner padding in density-independent units.
+    pub fn content_padding(mut self, padding: LogicalEdges) -> Self {
+        self.padding = Some(padding.sanitize());
         self
     }
 
@@ -318,57 +400,63 @@ impl ListItem {
         self
     }
 
-    /// Uses a retained focus handle and roving tab stop supplied by a virtual
-    /// collection. The collection owns navigation across unrendered rows.
-    pub fn track_focus(mut self, focus: &FocusHandle, tab_stop: bool) -> Self {
-        self.focus = Some((focus.clone(), tab_stop));
+    /// Uses a retained focus handle supplied by the caller or a virtual collection.
+    pub fn track_focus(mut self, focus: &FocusHandle) -> Self {
+        self.focus = Some(focus.clone());
         self
     }
 
-    #[cfg(feature = "selection")]
+    /// Controls whether a standalone row participates in sequential Tab navigation.
+    /// Defaults to `true` when not explicitly set.
+    pub fn tab_stop(mut self, tab_stop: bool) -> Self {
+        self.tab_stop = Some(tab_stop);
+        self
+    }
+
+    #[cfg(feature = "settings-tiles")]
     pub(crate) fn checked_role(mut self, role: Role) -> Self {
         self.checked_role = role;
         self
     }
 
-    #[cfg(feature = "selection")]
+    #[cfg(feature = "settings-tiles")]
     pub(crate) fn checked_toggled(mut self, state: Toggled) -> Self {
         self.checked = Some(state);
         self
     }
 
-    #[cfg(feature = "selection")]
+    #[cfg(feature = "settings-tiles")]
     pub(crate) fn checked_selects_row(mut self, selects: bool) -> Self {
         self.checked_selects_row = selects;
         self
     }
 
-    #[cfg(feature = "selection")]
+    #[cfg(feature = "settings-tiles")]
     pub(crate) fn invalid(mut self, invalid: bool) -> Self {
         self.invalid = invalid;
         self
     }
 
-    #[cfg(feature = "selection")]
+    #[cfg(feature = "settings-tiles")]
     pub(crate) fn footer(mut self, footer: impl IntoElement) -> Self {
         self.footer = Some(footer.into_any_element());
         self
     }
 
-    #[cfg(feature = "feedback")]
+    #[cfg(feature = "settings-tiles")]
     pub(crate) fn menu_trigger(mut self, open: bool, a11y_toggle: Activate) -> Self {
         self.menu_trigger = Some((open, a11y_toggle));
         self
     }
 
-    #[cfg(feature = "feedback")]
+    #[cfg(feature = "settings-tiles")]
     pub(crate) fn aria_description(mut self, description: impl Into<SharedString>) -> Self {
         self.aria_description = Some(description.into());
         self
     }
 
     pub(crate) fn custom_focus(&self) -> Option<FocusHandle> {
-        self.focus.as_ref().map(|(focus, _)| focus.clone())
+        self.focus.clone()
     }
 
     pub(crate) fn id(&self) -> &ElementId {
@@ -386,11 +474,11 @@ impl ListItem {
     }
 
     fn has_menu_trigger(&self) -> bool {
-        #[cfg(feature = "feedback")]
+        #[cfg(feature = "settings-tiles")]
         {
             self.menu_trigger.is_some()
         }
-        #[cfg(not(feature = "feedback"))]
+        #[cfg(not(feature = "settings-tiles"))]
         {
             false
         }
@@ -445,11 +533,10 @@ impl ListItem {
 
 impl RenderOnce for ListItem {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let focus = self.focus.clone();
         self.row(
             CornerRole::None.shape(),
             CornerRole::None.shape(),
-            focus,
+            None,
             window,
             cx,
         )
@@ -522,17 +609,8 @@ impl RenderOnce for List {
                 })
                 .collect();
             let enabled: Vec<_> = self.items.iter().map(|item| item.takes_focus(cx)).collect();
-            let tab_stop = focus
-                .iter()
-                .enumerate()
-                .position(|(ix, focus)| enabled[ix] && focus.is_focused(window))
-                .or_else(|| {
-                    self.items
-                        .iter()
-                        .enumerate()
-                        .position(|(ix, item)| enabled[ix] && item.selected)
-                })
-                .or_else(|| enabled.iter().position(|enabled| *enabled));
+            let selected: Vec<_> = self.items.iter().map(|item| item.selected).collect();
+            let tab_stop = compute_roving_tab_stop(&focus, &enabled, &selected, window);
             let navigation = focus.clone();
             div()
                 .id(self.id)
@@ -543,47 +621,14 @@ impl RenderOnce for List {
                 .flex_col()
                 .w_full()
                 .on_key_down(move |event, window, cx| {
-                    // Nested controls keep their own arrow-key behavior.
-                    if !navigation.iter().any(|focus| focus.is_focused(window)) {
-                        return;
-                    }
-                    let items: Vec<_> = navigation
-                        .iter()
-                        .zip(&enabled)
-                        .map(|(focus, enabled)| (focus, *enabled))
-                        .collect();
-                    if move_roving_focus(
-                        &items,
-                        &event.keystroke.key,
-                        Axis::Vertical,
-                        direction,
-                        window,
-                        cx,
-                    )
-                    .is_some()
-                    {
-                        cx.stop_propagation();
-                        window.refresh();
-                    }
+                    handle_vertical_roving_key(&navigation, &enabled, event, direction, window, cx);
                 })
                 .when(self.variant == ListVariant::Segmented, |list| {
                     list.gap(px(2.))
                 })
                 .children(self.items.into_iter().zip(focus).enumerate().map(
                     |(ix, (item, focus))| {
-                        let (resting, selected) = match self.variant {
-                            ListVariant::Standard => {
-                                (CornerRole::None.shape(), CornerRole::None.shape())
-                            }
-                            ListVariant::Segmented => {
-                                let top = if ix == 0 { 16. } else { 4. };
-                                let bottom = if ix == last { 16. } else { 4. };
-                                (
-                                    CornerShape::Radii([top, top, bottom, bottom]),
-                                    CornerRole::Large.shape(),
-                                )
-                            }
-                        };
+                        let (resting, selected) = segmented_corners(self.variant, ix, last);
                         item.row(
                             resting,
                             selected,
@@ -594,5 +639,46 @@ impl RenderOnce for List {
                     },
                 ))
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn segmented_corners_match_standard_and_m3e_geometry() {
+        assert_eq!(
+            segmented_corners(ListVariant::Standard, 0, 2),
+            (CornerRole::None.shape(), CornerRole::None.shape())
+        );
+        assert_eq!(
+            segmented_corners(ListVariant::Segmented, 0, 0),
+            (
+                CornerShape::Radii([16., 16., 16., 16.]),
+                CornerRole::Large.shape()
+            )
+        );
+        assert_eq!(
+            segmented_corners(ListVariant::Segmented, 0, 2),
+            (
+                CornerShape::Radii([16., 16., 4., 4.]),
+                CornerRole::Large.shape()
+            )
+        );
+        assert_eq!(
+            segmented_corners(ListVariant::Segmented, 1, 2),
+            (
+                CornerShape::Radii([4., 4., 4., 4.]),
+                CornerRole::Large.shape()
+            )
+        );
+        assert_eq!(
+            segmented_corners(ListVariant::Segmented, 2, 2),
+            (
+                CornerShape::Radii([4., 4., 16., 16.]),
+                CornerRole::Large.shape()
+            )
+        );
     }
 }

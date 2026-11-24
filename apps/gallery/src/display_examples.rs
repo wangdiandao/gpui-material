@@ -9,12 +9,12 @@ use gpui_material::theme::{
 };
 use gpui_material::{
     Avatar, AvatarGroup, AvatarShape, AvatarSize, Badge, Banner, Button, ButtonVariant, Card,
-    CardBorder, CardColors, CardElevations, CardVariant, CheckboxState, CheckboxTile, ChoiceOption,
-    ChoiceTile, CircularProgress, DisplayScrollbar, DisplayScrollbarFade, DisplayScrollbarStyle,
-    Divider, DropTarget, EmptyView, Icon, IconName, LinearProgress, List, ListItem, ListSection,
-    ListVariant, LoadingIndicator, LoadingIndicatorShape, LoadingIndicatorShapes, ProgressCap,
-    ProgressShape, ProgressStroke, RadioTile, SemanticTone, Skeleton, SliderState, SliderTile,
-    SwitchTile, Text,
+    CardColors, CardVariant, CheckboxState, CheckboxTile, ChoiceOption, ChoiceTile,
+    CircularProgress, ControlBorder, ControlElevations, DisplayScrollbar, DisplayScrollbarFade,
+    DisplayScrollbarStyle, Divider, DropTarget, EmptyView, Icon, IconName, LinearProgress, List,
+    ListItem, ListSection, ListVariant, LoadingIndicator, LoadingIndicatorShape,
+    LoadingIndicatorShapes, ProgressCap, ProgressShape, ProgressStroke, RadioTile, SemanticTone,
+    Skeleton, SliderState, SliderTile, SwitchTile, Text,
 };
 
 use crate::story::{Story, section, stack};
@@ -205,12 +205,13 @@ impl DisplayExamples {
                         content: Some(tone(ColorRole::OnSecondaryContainer)),
                         ..Default::default()
                     })
-                    .elevations(CardElevations {
+                    .elevations(ControlElevations {
                         hovered: Some(Elevation::Level2),
                         focused: Some(Elevation::Level1),
                         ..Default::default()
                     })
-                    .on_activate("Open project", move |_, cx| {
+                    .accessible_label("Open project")
+                    .on_activate(move |_, cx| {
                         card.update(cx, |this, cx| {
                             this.opened = !this.opened;
                             cx.notify();
@@ -235,12 +236,13 @@ impl DisplayExamples {
             .child(
                 Card::new("outlined-card")
                     .variant(CardVariant::Outlined)
-                    .border(CardBorder {
+                    .border(ControlBorder {
                         width: px(2.),
                         color: tone(ColorRole::OutlineVariant),
                     })
                     .disabled(true)
-                    .on_activate("Unavailable card", |_, _| {})
+                    .accessible_label("Unavailable card")
+                    .on_activate(|_, _| {})
                     .child(Text::new("Unavailable card")),
             )
     }
@@ -368,7 +370,7 @@ impl DisplayExamples {
                     .items([
                         ListItem::new("documents", "Documents")
                             .selected(self.selected)
-                            .supporting_text("12 items")
+                            .supporting("12 items")
                             .leading(Icon::new(IconName::Description).size(px(24.)))
                             .on_activate(move |_, cx| {
                                 list.update(cx, |this, cx| {
@@ -378,7 +380,7 @@ impl DisplayExamples {
                             }),
                         ListItem::new("archives", "Archives")
                             .overline("Storage")
-                            .supporting_text("Last updated today")
+                            .supporting("Last updated today")
                             .trailing(Badge::count(
                                 Icon::new(IconName::Archive)
                                     .size(px(24.))

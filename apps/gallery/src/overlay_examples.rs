@@ -340,7 +340,7 @@ impl ModalExamples {
                         .extent(px(260.))
                         .edge_divider(true)
                         .close_label("Close inspector")
-                        .on_close(move |_, _, cx| {
+                        .on_closed(move |_, _, cx| {
                             let _ = close_standard.update(cx, |view, cx| {
                                 if let Some(sheet) = &mut view.sheet {
                                     sheet.standard_side_visible = false;

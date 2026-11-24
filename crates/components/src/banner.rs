@@ -347,11 +347,22 @@ impl RenderOnce for Banner {
             )
             .children(dismiss_slot);
 
+        let live = if role == Role::Alert {
+            gpui::accesskit::Live::Assertive
+        } else {
+            gpui::accesskit::Live::Polite
+        };
+
         div()
             .id(self.id)
             .test_support()
             .role(role)
             .aria_label(summary)
+            .a11y_synthetic_children(move |tree| {
+                let node = tree.parent_node();
+                node.set_live(live);
+                node.set_live_atomic();
+            })
             .w_full()
             .child(surface)
     }

@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 use gpui::{Bounds, Pixels, Size, point, px, size};
-use gpui_material_theme::{Direction, WidthClass};
+use gpui_material_theme::{Direction, LogicalEdges, WidthClass};
 
 use super::{PaneLayoutValue, PanePlacement, PaneRole};
 
@@ -56,25 +56,12 @@ impl PaneLayoutDirective {
     }
 }
 
-/// Pane margins in logical pixels.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct PaneMargins {
-    /// Logical start margin in pixels.
-    pub start: Pixels,
-    /// Logical end margin in pixels.
-    pub end: Pixels,
-    /// Top margin in pixels.
-    pub top: Pixels,
-    /// Bottom margin in pixels.
-    pub bottom: Pixels,
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(super) struct Measures {
     pub preferred_width: Option<Pixels>,
     pub preferred_height: Option<Pixels>,
     pub minimum_width: Pixels,
-    pub margins: PaneMargins,
+    pub margins: LogicalEdges,
 }
 
 /// Anchors relative to the logical extent of one horizontal band excluding its gutters.
@@ -157,10 +144,12 @@ impl Boundary {
         self,
         anchors: &[PaneExpansionAnchor],
     ) -> impl Iterator<Item = (PaneExpansionAnchor, Pixels)> {
+        let min = self.min;
+        let max = self.max.max(min);
         anchors.iter().copied().filter_map(move |anchor| {
             anchor
                 .position(self.extent)
-                .map(|at| (anchor, at.clamp(self.min, self.max)))
+                .map(|at| (anchor, at.clamp(min, max)))
         })
     }
 }
@@ -324,13 +313,15 @@ impl GeometryInput<'_> {
                 y += pane_height + vertical_gap;
             }
             if let Some(&next) = roles.get(i + 1) {
+                let min = boundaries[i] + scaled_minimum(minima, i, extent);
+                let max = (boundaries[i + 2] - scaled_minimum(minima, i + 1, extent)).max(min);
                 result.boundaries.push(Boundary {
                     start: role,
                     end: next,
                     center: origin + width + gutter / 2.,
-                    position: boundaries[i + 1],
-                    min: boundaries[i] + scaled_minimum(minima, i, extent),
-                    max: boundaries[i + 2] - scaled_minimum(minima, i + 1, extent),
+                    position: boundaries[i + 1].clamp(min, max),
+                    min,
+                    max,
                     extent,
                 });
             }
@@ -461,11 +452,12 @@ fn distribute(
     })
 }
 
-fn inset(bounds: Bounds<Pixels>, margins: PaneMargins) -> Bounds<Pixels> {
-    let left = length(margins.start).min(bounds.size.width);
-    let right = length(margins.end).min(bounds.size.width - left);
-    let top = length(margins.top).min(bounds.size.height);
-    let bottom = length(margins.bottom).min(bounds.size.height - top);
+fn inset(bounds: Bounds<Pixels>, margins: LogicalEdges) -> Bounds<Pixels> {
+    let clean = margins.sanitize();
+    let left = px(clean.start).min(bounds.size.width);
+    let right = px(clean.end).min(bounds.size.width - left);
+    let top = px(clean.top).min(bounds.size.height);
+    let bottom = px(clean.bottom).min(bounds.size.height - top);
     Bounds::new(
         bounds.origin + point(left, top),
         size(
@@ -514,12 +506,7 @@ mod tests {
                 preferred_width: Some(px(f32::INFINITY)),
                 preferred_height: Some(px(20_000.)),
                 minimum_width: px(1800.),
-                margins: PaneMargins {
-                    start: px(5.),
-                    end: px(5.),
-                    top: px(-4.),
-                    bottom: px(7.),
-                },
+                margins: LogicalEdges::new(-4., 5., 7., 5.),
             };
             let input = GeometryInput {
                 viewport: size(px(680.), px(240.)),
@@ -564,6 +551,55 @@ mod tests {
                 limited.panes[Primary.index()].unwrap().size,
                 size(px(0.), px(0.))
             );
+        }
+    }
+
+    #[test]
+    fn three_pane_boundary_clamp_never_panics_when_min_meets_or_exceeds_max() {
+        let boundary = Boundary {
+            start: Secondary,
+            end: Primary,
+            center: px(200.),
+            position: px(200.),
+            min: px(250.),
+            max: px(240.),
+            extent: px(600.),
+        };
+        let snapped: Vec<_> = boundary
+            .anchors(&[
+                PaneExpansionAnchor::Proportion(0.1),
+                PaneExpansionAnchor::Proportion(0.5),
+                PaneExpansionAnchor::Proportion(0.9),
+            ])
+            .collect();
+        assert_eq!(snapped.len(), 3);
+        for (_, at) in snapped {
+            assert_eq!(at, px(250.));
+        }
+
+        let directive = PaneLayoutDirective::for_size(size(px(1400.), px(800.)));
+        let measures = Measures {
+            preferred_width: Some(px(500.)),
+            preferred_height: None,
+            minimum_width: px(500.),
+            margins: LogicalEdges::ZERO,
+        };
+        let input = GeometryInput {
+            viewport: size(px(1200.), px(800.)),
+            direction: Direction::Ltr,
+            directive: &directive,
+            order: [Secondary, Primary, Tertiary],
+            measures: [measures; 3],
+        };
+        let geometry = input.layout(
+            PaneLayoutValue::new(Expanded, Expanded, Expanded),
+            |_, _| None,
+        );
+        for b in geometry.boundaries {
+            assert!(b.min <= b.position && b.position <= b.max);
+            let _ = b
+                .anchors(&[PaneExpansionAnchor::Proportion(0.5)])
+                .collect::<Vec<_>>();
         }
     }
 }

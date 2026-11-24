@@ -1,19 +1,22 @@
 use gpui::{
     AnyElement, App, ElementId, Entity, FocusHandle, Hsla, InteractiveElement, IntoElement,
     ParentElement, Pixels, RenderOnce, Role, ScrollHandle, SharedString, Size,
-    StatefulInteractiveElement, Styled, Window, anchored, div, point, prelude::FluentBuilder, px,
+    StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{DialogChangeReason, TestSupportExt};
 use gpui_material_foundation::{
     Scrim, Surface, ThemeScope, color, current_material_theme, isolated_scroll,
 };
-use gpui_material_theme::{ColorRole, CornerRole, CornerShape, Direction, Elevation, TypeRole};
+use gpui_material_theme::{
+    ColorRole, CornerRole, CornerShape, Direction, Elevation, MotionKind, MotionSpeed, TypeRole,
+};
 
 use crate::{Button, ButtonVariant, IconButton, SemanticTone};
 
+use super::super::modal::{ModalHost, ZLayer, modal_backdrop, motion_duration_ms};
 use super::{
     ActionSlot, Confirm, Dialog, DialogAction, DialogCloseReason, DialogColors, DialogProperties,
-    DialogState, DialogVariant, ModalSession, exiting_panel, modal_backdrop,
+    DialogState, DialogVariant, ModalSession,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -259,28 +262,9 @@ fn render_exiting_dialog<E: StatefulInteractiveElement + ParentElement + IntoEle
     window: &mut Window,
     cx: &mut App,
 ) -> AnyElement {
-    gpui::deferred(
-        anchored().position(point(px(0.), px(0.))).child(
-            div()
-                .id((id.clone(), "dialog-exit"))
-                .absolute()
-                .top_0()
-                .left_0()
-                .w(viewport.width)
-                .h(viewport.height)
-                .flex()
-                .items_center()
-                .justify_center()
-                .child(ThemeScope::inherit(backdrop, window, cx))
-                .child(ThemeScope::inherit(
-                    exiting_panel(panel, &id, state, window, cx),
-                    window,
-                    cx,
-                )),
-        ),
-    )
-    .with_priority(10 + layer)
-    .into_any_element()
+    ModalHost::new(id, ZLayer::dialog(layer), viewport)
+        .centered()
+        .render_exiting("dialog-exit", state, backdrop, panel, window, cx)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -308,7 +292,7 @@ fn render_active_dialog<E: IntoElement>(
     let keyboard_focus = focus.clone();
     gpui_base::Dialog::new(cx)
         .focus_handle(focus)
-        .layer(layer, true)
+        .layer(ZLayer::dialog(layer).priority(), true)
         .accessibility_label(title)
         .close_on_backdrop_press(false)
         .backdrop(ThemeScope::inherit(
@@ -355,10 +339,20 @@ impl RenderOnce for Dialog {
         let session = ModalSession::new(
             &self.state,
             self.dismiss_request.take(),
-            self.on_close.take(),
+            self.on_closed.take(),
             cx,
         );
-        let presence = crate::overlay::presence(&self.id, open, 200, window, cx);
+        let theme = current_material_theme(window, cx);
+        let duration_ms = motion_duration_ms(theme.motion.spec(
+            MotionKind::Spatial,
+            if open {
+                MotionSpeed::Default
+            } else {
+                MotionSpeed::Fast
+            },
+            cx.reduce_motion(),
+        ));
+        let presence = crate::overlay::presence(&self.id, open, duration_ms, window, cx);
         if !presence.should_render() {
             return div().into_any_element();
         }
@@ -375,7 +369,6 @@ impl RenderOnce for Dialog {
         };
         let max_height = (viewport.height - margin).max(px(0.));
         let motion_offset = px((1. - progress) * if full_screen { 32. } else { 8. });
-        let theme = current_material_theme(window, cx);
         let rtl = theme.layout.direction == Direction::Rtl;
         let colors = &theme.colors;
         let icon_color = self

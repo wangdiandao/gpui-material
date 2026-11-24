@@ -320,7 +320,7 @@ impl<const VIBRANT: bool> RenderOnce for TimeDialog<VIBRANT> {
                     .as_ref()
                     .is_none_or(|request| request(reason, window, cx))
             })
-            .on_close(move |reason, window, cx| {
+            .on_closed(move |reason, window, cx| {
                 let value = close_state.update(cx, |state, cx| {
                     state.discard_composition(window, cx);
                     state.sync_wheels(cx);

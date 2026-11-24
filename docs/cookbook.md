@@ -603,7 +603,7 @@ fn render_overlays(
 Attach caller-owned `FocusHandle` values with `.track_focus(&self.handle)` on interactive controls (`Button`, `Checkbox`, `Radio`, `Switch`, `Chip`, `Surface`, and `Slider::track_focus(RangeThumb::End, &focus)`) to restore focus after removing an item or closing a view.
 
 - On removable chips, pass the restoration handle to `Chip::on_remove(label, Some(self.restore.clone()), handler)` so focus moves predictably when the chip is deleted via click, `Backspace`, or `Delete`.
-- In custom virtualized lists, call `ListItem::track_focus(&row_focus, is_active_tab_stop)` to supply retained row focus and a single roving Tab stop while your collection owns full-model arrow navigation and scroll-into-view.
+- In custom virtualized lists, call `ListItem::track_focus(&row_focus).tab_stop(is_active_tab_stop)` to supply retained row focus and a single roving Tab stop while your collection owns full-model arrow navigation and scroll-into-view.
 
 ### Observing interaction state with `InteractionSource`
 

@@ -47,7 +47,10 @@ fn direction(handle: TestWindow, direction: Direction, cx: &mut TestAppContext) 
 }
 
 fn node(window: &Window, id: &'static str) -> ElementSnapshot {
-    find(window, &[], &id.into()).unwrap()
+    let scoped: ElementId = (ElementId::from("tabs"), id).into();
+    find(window, &[], &scoped)
+        .or_else(|| find(window, &[], &id.into()))
+        .unwrap()
 }
 
 fn painted(window: &Window, tint: Hsla) -> (Bounds<Pixels>, f32) {

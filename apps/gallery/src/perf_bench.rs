@@ -292,9 +292,7 @@ impl Render for ComplexListBenchView {
                     let selected_ref = selected.clone();
                     ListItem::new(("bench-row", ix), format!("Workflow pipeline {ix:03}"))
                         .overline("MATERIAL")
-                        .supporting_text(format!(
-                            "Automated verification row #{ix:03} with metadata"
-                        ))
+                        .supporting(format!("Automated verification row #{ix:03} with metadata"))
                         .leading(Icon::new(IconName::Favorite))
                         .trailing(
                             div()

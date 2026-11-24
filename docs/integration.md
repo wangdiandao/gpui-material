@@ -76,7 +76,7 @@ To regenerate the assets, place the three upstream `.ttf` files, their `.codepoi
 
 ## API and migration
 
-Search and dropdown virtualization require no caller migration. Result and option IDs must remain unique and stable across reordering. `ListItem::track_focus(&FocusHandle, bool)` lets a caller-owned virtual collection supply retained row focus and its roving tab stop; that collection must also own full-model navigation and reveal offscreen targets. The existing `List` API is unchanged.
+Search and dropdown virtualization require no caller migration. Result and option IDs must remain unique and stable across reordering. `ListItem::track_focus(&FocusHandle)` paired with `.tab_stop(bool)` lets a caller-owned virtual collection supply retained row focus and its roving tab stop; that collection must also own full-model navigation and reveal offscreen targets. The existing `List` API is unchanged.
 
 `set_material_theme` transitions application colors with the destination motion scheme's Slow Effects spring. A new request starts from the displayed palette. Initialization and reduced motion apply colors immediately. The destination typography and layout take effect when the change is requested. Base receives the application palette and scaled text metrics through the application theme projection.
 

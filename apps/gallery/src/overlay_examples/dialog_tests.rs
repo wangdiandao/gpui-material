@@ -45,7 +45,7 @@ impl Render for Probe {
                 observes_request.requests.borrow_mut().push(reason);
                 observes_request.allow_dismiss.get()
             })
-            .on_close(move |reason, _, _| observes_close.borrow_mut().push(reason))
+            .on_closed(move |reason, _, _| observes_close.borrow_mut().push(reason))
             .confirm("Confirm changes", move |_, _| allow_confirm.get());
         if self.custom {
             let action = self.observations.action.clone();
@@ -317,7 +317,7 @@ fn native_dialog_uses_an_independent_window_and_reports_window_close(cx: &mut Te
                             observes_request.requests.borrow_mut().push(reason);
                             observes_request.allow_dismiss.get()
                         })
-                        .on_close(move |reason, _, _| closes.borrow_mut().push(reason))
+                        .on_closed(move |reason, _, _| closes.borrow_mut().push(reason))
                 },
             )
             .unwrap()

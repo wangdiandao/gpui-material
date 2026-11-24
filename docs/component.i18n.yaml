@@ -33,14 +33,14 @@
   en: "e0f5d2b66870d586"
   zh: "7c7c4891edaf84a4"
 /components/content-and-feedback/cards:
-  en: "48e66a7e0b26dfd1"
-  zh: "81ba2a41223fc05c"
+  en: "4ad2efb35ef090c6"
+  zh: "32d68766f81279a6"
 /components/content-and-feedback/lists:
-  en: "89b740fda621afb6"
-  zh: "c1d62de30ca53b2b"
+  en: "375485b15729903e"
+  zh: "104dea50a8fafad9"
 /components/content-and-feedback/settings-tiles-and-list-sections:
-  en: "3bf88dcda39c989f"
-  zh: "95f04fcd65f21ef0"
+  en: "45f4e33a4517e8b2"
+  zh: "53c15477b4a27a86"
 /components/content-and-feedback/drop-target:
   en: "117723017496f78e"
   zh: "54073dff55605b3a"
@@ -87,8 +87,8 @@
   en: "8c445551aeaa4259"
   zh: "28eed400f1709252"
 /components/input-and-overlays/menu-controls-and-item-content:
-  en: "5b3fe652eee536c0"
-  zh: "f5c7d3e16ee0e368"
+  en: "2d426b4de95c508d"
+  zh: "f6e18cfb08d11cf5"
 /components/input-and-overlays/tooltips:
   en: "7d75773da4e0cc83"
   zh: "4546f0360b549cc0"
@@ -99,14 +99,14 @@
   en: "20874df8c77ef23f"
   zh: "40a01b267fdd61eb"
 /components/input-and-overlays/dialogs:
-  en: "2e7b43b71a17c1b3"
-  zh: "f193d5d46a02415c"
+  en: "44c6934262a3e391"
+  zh: "a133b9bf3b3b2e86"
 /components/input-and-overlays/bottom-sheets:
-  en: "5f3e91fc4e5d7bd7"
-  zh: "08ad0c6ddb32e7cc"
+  en: "eb36db021b9a3e17"
+  zh: "5cb1a0b5cb936cf8"
 /components/input-and-overlays/side-sheets:
-  en: "309f317efcf575fc"
-  zh: "39beb261e5e1b3df"
+  en: "6ce5a945089a44bc"
+  zh: "c160195ba48bf639"
 /components/navigation-and-adaptive-layout:
   en: "386f9e03d343996f"
   zh: "284fb499d4fcce3d"
@@ -114,11 +114,11 @@
   en: "5bfec344f6037300"
   zh: "6dd7c52a5068c1a3"
 /components/navigation-and-adaptive-layout/adaptive-multi-pane-layouts:
-  en: "ef5a9647038367c4"
-  zh: "81a60998d83e9381"
+  en: "8fde2f571ed33675"
+  zh: "642fe2fa8cf761c6"
 /components/navigation-and-adaptive-layout/app-bars:
-  en: "79b650d089fcfb3d"
-  zh: "a14d94149ba7031f"
+  en: "c5b25b31dd6f9b68"
+  zh: "913f2f68294c6a5d"
 /components/navigation-and-adaptive-layout/tabs:
   en: "a29acda233d89c33"
   zh: "d9431f39dfc9fd7c"
@@ -126,29 +126,29 @@
   en: "f3573539435982b9"
   zh: "d91bd72622b60ca0"
 /components/navigation-and-adaptive-layout/navigation-rails:
-  en: "ef16bfa21ca07422"
-  zh: "4ab19a79db9c9a7f"
+  en: "033914827a14f7a4"
+  zh: "b91cf5ec6e57d18b"
 /components/navigation-and-adaptive-layout/bottom-app-bar:
-  en: "77c6a47a852136a7"
-  zh: "d2bec6c5ce62624f"
+  en: "1745bc383df06ada"
+  zh: "cf2b72e2ae4b5d62"
 /components/navigation-and-adaptive-layout/navigation-drawer:
-  en: "443f4a8c0d575555"
-  zh: "109548ea0165a726"
+  en: "341ce30efbf0fea6"
+  zh: "ce80341b785a8730"
 /components/navigation-and-adaptive-layout/stepper:
   en: "50fb78880b3df6cd"
   zh: "cc0b46eb91da9d5c"
 /components/navigation-and-adaptive-layout/breadcrumbs:
-  en: "1d446370b60a2896"
-  zh: "7e6cd75aebafa924"
+  en: "f354f25220807dbc"
+  zh: "f787234be773b27e"
 /components/navigation-and-adaptive-layout/vertical-drag-handle:
   en: "c9ce9bd62d6df8f7"
   zh: "69452f32921b5f85"
 /components/navigation-and-adaptive-layout/scaffold:
-  en: "f749e65450d351e3"
-  zh: "fdbeaa7d7dfdc868"
+  en: "a9f65f19836e4b8a"
+  zh: "b34085a5fd68678f"
 /components/optional-components:
-  en: "436f0201e6c7f50b"
-  zh: "85ebd971567ee1f5"
+  en: "ee8cfde3415bbed5"
+  zh: "cd2e36e805523dd1"
 /components/optional-components/window-chrome:
   en: "90b7978cbd0f9268"
   zh: "4466ad4e1cd4b7b7"

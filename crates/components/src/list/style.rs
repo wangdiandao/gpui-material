@@ -1,8 +1,8 @@
-use gpui::{Hsla, Pixels, px};
+use gpui::Hsla;
 use gpui_material_foundation::InteractionState;
 use gpui_material_theme::{ColorRole, CornerShape, Elevation};
 
-use crate::SemanticTone;
+use crate::{SemanticTone, control_style::ControlElevations};
 
 /// Alignment of the slots within one row.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -16,30 +16,6 @@ pub enum ListItemAlignment {
     Center,
     /// Aligns slots to the bottom edge of the row.
     End,
-}
-
-/// Logical padding in pixels. Using the builder replaces the adaptive defaults.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ListItemPadding {
-    /// Leading-edge padding (left in LTR, right in RTL). Defaults to `16 px`.
-    pub start: Pixels,
-    /// Trailing-edge padding (right in LTR, left in RTL). Defaults to `16 px`.
-    pub end: Pixels,
-    /// Top padding in logical pixels. Defaults to `10 px`.
-    pub top: Pixels,
-    /// Bottom padding in logical pixels. Defaults to `10 px`.
-    pub bottom: Pixels,
-}
-
-impl Default for ListItemPadding {
-    fn default() -> Self {
-        Self {
-            start: px(16.),
-            end: px(16.),
-            top: px(10.),
-            bottom: px(10.),
-        }
-    }
 }
 
 /// Logical shapes for one row. An omitted shape uses the resting or selected
@@ -204,40 +180,19 @@ impl ListItemColors {
     }
 }
 
-/// Per-state shadow levels. Rows default to Level0, or Level4 while dragged.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct ListItemElevations {
-    /// Elevation while resting.
-    pub resting: Option<Elevation>,
-    /// Elevation while hovered.
-    pub hovered: Option<Elevation>,
-    /// Elevation while keyboard focus is visible.
-    pub focused: Option<Elevation>,
-    /// Elevation while pressed.
-    pub pressed: Option<Elevation>,
-    /// Elevation while dragged.
-    pub dragged: Option<Elevation>,
-    /// Elevation while disabled.
-    pub disabled: Option<Elevation>,
-}
-
-impl ListItemElevations {
-    pub(super) fn resolve(self, state: InteractionState) -> Elevation {
-        let resting = self.resting.unwrap_or(Elevation::Level0);
-        if state.disabled {
-            self.disabled.unwrap_or(resting)
-        } else if state.dragged {
-            self.dragged.unwrap_or(Elevation::Level4)
-        } else if state.pressed {
-            self.pressed.unwrap_or(resting)
-        } else if state.focus_visible {
-            self.focused.unwrap_or(resting)
-        } else if state.hovered {
-            self.hovered.unwrap_or(resting)
-        } else {
-            resting
-        }
-    }
+pub(super) fn resolve_list_elevation(
+    elevations: ControlElevations,
+    state: InteractionState,
+) -> Elevation {
+    let resting = elevations.resting.unwrap_or(Elevation::Level0);
+    let default = if state.disabled {
+        resting
+    } else if state.dragged {
+        Elevation::Level4
+    } else {
+        resting
+    };
+    elevations.for_state(state).unwrap_or(default)
 }
 
 #[cfg(test)]
@@ -286,7 +241,7 @@ mod tests {
             dragged: palette(0x335500),
             disabled: palette(0x446600),
         };
-        let elevations = ListItemElevations {
+        let elevations = ControlElevations {
             dragged: Some(Elevation::Level3),
             disabled: Some(Elevation::Level1),
             ..Default::default()
@@ -324,7 +279,7 @@ mod tests {
             assert_eq!(actual.trailing, expected.trailing);
             assert_eq!(Some(actual.overline), expected.overline);
             assert_eq!(Some(actual.supporting), expected.supporting);
-            assert_eq!(elevations.resolve(state), level);
+            assert_eq!(resolve_list_elevation(elevations, state), level);
         }
     }
 

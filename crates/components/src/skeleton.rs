@@ -1,9 +1,9 @@
 use std::f32::consts::TAU;
 
 use gpui::{
-    App, Corners, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels,
-    RenderOnce, Rgba, Role, SharedString, StatefulInteractiveElement, Styled, Window, canvas, div,
-    fill, prelude::FluentBuilder, px,
+    App, Bounds, Corners, ElementId, Entity, Hsla, InteractiveElement, IntoElement, ParentElement,
+    Path, Pixels, RenderOnce, Rgba, Role, SharedString, StatefulInteractiveElement, Styled, Window,
+    canvas, div, fill, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
 use gpui_material_foundation::{
@@ -251,7 +251,14 @@ impl RenderOnce for Skeleton {
                 width,
                 height,
                 polygon,
-            } => (Some(width), height, PaintKind::Polygon(polygon)),
+            } => {
+                let cache = window.use_keyed_state(
+                    (self.id.clone(), "skeleton-polygon-cache"),
+                    cx,
+                    |_, _| PolygonPathCache::default(),
+                );
+                (Some(width), height, PaintKind::Polygon(polygon, cache))
+            }
         };
 
         let painter = canvas(
@@ -283,9 +290,10 @@ impl RenderOnce for Skeleton {
                             bottom_left,
                         }));
                     }
-                    PaintKind::Polygon(polygon) => {
-                        if let Some(shape) = Shape::polygon(bounds, polygon, ShapeFit::Contain) {
-                            window.paint_path(shape.fill_path().clone(), fill_color);
+                    PaintKind::Polygon(polygon, cache) => {
+                        let path = cache.update(cx, |state, _| state.get_or_build(bounds, polygon));
+                        if let Some(path) = path {
+                            window.paint_path(path, fill_color);
                         }
                     }
                 }
@@ -311,7 +319,30 @@ impl RenderOnce for Skeleton {
 
 enum PaintKind {
     Rect(CornerShape),
-    Polygon(ShapePolygon),
+    Polygon(ShapePolygon, Entity<PolygonPathCache>),
+}
+
+#[derive(Default)]
+struct PolygonPathCache {
+    key: Option<(Bounds<Pixels>, ShapePolygon)>,
+    path: Option<Path>,
+}
+
+impl PolygonPathCache {
+    fn get_or_build(&mut self, bounds: Bounds<Pixels>, polygon: &ShapePolygon) -> Option<Path> {
+        let matches = self
+            .key
+            .as_ref()
+            .is_some_and(|(cached_bounds, cached_polygon)| {
+                *cached_bounds == bounds && cached_polygon == polygon
+            });
+        if !matches {
+            self.key = Some((bounds, polygon.clone()));
+            self.path = Shape::polygon(bounds, polygon, ShapeFit::Contain)
+                .map(|shape| shape.fill_path().clone());
+        }
+        self.path.clone()
+    }
 }
 
 struct SkeletonMotion {
@@ -427,5 +458,26 @@ mod tests {
                 ..
             } if width == px(48.) && height == px(48.)
         ));
+    }
+
+    #[test]
+    fn polygon_path_cache_reuses_and_invalidates_on_bounds_or_polygon_change() {
+        let mut cache = PolygonPathCache::default();
+        let bounds_a = Bounds::new(gpui::point(px(0.), px(0.)), gpui::size(px(48.), px(48.)));
+        let bounds_b = Bounds::new(gpui::point(px(0.), px(0.)), gpui::size(px(64.), px(64.)));
+        let cookie = ShapePolygon::from(MaterialShape::Cookie7Sided);
+        let other = ShapePolygon::from(MaterialShape::Cookie9Sided);
+
+        assert!(cache.get_or_build(bounds_a, &cookie).is_some());
+        assert_eq!(cache.key, Some((bounds_a, cookie.clone())));
+        // Same key reuses cached path.
+        assert!(cache.get_or_build(bounds_a, &cookie).is_some());
+        assert_eq!(cache.key, Some((bounds_a, cookie.clone())));
+        // Changed bounds updates key.
+        assert!(cache.get_or_build(bounds_b, &cookie).is_some());
+        assert_eq!(cache.key, Some((bounds_b, cookie.clone())));
+        // Changed polygon updates key.
+        assert!(cache.get_or_build(bounds_b, &other).is_some());
+        assert_eq!(cache.key, Some((bounds_b, other)));
     }
 }

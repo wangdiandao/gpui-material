@@ -156,7 +156,7 @@ type FeatureCase = (
     Option<&'static [&'static str]>,
 );
 
-fn component_feature_cases() -> [FeatureCase; 16] {
+fn component_feature_cases() -> [FeatureCase; 17] {
     const COMPONENTS: &str = "gpui-material-components";
     const MATERIAL: &str = "gpui-material";
     const EXTRAS: &str = "gpui-material-extras";
@@ -167,6 +167,17 @@ fn component_feature_cases() -> [FeatureCase; 16] {
         (COMPONENTS, Some("selection"), Some(&["selection"])),
         (COMPONENTS, Some("inputs"), Some(&["actions", "inputs"])),
         (COMPONENTS, Some("surfaces"), Some(&["actions", "surfaces"])),
+        (
+            COMPONENTS,
+            Some("settings-tiles"),
+            Some(&[
+                "actions",
+                "feedback",
+                "selection",
+                "settings-tiles",
+                "surfaces",
+            ]),
+        ),
         (COMPONENTS, Some("feedback"), Some(&["actions", "feedback"])),
         (
             COMPONENTS,

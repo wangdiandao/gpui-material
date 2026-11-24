@@ -1,14 +1,10 @@
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 use gpui::{
-    AnyElement, AnyWindowHandle, App, AppContext, Context, ElementId, Entity, Hsla,
-    InteractiveElement, IntoElement, MouseButton, ParentElement, Pixels, Role, SharedString,
-    StatefulInteractiveElement, Styled, Subscription, WeakFocusHandle, Window, WindowKind,
-    WindowOptions, div, px,
+    AnyElement, AnyWindowHandle, App, AppContext, Context, ElementId, Entity, Hsla, IntoElement,
+    Pixels, SharedString, Window, WindowKind, WindowOptions, px,
 };
-use gpui_material_foundation::{
-    MaterialRoot, Scrim, current_material_theme, set_window_material_theme,
-};
+use gpui_material_foundation::{MaterialRoot, current_material_theme, set_window_material_theme};
 use gpui_material_theme::{CornerShape, Elevation};
 
 use crate::SemanticTone;
@@ -19,77 +15,6 @@ mod state;
 pub use state::DialogState;
 pub(super) use state::ModalSession;
 use state::{NativeDialog, NativeDialogView, restore_parent};
-
-pub(super) fn exiting_panel<E: StatefulInteractiveElement + ParentElement>(
-    panel: E,
-    id: &ElementId,
-    state: &Entity<DialogState>,
-    window: &mut Window,
-    cx: &mut App,
-) -> E {
-    let focus = state.read(cx).focus.clone();
-    // The body can contain caller-owned controls. Keep their layout through
-    // exit, but send focus back outside the panel and cover its hit targets.
-    let guard = window.use_keyed_state((id.clone(), "exiting-focus"), cx, |_, _| {
-        let previous = Rc::new(RefCell::new(None::<WeakFocusHandle>));
-        (previous, None::<Subscription>)
-    });
-    let target = window
-        .focused(cx)
-        .filter(|handle| !focus.contains(handle, window));
-    guard.update(cx, |(previous, guard), cx| {
-        if let Some(target) = target {
-            *previous.borrow_mut() = Some(target.downgrade());
-        }
-        if guard.is_none() {
-            let previous = previous.clone();
-            let state = state.downgrade();
-            *guard = Some(window.on_focus_in(&focus, cx, move |window, cx| {
-                // A new session can focus the container before the exit tree is redrawn.
-                if state
-                    .upgrade()
-                    .is_some_and(|state| state.read(cx).is_open())
-                {
-                    return;
-                }
-                if let Some(handle) = previous
-                    .borrow()
-                    .as_ref()
-                    .and_then(WeakFocusHandle::upgrade)
-                {
-                    handle.focus(window, cx);
-                } else {
-                    window.blur(cx);
-                }
-            }));
-        }
-    });
-    panel
-        .role(Role::Group)
-        .track_focus(&focus)
-        .capture_key_down(|_, _, cx| cx.stop_propagation())
-        .a11y_synthetic_children(|tree| tree.parent_node().set_hidden())
-        .child(div().absolute().inset_0().occlude())
-}
-
-/// Supplies the hit target shared by modal sheet and dialog scrims.
-pub(super) fn modal_backdrop(
-    scrim: Scrim,
-    dismiss: impl Fn(&mut Window, &mut App) + 'static,
-) -> impl IntoElement {
-    div()
-        .absolute()
-        .inset_0()
-        .occlude()
-        .on_any_mouse_down(move |event, window, cx| {
-            cx.stop_propagation();
-            if event.button == MouseButton::Left {
-                dismiss(window, cx);
-            }
-        })
-        .on_scroll(|_, _, cx| cx.stop_propagation())
-        .child(scrim)
-}
 
 /// An accepted transition from an open to a closed Material dialog.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -209,7 +134,7 @@ pub struct Dialog {
     scrim_opacity: f32,
     width: Pixels,
     dismiss_request: Option<ModalDismissRequest>,
-    on_close: Option<ModalClosed>,
+    on_closed: Option<ModalClosed>,
 }
 
 impl Dialog {
@@ -248,7 +173,7 @@ impl Dialog {
             scrim_opacity: 0.32,
             width: px(560.),
             dismiss_request: None,
-            on_close: None,
+            on_closed: None,
         }
     }
 
@@ -484,11 +409,11 @@ impl Dialog {
     }
 
     /// Reports one accepted user close after the visibility state has changed.
-    pub fn on_close(
+    pub fn on_closed(
         mut self,
         close: impl Fn(DialogCloseReason, &mut Window, &mut App) + 'static,
     ) -> Self {
-        self.on_close = Some(Rc::new(close));
+        self.on_closed = Some(Rc::new(close));
         self
     }
 

@@ -12,8 +12,8 @@ use gpui_base::{
     test_support::{find, scope},
 };
 use gpui_material::{
-    Button, List, ListItem, ListItemAlignment, ListItemColors, ListItemPadding, ListItemShapes,
-    ListItemStateColors, ListVariant, MaterialRoot, MaterialTheme, SwipeToDismissState,
+    Button, List, ListItem, ListItemAlignment, ListItemColors, ListItemShapes, ListItemStateColors,
+    ListVariant, LogicalEdges, MaterialRoot, MaterialTheme, SwipeToDismissState,
     SwipeToDismissValue, Text,
     foundation::{InteractionSource, InteractionState, set_window_material_theme},
     theme::{CornerShape, Direction},
@@ -108,11 +108,11 @@ impl Render for Preview {
                 ..Default::default()
             })
             .vertical_alignment(ListItemAlignment::Start)
-            .content_padding(ListItemPadding {
-                start: px(22.),
-                end: px(10.),
-                top: px(4.),
-                bottom: px(10.),
+            .content_padding(LogicalEdges {
+                start: 22.,
+                end: 10.,
+                top: 4.,
+                bottom: 10.,
             })
             .interaction_source(&self.source)
             .disabled(self.disabled)
@@ -257,11 +257,10 @@ fn list_slots_keep_grouping_and_controlled_semantics_in_both_directions(cx: &mut
             assert_eq!(info.role(), Some(Role::ListItem));
             assert_eq!(info.label(), Some("Information"));
             let item = find(window, list.path(), &"primary".into()).unwrap();
-            assert_eq!(item.role(), Some(Role::ListItem));
-            assert_eq!(item.selected(), Some(selected));
             let action = find(window, item.path(), &primary_control()).unwrap();
             assert_eq!(action.role(), Some(Role::CheckBox));
             assert_eq!(action.label(), Some("Current report"));
+            assert_eq!(action.selected(), Some(selected));
             assert_eq!(action.checked(), Some(true));
             assert_eq!(action.expanded(), Some(false));
             assert_eq!(action.description(), Some("Report operations"));
@@ -561,7 +560,7 @@ fn list_roves_skips_disabled_and_wraps_supporting_text(cx: &mut TestAppContext) 
                     .disabled(true)
                     .on_activate(|_, _| {}),
                 ListItem::new("last", "Last")
-                    .supporting_text(
+                    .supporting(
                         "中文 supporting text that wraps across several lines and remains readable",
                     )
                     .on_activate(|_, _| {}),
@@ -637,7 +636,8 @@ fn list_item_builder_tone_right_click_accessible_label_and_preserved_track_focus
                     .item(
                         ListItem::new("item-tone", "Completed")
                             .tone(SemanticTone::Success)
-                            .track_focus(&self.focus, false)
+                            .track_focus(&self.focus)
+                            .tab_stop(false)
                             .on_long_press("Item options", move |_, cx| {
                                 owner.update(cx, |this, cx| {
                                     this.long_presses += 1;

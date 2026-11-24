@@ -4,6 +4,24 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Breaking API and migration
+
+- **Breaking (`gpui-material-theme`)**: Rename `MaterialTheme` fluent builders from `with_colors`, `with_typography`, `with_motion`, `with_layout`, `with_density`, and `with_direction` to bare names `colors`, `typography`, `motion`, `layout`, `density`, and `direction`.
+  - Migration: `MaterialTheme::dark().with_density(Density::Compact).with_direction(Direction::Rtl)` → `MaterialTheme::dark().density(Density::Compact).direction(Direction::Rtl)`.
+- **Breaking (`gpui-material-theme`)**: Change `FontFamilies` fields (`brand`, `plain`, `brand_fallbacks`, `plain_fallbacks`) from `String` / `Vec<String>` to `Arc<str>` / `Arc<[Arc<str>]>` so `MaterialTheme::clone()` avoids per-clone heap allocations while keeping `serde` compatibility.
+  - Migration: construct with `Arc::from("Roboto")` / `FontFamilies::new("Roboto", "Roboto")` or `FontFamilies::with_fallbacks(...)` accepting `impl Into<Arc<str>>`.
+- **Breaking (`gpui-material-foundation`)**: Rename `Surface::with_theme` to `Surface::theme`.
+  - Migration: `Surface::new(...).with_theme(theme)` → `Surface::new(...).theme(theme)`.
+
+### Theme, foundation, and design-symbols
+
+- Add shared style value primitives `LogicalEdges` (with `non_negative_f32` sanitization and directional resolution) and `ColorSpec` (`Role(ColorRole) | Custom(Argb)`) in `gpui-material-theme`, and decouple `dynamic_color` custom/status color resolution from internal `material-color-utils` cache mutation.
+- Cache all 35 normalized `MaterialShape` polygons, memoize polygon `Surface` geometry across frames, upgrade `Shape` stroke caching to multi-width `RefCell` storage (hitting 1px borders and 3px focus rings simultaneously), cache polygon shadow and exterior mask paths, use O(n) centroid triangulation for rounded rectangles, and add a full-coverage inscribed-rect fast path in `clipped_ripple`.
+- Implement Material 3 Expressive 2dp outer-offset focus rings (`FOCUS_RING_OUTER_OFFSET = px(2.)`, `FOCUS_RING_WIDTH = px(3.)`) with configurable `FocusRingPlacement::Outer | Inset`.
+- Cache projected Base themes in `MaterialRoot` and `ThemeScope` for zero-clone `current_base_theme` lookups, fix `set_material_theme` / `set_window_material_theme` skipping `refresh_installed_fonts` on equal themes, avoid repeated system font enumeration before `MaterialRoot::init`, and invalidate `TRACKED_LAYOUT_CACHE` on font cache revision changes.
+- Guard non-finite animation targets in `motion`, expose reusable `OverlayMotion` and `ScaledOverlay`, prevent `FeedbackState` `RefMut` reentrancy panics in `control_feedback`, and reverse horizontal arrow keys under `Direction::Rtl` in `range_semantics`.
+- Add `#![forbid(unsafe_code)]`, fine-grained `embed-outlined` / `embed-rounded` / `embed-sharp` features, single-lock poison-tolerant SVG caching, and compact 2-decimal coordinate formatting in `gpui-material-design-symbols`.
+
 ### Components
 
 - Expose `Button::on_accessible_activate` and `IconButton::on_accessible_activate` to register only `AccessibleAction::Click` without attaching `on_click`, preventing mouse-down/click conflicts when used as triggers for `Menu::composed` or `gpui_base::Popover`.

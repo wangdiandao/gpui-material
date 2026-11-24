@@ -9,7 +9,22 @@ use crate::Shape;
 const RIPPLE_EXPANSION: Duration = Duration::from_millis(225);
 const RIPPLE_FADE_IN: Duration = Duration::from_millis(75);
 const RIPPLE_FADE_OUT: Duration = Duration::from_millis(150);
-const FOCUS_RING_WIDTH: Pixels = px(3.);
+
+/// Material 3 Expressive keyboard focus ring stroke width (`3 dp`).
+pub const FOCUS_RING_WIDTH: Pixels = px(3.);
+
+/// Material 3 Expressive outward offset gap between a focused control and its focus ring (`2 dp`).
+pub const FOCUS_RING_OUTER_OFFSET: Pixels = px(2.);
+
+/// Placement of the Material 3 keyboard focus ring relative to a shape's boundary.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum FocusRingPlacement {
+    /// Expands outward with a `2 dp` gap around the shape boundary (Material 3 default).
+    #[default]
+    Outer,
+    /// Draws flush inside the shape boundary for tight clipping containers.
+    Inset,
+}
 
 /// A snapshot of interaction state from the caller's GPUI/Base behavior.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -172,6 +187,7 @@ pub struct InteractionFeedback {
     state: InteractionState,
     foreground: Hsla,
     focus: Hsla,
+    focus_ring_placement: FocusRingPlacement,
 }
 
 impl InteractionFeedback {
@@ -182,7 +198,15 @@ impl InteractionFeedback {
             state,
             foreground,
             focus,
+            focus_ring_placement: FocusRingPlacement::Outer,
         }
+    }
+
+    /// Sets whether the keyboard focus ring expands outward by `2 dp` (`Outer`, default)
+    /// or stays flush inside the shape (`Inset`).
+    pub fn focus_ring_placement(mut self, placement: FocusRingPlacement) -> Self {
+        self.focus_ring_placement = placement;
+        self
     }
 
     /// Draws the state layer, optional ripple, and keyboard focus ring.
@@ -224,7 +248,12 @@ impl InteractionFeedback {
                 ripple.paint(shape, self.foreground, now, reduced_motion, window);
             }
             if self.state.focus_visible {
-                shape.paint_ring(FOCUS_RING_WIDTH, self.focus, window);
+                shape.paint_ring(
+                    FOCUS_RING_WIDTH,
+                    self.focus_ring_placement,
+                    self.focus,
+                    window,
+                );
             }
         }
     }
@@ -278,11 +307,11 @@ mod tests {
         assert_eq!(ripple.sample(now + Duration::from_secs(2)), (1., 0.));
         assert!(ripple.is_finished(now + Duration::from_secs(2)));
         let mut feedback = crate::control_feedback::FeedbackState::default();
-        feedback.ripple = Some(ripple);
+        feedback.set_ripple_for_test(Some(ripple));
         feedback.prune_finished_ripple(now);
-        assert!(feedback.ripple.is_some());
+        assert!(feedback.ripple().is_some());
         feedback.prune_finished_ripple(now + Duration::from_secs(2));
-        assert!(feedback.ripple.is_none());
+        assert!(feedback.ripple().is_none());
     }
 
     #[test]

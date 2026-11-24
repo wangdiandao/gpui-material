@@ -23,13 +23,13 @@ mod generated {
 
 #[cfg(feature = "dynamic-color")]
 pub use color::contrast_ratio_of_tones;
-pub use color::{Appearance, Argb, ColorPair, ColorScheme, Elevation, StateLayer};
+pub use color::{Appearance, Argb, ColorPair, ColorScheme, ColorSpec, Elevation, StateLayer};
 #[cfg(feature = "dynamic-color")]
 pub use dynamic_color::{
     CustomColorGroup, DynamicVariant, SpecVersion, ThemePreset, harmonize_color,
 };
 pub use generated::ColorRole;
-pub use layout::{Density, Direction, LayoutPolicy, WidthClass};
+pub use layout::{Density, Direction, LayoutPolicy, LogicalEdges, WidthClass, non_negative_f32};
 pub use motion::{CubicBezier, MotionKind, MotionScheme, MotionSpec, MotionSpeed, Spring};
 pub use shape::{CornerRole, CornerShape, MaterialShape, PolygonRole, PolygonSpec};
 pub use typography::{FontFamilies, TypeRole, TypeStyle, Typeface, Typography, TypographyEmphasis};
@@ -67,37 +67,37 @@ impl MaterialTheme {
     }
 
     /// Replaces the theme's [`ColorScheme`].
-    pub fn with_colors(mut self, colors: ColorScheme) -> Self {
+    pub fn colors(mut self, colors: ColorScheme) -> Self {
         self.colors = colors;
         self
     }
 
     /// Replaces the theme's [`Typography`] configuration.
-    pub fn with_typography(mut self, typography: Typography) -> Self {
+    pub fn typography(mut self, typography: Typography) -> Self {
         self.typography = typography;
         self
     }
 
     /// Replaces the theme's [`MotionScheme`].
-    pub fn with_motion(mut self, motion: MotionScheme) -> Self {
+    pub fn motion(mut self, motion: MotionScheme) -> Self {
         self.motion = motion;
         self
     }
 
     /// Replaces the theme's [`LayoutPolicy`].
-    pub fn with_layout(mut self, layout: LayoutPolicy) -> Self {
+    pub fn layout(mut self, layout: LayoutPolicy) -> Self {
         self.layout = layout;
         self
     }
 
     /// Sets the desktop [`Density`] in [`Self::layout`].
-    pub fn with_density(mut self, density: Density) -> Self {
+    pub fn density(mut self, density: Density) -> Self {
         self.layout.density = density;
         self
     }
 
     /// Sets the layout [`Direction`] in [`Self::layout`].
-    pub fn with_direction(mut self, direction: Direction) -> Self {
+    pub fn direction(mut self, direction: Direction) -> Self {
         self.layout.direction = direction;
         self
     }

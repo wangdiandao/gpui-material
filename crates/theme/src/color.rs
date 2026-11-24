@@ -110,6 +110,38 @@ pub enum Appearance {
     Dark,
 }
 
+/// A semantic Material [`ColorRole`] or an explicit literal [`Argb`] color.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ColorSpec {
+    /// Resolve dynamically against the active [`ColorScheme`].
+    Role(ColorRole),
+    /// Use an explicit packed sRGB color.
+    Custom(Argb),
+}
+
+impl ColorSpec {
+    /// Resolves this color specification against `scheme`.
+    pub const fn resolve(self, scheme: &ColorScheme) -> Argb {
+        match self {
+            Self::Role(role) => scheme.color(role),
+            Self::Custom(argb) => argb,
+        }
+    }
+}
+
+impl From<ColorRole> for ColorSpec {
+    fn from(role: ColorRole) -> Self {
+        Self::Role(role)
+    }
+}
+
+impl From<Argb> for ColorSpec {
+    fn from(argb: Argb) -> Self {
+        Self::Custom(argb)
+    }
+}
+
 /// Resolved foreground and background colors for a Material pairing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ColorPair {

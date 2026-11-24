@@ -1,8 +1,9 @@
 use gpui_material_theme::{
-    Appearance, Argb, ColorRole, ColorScheme, CornerRole, CornerShape, Density, Direction,
-    Elevation, FontFamilies, LayoutPolicy, MaterialShape, MaterialTheme, MotionKind, MotionScheme,
-    MotionSpec, MotionSpeed, PolygonRole, PolygonSpec, Spring, StateLayer, TokenValue, TypeRole,
-    Typeface, TypographyEmphasis, WidthClass, token,
+    Appearance, Argb, ColorRole, ColorScheme, ColorSpec, CornerRole, CornerShape, Density,
+    Direction, Elevation, FontFamilies, LayoutPolicy, LogicalEdges, MaterialShape, MaterialTheme,
+    MotionKind, MotionScheme, MotionSpec, MotionSpeed, PolygonRole, PolygonSpec, Spring,
+    StateLayer, TokenValue, TypeRole, Typeface, TypographyEmphasis, WidthClass, non_negative_f32,
+    token,
 };
 
 #[test]
@@ -170,9 +171,18 @@ fn type_scale_preserves_metrics_and_font_preferences() {
         theme.typography.clone().with_text_scale(3.).text_scale(),
         2.
     );
-    assert_eq!(theme.typography.families(Typeface::Plain).primary, "Roboto");
     assert_eq!(
-        theme.typography.families(Typeface::Plain).fallback,
+        theme.typography.families(Typeface::Plain).primary.as_ref(),
+        "Roboto"
+    );
+    assert_eq!(
+        theme
+            .typography
+            .families(Typeface::Plain)
+            .fallback
+            .iter()
+            .map(|f| f.as_ref())
+            .collect::<Vec<_>>(),
         [
             "SF Pro Text",
             "Segoe UI",
@@ -182,16 +192,19 @@ fn type_scale_preserves_metrics_and_font_preferences() {
             "Noto Sans CJK SC",
         ]
     );
-    theme.typography.plain = FontFamilies {
-        primary: "Inter".into(),
-        fallback: vec!["Noto Sans CJK SC".into()],
-    };
+    theme.typography.plain = FontFamilies::new("Inter", ["Noto Sans CJK SC"]);
     assert_eq!(
-        theme.typography.families(body.typeface).fallback,
+        theme
+            .typography
+            .families(body.typeface)
+            .fallback
+            .iter()
+            .map(|f| f.as_ref())
+            .collect::<Vec<_>>(),
         ["Noto Sans CJK SC"]
     );
     assert_eq!(
-        theme.typography.families(display.typeface).primary,
+        theme.typography.families(display.typeface).primary.as_ref(),
         "Roboto"
     );
 
@@ -437,14 +450,42 @@ fn argb_color_role_on_role_corner_shape_and_fluent_theme_helpers() {
     );
 
     let theme = MaterialTheme::baseline(Appearance::Dark)
-        .with_colors(custom.clone())
-        .with_typography(gpui_material_theme::Typography::default().with_text_scale(1.25))
-        .with_motion(MotionScheme::Expressive)
-        .with_density(Density::Compact)
-        .with_direction(Direction::Rtl);
+        .colors(custom.clone())
+        .typography(gpui_material_theme::Typography::default().with_text_scale(1.25))
+        .motion(MotionScheme::Expressive)
+        .density(Density::Compact)
+        .direction(Direction::Rtl);
     assert_eq!(theme.colors, custom);
     assert_eq!(theme.typography.text_scale(), 1.25);
     assert_eq!(theme.motion, MotionScheme::Expressive);
     assert_eq!(theme.layout.density, Density::Compact);
     assert_eq!(theme.layout.direction, Direction::Rtl);
+}
+
+#[test]
+fn logical_edges_and_color_spec_sanitize_and_resolve() {
+    assert_eq!(non_negative_f32(-5.0), 0.0);
+    assert_eq!(non_negative_f32(-0.0), 0.0);
+    assert_eq!(non_negative_f32(f32::NAN), 0.0);
+    assert_eq!(non_negative_f32(f32::INFINITY), 0.0);
+    assert_eq!(non_negative_f32(12.5), 12.5);
+
+    let edges = LogicalEdges::new(4.0, 8.0, -2.0, f32::NAN).start(16.0);
+    assert_eq!(edges.resolve(Direction::Ltr), [4.0, 8.0, 0.0, 16.0]);
+    assert_eq!(edges.resolve(Direction::Rtl), [4.0, 16.0, 0.0, 8.0]);
+    assert_eq!(
+        LogicalEdges::symmetric(12.0, 6.0).resolve(Direction::Ltr),
+        [6.0, 12.0, 6.0, 12.0]
+    );
+    assert_eq!(
+        LogicalEdges::all(8.0).resolve(Direction::Rtl),
+        [8.0, 8.0, 8.0, 8.0]
+    );
+
+    let scheme = ColorScheme::baseline(Appearance::Light);
+    let role_spec: ColorSpec = ColorRole::Primary.into();
+    let custom_argb = Argb::from_rgb(10, 20, 30);
+    let custom_spec: ColorSpec = custom_argb.into();
+    assert_eq!(role_spec.resolve(&scheme), scheme.color(ColorRole::Primary));
+    assert_eq!(custom_spec.resolve(&scheme), custom_argb);
 }

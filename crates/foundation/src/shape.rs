@@ -4,6 +4,11 @@ mod polygon;
 #[cfg(test)]
 mod tests;
 
+use std::{
+    cell::{OnceCell, RefCell},
+    rc::Rc,
+};
+
 use gpui::{
     Bounds, FillOptions, FillRule, Hsla, Path, PathBuilder, PathStyle, Pixels, Point, Window,
     point, px, size,
@@ -11,6 +16,7 @@ use gpui::{
 use gpui_material_theme::{CornerShape, Direction, MaterialShape};
 use polymorpher::{Cubic, geometry::Point as PolygonPoint};
 
+use crate::feedback::{FOCUS_RING_OUTER_OFFSET, FocusRingPlacement};
 use clip::{
     FillMesh, bounds_overlap, clip_convex_polygon_fill, clip_mesh_fill, clip_polygon_to_rect,
     clip_rect_fill, clipped_ripple, contains_fill, cross, flatten_cubic, polygon_area,
@@ -20,6 +26,8 @@ use polygon::rounded_rect_cubics;
 
 pub use morph::{PolygonMorph, ShapeMorph, ShapeMorphSequence};
 pub use polygon::ShapePolygon;
+
+const MAX_STROKE_CACHE_ENTRIES: usize = 8;
 
 /// How a normalized polygon contour maps into layout bounds.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -31,13 +39,25 @@ pub enum ShapeFit {
     Stretch,
 }
 
-/// A prepared shape with a curve path for painting and a lazily built mesh for clipping and hit testing.
+type StrokeCacheEntry = ((u32, u32), Path);
+type ShadowCacheEntry = (u32, u32, [Option<Path>; 3]);
+type ExteriorMaskCacheEntry = ([u32; 4], Path);
+
+#[derive(Default)]
+struct ShapeCaches {
+    mesh: OnceCell<FillMesh>,
+    strokes: RefCell<Vec<StrokeCacheEntry>>,
+    shadows: RefCell<Option<ShadowCacheEntry>>,
+    exterior_mask: RefCell<Option<ExteriorMaskCacheEntry>>,
+}
+
+/// A prepared shape with a curve path for painting and lazily built caches for clipping,
+/// stroking, shadows, exterior masking, and hit testing.
 #[derive(Clone)]
 pub struct Shape {
     outline: Outline,
     fill: Path,
-    mesh: std::sync::OnceLock<FillMesh>,
-    stroke_cache: std::sync::OnceLock<(u32, Path)>,
+    caches: Rc<ShapeCaches>,
 }
 
 #[derive(Clone)]
@@ -48,6 +68,7 @@ struct Outline {
     rotation: f32,
     pivot: PolygonPoint,
     scale: f32,
+    rounded_rect: Option<(CornerShape, Direction)>,
 }
 
 impl Outline {
@@ -124,7 +145,51 @@ impl Outline {
                 &mut contour,
             );
         }
-        FillMesh::from_contour(&contour)
+        if self.rounded_rect.is_some() {
+            FillMesh::from_convex_contour(&contour)
+        } else {
+            FillMesh::from_contour(&contour)
+        }
+    }
+
+    fn outset(&self, delta: f32) -> Option<Self> {
+        if delta == 0. {
+            return Some(self.clone());
+        }
+        let expanded = Bounds::new(
+            self.bounds.origin + point(px(-delta), px(-delta)),
+            size(
+                self.bounds.size.width + px(delta * 2.),
+                self.bounds.size.height + px(delta * 2.),
+            ),
+        );
+        let width = f32::from(expanded.size.width);
+        let height = f32::from(expanded.size.height);
+        if !width.is_finite() || !height.is_finite() || width <= 0. || height <= 0. {
+            return None;
+        }
+        if let Some((corners, direction)) = self.rounded_rect {
+            let adjusted = match corners {
+                CornerShape::Full => CornerShape::Full,
+                CornerShape::Radii(radii) => {
+                    CornerShape::Radii(radii.map(|r| if r > 0. { (r + delta).max(0.) } else { 0. }))
+                }
+            };
+            let cubics = rounded_rect_cubics(width, height, adjusted, direction)?;
+            return Some(Self {
+                cubics,
+                bounds: expanded,
+                fit: ShapeFit::Stretch,
+                rotation: 0.,
+                pivot: PolygonPoint::splat(0.5),
+                scale: 1.,
+                rounded_rect: Some((adjusted, direction)),
+            });
+        }
+        Some(Self {
+            bounds: expanded,
+            ..self.clone()
+        })
     }
 
     fn path(&self, mut builder: PathBuilder) -> Option<Path> {
@@ -152,6 +217,7 @@ impl Shape {
             rotation: 0.,
             pivot: PolygonPoint::splat(0.5),
             scale: 1.,
+            rounded_rect: Some((corners, direction)),
         })
     }
 
@@ -181,6 +247,7 @@ impl Shape {
             rotation: rotation_radians,
             pivot: PolygonPoint::splat(0.5),
             scale: 1.,
+            rounded_rect: None,
         })
     }
 
@@ -189,13 +256,12 @@ impl Shape {
         Some(Self {
             outline,
             fill,
-            mesh: std::sync::OnceLock::new(),
-            stroke_cache: std::sync::OnceLock::new(),
+            caches: Rc::new(ShapeCaches::default()),
         })
     }
 
     fn mesh(&self) -> &FillMesh {
-        self.mesh.get_or_init(|| self.outline.flatten_mesh())
+        self.caches.mesh.get_or_init(|| self.outline.flatten_mesh())
     }
 
     /// Returns the laid-out bounds that this shape was fitted into.
@@ -215,18 +281,35 @@ impl Shape {
 
     /// Builds a stroked outline path for this shape at the requested logical pixel width.
     pub fn stroke_path(&self, width: Pixels) -> Option<Path> {
-        let raw = f32::from(width);
-        if !raw.is_finite() || raw <= 0. {
+        self.stroke_path_outset(width, px(0.))
+    }
+
+    /// Builds a stroked outline path expanded outward by `outset` (or inset when negative).
+    ///
+    /// Cached per `(width, outset)` pair so borders and focus rings hit simultaneously.
+    pub fn stroke_path_outset(&self, width: Pixels, outset: Pixels) -> Option<Path> {
+        let raw_width = f32::from(width);
+        let raw_outset = f32::from(outset);
+        if !raw_width.is_finite() || raw_width <= 0. || !raw_outset.is_finite() {
             return None;
         }
-        let bits = raw.to_bits();
-        if let Some((cached_bits, cached_path)) = self.stroke_cache.get()
-            && *cached_bits == bits
+        let key = (raw_width.to_bits(), raw_outset.to_bits());
+        if let Some((_, cached)) = self
+            .caches
+            .strokes
+            .borrow()
+            .iter()
+            .find(|(cached_key, _)| *cached_key == key)
         {
-            return Some(cached_path.clone());
+            return Some(cached.clone());
         }
-        let path = self.outline.path(PathBuilder::stroke(width))?;
-        let _ = self.stroke_cache.set((bits, path.clone()));
+        let outline = self.outline.outset(raw_outset)?;
+        let path = outline.path(PathBuilder::stroke(width))?;
+        let mut strokes = self.caches.strokes.borrow_mut();
+        if strokes.len() >= MAX_STROKE_CACHE_ENTRIES {
+            strokes.remove(0);
+        }
+        strokes.push((key, path.clone()));
         Some(path)
     }
 
@@ -323,6 +406,17 @@ impl Shape {
         if !rect_is_valid(outer) {
             return None;
         }
+        let key = [
+            f32::from(outer.origin.x).to_bits(),
+            f32::from(outer.origin.y).to_bits(),
+            f32::from(outer.size.width).to_bits(),
+            f32::from(outer.size.height).to_bits(),
+        ];
+        if let Some((cached_key, cached)) = self.caches.exterior_mask.borrow().as_ref()
+            && *cached_key == key
+        {
+            return Some(cached.clone());
+        }
         let mesh = self.mesh();
         let contained = mesh.bounds.left() >= outer.left()
             && mesh.bounds.right() <= outer.right()
@@ -352,7 +446,9 @@ impl Shape {
                 builder.close();
             }
         }
-        builder.build().ok()
+        let path = builder.build().ok()?;
+        *self.caches.exterior_mask.borrow_mut() = Some((key, path.clone()));
+        Some(path)
     }
 
     /// Paints the fill path with `color`.
@@ -406,30 +502,64 @@ impl Shape {
         if !dp.is_finite() || dp <= 0. || !scale.is_finite() || scale <= 0. {
             return;
         }
-        for (offset_y, spread, alpha) in [
-            (dp * 0.45, dp * 0.35, 0.08),
-            (dp * 0.25, dp * 0.18, 0.10),
-            (scale.min(dp * 0.5), dp * 0.06, 0.12),
-        ] {
-            let expanded = Bounds::new(
-                self.outline.bounds.origin + point(px(-spread), px(offset_y - spread)),
-                size(
-                    self.outline.bounds.size.width + px(spread * 2.),
-                    self.outline.bounds.size.height + px(spread * 2.),
-                ),
-            );
-            let layer = Outline {
-                bounds: expanded,
-                ..self.outline.clone()
-            };
-            if let Some(path) = layer.path(PathBuilder::fill()) {
-                window.paint_path(path, shadow.opacity(alpha));
+        let key = (elevation.to_bits(), scale.to_bits());
+        let alphas = [0.08, 0.10, 0.12];
+        let mut cache = self.caches.shadows.borrow_mut();
+        let paths = match cache.as_ref() {
+            Some((elev_bits, scale_bits, paths)) if *elev_bits == key.0 && *scale_bits == key.1 => {
+                paths
+            }
+            _ => {
+                let specs = [
+                    (dp * 0.45, dp * 0.35),
+                    (dp * 0.25, dp * 0.18),
+                    (scale.min(dp * 0.5), dp * 0.06),
+                ];
+                let built = specs.map(|(offset_y, spread)| {
+                    let expanded = Bounds::new(
+                        self.outline.bounds.origin + point(px(-spread), px(offset_y - spread)),
+                        size(
+                            self.outline.bounds.size.width + px(spread * 2.),
+                            self.outline.bounds.size.height + px(spread * 2.),
+                        ),
+                    );
+                    let layer = Outline {
+                        bounds: expanded,
+                        ..self.outline.clone()
+                    };
+                    layer.path(PathBuilder::fill())
+                });
+                *cache = Some((key.0, key.1, built));
+                &cache.as_ref().expect("shadow cache populated").2
+            }
+        };
+        for (path, alpha) in paths.iter().zip(alphas) {
+            if let Some(path) = path {
+                window.paint_path(path.clone(), shadow.opacity(alpha));
             }
         }
     }
 
-    pub(crate) fn paint_ring(&self, width: Pixels, color: Hsla, window: &mut Window) {
-        self.paint_stroke(width, color, window);
+    /// Computes the Material 3 focus ring stroke path for the given `width` and `placement`.
+    pub fn focus_ring_path(&self, width: Pixels, placement: FocusRingPlacement) -> Option<Path> {
+        let outset = match placement {
+            FocusRingPlacement::Outer => FOCUS_RING_OUTER_OFFSET + width * 0.5,
+            FocusRingPlacement::Inset => -width * 0.5,
+        };
+        self.stroke_path_outset(width, outset)
+            .or_else(|| self.stroke_path(width))
+    }
+
+    pub(crate) fn paint_ring(
+        &self,
+        width: Pixels,
+        placement: FocusRingPlacement,
+        color: Hsla,
+        window: &mut Window,
+    ) {
+        if let Some(path) = self.focus_ring_path(width, placement) {
+            window.paint_path(path, color);
+        }
     }
 
     pub(crate) fn paint_ripple(

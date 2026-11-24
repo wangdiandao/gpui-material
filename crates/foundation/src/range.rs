@@ -4,6 +4,7 @@ use gpui::{
     accesskit::{ActionData, Orientation},
 };
 use gpui_base::slider::{SliderState, SliderValue};
+use gpui_material_theme::Direction;
 
 /// Identifies the Base slider value represented by a semantic node.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -93,9 +94,13 @@ pub fn range_semantics(
             if event.keystroke.modifiers.modified() {
                 return;
             }
+            let direction = crate::current_material_theme(window, cx).layout.direction;
+            let horizontal = horizontal_step_sign(axis, direction);
             match event.keystroke.key.as_str() {
-                "left" | "down" => step(&keyboard, thumb, -1., window, cx),
-                "right" | "up" => step(&keyboard, thumb, 1., window, cx),
+                "left" => step(&keyboard, thumb, -horizontal, window, cx),
+                "right" => step(&keyboard, thumb, horizontal, window, cx),
+                "down" => step(&keyboard, thumb, -1., window, cx),
+                "up" => step(&keyboard, thumb, 1., window, cx),
                 "pageup" => step_large(&keyboard, thumb, 1., window, cx),
                 "pagedown" => step_large(&keyboard, thumb, -1., window, cx),
                 "home" => jump_bound(&keyboard, thumb, false, window, cx),
@@ -169,4 +174,25 @@ fn jump_bound(
             state.step_thumb(thumb == RangeThumb::Start, delta, window, cx);
         }
     });
+}
+
+fn horizontal_step_sign(axis: Axis, direction: Direction) -> f32 {
+    if axis == Axis::Horizontal && direction == Direction::Rtl {
+        -1.
+    } else {
+        1.
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn horizontal_step_sign_reverses_only_horizontal_rtl() {
+        assert_eq!(horizontal_step_sign(Axis::Horizontal, Direction::Ltr), 1.);
+        assert_eq!(horizontal_step_sign(Axis::Horizontal, Direction::Rtl), -1.);
+        assert_eq!(horizontal_step_sign(Axis::Vertical, Direction::Ltr), 1.);
+        assert_eq!(horizontal_step_sign(Axis::Vertical, Direction::Rtl), 1.);
+    }
 }

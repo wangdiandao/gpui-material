@@ -98,14 +98,14 @@ fn render_visual_canvas(
                 BorderStyle::Solid,
             ));
             let feedback = ink.borrow();
-            if let Some(shape) = &feedback.shape {
+            if let Some(shape) = feedback.shape() {
                 // Base's outer ring keeps the existing list focus geometry.
                 let mut visual_interaction = interaction;
                 visual_interaction.focus_visible = false;
                 InteractionFeedback::new(visual_interaction, content_tint, ring)
                     .paint_with_opacity(
                         shape,
-                        feedback.ripple.as_ref(),
+                        feedback.ripple(),
                         layer,
                         cx.background_executor().now(),
                         reduced,

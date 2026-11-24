@@ -125,3 +125,56 @@ pub fn isolated_scroll(id: impl Into<ElementId>, handle: &ScrollHandle) -> State
         .occlude()
         .track_scroll(handle)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn logical_anchor_mirrors_horizontal_sides_in_rtl_only() {
+        for anchor in [
+            Anchor::TopLeft,
+            Anchor::TopCenter,
+            Anchor::TopRight,
+            Anchor::BottomLeft,
+            Anchor::BottomCenter,
+            Anchor::BottomRight,
+            Anchor::LeftCenter,
+            Anchor::RightCenter,
+        ] {
+            assert_eq!(logical_anchor(anchor, Direction::Ltr), anchor);
+        }
+        assert_eq!(
+            logical_anchor(Anchor::TopLeft, Direction::Rtl),
+            Anchor::TopRight
+        );
+        assert_eq!(
+            logical_anchor(Anchor::TopRight, Direction::Rtl),
+            Anchor::TopLeft
+        );
+        assert_eq!(
+            logical_anchor(Anchor::BottomLeft, Direction::Rtl),
+            Anchor::BottomRight
+        );
+        assert_eq!(
+            logical_anchor(Anchor::BottomRight, Direction::Rtl),
+            Anchor::BottomLeft
+        );
+        assert_eq!(
+            logical_anchor(Anchor::LeftCenter, Direction::Rtl),
+            Anchor::RightCenter
+        );
+        assert_eq!(
+            logical_anchor(Anchor::RightCenter, Direction::Rtl),
+            Anchor::LeftCenter
+        );
+        assert_eq!(
+            logical_anchor(Anchor::TopCenter, Direction::Rtl),
+            Anchor::TopCenter
+        );
+        assert_eq!(
+            logical_anchor(Anchor::BottomCenter, Direction::Rtl),
+            Anchor::BottomCenter
+        );
+    }
+}

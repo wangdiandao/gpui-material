@@ -477,3 +477,53 @@ fn logical_corners_and_polygon_samples_have_shape_aware_hit_tests() {
         }
     }
 }
+
+#[test]
+fn multi_width_stroke_cache_and_outer_focus_ring_geometry() {
+    let bounds = Bounds::new(point(px(20.), px(20.)), size(px(120.), px(40.)));
+    let shape = Shape::rounded(bounds, CornerShape::Full, Direction::Ltr).unwrap();
+
+    // Both 1px border and 3px outer/inset focus rings cache simultaneously without evicting each other.
+    let border = shape.stroke_path(px(1.)).unwrap();
+    let outer_ring = shape
+        .focus_ring_path(crate::FOCUS_RING_WIDTH, crate::FocusRingPlacement::Outer)
+        .unwrap();
+    let inset_ring = shape
+        .focus_ring_path(crate::FOCUS_RING_WIDTH, crate::FocusRingPlacement::Inset)
+        .unwrap();
+    assert!(shape.caches.strokes.borrow().len() >= 3);
+    assert!(shape.stroke_path(px(1.)).is_some());
+    assert!(
+        shape
+            .focus_ring_path(crate::FOCUS_RING_WIDTH, crate::FocusRingPlacement::Outer)
+            .is_some()
+    );
+    let _ = (border, outer_ring, inset_ring);
+
+    // Outer focus ring outline expands by FOCUS_RING_OUTER_OFFSET + width / 2 on each side.
+    let expected_delta = f32::from(crate::FOCUS_RING_OUTER_OFFSET + crate::FOCUS_RING_WIDTH * 0.5);
+    let expanded = shape.outline.outset(expected_delta).unwrap();
+    assert!((f32::from(expanded.bounds.left()) - (20. - expected_delta)).abs() < 1e-3);
+    assert!((f32::from(expanded.bounds.right()) - (140. + expected_delta)).abs() < 1e-3);
+    assert!((f32::from(expanded.bounds.top()) - (20. - expected_delta)).abs() < 1e-3);
+    assert!((f32::from(expanded.bounds.bottom()) - (60. + expected_delta)).abs() < 1e-3);
+
+    // Inset focus ring shrinks inside the bounds.
+    let inset = shape
+        .outline
+        .outset(-f32::from(crate::FOCUS_RING_WIDTH * 0.5))
+        .unwrap();
+    assert!(inset.bounds.size.width < bounds.size.width);
+    assert!(inset.bounds.size.height < bounds.size.height);
+
+    // Full-coverage ripple fast path returns the full mesh without losing triangles.
+    let full = clipped_ripple(shape.mesh(), bounds.center(), px(200.));
+    assert_eq!(full.triangles.len(), shape.mesh().triangles.len());
+
+    // MaterialShape polygons are cached and share identity across repeated calls.
+    for material in MaterialShape::ALL {
+        let a = ShapePolygon::material(material);
+        let b = ShapePolygon::material(material);
+        assert_eq!(a, b);
+    }
+}

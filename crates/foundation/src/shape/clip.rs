@@ -47,34 +47,42 @@ impl FillMesh {
         Self { bounds, triangles }
     }
 
+    /// Triangulates a convex closed polygon contour (such as a rounded rectangle)
+    /// in O(n) time using a centroid triangle fan.
+    pub(super) fn from_convex_contour(contour: &[Point<Pixels>]) -> Self {
+        let mut pts = clean_contour(contour);
+        if pts.len() < 3 {
+            return Self::empty(pts.first().copied().unwrap_or(point(px(0.), px(0.))));
+        }
+        let area = polygon_area(&pts);
+        if !area.is_finite() || area.abs() <= f32::EPSILON {
+            return Self::empty(pts[0]);
+        }
+        if area < 0. {
+            pts.reverse();
+        }
+        let inv_n = 1. / pts.len() as f32;
+        let (mut cx, mut cy) = (0_f32, 0_f32);
+        for &p in &pts {
+            cx += f32::from(p.x);
+            cy += f32::from(p.y);
+        }
+        let centroid = point(px(cx * inv_n), px(cy * inv_n));
+        let mut triangles = Vec::with_capacity(pts.len());
+        for i in 0..pts.len() {
+            let a = pts[i];
+            let b = pts[(i + 1) % pts.len()];
+            if cross(a - centroid, b - centroid).abs() > f32::EPSILON {
+                triangles.push([centroid, a, b]);
+            }
+        }
+        Self::from_triangles(triangles)
+    }
+
     /// Triangulates a simple closed polygon contour (convex or concave, either winding)
     /// into disjoint triangles via ear clipping.
     pub(super) fn from_contour(contour: &[Point<Pixels>]) -> Self {
-        let mut pts: Vec<Point<Pixels>> = Vec::with_capacity(contour.len());
-        for &p in contour {
-            if !f32::from(p.x).is_finite() || !f32::from(p.y).is_finite() {
-                continue;
-            }
-            if let Some(&prev) = pts.last() {
-                let dx = f32::from(p.x - prev.x);
-                let dy = f32::from(p.y - prev.y);
-                if dx * dx + dy * dy <= 1e-6 {
-                    continue;
-                }
-            }
-            pts.push(p);
-        }
-        while pts.len() >= 2 {
-            let first = pts[0];
-            let last = *pts.last().unwrap();
-            let dx = f32::from(first.x - last.x);
-            let dy = f32::from(first.y - last.y);
-            if dx * dx + dy * dy <= 1e-6 {
-                pts.pop();
-            } else {
-                break;
-            }
-        }
+        let mut pts = clean_contour(contour);
         if pts.len() < 3 {
             return Self::empty(pts.first().copied().unwrap_or(point(px(0.), px(0.))));
         }
@@ -193,6 +201,37 @@ impl FillMesh {
         }
         builder.build().ok()
     }
+}
+
+fn clean_contour(contour: &[Point<Pixels>]) -> Vec<Point<Pixels>> {
+    let mut pts: Vec<Point<Pixels>> = Vec::with_capacity(contour.len());
+    for &p in contour {
+        if !f32::from(p.x).is_finite() || !f32::from(p.y).is_finite() {
+            continue;
+        }
+        if let Some(&prev) = pts.last() {
+            let dx = f32::from(p.x - prev.x);
+            let dy = f32::from(p.y - prev.y);
+            if dx * dx + dy * dy <= 1e-6 {
+                continue;
+            }
+        }
+        pts.push(p);
+    }
+    while pts.len() >= 2 {
+        let first = pts[0];
+        let Some(&last) = pts.last() else {
+            break;
+        };
+        let dx = f32::from(first.x - last.x);
+        let dy = f32::from(first.y - last.y);
+        if dx * dx + dy * dy <= 1e-6 {
+            pts.pop();
+        } else {
+            break;
+        }
+    }
+    pts
 }
 
 fn point_in_triangle_strict(
@@ -545,6 +584,31 @@ pub(super) fn clipped_ripple(fill: &FillMesh, origin: Point<Pixels>, radius: Pix
         let dy = f32::from(p.y) - oy;
         dx * dx + dy * dy
     };
+
+    if fill.is_empty() {
+        return FillMesh::empty(origin);
+    }
+    // Fast path: if the entire shape bounding box is outside the disc, return empty.
+    let nearest_x = ox.clamp(
+        f32::from(fill.bounds.left()),
+        f32::from(fill.bounds.right()),
+    );
+    let nearest_y = oy.clamp(
+        f32::from(fill.bounds.top()),
+        f32::from(fill.bounds.bottom()),
+    );
+    if (ox - nearest_x) * (ox - nearest_x) + (oy - nearest_y) * (oy - nearest_y) >= radius_sq {
+        return FillMesh::empty(origin);
+    }
+    // Fast path: if all four corners of the shape bounding box lie inside the disc's
+    // inscribed polygon, the ripple completely covers the shape with zero clipping work.
+    if dist_sq(fill.bounds.origin) <= inscribed_sq
+        && dist_sq(fill.bounds.top_right()) <= inscribed_sq
+        && dist_sq(fill.bounds.bottom_right()) <= inscribed_sq
+        && dist_sq(fill.bounds.bottom_left()) <= inscribed_sq
+    {
+        return fill.clone();
+    }
 
     // Intersect the disc with each disjoint fill triangle so paint and hit
     // testing use the same tessellated curve, including concave shapes.

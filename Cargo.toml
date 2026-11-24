@@ -43,7 +43,6 @@ gpui-pre-wgpu = { opt-level = 3 }
 gpui-pre-windows = { opt-level = 3 }
 lyon_geom = { opt-level = 3 }
 lyon_path = { opt-level = 3 }
-polymorpher = { opt-level = 3 }
 resvg = { opt-level = 3 }
 ropey = { opt-level = 3 }
 rustybuzz = { opt-level = 3 }

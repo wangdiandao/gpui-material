@@ -4,6 +4,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Components
+
+- Fix `Snackbar` overlay hit-testing and click-through by occluding active snackbar surfaces (`.occlude()`) and stopping click event propagation on snackbar action and dismiss buttons (`cx.stop_propagation()`).
+
 ## 0.4.0 - 2026-11-25
 
 Changes since [v0.3.3](https://github.com/wangdiandao/gpui-material/releases/tag/v0.3.3).

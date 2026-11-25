@@ -93,6 +93,7 @@ pub(super) fn snackbar_surface(
                 .track_focus(&entry.controls[index])
                 .accessibility_label(label)
                 .on_click(cx.listener(move |host, _: &ClickEvent, window, cx| {
+                    cx.stop_propagation();
                     host.finish(id, result, window, cx);
                 }))
                 .child(content)
@@ -178,6 +179,7 @@ pub(super) fn snackbar_surface(
         .opacity(motion.alpha)
         .when(active, |surface| {
             surface
+                .occlude()
                 .on_hover(cx.listener(move |host, hovering: &bool, window, cx| {
                     if host.active.as_ref().is_some_and(|entry| entry.id == id) {
                         host.set_hovered(*hovering, window, cx);

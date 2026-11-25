@@ -143,5 +143,29 @@ class CheckCiTests(unittest.TestCase):
             self.assertEqual(ctx.exception.code, 1)
 
 
+class ResolveDepVersionTests(unittest.TestCase):
+    def test_resolves_direct_and_workspace_inherited_versions(self) -> None:
+        ws_deps = {
+            "serde_json": "1.0.154",
+            "serde": {"version": "1.0.229", "features": ["derive"]},
+        }
+        self.assertEqual(
+            release.resolve_dep_version("1.0.154", ws_deps, "serde_json"),
+            "1.0.154",
+        )
+        self.assertEqual(
+            release.resolve_dep_version({"version": "1.0.154"}, ws_deps, "serde_json"),
+            "1.0.154",
+        )
+        self.assertEqual(
+            release.resolve_dep_version({"workspace": True}, ws_deps, "serde_json"),
+            "1.0.154",
+        )
+        self.assertEqual(
+            release.resolve_dep_version({"workspace": True}, ws_deps, "serde"),
+            "1.0.229",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

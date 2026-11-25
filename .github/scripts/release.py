@@ -297,6 +297,17 @@ def format_dep_table(spec: Any) -> str:
     raise AssertionError("unreachable")
 
 
+def resolve_dep_version(dep_spec: Any, ws_deps: dict[str, Any], name: str) -> str:
+    if isinstance(dep_spec, dict) and dep_spec.get("workspace"):
+        dep_spec = ws_deps[name]
+    if isinstance(dep_spec, dict):
+        return dep_spec["version"]
+    if isinstance(dep_spec, str):
+        return dep_spec
+    fail(f"unsupported dependency version spec for {name}: {dep_spec!r}")
+    raise AssertionError("unreachable")
+
+
 def cargo_target_dir(root: Path, toolchain: str | None) -> Path:
     cmd = ["cargo"]
     if toolchain:
@@ -347,9 +358,7 @@ def cmd_verify_packages(args: argparse.Namespace) -> None:
     gpui_base_spec = format_dep_table(ws_deps["gpui-base"])
     theme_manifest = load_toml(root / "crates/theme/Cargo.toml")
     serde_json_raw = theme_manifest["dev-dependencies"]["serde_json"]
-    serde_json_ver = (
-        serde_json_raw["version"] if isinstance(serde_json_raw, dict) else serde_json_raw
-    )
+    serde_json_ver = resolve_dep_version(serde_json_raw, ws_deps, "serde_json")
 
     with tempfile.TemporaryDirectory(prefix="gpui-material-verify-") as tmp_str:
         tmp = Path(tmp_str)

@@ -1,12 +1,11 @@
 use gpui::{
-    App, AppContext, Context, Entity, Hsla, InputEvent, InteractiveElement, IntoElement,
-    KeyDownEvent, KeyUpEvent, Keystroke, MouseButton, MouseDownEvent, MouseUpEvent, ParentElement,
-    Render, Role, StrokeOptions, Styled, TestAppContext, Window, div, px, rgb, size,
+    AppContext, Context, Entity, Hsla, InteractiveElement, IntoElement, ParentElement, Render,
+    Role, StrokeOptions, Styled, TestAppContext, Window, div, px, rgb, size,
 };
-use gpui_base::{TestSupportExt, test_support::find};
 use gpui_material::{
     Checkbox, CheckboxState, InteractionSource, InteractionUpdate, MaterialRoot,
     foundation::{color, window_material_theme},
+    test::{TestSupportExt as _, TestWindowExt as _},
     theme::ColorRole,
 };
 
@@ -74,49 +73,6 @@ impl Render for Checkboxes {
     }
 }
 
-fn draw(window: &mut Window, cx: &mut App) {
-    window.refresh();
-    window.draw(cx).clear(cx);
-}
-
-fn key(window: &mut Window, cx: &mut App) {
-    let keystroke = Keystroke::parse_with_os("space", cx.platform_info().os).unwrap();
-    window.dispatch_event(
-        KeyDownEvent {
-            keystroke: keystroke.clone(),
-            is_held: false,
-            prefer_character_input: false,
-        }
-        .to_platform_input(),
-        cx,
-    );
-    window.dispatch_event(KeyUpEvent { keystroke }.to_platform_input(), cx);
-}
-
-fn click(id: &'static str, window: &mut Window, cx: &mut App) {
-    let position = find(window, &[], &id.into()).unwrap().bounds().center();
-    window.dispatch_event(
-        MouseDownEvent {
-            button: MouseButton::Left,
-            position,
-            click_count: 1,
-            ..Default::default()
-        }
-        .to_platform_input(),
-        cx,
-    );
-    window.dispatch_event(
-        MouseUpEvent {
-            button: MouseButton::Left,
-            position,
-            click_count: 1,
-            ..Default::default()
-        }
-        .to_platform_input(),
-        cx,
-    );
-}
-
 #[gpui::test]
 fn checkbox_facade_paints_states_and_observes_controlled_input(cx: &mut TestAppContext) {
     let (window, view) = cx.update(|cx| {
@@ -143,7 +99,7 @@ fn checkbox_facade_paints_states_and_observes_controlled_input(cx: &mut TestAppC
         .unwrap();
     cx.run_until_parked();
     cx.update_window(window, |_, window, cx| {
-        draw(window, cx);
+        window.render_frame(cx);
         for (id, label, checked, mixed, disabled) in [
             ("mixed", "Selected items", false, true, false),
             ("unchecked", "Off", false, false, false),
@@ -151,7 +107,7 @@ fn checkbox_facade_paints_states_and_observes_controlled_input(cx: &mut TestAppC
             ("invalid", "Invalid", false, true, false),
             ("disabled", "Unavailable", true, false, true),
         ] {
-            let node = find(window, &[], &id.into()).unwrap();
+            let node = window.find(id);
             assert_eq!(node.role(), Some(Role::CheckBox));
             assert_eq!(node.label(), Some(label));
             assert_eq!(node.checked(), Some(checked));
@@ -186,20 +142,14 @@ fn checkbox_facade_paints_states_and_observes_controlled_input(cx: &mut TestAppC
         assert_eq!(default.border_widths.top, px(2.).scale(1.));
 
         window.focus_next(cx);
-        draw(window, cx);
-        assert_eq!(
-            find(window, &[], &"mixed".into()).unwrap().focused(),
-            Some(true)
-        );
-        key(window, cx);
-        click("mixed", window, cx);
-        click("disabled", window, cx);
+        window.render_frame(cx);
+        assert_eq!(window.find("mixed").focused(), Some(true));
+        window.press("space", cx);
+        window.click("mixed", cx);
+        window.click("disabled", cx);
         assert_eq!(view.read(cx).requests, [CheckboxState::Checked; 2]);
-        draw(window, cx);
-        assert_eq!(
-            find(window, &[], &"mixed".into()).unwrap().indeterminate(),
-            Some(true)
-        );
+        window.render_frame(cx);
+        assert_eq!(window.find("mixed").indeterminate(), Some(true));
     })
     .unwrap();
     cx.run_until_parked();
@@ -236,15 +186,15 @@ fn checkbox_facade_paints_states_and_observes_controlled_input(cx: &mut TestAppC
         );
 
         cx.set_reduce_motion(false);
-        draw(window, cx);
+        window.render_frame(cx);
         assert_eq!(checked_boxes(window), 1);
         view.update(cx, |view, cx| {
             view.state = CheckboxState::Checked;
             view.attach = false;
             cx.notify();
         });
-        draw(window, cx);
-        let node = find(window, &[], &"mixed".into()).unwrap();
+        window.render_frame(cx);
+        let node = window.find("mixed");
         assert_eq!(node.checked(), Some(true));
         assert_eq!(node.indeterminate(), Some(false));
         assert_eq!(
@@ -258,7 +208,7 @@ fn checkbox_facade_paints_states_and_observes_controlled_input(cx: &mut TestAppC
     cx.executor()
         .advance_clock(std::time::Duration::from_secs(1));
     cx.update_window(window, |_, window, cx| {
-        draw(window, cx);
+        window.render_frame(cx);
         assert_eq!(checked_boxes(window), 2);
         let model = view.read(cx);
         assert!(
@@ -340,23 +290,32 @@ fn checkbox_show_label_and_label_content_keep_accessibility_and_interactivity(
 
     cx.update_window(window, |_, window, cx| {
         window.activate_window();
-        draw(window, cx);
+        window.render_frame(cx);
 
-        let labeled = find(window, &[], &"labeled".into()).unwrap();
-        let compact = find(window, &[], &"compact".into()).unwrap();
-        let rich = find(window, &[], &"rich".into()).unwrap();
+        let labeled = window.find("labeled");
+        let compact = window.find("compact");
+        let rich = window.find("rich");
 
         assert_eq!(compact.label(), Some("Accept terms"));
-        assert!(find(window, compact.path(), &"selection-label".into()).is_none());
+        assert!(
+            window
+                .within("compact")
+                .try_find("selection-label")
+                .is_none()
+        );
         assert_eq!(compact.bounds().size.width, px(52.));
         assert!(compact.bounds().size.width < labeled.bounds().size.width);
 
         assert_eq!(rich.label(), Some("Accessible checkbox"));
-        assert!(find(window, rich.path(), &"rich-checkbox-content".into()).is_some());
+        assert!(
+            window
+                .within("rich")
+                .try_find("rich-checkbox-content")
+                .is_some()
+        );
 
-        click("compact", window, cx);
-        click("rich", window, cx);
-        draw(window, cx);
+        window.click("compact", cx);
+        window.click("rich", cx);
 
         assert_eq!(view.read(cx).compact_requests, vec![CheckboxState::Checked]);
         assert_eq!(view.read(cx).rich_requests, vec![CheckboxState::Checked]);

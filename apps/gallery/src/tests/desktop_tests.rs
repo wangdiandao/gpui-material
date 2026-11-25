@@ -1,41 +1,16 @@
-use gpui::{
-    AppContext, ElementId, InputEvent as _, Role, TestAppContext, WindowHandle, WindowOptions, px,
-    size,
-};
+use gpui::{AppContext, ElementId, Role, TestAppContext, WindowHandle, WindowOptions, px, size};
 use gpui_base::{Root, Theme, ThemeAppearance, test_support::find};
 use gpui_material::foundation::{
     MaterialRoot, color, material_theme, set_material_theme, shape_text, window_material_theme,
 };
+use gpui_material::test::TestWindowExt as _;
 use gpui_material::theme::{Appearance, ColorRole, MaterialTheme, TypeRole, TypographyEmphasis};
 
 use crate::{Gallery, Story, init_gallery, open_gallery};
 
 fn click(cx: &mut TestAppContext, handle: WindowHandle<Root>, id: ElementId) {
     cx.update_window(handle.into(), |_, window, cx| {
-        window.refresh();
-        window.draw(cx).clear(cx);
-        let target = find(window, &[], &id).unwrap();
-        assert!(target.visible(), "target {id:?} not visible");
-        let position = target.bounds().center();
-        for input in [
-            gpui::MouseDownEvent {
-                button: gpui::MouseButton::Left,
-                position,
-                click_count: 1,
-                first_mouse: false,
-                modifiers: Default::default(),
-            }
-            .to_platform_input(),
-            gpui::MouseUpEvent {
-                button: gpui::MouseButton::Left,
-                position,
-                click_count: 1,
-                modifiers: Default::default(),
-            }
-            .to_platform_input(),
-        ] {
-            window.dispatch_event(input, cx);
-        }
+        window.click(id, cx);
     })
     .unwrap();
     cx.run_until_parked();

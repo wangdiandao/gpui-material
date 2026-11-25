@@ -32,8 +32,23 @@ English | [中文](development.zh.md)
 
 ## Testing conventions
 
-- Add or extend automated tests when introducing public behavior, fixing a reproducible regression, or covering an untested invariant. Keep tests repeatable and place them at the lowest effective layer (unit tests in `crates/`, headless `#[gpui::test]` suites in `apps/gallery/src/`).
-- Cover applicable interaction and accessibility paths: keyboard and pointer input, focus, disabled/error states, cancellation, RTL, and reduced motion.
+Choose the lowest effective test layer for the behavior being verified:
+
+| Layer | Mechanism & location | Scope |
+| --- | --- | --- |
+| Pure logic unit tests | Regular `#[test]` in `crates/` | Token tables, theme math, layout geometry, parsers, and state transitions that do not need a GPUI `App` or `Window`. |
+| Facade UI integration tests | Single-binary `#[gpui::test]` in `crates/material/tests/integration/` | Public facade contracts, `gpui_material::test` harness semantics, controlled callbacks, `ThemeScope` isolation, and downstream end-to-end flows using only `gpui_material` exports. |
+| Gallery headless UI tests | `#[gpui::test]` in `apps/gallery/src/` | Component presentation, Material quad/clip geometry, animations/reduced motion, Story & Gallery shell workflows. |
+| Offscreen pixel rendering tests | Opt-in `apps/gallery/tests/rendering.rs` (`--test rendering`, `test = false`, `harness = false`) | Real offscreen Metal (macOS) and WGPU/lavapipe (Linux) rasterization checks for embedded Material Symbols SVGs, GPUI `Path` shapes/checkmarks/progress arcs, text visibility, focus-ring contrast, and RTL mirroring that `painted_quads()` cannot prove. Windows reports an explicit skip because the pinned `gpui-pre` platform crate has no Windows headless renderer. |
+| Native desktop & accessibility verification | Manual run of `cargo gallery` | Platform boundaries outside headless GPUI: OS IME candidate windows (such as Microsoft Pinyin), system clipboard services, screen-reader announcements (Windows UIA/Narrator, macOS VoiceOver), and native window chrome. |
+
+Follow these test authoring rules:
+
+- **Prefer concise, high-signal tests**: combine builder and variant checks into focused scenario tests instead of fragmenting trivial per-setter tests; use plain `#[test]` whenever GPUI context is unnecessary.
+- **Aggregate integration targets**: keep integration tests as submodules of a single `tests/integration/main.rs` binary per crate to avoid linking redundant copies of GPUI and all components. Keep standalone targets only when required (such as `catalog_snippets` or `harness = false` offscreen `rendering`).
+- **Use `gpui_material::test` instead of hand-rolling events**: enable `test-support` and drive interactions with `TestWindowExt` (`find`, `try_find`, `find_all`, `within`, `render_frame`, `click`, `click_at`, `click_with_options`, `right_click`, `double_click`, `hover`, `scroll`, `drag`, `drag_to`, `press`, `input`), `TestQueryExt` (`elements`, `find_by_label`, `find_all_by_role`), `TestEventExt` (stepwise pointer/key/modifier gestures), `TestInput` (explicit UTF-16 composition bridge), and `TestAppContextExt::wait_for` (bounded async test-clock polling outside `update_window`).
+- **Observe native semantics honestly**: place `.test_support()` before `.track_focus(&handle)` so `focused()` observes the real handle and catches missed bindings. Never add test-only state props or treat `disabled() == None` as proof that a control is enabled—attempt the interaction and assert the application outcome. Re-query immutable `ElementSnapshot` values after interactions.
+- **Cover core interaction paths**: keyboard and pointer input, focus traversal and restoration, disabled/error states, pointer/Esc cancellation, RTL, and reduced motion (`cx.set_reduce_motion(true)`).
 - Remove obsolete tests and helpers when behavior changes or coverage is superseded.
 
 <a id="上游贡献"></a>
@@ -85,7 +100,17 @@ $env:RUSTDOCFLAGS = '-D warnings'; cargo doc --locked --workspace --no-deps --al
 cargo test --locked --workspace --all-features
 ```
 
-Run Gallery UI tests alone with `cargo test --locked -p gpui-material-gallery --features test-support`. For token changes, follow the [generation steps](theme/theme.md#token-data).
+Useful targeted test commands:
+
+```powershell
+cargo test --locked -p gpui-material --features test-support --test integration
+cargo test --locked -p gpui-material-gallery --features test-support
+cargo test --locked -p gpui-material-gallery --features desktop,test-support --test rendering
+cargo check --locked -p gpui-material --no-default-features
+cargo check --locked -p gpui-material --no-default-features --features display
+```
+
+`--test rendering` runs real offscreen Metal/WGPU pixel assertions on macOS and Linux (requiring a Metal device or Vulkan/lavapipe adapter) and prints an explicit skip on Windows. For token changes, follow the [generation steps](theme/theme.md#token-data).
 
 <a id="性能与构建工具"></a>
 
@@ -147,9 +172,9 @@ In repository settings, set **Settings → Pages → Build and deployment → So
 | Job | Checks |
 | --- | --- |
 | `Change scope` | Classifies changed files (`docs`, `website`, `checks`, `release_scripts`, `native`) and checks diff whitespace. |
-| `Repository checks` | Runs conditional repository-level checks in one job: `cargo xtask docs --check`, Rust formatting, generated tokens, three-platform dependency graphs, default workspace and default-feature Gallery checks (`cargo check --locked -p gpui-material-gallery`), and `release.py` syntax/unit tests. |
+| `Repository checks` | Runs conditional repository-level checks in one job: `cargo xtask docs --check`, Rust formatting, generated tokens, three-platform dependency graphs, default workspace, default-feature Gallery, and slim-feature compile checks (`gpui-material` / `gpui-material-components` with `--no-default-features` and minimal slices), plus `release.py` syntax/unit tests. |
 | `Website / Build documentation` | Builds and link-checks the website with the WASM Gallery when website sources, `docs/`, or WASM build inputs change. |
-| `Windows MSVC`, `macOS ARM64`, `Linux x64` | Runs Clippy, workspace tests, headless Gallery UI tests, native Gallery builds (`--all-features`), and Rustdoc checks (on Linux x64). |
+| `Windows MSVC`, `macOS ARM64`, `Linux x64` | Runs Clippy, workspace library/integration tests (`--lib --tests`), headless Gallery UI tests, native Gallery builds (`--all-features`), offscreen pixel rendering tests (`--test rendering` on macOS Metal and Linux WGPU/lavapipe), and Rustdoc + doctest checks (on Linux x64, with `mold` linking). |
 | `CI required` | Confirms the selected jobs passed and unselected jobs were skipped. |
 
 Rust build caches are isolated by platform, saved on `main`, and restored by PRs. Changes to `main` require a PR that is up to date with its base and passes `CI required` under the [review and merge rules](../CONTRIBUTING.md#pr-review-and-merge). For releases, see [versioning and releases](release.md#prepare-and-publish).

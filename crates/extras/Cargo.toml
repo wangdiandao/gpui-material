@@ -10,7 +10,12 @@ publish = ["crates-io"]
 
 [features]
 default = []
-test-support = ["gpui?/test-support"]
+test-support = [
+    "gpui?/test-support",
+    "gpui-base?/test-support",
+    "gpui-material-foundation?/test-support",
+    "gpui-material-components?/test-support",
+]
 carousel = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
 expressive-groups = [
     "dep:gpui",

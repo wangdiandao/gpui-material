@@ -46,3 +46,6 @@ pub use interaction::{InteractionSource, InteractionTracker, InteractionUpdate};
 pub use overlay::{Scrim, isolated_scroll, logical_anchor};
 pub use range::{RangeThumb, range_semantics, value_label};
 pub use web_time::Instant;
+
+#[cfg(feature = "test-support")]
+pub mod test;

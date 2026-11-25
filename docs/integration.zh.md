@@ -107,4 +107,54 @@ Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID �
 | macOS 15 ARM64 | 纳入 CI 构建与自动化测试，原生桌面适配持续推进。 |
 | Ubuntu 24.04 x64 | 纳入 CI 构建与自动化测试，原生桌面适配持续推进。 |
 
+<a id="ui-testing"></a>
+
+## UI 测试
+
+仅在 `[dev-dependencies]` 中启用 `test-support`，让生产构建不引入任何观测开销：
+
+```toml
+[dev-dependencies]
+gpui = { package = "gpui-pre", version = "=0.3.14", features = ["test-support"] }
+gpui-material = { version = "0.4.0", features = ["test-support"] }
+```
+
+启用 `test-support` 后，`gpui_material::test` 会导出完全基于 GPUI 与 `gpui-base` 公开 API 构建的无头 UI 测试工具（`TestWindowExt`、`ScopedWindow`、`ClickOptions`、`TestQueryExt`、`TestEventExt`、`TestInput`、`TestAppContextExt::wait_for`、`ElementSnapshot` 与 `TestSupportExt`）。自定义元素通过 `div().id("status").test_support()` 注册观测（可聚焦元素须置于 `.track_focus(&handle)` 之前），测试窗口使用 `MaterialRoot::open_window` 打开，并同时断言原生无障碍快照与应用业务状态：
+
+```rust
+use gpui::{AppContext, TestAppContext, WindowOptions};
+use gpui_material::{
+    MaterialRoot, MaterialTheme,
+    test::{TestSupportExt as _, TestWindowExt as _},
+};
+
+#[gpui::test]
+fn saves_form_through_the_ui(cx: &mut TestAppContext) {
+    let (handle, view) = cx.update(|cx| {
+        gpui_material::init(MaterialTheme::default(), cx);
+        cx.set_reduce_motion(true);
+        let mut entity = None;
+        let handle = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let v = cx.new(|cx| MyForm::new(window, cx));
+            entity = Some(v.clone());
+            v
+        })
+        .unwrap();
+        (handle, entity.unwrap())
+    });
+
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.render_frame(cx);
+        window.click("name", cx);
+        window.input("Ada", cx);
+        window.press("backspace", cx);
+        window.click("save", cx);
+        assert_eq!(window.find("status").label(), Some("Saved: Ad"));
+    })
+    .unwrap();
+}
+```
+
+对于延迟或异步 UI 状态，请在 `update_window` 外部调用 `cx.wait_for(handle.into(), timeout, |window, cx| ...).await`。可执行端到端示例见 [crates/material/tests/integration/ui.rs](../crates/material/tests/integration/ui.rs)，完整分层与约定见[测试规范](development.zh.md#testing-conventions)。
+
 [实战手册](cookbook.zh.md) · [设计依据](design-sources.zh.md) · [版本与发布](release.zh.md)

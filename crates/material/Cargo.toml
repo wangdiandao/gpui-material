@@ -28,6 +28,12 @@ search = ["display", "dep:gpui-material-extras", "gpui-material-extras/search"]
 toolbars = ["display", "dep:gpui-material-extras", "gpui-material-extras/toolbars"]
 date-time = ["display", "dep:gpui-material-extras", "gpui-material-extras/date-time"]
 window-chrome = ["dep:gpui-material-extras", "gpui-material-extras/window-chrome"]
+test-support = [
+    "gpui/test-support",
+    "gpui-material-foundation/test-support",
+    "gpui-material-components?/test-support",
+    "gpui-material-extras?/test-support",
+]
 
 [dependencies]
 gpui.workspace = true
@@ -39,3 +45,7 @@ gpui-material-theme.workspace = true
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[[test]]
+name = "integration"
+required-features = ["test-support"]

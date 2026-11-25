@@ -12,8 +12,8 @@
   en: "ea55b2615528a58b"
   zh: "68d5d33e58600d26"
 /development/testing-conventions:
-  en: "e5209eaa3d3822a5"
-  zh: "aa15dfc6be766dec"
+  en: "7a4a0d92b87c8a72"
+  zh: "5088e919187ef76e"
 /development/upstream-contributions:
   en: "8a54d3f49e98496d"
   zh: "9bb3f8cf4469fb25"
@@ -21,8 +21,8 @@
   en: "e8971e75c06b4003"
   zh: "6d13d8015854676e"
 /development/local-checks:
-  en: "7324f3aab1c4c67c"
-  zh: "e8db50bceef28acd"
+  en: "7cbde0db421df3a7"
+  zh: "31fa30a686e19821"
 /development/performance-and-build-tools:
   en: "332dd6c5a9a884ef"
   zh: "0b1333bc6f6c7f32"
@@ -30,5 +30,5 @@
   en: "c1efaa36aa185cd0"
   zh: "c3fe5fa02f0152e9"
 /development/ci-and-merging:
-  en: "45f64d2491bc8d63"
-  zh: "c15cb716f801921f"
+  en: "0bcd444c8ccaebc7"
+  zh: "f779b9ac3667cc7c"

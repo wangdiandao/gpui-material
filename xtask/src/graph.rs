@@ -104,6 +104,9 @@ pub(crate) fn check() -> Result {
         verify_facade_features_no_leak().map_err(|e| e.to_string())
     }));
     tasks.push(Box::new(|| {
+        verify_facade_test_support_graph().map_err(|e| e.to_string())
+    }));
+    tasks.push(Box::new(|| {
         verify_date_time_jiff_only().map_err(|e| e.to_string())
     }));
 
@@ -244,6 +247,59 @@ fn verify_facade_features_no_leak() -> Result {
             )
             .into());
         }
+    }
+    Ok(())
+}
+
+fn verify_facade_test_support_graph() -> Result {
+    let tree = output(
+        "cargo",
+        &[
+            "tree",
+            "--locked",
+            "-p",
+            "gpui-material",
+            "--no-default-features",
+            "--features",
+            "test-support",
+            "--edges",
+            "normal",
+            "--prefix",
+            "none",
+            "--format",
+            "{p}|{f}",
+        ],
+    )?;
+    let mut found_base_test_support = false;
+    let mut found_gpui_test_support = false;
+    for line in tree.lines() {
+        let trimmed = line.trim_end().trim_end_matches(" (*)").trim_end();
+        let (pkg_part, feat_part) = trimmed.split_once('|').unwrap_or((trimmed, ""));
+        let name = pkg_part.split_whitespace().next().unwrap_or_default();
+        if matches!(
+            name,
+            "gpui-material-components" | "gpui-material-extras" | "gpui-pre-platform"
+        ) {
+            return Err(format!(
+                "gpui-material (--no-default-features --features test-support): unexpected dependency `{name}`"
+            )
+            .into());
+        }
+        let has_test_support = feat_part
+            .split(',')
+            .any(|feature| feature.trim() == "test-support");
+        if name == "gpui-base" && has_test_support {
+            found_base_test_support = true;
+        }
+        if name == "gpui-pre" && has_test_support {
+            found_gpui_test_support = true;
+        }
+    }
+    if !found_base_test_support || !found_gpui_test_support {
+        return Err(
+            "gpui-material (test-support): expected gpui-base/test-support and gpui-pre/test-support"
+                .into(),
+        );
     }
     Ok(())
 }

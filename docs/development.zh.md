@@ -32,8 +32,23 @@
 
 ## 测试规范
 
-- 新增公开行为、修复可复现缺陷或补齐未覆盖的不变量时，新增或扩展自动化测试。测试应可重复运行，并放在最低有效层（`crates/` 下的单元测试、`apps/gallery/src/` 下的无头 `#[gpui::test]`）。
-- 按适用场景覆盖键盘与指针输入、焦点、禁用/错误状态、取消路径、RTL 和减少动态效果。
+按需验证的行为选择最低有效测试层级：
+
+| 层级 | 机制与位置 | 覆盖范围 |
+| --- | --- | --- |
+| 纯逻辑单元测试 | `crates/` 下的普通 `#[test]` | 不依赖 GPUI `App` / `Window` 的 Token 数据、主题计算、布局几何、解析器与纯状态流转。 |
+| 门面 UI 集成测试 | `crates/material/tests/integration/` 下的单二进制 `#[gpui::test]` | 仅通过 `gpui_material` 公开导出验证门面契约、`gpui_material::test` 驱动语义、受控回调、`ThemeScope` 隔离及下游端到端流程。 |
+| Gallery 无头 UI 测试 | `apps/gallery/src/` 下的 `#[gpui::test]` | 组件呈现、Material quad/裁剪几何、动效与减少动态效果、Story 与 Gallery 外壳交互。 |
+| 离屏像素渲染测试 | 显式目标 `apps/gallery/tests/rendering.rs`（`--test rendering`，`test = false`、`harness = false`） | 在 macOS（Metal）与 Linux（WGPU / Mesa lavapipe）上用真实离屏渲染验证 `painted_quads()` 无法证明的视觉不变量：内嵌 Material Symbols SVG、GPUI `Path` 形状/勾号/进度弧线、文字可见性、焦点环对比度与 RTL 镜像。因固定版本 `gpui-pre` 平台 crate 尚无 Windows 离屏渲染器，Windows 会显式报告跳过。 |
+| 原生桌面与无障碍验证 | 手工运行 `cargo gallery` | 无头 GPUI 覆盖不到的平台边界：系统 IME 候选窗（如微软拼音）、系统剪贴板服务、屏幕阅读器播报（Windows UIA/讲述人、macOS 旁白）及原生窗口边框行为。 |
+
+编写测试遵循以下约定：
+
+- **精简高信噪比**：把构建器与变体断言合并到聚焦的场景测试中，避免为单个 setter 拆分零碎测试；不需要 GPUI 上下文时优先使用普通 `#[test]`。
+- **单二进制聚合集成测试**：每个 crate 的集成测试收拢到 `tests/integration/main.rs` 子模块中，避免重复链接 GPUI 与全量组件；仅对必要场景保留独立目标（如 `catalog_snippets` 或需 `harness = false` 主线程执行的 `rendering`）。
+- **统一使用 `gpui_material::test` 驱动交互**：启用 `test-support`，使用 `TestWindowExt`（`find`、`try_find`、`find_all`、`within`、`render_frame`、`click`、`click_at`、`click_with_options`、`right_click`、`double_click`、`hover`、`scroll`、`drag`、`drag_to`、`press`、`input`）、`TestQueryExt`（`elements`、`find_by_label`、`find_all_by_role`）、`TestEventExt`（分步指针/按键/修饰键手势）、`TestInput`（显式 UTF-16 组合输入桥接）与 `TestAppContextExt::wait_for`（在 `update_window` 外部按测试时钟有界轮询），避免各测试文件重复手写底层事件派发。
+- **诚实观测原生语义**：在 `.track_focus(&handle)` 之前调用 `.test_support()`，确保 `focused()` 观测到真实焦点句柄并能诊断漏绑。不添加测试专用覆盖属性，也不把 `disabled() == None` 当作控件可交互的证明——应执行真实交互并断言业务结果。`ElementSnapshot` 不可变，交互完成后需重新查询。
+- **覆盖关键交互路径**：按适用场景覆盖键盘与指针输入、焦点遍历与恢复、禁用/错误状态、指针/Esc 取消路径、RTL 和减少动态效果（`cx.set_reduce_motion(true)`）。
 - 行为变更或覆盖被替代时，及时清理过时的测试与辅助代码。
 
 <a id="upstream-contributions"></a>
@@ -85,7 +100,17 @@ $env:RUSTDOCFLAGS = '-D warnings'; cargo doc --locked --workspace --no-deps --al
 cargo test --locked --workspace --all-features
 ```
 
-单独运行 Gallery UI 测试可用 `cargo test --locked -p gpui-material-gallery --features test-support`。修改 Token 数据时按[生成步骤](theme/theme.zh.md#token-data)操作。
+常用定向测试与裁剪检查命令：
+
+```powershell
+cargo test --locked -p gpui-material --features test-support --test integration
+cargo test --locked -p gpui-material-gallery --features test-support
+cargo test --locked -p gpui-material-gallery --features desktop,test-support --test rendering
+cargo check --locked -p gpui-material --no-default-features
+cargo check --locked -p gpui-material --no-default-features --features display
+```
+
+`--test rendering` 在 macOS 和 Linux 上通过真实 Metal / WGPU（含软件 Vulkan lavapipe）执行离屏像素断言，在 Windows 上显式报告跳过。修改 Token 数据时按[生成步骤](theme/theme.zh.md#token-data)操作。
 
 <a id="performance-and-build-tools"></a>
 
@@ -147,9 +172,9 @@ npm --prefix website run build:wasm
 | 作业 | 检查内容 |
 | --- | --- |
 | `Change scope` | 判断变更范围（`docs`、`website`、`checks`、`release_scripts`、`native`）并检查差异空白。 |
-| `Repository checks` | 在单一作业内按需运行仓库级检查：`cargo xtask docs --check`、Rust 格式、Token 生成物、三平台依赖图、默认工作区与默认 feature Gallery 检查（`cargo check --locked -p gpui-material-gallery`）以及 `release.py` 语法与单元测试。 |
+| `Repository checks` | 在单一作业内按需运行仓库级检查：`cargo xtask docs --check`、Rust 格式、Token 生成物、三平台依赖图、默认工作区与默认 feature Gallery 检查、瘦身特性集编译检查（`gpui-material` / `gpui-material-components` 的 `--no-default-features` 及最小特性切片），以及 `release.py` 语法与单元测试。 |
 | `Website / Build documentation` | 网站源码、`docs/` 或 WASM 构建输入变更时构建带 WASM Gallery 的网站并检查链接。 |
-| `Windows MSVC`、`macOS ARM64`、`Linux x64` | 运行 Clippy、工作区测试、Gallery 无头 UI 测试、原生 Gallery 构建（`--all-features`）与 Rustdoc 检查（Linux x64）。 |
+| `Windows MSVC`、`macOS ARM64`、`Linux x64` | 运行 Clippy、工作区库与集成测试（`--lib --tests`）、Gallery 无头 UI 测试、原生 Gallery 构建（`--all-features`）、离屏像素渲染测试（macOS Metal 与 Linux WGPU/lavapipe 上的 `--test rendering`）以及 Rustdoc 与文档测试检查（Linux x64，使用 `mold` 链接）。 |
 | `CI required` | 核验选中的作业全部通过、未选中的作业均已跳过。 |
 
 Rust 构建缓存按平台隔离，由 `main` 保存并供 PR 复用。更新 `main` 须通过基于最新主线且 `CI required` 通过的 PR，详见[评审与合并规则](../CONTRIBUTING.zh.md#pr-评审与合并)。发版流程见[版本与发布](release.zh.md#prepare-and-publish)。

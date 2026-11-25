@@ -18,6 +18,7 @@ settings-tiles = ["surfaces", "selection", "feedback"]
 feedback = ["actions"]
 navigation = ["actions", "feedback"]
 full = ["actions", "selection", "inputs", "surfaces", "settings-tiles", "feedback", "navigation"]
+test-support = ["gpui/test-support", "gpui-base/test-support", "gpui-material-foundation/test-support"]
 
 [dependencies]
 gpui.workspace = true

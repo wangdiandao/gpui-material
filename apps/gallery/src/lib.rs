@@ -15,28 +15,7 @@ mod stories;
 mod tests;
 
 #[cfg(all(test, feature = "test-support"))]
-pub(crate) fn painted_quads(window: &gpui::Window) -> Vec<gpui::Quad> {
-    let mut merged: Vec<gpui::Quad> = Vec::new();
-    for quad in window.painted_quads() {
-        if let Some(last) = merged.last_mut()
-            && last.bounds == quad.bounds
-            && last.background == quad.background
-            && last.border_color == quad.border_color
-            && last.border_style == quad.border_style
-        {
-            if last.corner_radii == gpui::Corners::default() {
-                last.corner_radii = quad.corner_radii;
-            }
-            if last.border_widths == gpui::Edges::default() {
-                last.border_widths = quad.border_widths;
-            }
-            last.content_mask.bounds = last.content_mask.bounds.union(&quad.content_mask.bounds);
-            continue;
-        }
-        merged.push(quad);
-    }
-    merged
-}
+pub(crate) use gpui_material::test::painted_quads;
 
 use gpui::App;
 #[cfg(not(target_arch = "wasm32"))]

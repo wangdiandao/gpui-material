@@ -84,11 +84,17 @@ jobs:
           cargo xtask tokens --check
           cargo xtask graph
 
-      - name: Check default workspace and default-feature Gallery
+      - name: Check default workspace, default-feature Gallery, and slim feature slices
         if: needs.scope.outputs.checks == 'true'
         run: |
           cargo check --locked
           cargo check --locked -p gpui-material-gallery
+          cargo check --locked -p gpui-material --no-default-features
+          cargo check --locked -p gpui-material --no-default-features --features display
+          cargo check --locked -p gpui-material --no-default-features --features actions,inputs
+          cargo check --locked -p gpui-material --no-default-features --features carousel
+          cargo check --locked -p gpui-material --no-default-features --features window-chrome
+          cargo check --locked -p gpui-material-components --no-default-features
 
       - name: Validate release scripts
         if: needs.scope.outputs.release_scripts == 'true'
@@ -142,8 +148,10 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang pkg-config libfontconfig-dev libwayland-dev \
-            libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev libvulkan1
+          sudo apt-get install -y clang mold pkg-config libfontconfig-dev libwayland-dev \
+            libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev \
+            libvulkan1 mesa-vulkan-drivers
+          echo "RUSTFLAGS=-C linker=clang -C link-arg=-fuse-ld=mold" >> "$GITHUB_ENV"
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
@@ -160,7 +168,15 @@ jobs:
         run: cargo doc --locked --workspace --no-deps --all-features
 
       - name: Run workspace and Gallery UI tests
-        run: cargo test --locked --workspace --all-features
+        run: cargo test --locked --workspace --all-features --lib --tests
+
+      - name: Run doc tests
+        if: matrix.name == 'Linux x64'
+        run: cargo test --locked --workspace --all-features --doc
+
+      - name: Run offscreen UI rendering tests
+        if: runner.os != 'Windows'
+        run: cargo test --locked -p gpui-material-gallery --all-features --test rendering
 
       - name: Build native Gallery
         run: cargo build --locked -p gpui-material-gallery --all-features

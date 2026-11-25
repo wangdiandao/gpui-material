@@ -39,6 +39,8 @@ pub use gpui_material_extras::{
     SearchView, SearchViewVariant, SearchWindowOptions,
 };
 pub use gpui_material_foundation as foundation;
+#[cfg(feature = "test-support")]
+pub use gpui_material_foundation::test;
 pub use gpui_material_foundation::{
     InteractionSource, InteractionState, InteractionUpdate, MaterialRoot, PolygonMorph, Scrim,
     Shape, ShapeFit, ShapeMorph, ShapeMorphSequence, ShapePolygon, Surface, SurfaceBorder,

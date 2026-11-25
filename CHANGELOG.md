@@ -4,6 +4,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Theme, foundation, and facade
+
+- Add opt-in `test-support` feature forwarding across `gpui-material-foundation`, `gpui-material-components`, `gpui-material-extras`, and `gpui-material`, and expose `gpui_material::test` (`TestWindowExt`, `ScopedWindow`, `ClickOptions`, `TestQueryExt`, `TestEventExt`, `TestInput`, `TestAppContextExt`, `ElementSnapshot`, `TestSupportExt`, and `painted_quads`) for headless UI integration testing built solely on public GPUI and `gpui-base` APIs.
+
 ### Components
 
 - Fix `Snackbar` overlay hit-testing and click-through by occluding active snackbar surfaces (`.occlude()`) and stopping click event propagation on snackbar action and dismiss buttons (`cx.stop_propagation()`).

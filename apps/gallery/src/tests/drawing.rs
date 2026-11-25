@@ -195,35 +195,8 @@ impl Render for Drawing {
 #[cfg(all(test, feature = "test-support"))]
 mod tests {
     use super::*;
-    use gpui::{
-        AppContext, InputEvent, MouseDownEvent, MouseUpEvent, Pixels, Point, TestAppContext, px,
-        size,
-    };
-    use gpui_base::test_support::find;
-
-    fn click(position: Point<Pixels>, window: &mut Window, cx: &mut gpui::App) {
-        window.dispatch_event(
-            MouseDownEvent {
-                button: MouseButton::Left,
-                position,
-                modifiers: Default::default(),
-                click_count: 1,
-                first_mouse: false,
-            }
-            .to_platform_input(),
-            cx,
-        );
-        window.dispatch_event(
-            MouseUpEvent {
-                button: MouseButton::Left,
-                position,
-                modifiers: Default::default(),
-                click_count: 1,
-            }
-            .to_platform_input(),
-            cx,
-        );
-    }
+    use gpui::{AppContext, TestAppContext, px, size};
+    use gpui_material::test::TestWindowExt as _;
 
     #[gpui::test]
     fn shape_activates_inside_the_mesh_and_motion_settles(cx: &mut TestAppContext) {
@@ -247,23 +220,17 @@ mod tests {
         });
         cx.run_until_parked();
 
-        let bounds = cx
-            .update_window(window.into(), |_, window, cx| {
-                window.activate_window();
-                window.set_scale_factor(1.25);
-                window.refresh();
-                window.draw(cx).clear(cx);
-                find(window, &[], &"morph-shape".into()).unwrap().bounds()
-            })
-            .unwrap();
         cx.update_window(window.into(), |_, window, cx| {
-            click(bounds.origin + gpui::point(px(1.), px(1.)), window, cx);
+            window.activate_window();
+            window.set_scale_factor(1.25);
+            window.render_frame(cx);
+            window.click_at("morph-shape", gpui::point(px(1.), px(1.)), cx);
         })
         .unwrap();
         cx.run_until_parked();
         assert!(!cx.update(|cx| drawing.read(cx).expanded));
         cx.update_window(window.into(), |_, window, cx| {
-            click(bounds.center(), window, cx)
+            window.click("morph-shape", cx);
         })
         .unwrap();
         cx.run_until_parked();
@@ -272,8 +239,7 @@ mod tests {
             .advance_clock(std::time::Duration::from_millis(50));
         let sample = |cx: &mut TestAppContext| {
             cx.update_window(window.into(), |_, window, cx| {
-                window.refresh();
-                window.draw(cx).clear(cx);
+                window.render_frame(cx);
                 drawing.read(cx).progress
             })
             .unwrap()
@@ -281,7 +247,7 @@ mod tests {
         let outbound = sample(cx);
         assert!((0. ..1.).contains(&outbound));
         cx.update_window(window.into(), |_, window, cx| {
-            click(bounds.center(), window, cx)
+            window.click("morph-shape", cx);
         })
         .unwrap();
         assert!(!cx.update(|cx| drawing.read(cx).expanded));

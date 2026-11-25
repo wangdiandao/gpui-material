@@ -105,4 +105,54 @@ Enable `window-chrome` to use a [cross-platform custom title bar](component.md#w
 | macOS 15 ARM64 | Built and tested in CI; native desktop integration in progress. |
 | Ubuntu 24.04 x64 | Built and tested in CI; native desktop integration in progress. |
 
+<a id="ui-测试"></a>
+
+## UI testing
+
+Enable `test-support` only under `[dev-dependencies]` so production builds carry zero observation overhead:
+
+```toml
+[dev-dependencies]
+gpui = { package = "gpui-pre", version = "=0.3.14", features = ["test-support"] }
+gpui-material = { version = "0.4.0", features = ["test-support"] }
+```
+
+With `test-support` enabled, `gpui_material::test` exposes headless UI testing helpers built solely on public GPUI and `gpui-base` APIs (`TestWindowExt`, `ScopedWindow`, `ClickOptions`, `TestQueryExt`, `TestEventExt`, `TestInput`, `TestAppContextExt::wait_for`, `ElementSnapshot`, and `TestSupportExt`). Register custom elements with `div().id("status").test_support()` (before `.track_focus(&handle)` when focusable), open test windows with `MaterialRoot::open_window`, and assert both native accessibility snapshots and application state:
+
+```rust
+use gpui::{AppContext, TestAppContext, WindowOptions};
+use gpui_material::{
+    MaterialRoot, MaterialTheme,
+    test::{TestSupportExt as _, TestWindowExt as _},
+};
+
+#[gpui::test]
+fn saves_form_through_the_ui(cx: &mut TestAppContext) {
+    let (handle, view) = cx.update(|cx| {
+        gpui_material::init(MaterialTheme::default(), cx);
+        cx.set_reduce_motion(true);
+        let mut entity = None;
+        let handle = MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+            let v = cx.new(|cx| MyForm::new(window, cx));
+            entity = Some(v.clone());
+            v
+        })
+        .unwrap();
+        (handle, entity.unwrap())
+    });
+
+    cx.update_window(handle.into(), |_, window, cx| {
+        window.render_frame(cx);
+        window.click("name", cx);
+        window.input("Ada", cx);
+        window.press("backspace", cx);
+        window.click("save", cx);
+        assert_eq!(window.find("status").label(), Some("Saved: Ad"));
+    })
+    .unwrap();
+}
+```
+
+Use `cx.wait_for(handle.into(), timeout, |window, cx| ...).await` outside `update_window` for deferred or asynchronous UI state. See the executable end-to-end example in [crates/material/tests/integration/ui.rs](../crates/material/tests/integration/ui.rs) and the [testing conventions](development.md#testing-conventions).
+
 [Cookbook](cookbook.md) · [Design sources](design-sources.md) · [Versioning and releases](release.md)

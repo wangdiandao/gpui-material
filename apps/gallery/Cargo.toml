@@ -19,7 +19,12 @@ test = false
 default = ["desktop"]
 desktop = ["dep:gpui_platform", "gpui-material/window-chrome"]
 frame-profile = ["desktop", "gpui/profiler"]
-test-support = ["gpui/test-support", "gpui-base/test-support", "gpui_platform?/test-support"]
+test-support = [
+    "gpui/test-support",
+    "gpui-base/test-support",
+    "gpui_platform?/test-support",
+    "gpui-material/test-support",
+]
 
 [dependencies]
 gpui.workspace = true
@@ -29,3 +34,10 @@ gpui-material = { path = "../../crates/material", features = ["carousel", "date-
 
 [target.'cfg(windows)'.build-dependencies]
 embed-resource = "3.0.12"
+
+[[test]]
+name = "rendering"
+# Requires Metal (macOS) or WGPU (Linux); select explicitly with --test rendering.
+test = false
+harness = false
+required-features = ["desktop", "test-support"]

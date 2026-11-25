@@ -138,6 +138,7 @@ mod rendering {
                     .children(self.show_icon.then(|| {
                         Icon::new(self.icon)
                             .filled(self.filled)
+                            .color(ColorRole::OnSurface)
                             .mirror_in_rtl(true)
                             .size(px(36.))
                     }));
@@ -195,7 +196,7 @@ mod rendering {
 
         cx.update(|cx| {
             view.update(cx, |s, cx| {
-                s.icon = IconName::ArrowBack;
+                s.icon = IconName::ArrowForward;
                 s.filled = false;
                 s.rtl = false;
                 cx.notify();

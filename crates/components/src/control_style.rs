@@ -128,6 +128,12 @@ pub(crate) fn finite_length(length: Pixels) -> Pixels {
 }
 
 pub(crate) fn mix_color(from: Hsla, to: Hsla, fraction: f32) -> Hsla {
+    if fraction <= 0. {
+        return from;
+    }
+    if fraction >= 1. {
+        return to;
+    }
     let from = Rgba::from(from);
     let to = Rgba::from(to);
     let mix = |a, b| a + (b - a) * fraction;

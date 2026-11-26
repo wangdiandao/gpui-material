@@ -422,7 +422,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 用 `.colors(NavigationBarColors)` 配置导航栏容器色和共用内容色。可在导航项上调用 `.colors(NavigationItemColors)` 分别覆盖选中与未选中时的图标和标签色、禁用时的图标和标签色，以及选中指示器色。选中标签可按 Top 和 Start 位置分别配色。导航项覆盖值优先于导航栏配色，省略的值沿用导航栏的共用配色或窗口主题。图标和标签的禁用色优先于选中色。
 
-使用 `.interaction_source(&source)` 让导航项接入由调用方持有的 `Entity<InteractionSource>`。通过 `ElementId::from((collection_id, destination_id))` 读取该项状态，集合 ID 为 `ElementId`，导航项 ID 为 `SharedString`。导航项移除后释放其状态。整栏只有一个 Tab 停靠点，方向键跳过禁用项，在从右到左的窗口中反转左右键行为。Home 和 End 分别移至首个和末个可用项。使用指针、键盘或辅助技术激活时，`NavigationItems::on_select` 报告目标项，由调用方通过 `.selected(id)` 提交选中状态。
+使用 `.interaction_source(&source)` 让导航项接入由调用方持有的 `Entity<InteractionSource>`。通过 `ElementId::from((collection_id, destination_id))` 读取该项状态，集合 ID 为 `ElementId`，导航项 ID 为 `SharedString`。导航项移除后释放其状态。各导航项在切换选中态时平滑过渡药丸指示器的宽度与不透明度并插值图标与标签颜色，同时在药丸轮廓内绘制平滑状态层与受限水波纹（遵循减少动态效果）。整栏只有一个 Tab 停靠点，方向键跳过禁用项，在从右到左的窗口中反转左右键行为。Home 和 End 分别移至首个和末个可用项。使用指针、键盘或辅助技术激活时，`NavigationItems::on_select` 报告目标项，由调用方通过 `.selected(id)` 提交选中状态。
 
 ### 侧边导航栏
 
@@ -430,7 +430,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 用初始 `RailMode` 创建并保留一个 `Entity<NavigationRailState>`，通过 `.state(&state)` 接入。可读取 `current_value()`、`target_value()`、`is_animating()` 和 `progress()`。用 `expand(cx)`、`collapse(cx)`、`toggle(cx)`、`hide(cx)` 或 `animate_to(mode, cx)` 设置目标。改变目标时从当前显示宽度接续。`snap_to(mode, cx)` 和减少动态效果模式立即到达目标。可在状态上用 `.transition_duration(...)` 配置默认的 240 毫秒过渡。
 
-用 `.header(element)`、`.headline(text)`、`.fab(element)` 或 `.destination_content(|mode| ...)` 传入自定义内容。自定义导航区域负责名称、选中状态和键盘行为。标准集合可用 `.divider_after(destination_id, element)`、`NavigationItem::label_content` 和 `NavigationItem::badge` 添加内容和具名徽标描述。方向键在启用的导航项间移动焦点。`.icon_position(...)` 覆盖 Top 或 Start 图标位置。`.indicator_padding(collapsed, expanded)` 用逻辑 `LogicalEdges` 调整指示器内边距，保留导航项的交互目标。
+用 `.header(element)`、`.headline(text)`、`.fab(element)`、`.footer(element)` 或 `.destination_content(|mode| ...)` 传入自定义内容。页脚固定在可滚动导航项列表底部，在收起、展开与模态形态下均可展示。自定义导航区域负责名称、选中状态和键盘行为。标准集合可用 `.divider_after(destination_id, element)`、`NavigationItem::label_content` 和 `NavigationItem::badge` 添加内容和具名徽标描述。方向键在启用的导航项间移动焦点。`.icon_position(...)` 覆盖 Top 或 Start 图标位置。`.indicator_padding(collapsed, expanded)` 用逻辑 `LogicalEdges` 调整指示器内边距，保留导航项的交互目标。标准导航项在切换选中态时平滑过渡药丸指示器宽度、不透明度及图标/标签颜色，并在药丸轮廓内绘制状态层与水波纹。
 
 `.arrangement(NavigationRailArrangement)` 分配标准导航项的剩余纵向空间。用 `.destination_spacing(...)`、`.content_padding(LogicalEdges)`、`.header_spacing(...)` 和 `.expanded_header_top_padding(...)` 配置逻辑内边距和间距。`.shapes(NavigationRailShapes)` 覆盖收起、展开和模态形状。`.colors(NavigationRailColors)` 配置普通和模态容器及内容色，以及遮罩颜色和不透明度。
 
@@ -442,7 +442,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ### 导航抽屉
 
-`NavigationDrawer::new(id, items)` 渲染独立的 Material 3 导航抽屉，默认宽 360 dp（可通过 `.width(pixels)` 配置）。使用 `.mode(NavigationDrawerMode::Standard)` 渲染停靠式 `SurfaceContainerLow` 面板，或使用 `.mode(NavigationDrawerMode::Modal)` 配合 `.modal_state(&dialog_state)` 通过模态 `Sheet`（`SheetEdge::Start`）展示，完整复用遮罩、焦点锁定、Escape/外部点击关闭、`.modal_properties`、`.on_dismiss_request`、`.on_closed` 和焦点恢复。可通过 `NavigationItems`、`.section(header, items)`、`.entries(...)`、`.divider_before(item_id)`、`.headline(text)`、`.header(element)` 和 `.footer(element)` 组织内容。导航项在纵向滚动列表中以随密度适配的 56 dp 胶囊指示器与尾部徽标呈现，支持单一漫游 Tab 停靠点（上下键、`Home`/`End`、`Enter`/`Space`）与 RTL 镜像。
+`NavigationDrawer::new(id, items)` 渲染独立的 Material 3 导航抽屉，默认宽 360 dp（可通过 `.width(pixels)` 配置）。使用 `.mode(NavigationDrawerMode::Standard)` 渲染停靠式 `SurfaceContainerLow` 面板，并可通过 `.open(bool)`（默认 `true`）平滑过渡展开/收起宽度，同时保持内部布局不挤压并在收起完成时移出焦点（遵循减少动态效果）；或使用 `.mode(NavigationDrawerMode::Modal)` 配合 `.modal_state(&dialog_state)` 通过模态 `Sheet`（`SheetEdge::Start`）展示，完整复用遮罩、焦点锁定、Escape/外部点击关闭、`.modal_properties`、`.on_dismiss_request`、`.on_closed` 和焦点恢复。可通过 `NavigationItems`、`.section(header, items)`、`.entries(...)`、`.divider_before(item_id)`、`.headline(text)`、`.header(element)` 和 `.footer(element)` 组织内容。导航项在纵向滚动列表中以随密度适配的 56 dp 胶囊指示器与尾部徽标呈现，支持选中指示器宽度/不透明度与图标标签颜色平滑过渡、胶囊裁剪状态层与按压水波纹、单一漫游 Tab 停靠点（上下键、`Home`/`End`、`Enter`/`Space`）与 RTL 镜像。
 
 ### 步骤条
 

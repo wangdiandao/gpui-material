@@ -1,11 +1,18 @@
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
-    App, Edges, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels, Role,
-    StatefulInteractiveElement, Styled, TextAlign, Window, canvas, div, prelude::FluentBuilder, px,
+    AnyElement, App, BorderStyle, Bounds, Corners, Edges, ElementId, Hsla, InteractiveElement,
+    IntoElement, ParentElement, Pixels, Role, StatefulInteractiveElement, Styled, TextAlign,
+    Window, canvas, div, point, prelude::FluentBuilder, px, quad, size,
 };
-use gpui_material_foundation::{animate, current_material_theme, resolve_edges, text_style};
-use gpui_material_theme::{Density, MotionKind, MotionSpeed, TypeRole, TypographyEmphasis};
+use gpui_material_foundation::{
+    InteractionFeedback, InteractionState, animate, control_feedback::FeedbackState,
+    current_material_theme, resolve_edges, text_style,
+};
+use gpui_material_theme::{
+    CornerShape, Density, Direction, MotionKind, MotionSpec, MotionSpeed, TypeRole,
+    TypographyEmphasis,
+};
 
 use crate::Badge;
 
@@ -14,6 +21,98 @@ use super::{
     NavigationItem, NavigationItemIconPosition, Presentation,
     palette::{ItemPalette, resolve_palette},
 };
+
+#[allow(clippy::too_many_arguments)]
+pub(in crate::navigation) fn render_feedback_surface(
+    feedback: Rc<RefCell<FeedbackState>>,
+    interaction: InteractionState,
+    corners: CornerShape,
+    direction: Direction,
+    disabled: bool,
+    indicator: Option<(Hsla, f32, f32)>,
+    state_layer_color: Hsla,
+    ring: Hsla,
+    layer: f32,
+    reduced: bool,
+) -> AnyElement {
+    let geometry = feedback.clone();
+    let paint_feedback = feedback;
+    canvas(
+        move |bounds, window, _| {
+            if disabled {
+                geometry.borrow_mut().set_shape(None, window);
+            } else {
+                geometry
+                    .borrow_mut()
+                    .set_rounded_shape(bounds, corners, direction, window);
+            }
+        },
+        move |bounds, _, window, cx| {
+            if let Some((color, alpha, expand)) = indicator {
+                let alpha = alpha.clamp(0., 1.);
+                let expand = expand.clamp(0., 1.);
+                if alpha > 0.
+                    && expand > 0.
+                    && bounds.size.width > px(0.)
+                    && bounds.size.height > px(0.)
+                {
+                    let indicator_width = bounds.size.width * expand;
+                    let origin_x = bounds.origin.x + (bounds.size.width - indicator_width) * 0.5;
+                    let indicator_bounds = Bounds::new(
+                        point(origin_x, bounds.origin.y),
+                        size(indicator_width, bounds.size.height),
+                    );
+                    let [top_left, top_right, bottom_right, bottom_left] = corners
+                        .radii(
+                            indicator_bounds.size.width.into(),
+                            indicator_bounds.size.height.into(),
+                            direction,
+                        )
+                        .map(px);
+                    let fill = if alpha >= 1. {
+                        color
+                    } else {
+                        color.opacity(alpha)
+                    };
+                    window.paint_quad(quad(
+                        indicator_bounds,
+                        Corners {
+                            top_left,
+                            top_right,
+                            bottom_right,
+                            bottom_left,
+                        },
+                        fill,
+                        px(0.),
+                        gpui::transparent_black(),
+                        BorderStyle::Solid,
+                    ));
+                }
+            }
+            if !disabled {
+                let feedback = paint_feedback.borrow();
+                if let Some(shape) = feedback.shape() {
+                    // The outer navigation button owns the keyboard focus ring border.
+                    let mut visual_interaction = interaction;
+                    visual_interaction.focus_visible = false;
+                    InteractionFeedback::new(visual_interaction, state_layer_color, ring)
+                        .paint_with_opacity(
+                            shape,
+                            feedback.ripple(),
+                            layer,
+                            cx.background_executor().now(),
+                            reduced,
+                            window,
+                        );
+                }
+            }
+        },
+    )
+    .absolute()
+    .inset_0()
+    .size_full()
+    .into_any_element()
+}
 
 pub(super) struct ItemVisual {
     pub(super) presentation: Presentation,
@@ -25,6 +124,9 @@ pub(super) struct ItemVisual {
     pub(super) styled_item: bool,
     pub(super) custom_indicator: bool,
     pub(super) indicator_target: Option<Rc<TabIndicatorTarget>>,
+    pub(super) feedback: Rc<RefCell<FeedbackState>>,
+    pub(super) interaction: InteractionState,
+    pub(super) ring: Hsla,
 }
 
 impl ItemVisual {
@@ -88,34 +190,28 @@ impl ItemVisual {
         badge: &mut Option<Badge>,
         palette: &ItemPalette,
         indicator_padding: Option<Edges<Pixels>>,
-        selection: f32,
+        pill_surface: Option<AnyElement>,
         horizontal: bool,
         tab: bool,
         density: Density,
     ) -> Option<gpui::Div> {
         let pill_height = px(density.visual_size(32.).max(24.));
         item.icon.take().map(|icon| {
-            let icon = if self.styled_item {
-                icon.inherit_color()
-            } else {
-                icon.color(palette.icon_role)
-            };
+            let icon = icon.inherit_color();
             let icon = if let Some(badge) = badge.take() {
                 badge.attach_to(icon).into_any_element()
             } else {
                 icon.into_any_element()
             };
             div()
+                .relative()
                 .flex_none()
                 .flex()
                 .items_center()
                 .justify_center()
                 .text_color(palette.icon_color)
                 .when(!tab && !horizontal, |icon| {
-                    icon.w(px(56.))
-                        .h(pill_height)
-                        .rounded_full()
-                        .bg(palette.selected_indicator.opacity(selection))
+                    icon.w(px(56.)).h(pill_height).rounded_full()
                 })
                 .when_some(indicator_padding.filter(|_| !horizontal), |icon, edges| {
                     icon.w(px(24.) + edges.left + edges.right)
@@ -125,6 +221,7 @@ impl ItemVisual {
                         .pt(edges.top)
                         .pb(edges.bottom)
                 })
+                .children(pill_surface)
                 .child(icon)
         })
     }
@@ -138,6 +235,8 @@ impl ItemVisual {
     ) -> impl IntoElement + use<> {
         let theme = current_material_theme(window, cx);
         let density = theme.layout.density;
+        let direction = theme.layout.direction;
+        let reduced = cx.reduce_motion();
         let tab = self.presentation.is_tab();
         let rail = self.presentation.is_rail();
         let rail_padding = self.presentation.rail_options().and_then(|options| {
@@ -149,36 +248,80 @@ impl ItemVisual {
                 }
             })
         });
-        let indicator_padding =
-            rail_padding.map(|padding| resolve_edges(padding, theme.layout.direction));
+        let indicator_padding = rail_padding.map(|padding| resolve_edges(padding, direction));
         let horizontal = item.icon_position.map_or_else(
             || self.presentation.horizontal_label(),
             |position| position == NavigationItemIconPosition::Start,
         );
+        let effects = theme
+            .motion
+            .spec(MotionKind::Effects, MotionSpeed::Fast, reduced);
+        let spatial = theme
+            .motion
+            .spec(MotionKind::Spatial, MotionSpeed::Fast, reduced);
+        let selection = animate(
+            (id.clone(), "indicator"),
+            f32::from(self.selected),
+            effects,
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
+        let expand = if tab {
+            1.
+        } else {
+            animate(
+                (id.clone(), "indicator-expand"),
+                f32::from(self.selected),
+                spatial,
+                window,
+                cx,
+            )
+            .clamp(0., 1.)
+        };
+        let layer = animate(
+            (id.clone(), "state-layer"),
+            self.interaction
+                .layer_with_ripple(reduced)
+                .map_or(0., |layer| layer.opacity()),
+            if !item.disabled {
+                effects
+            } else {
+                MotionSpec::Instant
+            },
+            window,
+            cx,
+        )
+        .clamp(0., 1.);
         let palette = resolve_palette(
             self.presentation,
-            self.selected,
+            selection,
             self.tab_content,
             self.styled_item,
             &theme,
             item,
             horizontal,
         );
-        let motion = theme
-            .motion
-            .spec(MotionKind::Effects, MotionSpeed::Fast, cx.reduce_motion());
-        let selection = if self.custom_indicator {
-            0.
-        } else {
-            animate(
-                (id.clone(), "indicator"),
-                f32::from(self.selected),
-                motion,
-                window,
-                cx,
-            )
-            .clamp(0., 1.)
-        };
+        let has_icon = item.icon.is_some();
+        let pill_on_icon = !tab && !horizontal && has_icon;
+        let pill_on_content = !tab && (horizontal || !has_icon);
+        let feedback_surface = render_feedback_surface(
+            self.feedback.clone(),
+            self.interaction,
+            if tab {
+                CornerShape::Radii([0.; 4])
+            } else {
+                CornerShape::Full
+            },
+            direction,
+            item.disabled,
+            (!tab).then_some((palette.selected_indicator, selection, expand)),
+            palette.state_layer,
+            self.ring,
+            layer,
+            reduced,
+        );
+        let mut feedback_surface = Some(feedback_surface);
         let label = self.build_label(
             id,
             item,
@@ -195,7 +338,11 @@ impl ItemVisual {
             &mut badge,
             &palette,
             indicator_padding,
-            selection,
+            if pill_on_icon {
+                feedback_surface.take()
+            } else {
+                None
+            },
             horizontal,
             tab,
             density,
@@ -210,6 +357,7 @@ impl ItemVisual {
             label.into_any_element()
         };
         let padding = px(if horizontal { 16. } else { 4. });
+        let pill_height = px(density.visual_size(32.).max(24.));
         let horizontal_pill_height = if rail {
             px(density.interactive_size(56.))
         } else {
@@ -228,14 +376,19 @@ impl ItemVisual {
                         .gap(px(if rail || tab { 8. } else { 4. }))
                         .when(self.rtl, Styled::flex_row_reverse)
                         .when(!tab, |content| {
-                            content
-                                .min_h(horizontal_pill_height)
-                                .rounded_full()
-                                .bg(palette.selected_indicator.opacity(selection))
+                            content.min_h(horizontal_pill_height).rounded_full()
                         })
                         .when(rail, |content| content.w_full())
                 },
-                |content| content.flex_col().justify_center().gap(px(4.)),
+                |content| {
+                    content
+                        .flex_col()
+                        .justify_center()
+                        .gap(px(4.))
+                        .when(pill_on_content, |content| {
+                            content.min_h(pill_height).rounded_full()
+                        })
+                },
             )
             .px(padding)
             .when_some(
@@ -248,6 +401,11 @@ impl ItemVisual {
                         .pb(edges.bottom)
                 },
             )
+            .children(if pill_on_content {
+                feedback_surface.take()
+            } else {
+                None
+            })
             .children(icon)
             .child(label)
             .children(self.indicator_target.map(|target| {
@@ -270,6 +428,7 @@ impl ItemVisual {
             .min_h(self.height - px(4.))
             .items_center()
             .justify_center()
+            .children(feedback_surface)
             .child(content)
             .when(tab && !self.custom_indicator && selection > 0., |body| {
                 body.child(

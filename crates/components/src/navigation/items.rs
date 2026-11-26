@@ -16,6 +16,7 @@ mod state;
 mod visual;
 
 pub(in crate::navigation) use state::{RowState, row_state_for};
+pub(in crate::navigation) use visual::render_feedback_surface;
 
 /// Placement of a navigation item's icon relative to its label.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

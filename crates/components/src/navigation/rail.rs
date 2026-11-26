@@ -30,6 +30,7 @@ pub struct NavigationRail {
     pub(super) title: Option<SharedString>,
     pub(super) header: Option<AnyElement>,
     pub(super) fab: Option<AnyElement>,
+    pub(super) footer: Option<AnyElement>,
     pub(super) expanded_width: Pixels,
     pub(super) modal: Option<Entity<DialogState>>,
     pub(super) modal_options: RailModalOptions,
@@ -57,6 +58,7 @@ impl NavigationRail {
             title: None,
             header: None,
             fab: None,
+            footer: None,
             expanded_width: px(240.),
             modal: None,
             modal_options: RailModalOptions::default(),
@@ -107,6 +109,12 @@ impl NavigationRail {
     /// Places a floating action button below the header.
     pub fn fab(mut self, fab: impl IntoElement) -> Self {
         self.fab = Some(fab.into_any_element());
+        self
+    }
+
+    /// Places custom footer content anchored beneath the scrollable destination list.
+    pub fn footer(mut self, footer: impl IntoElement) -> Self {
+        self.footer = Some(footer.into_any_element());
         self
     }
 

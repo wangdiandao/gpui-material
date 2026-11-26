@@ -103,6 +103,7 @@ pub struct NavigationDrawer {
     pub(super) entries: Vec<NavigationDrawerEntry>,
     pub(super) dividers_before: HashSet<SharedString>,
     pub(super) mode: NavigationDrawerMode,
+    pub(super) open: bool,
     pub(super) width: Pixels,
     pub(super) headline: Option<SharedString>,
     pub(super) header: Option<AnyElement>,
@@ -127,6 +128,7 @@ impl NavigationDrawer {
             entries: Vec::new(),
             dividers_before: HashSet::new(),
             mode: NavigationDrawerMode::default(),
+            open: true,
             width: Self::DEFAULT_WIDTH,
             headline: None,
             header: None,
@@ -184,6 +186,15 @@ impl NavigationDrawer {
     /// Chooses Standard (docked, default) or Modal (side-sheet overlay) mode.
     pub fn mode(mut self, mode: NavigationDrawerMode) -> Self {
         self.mode = mode;
+        self
+    }
+
+    /// Controls whether a [`NavigationDrawerMode::Standard`] drawer is open (expanded, default `true`)
+    /// or collapsed to zero width with a smooth spatial width transition.
+    ///
+    /// Ignored in [`NavigationDrawerMode::Modal`], which uses [`Self::modal_state`].
+    pub fn open(mut self, open: bool) -> Self {
+        self.open = open;
         self
     }
 

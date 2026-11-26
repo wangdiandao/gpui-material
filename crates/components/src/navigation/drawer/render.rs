@@ -5,15 +5,18 @@ use gpui::{
 };
 use gpui_base::{Button as BaseButton, TestSupportExt};
 use gpui_material_foundation::{
-    InteractionSource, Surface, color,
+    InteractionSource, Surface, animate, color,
     control_feedback::{activate_feedback, feedback_target, ripple_state},
     current_material_theme, move_roving_focus,
 };
-use gpui_material_theme::{ColorRole, CornerShape, Direction, StateLayer, TypeRole};
+use gpui_material_theme::{
+    ColorRole, CornerShape, Direction, MotionKind, MotionSpec, MotionSpeed, TypeRole,
+};
 
 use crate::{
     Badge, Divider, Sheet, SheetColors, SheetEdge, SheetMode, Text,
-    navigation::items::{NavigationItem, Select, row_state_for},
+    control_style::mix_color,
+    navigation::items::{NavigationItem, Select, render_feedback_surface, row_state_for},
 };
 
 use super::{
@@ -86,46 +89,101 @@ fn render_destination(
     let disabled = item.disabled;
     let id: ElementId = (collection_id.clone(), item.id.clone()).into();
     let description = item.badge.as_mut().and_then(Badge::take_accessible_label);
+    let theme = current_material_theme(window, cx);
+    let direction = theme.layout.direction;
+    let reduced = cx.reduce_motion();
+    let effects = theme
+        .motion
+        .spec(MotionKind::Effects, MotionSpeed::Fast, reduced);
+    let spatial = theme
+        .motion
+        .spec(MotionKind::Spatial, MotionSpeed::Fast, reduced);
 
-    let indicator_bg = if selected {
-        item.colors
-            .selected_indicator
-            .unwrap_or(colors.active_indicator)
-    } else {
-        gpui::transparent_black()
-    };
+    let feedback = ripple_state(&id, !disabled, window, cx);
+    let tracker = item
+        .interaction_source
+        .as_ref()
+        .map(|source| InteractionSource::track(source, &id, window, cx));
+    let interaction = feedback
+        .borrow_mut()
+        .track(!disabled, focus, tracker, window, cx);
+
+    let selection = animate(
+        (id.clone(), "indicator"),
+        f32::from(selected),
+        effects,
+        window,
+        cx,
+    )
+    .clamp(0., 1.);
+    let expand = animate(
+        (id.clone(), "indicator-expand"),
+        f32::from(selected),
+        spatial,
+        window,
+        cx,
+    )
+    .clamp(0., 1.);
+    let layer = animate(
+        (id.clone(), "state-layer"),
+        interaction
+            .layer_with_ripple(reduced)
+            .map_or(0., |layer| layer.opacity()),
+        if !disabled {
+            effects
+        } else {
+            MotionSpec::Instant
+        },
+        window,
+        cx,
+    )
+    .clamp(0., 1.);
+
+    let active_indicator = item
+        .colors
+        .selected_indicator
+        .unwrap_or(colors.active_indicator)
+        .opacity(if disabled { 0.38 } else { 1. });
     let icon_color = if disabled {
         item.colors.disabled_icon.unwrap_or(colors.disabled_content)
-    } else if selected {
-        item.colors.selected_icon.unwrap_or(colors.active_content)
     } else {
-        item.colors
+        let unselected = item
+            .colors
             .unselected_icon
-            .unwrap_or(colors.inactive_content)
+            .unwrap_or(colors.inactive_content);
+        let selected_icon = item.colors.selected_icon.unwrap_or(colors.active_content);
+        mix_color(unselected, selected_icon, selection)
     };
     let label_color = if disabled {
         item.colors
             .disabled_label
             .unwrap_or(colors.disabled_content)
-    } else if selected {
-        item.colors
+    } else {
+        let unselected = item
+            .colors
+            .unselected_label
+            .unwrap_or(colors.inactive_content);
+        let selected_label = item
+            .colors
             .selected_label_start
             .or(item.colors.selected_label_top)
-            .unwrap_or(colors.active_content)
-    } else {
-        item.colors
-            .unselected_label
-            .unwrap_or(colors.inactive_content)
+            .unwrap_or(colors.active_content);
+        mix_color(unselected, selected_label, selection)
     };
-
-    let feedback = item.interaction_source.as_ref().map(|source| {
-        let feedback = ripple_state(&id, !disabled, window, cx);
-        let tracker = InteractionSource::track(source, &id, window, cx);
-        feedback
-            .borrow_mut()
-            .track(!disabled, focus, Some(tracker), window, cx);
-        feedback
-    });
+    let state_layer = mix_color(colors.state_layer, colors.active_content, selection);
+    let ring = colors.ring;
+    let feedback_surface = render_feedback_surface(
+        feedback.clone(),
+        interaction,
+        CornerShape::Full,
+        direction,
+        disabled,
+        Some((active_indicator, selection, expand)),
+        state_layer,
+        ring,
+        layer,
+        reduced,
+    );
 
     let label_elem = item.label_content.unwrap_or_else(|| {
         Text::new(item.label.clone())
@@ -150,15 +208,16 @@ fn render_destination(
     let badge_elem = item.badge.map(|badge| div().flex_none().child(badge));
 
     let row = div()
+        .relative()
         .w_full()
         .min_h(row_height)
         .px(px(16.))
         .rounded_full()
-        .bg(indicator_bg)
         .flex()
         .items_center()
         .gap(px(12.))
         .when(rtl, Styled::flex_row_reverse)
+        .child(feedback_surface)
         .children(icon_elem)
         .child(
             div()
@@ -172,8 +231,6 @@ fn render_destination(
         )
         .children(badge_elem);
 
-    let state_layer = colors.state_layer;
-    let ring = colors.ring;
     let item_id = item.id.clone();
 
     BaseButton::new(id)
@@ -196,19 +253,12 @@ fn render_destination(
             let click_feedback = feedback.clone();
             let a11y_activate = on_select;
             let a11y_id = item_id;
-            button
-                .hover(move |style| style.bg(state_layer.opacity(StateLayer::Hover.opacity())))
-                .active(move |style| style.bg(state_layer.opacity(StateLayer::Pressed.opacity())))
+            let button = button
                 .focus_visible(move |style| style.border_color(ring))
-                .when_some(feedback, |button, fb| {
-                    feedback_target(button, fb, true, Some(focus.clone()))
-                })
                 .when_some(activate, |button, handler| {
                     button.on_click(move |event, window, cx| {
                         cx.stop_propagation();
-                        if let Some(fb) = &click_feedback {
-                            activate_feedback(event, fb, window, cx);
-                        }
+                        activate_feedback(event, &click_feedback, window, cx);
                         handler(&click_id, window, cx);
                     })
                 })
@@ -216,7 +266,8 @@ fn render_destination(
                     button.on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
                         handler(&a11y_id, window, cx);
                     })
-                })
+                });
+            feedback_target(button, feedback, true, Some(focus.clone()))
         })
         .child(row)
         .into_any_element()
@@ -231,6 +282,57 @@ impl RenderOnce for NavigationDrawer {
         let viewport_width = window.viewport_size().width;
         let resolved_width = self.width.min(viewport_width.max(px(0.)));
         let colors = self.colors.resolve(window, cx);
+
+        let is_modal = self.mode == NavigationDrawerMode::Modal;
+        let standard_scope = (!is_modal).then(|| {
+            window
+                .use_keyed_state((self.id.clone(), "drawer-docked-focus"), cx, |_, cx| {
+                    cx.focus_handle().tab_stop(false)
+                })
+                .read(cx)
+                .clone()
+        });
+        let animated_width = if is_modal {
+            resolved_width
+        } else {
+            let width_motion = theme.motion.spec(
+                MotionKind::Spatial,
+                MotionSpeed::Default,
+                cx.reduce_motion(),
+            );
+            let target_width = if self.open { resolved_width } else { px(0.) };
+            px(animate(
+                (self.id.clone(), "drawer-width"),
+                target_width.into(),
+                width_motion,
+                window,
+                cx,
+            ))
+            .clamp(px(0.), viewport_width.max(px(0.)))
+        };
+        if !is_modal && !self.open && animated_width <= px(0.) {
+            if let Some(scope) = standard_scope
+                && scope.contains_focused(window, cx)
+            {
+                let focus = window.focused(cx);
+                window.defer(cx, move |window, cx| {
+                    if window
+                        .focused(cx)
+                        .is_none_or(|current| Some(current) == focus)
+                    {
+                        window.focus_next(cx);
+                    }
+                });
+            }
+            return div()
+                .id(self.id)
+                .test_support()
+                .w(px(0.))
+                .h_full()
+                .flex_none()
+                .overflow_hidden()
+                .into_any_element();
+        }
 
         let (
             collection_id,
@@ -370,7 +472,6 @@ impl RenderOnce for NavigationDrawer {
             }
         }
 
-        let is_modal = self.mode == NavigationDrawerMode::Modal;
         let title = self.headline.clone().unwrap_or_else(|| nav_label.clone());
 
         let key_scroll = scroll.clone();
@@ -496,22 +597,30 @@ impl RenderOnce for NavigationDrawer {
         }
 
         let default_shape = self.shape.unwrap_or(CornerShape::Radii([0., 16., 16., 0.]));
+        let surface_width = resolved_width.max(animated_width);
         let surface = Surface::new(ColorRole::SurfaceContainerLow)
             .shape(default_shape)
             .when_some(colors.container, Surface::container_color)
             .when_some(colors.content, Surface::content_color)
-            .size_full()
+            .w(surface_width)
+            .h_full()
+            .flex_none()
             .overflow_hidden()
             .child(panel);
 
         div()
             .id(self.id)
             .test_support()
+            .when_some(standard_scope, |drawer, scope| drawer.track_focus(&scope))
             .role(Role::Navigation)
             .aria_label(title)
-            .w(resolved_width)
+            .w(animated_width)
             .h_full()
             .flex_none()
+            .overflow_hidden()
+            .flex()
+            .when(!rtl, Styled::justify_end)
+            .when(rtl, Styled::justify_start)
             .child(surface)
             .into_any_element()
     }

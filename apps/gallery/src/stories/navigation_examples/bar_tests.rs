@@ -450,3 +450,189 @@ fn short_navigation_bar_roving_focus_and_observers_follow_item_ids(cx: &mut Test
     })
     .unwrap();
 }
+
+#[gpui::test]
+fn navigation_bar_animates_pill_expand_color_interpolation_and_pill_ripple(
+    cx: &mut TestAppContext,
+) {
+    use std::time::Duration;
+
+    const UNSELECTED_ICON: Hsla = gpui::hsla(0.12, 0.72, 0.35, 1.);
+    const UNSELECTED_LABEL: Hsla = gpui::hsla(0.42, 0.65, 0.32, 1.);
+
+    struct Example {
+        selected: &'static str,
+    }
+
+    impl Render for Example {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let colors = NavigationItemColors {
+                selected_icon: Some(ICON),
+                selected_label_top: Some(TOP_LABEL),
+                selected_indicator: Some(INDICATOR),
+                unselected_icon: Some(UNSELECTED_ICON),
+                unselected_label: Some(UNSELECTED_LABEL),
+                ..Default::default()
+            };
+            let items = NavigationItems::new(
+                "bar",
+                "Primary navigation",
+                [
+                    NavigationItem::new("inbox", "Inbox")
+                        .icon(Icon::custom(swatch(10.)))
+                        .label_content(swatch(36.))
+                        .colors(colors),
+                    NavigationItem::new("archive", "Archive")
+                        .icon(Icon::custom(swatch(12.)))
+                        .label_content(swatch(44.))
+                        .colors(colors),
+                ],
+            )
+            .selected(self.selected);
+            div().w(px(480.)).child(NavigationBar::new(items))
+        }
+    }
+
+    let (handle, view) = cx.update(|cx| {
+        crate::init_gallery(cx);
+        let view = cx.new(|_| Example { selected: "inbox" });
+        let handle =
+            MaterialRoot::open_window(Default::default(), cx, |_, _| view.clone()).unwrap();
+        (handle.into(), view)
+    });
+
+    let draw_and_count_frames = |window: &mut Window, cx: &mut App| {
+        window.simulate_next_frame(cx);
+        window.refresh();
+        window.draw(cx).clear(cx);
+        window.simulate_next_frame(cx)
+    };
+
+    cx.update_window(handle, |_, window, _| {
+        window.activate_window();
+    })
+    .unwrap();
+    cx.run_until_parked();
+
+    // 1. Settled bar schedules zero frames; pressing an item without interaction_source
+    // paints animated pill-clipped ripple/state-layer frames without a rectangular outer button quad.
+    let archive_bounds = cx
+        .update_window(handle, |_, window, cx| {
+            assert_eq!(draw_and_count_frames(window, cx), 0);
+            let bounds = item(window, "archive").bounds();
+            mouse_down(bounds.center(), window, cx);
+            bounds
+        })
+        .unwrap();
+    cx.executor().advance_clock(Duration::from_millis(40));
+    cx.update_window(handle, |_, window, cx| {
+        assert!(
+            draw_and_count_frames(window, cx) > 0,
+            "pressing a NavigationBar item without interaction_source must paint animated ripple/state-layer frames"
+        );
+        // No outer rectangular button-width hover/active quad should be painted.
+        let scale = window.scale_factor();
+        let outer_rect_state_layer = window.painted_quads().into_iter().any(|quad| {
+            let bounds = quad.bounds.map(|side| px(side.0 / scale));
+            archive_bounds.contains(&bounds.center())
+                && bounds.size.width > px(120.)
+                && quad
+                    .background
+                    .as_solid()
+                    .is_some_and(|color| color.a > 0. && color.a < 0.2)
+        });
+        assert!(
+            !outer_rect_state_layer,
+            "outer NavigationBar button must not paint a rectangular hover/active quad"
+        );
+        mouse_up(archive_bounds.center(), window, cx);
+    })
+    .unwrap();
+
+    // 2. Switching selection animates pill horizontal width expansion and icon/label color interpolation.
+    cx.update(|cx| {
+        view.update(cx, |this, cx| {
+            this.selected = "archive";
+            cx.notify();
+        });
+    });
+    cx.update_window(handle, |_, window, cx| {
+        draw(window, cx);
+    })
+    .unwrap();
+    cx.executor().advance_clock(Duration::from_millis(45));
+    cx.update_window(handle, |_, window, cx| {
+        draw(window, cx);
+        let scale = window.scale_factor();
+        let quads = window.painted_quads();
+        let indicator = quads
+            .iter()
+            .filter_map(|quad| {
+                let solid = quad.background.as_solid()?;
+                let bounds = quad.bounds.map(|side| px(side.0 / scale));
+                (archive_bounds.contains(&bounds.center())
+                    && (solid.h - INDICATOR.h).abs() < 0.02
+                    && (solid.s - INDICATOR.s).abs() < 0.02
+                    && (solid.l - INDICATOR.l).abs() < 0.02)
+                    .then_some((bounds, solid.a))
+            })
+            .next()
+            .expect("mid-transition archive pill indicator quad");
+        assert!(
+            indicator.0.size.width > px(0.) && indicator.0.size.width < px(56.),
+            "bar pill indicator should expand horizontally mid-transition: {:?}",
+            indicator.0.size.width
+        );
+        assert!(indicator.1 > 0. && indicator.1 < 1.);
+
+        let icon_swatch = quads
+            .iter()
+            .find(|quad| {
+                let bounds = quad.bounds.map(|side| px(side.0 / scale));
+                archive_bounds.contains(&bounds.center())
+                    && (bounds.size.width - px(12.)).abs() <= px(0.5)
+            })
+            .expect("archive icon swatch");
+        let mid_icon = icon_swatch.background.as_solid().unwrap();
+        assert_ne!(mid_icon, UNSELECTED_ICON);
+        assert_ne!(mid_icon, ICON);
+
+        let label_swatch = quads
+            .iter()
+            .find(|quad| {
+                let bounds = quad.bounds.map(|side| px(side.0 / scale));
+                archive_bounds.contains(&bounds.center())
+                    && (bounds.size.width - px(44.)).abs() <= px(0.5)
+            })
+            .expect("archive label swatch");
+        let mid_label = label_swatch.background.as_solid().unwrap();
+        assert_ne!(mid_label, UNSELECTED_LABEL);
+        assert_ne!(mid_label, TOP_LABEL);
+    })
+    .unwrap();
+
+    // 3. Settled frame reaches exact 56px pill width and exact selected colors.
+    cx.executor().advance_clock(Duration::from_millis(500));
+    cx.update_window(handle, |_, window, cx| {
+        draw(window, cx);
+        let scale = window.scale_factor();
+        let quads = window.painted_quads();
+        let settled_indicator = quads
+            .iter()
+            .find(|quad| quad.background.as_solid() == Some(INDICATOR))
+            .expect("settled indicator quad");
+        let width = px(settled_indicator.bounds.size.width.0 / scale);
+        assert!((width - px(56.)).abs() <= px(0.5));
+        assert!(
+            quads
+                .iter()
+                .any(|quad| quad.background.as_solid() == Some(ICON))
+        );
+        assert!(
+            quads
+                .iter()
+                .any(|quad| quad.background.as_solid() == Some(TOP_LABEL))
+        );
+    })
+    .unwrap();
+}

@@ -94,7 +94,6 @@ struct DestinationRowContext<'a> {
     custom_indicator: bool,
     indicator_target: Option<(usize, Rc<TabIndicatorTarget>)>,
     count: usize,
-    state_layer: Hsla,
     ring: Hsla,
 }
 
@@ -112,6 +111,18 @@ fn build_destination_element(
         || ctx.rail
             && (ctx.options.is_some_and(|options| options.content.is_some())
                 || item.colors != NavigationItemColors::default());
+    let handle = &ctx.focus[index];
+    let is_tab_stop = ctx.tab_stop == Some(&item.id);
+    let id: ElementId = (ctx.row_id.clone(), item.id.clone()).into();
+    let description = item.badge.as_mut().and_then(Badge::take_accessible_label);
+    let feedback = ripple_state(&id, !item.disabled, window, cx);
+    let tracker = item
+        .interaction_source
+        .as_ref()
+        .map(|source| InteractionSource::track(source, &id, window, cx));
+    let interaction = feedback
+        .borrow_mut()
+        .track(!item.disabled, handle, tracker, window, cx);
     let visual = ItemVisual {
         presentation: ctx.presentation,
         selected,
@@ -127,20 +138,11 @@ fn build_destination_element(
             .and_then(|(selected_index, target)| {
                 (*selected_index == index).then(|| target.clone())
             }),
+        feedback: feedback.clone(),
+        interaction,
+        ring: ctx.ring,
     };
-    let handle = &ctx.focus[index];
-    let is_tab_stop = ctx.tab_stop == Some(&item.id);
-    let id: ElementId = (ctx.row_id.clone(), item.id.clone()).into();
-    let description = item.badge.as_mut().and_then(Badge::take_accessible_label);
     let content = visual.render(&id, &mut item, window, cx);
-    let feedback = item.interaction_source.as_ref().map(|source| {
-        let feedback = ripple_state(&id, !item.disabled, window, cx);
-        let tracker = InteractionSource::track(source, &id, window, cx);
-        feedback
-            .borrow_mut()
-            .track(!item.disabled, handle, Some(tracker), window, cx);
-        feedback
-    });
     let position = if ctx.rtl && !ctx.rail {
         ctx.count - index
     } else {
@@ -148,7 +150,6 @@ fn build_destination_element(
     };
     let slot_id = (id.clone(), "rail-destination");
     let divider_id = (id.clone(), "rail-divider");
-    let state_layer = ctx.state_layer;
     let ring = ctx.ring;
     let button = Button::new(id)
         .role(if ctx.tab {
@@ -184,13 +185,9 @@ fn build_destination_element(
         .border_color(gpui::transparent_black())
         .border_2()
         .when(!item.disabled, |button| {
-            button
-                .hover(move |style| style.bg(state_layer.opacity(0.08)))
-                .active(move |style| style.bg(state_layer.opacity(0.1)))
+            let click_feedback = feedback.clone();
+            let button = button
                 .focus_visible(move |style| style.border_color(ring))
-                .when_some(feedback.as_ref().cloned(), |button, feedback| {
-                    feedback_target(button, feedback, true, Some(handle.clone()))
-                })
                 .when_some(ctx.on_select.cloned(), |button, activate| {
                     let id = item.id.clone();
                     let on_accessibility_action = activate.clone();
@@ -200,12 +197,11 @@ fn build_destination_element(
                         })
                         .on_click(move |event, window, cx| {
                             cx.stop_propagation();
-                            if let Some(feedback) = &feedback {
-                                activate_feedback(event, feedback, window, cx);
-                            }
+                            activate_feedback(event, &click_feedback, window, cx);
                             activate(&item.id, window, cx);
                         })
-                })
+                });
+            feedback_target(button, feedback, true, Some(handle.clone()))
         })
         .opacity(if item.disabled && !styled_item {
             0.38
@@ -261,7 +257,6 @@ impl NavigationItems {
         let tone = |role| color(theme.colors.color(role));
         let ring = tone(ColorRole::Secondary);
         let indicator_color = tone(ColorRole::Primary);
-        let state_layer = tone(ColorRole::OnSurface);
         let tab_colors = tabs.as_ref().map(|tabs| tabs.colors).unwrap_or_default();
         let divider = tab_colors
             .divider
@@ -463,7 +458,6 @@ impl NavigationItems {
             custom_indicator,
             indicator_target,
             count,
-            state_layer,
             ring,
         };
         let row = row.children(items.into_iter().enumerate().map(|(index, item)| {

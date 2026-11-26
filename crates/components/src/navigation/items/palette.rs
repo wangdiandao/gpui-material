@@ -2,19 +2,21 @@ use gpui::Hsla;
 use gpui_material_foundation::color;
 use gpui_material_theme::{ColorRole, MaterialTheme};
 
+use crate::control_style::mix_color;
+
 use super::{super::tabs::TabVariant, NavigationItem, Presentation};
 
 pub(super) struct ItemPalette {
-    pub(super) icon_role: ColorRole,
     pub(super) icon_color: Hsla,
     pub(super) label_color: Hsla,
     pub(super) selected_indicator: Hsla,
     pub(super) tab_indicator: Hsla,
+    pub(super) state_layer: Hsla,
 }
 
 pub(super) fn resolve_palette(
     presentation: Presentation,
-    selected: bool,
+    selection: f32,
     tab_content: Option<Hsla>,
     styled_item: bool,
     theme: &MaterialTheme,
@@ -22,19 +24,21 @@ pub(super) fn resolve_palette(
     horizontal: bool,
 ) -> ItemPalette {
     let tone = |role| color(theme.colors.color(role));
-    let foreground = if !selected {
-        ColorRole::OnSurfaceVariant
-    } else {
-        match presentation {
-            Presentation::Tabs(TabVariant::Primary, _) => ColorRole::Primary,
-            Presentation::Tabs(TabVariant::Secondary, _) => ColorRole::OnSurface,
-            _ => ColorRole::Secondary,
-        }
+    let selection = selection.clamp(0., 1.);
+    let active_foreground_role = match presentation {
+        Presentation::Tabs(TabVariant::Primary, _) => ColorRole::Primary,
+        Presentation::Tabs(TabVariant::Secondary, _) => ColorRole::OnSurface,
+        _ => ColorRole::Secondary,
     };
-    let icon_role = if selected && !presentation.is_tab() {
+    let active_icon_role = if !presentation.is_tab() {
         ColorRole::OnSecondaryContainer
     } else {
-        foreground
+        active_foreground_role
+    };
+    let active_state_layer_role = match presentation {
+        Presentation::Tabs(TabVariant::Primary, _) => ColorRole::Primary,
+        Presentation::Tabs(TabVariant::Secondary, _) => ColorRole::OnSurface,
+        _ => ColorRole::OnSecondaryContainer,
     };
     let bar = presentation.item_colors();
     let fallback = bar.and_then(|colors| colors.content).or(tab_content);
@@ -49,19 +53,18 @@ pub(super) fn resolve_palette(
                 .unwrap_or_else(|| tone(ColorRole::OnSurfaceVariant));
             if item.disabled {
                 disabled.unwrap_or_else(|| unselected.opacity(0.38))
-            } else if selected {
-                selected_color
-                    .or(fallback)
-                    .unwrap_or_else(|| tone(active_role))
             } else {
-                unselected
+                let selected = selected_color
+                    .or(fallback)
+                    .unwrap_or_else(|| tone(active_role));
+                mix_color(unselected, selected, selection)
             }
         };
         let icon = resolve(
             colors.selected_icon,
             colors.unselected_icon,
             colors.disabled_icon,
-            icon_role,
+            active_icon_role,
         );
         let label = resolve(
             if horizontal {
@@ -71,7 +74,7 @@ pub(super) fn resolve_palette(
             },
             colors.unselected_label,
             colors.disabled_label,
-            foreground,
+            active_foreground_role,
         );
         let selected_indicator = colors
             .selected_indicator
@@ -82,9 +85,10 @@ pub(super) fn resolve_palette(
             selected_indicator.opacity(if item.disabled { 0.38 } else { 1. }),
         )
     } else {
+        let unselected = tone(ColorRole::OnSurfaceVariant);
         (
-            tone(icon_role),
-            tone(foreground),
+            mix_color(unselected, tone(active_icon_role), selection),
+            mix_color(unselected, tone(active_foreground_role), selection),
             tone(ColorRole::SecondaryContainer),
         )
     };
@@ -97,11 +101,16 @@ pub(super) fn resolve_palette(
         } else {
             1.
         });
+    let state_layer = mix_color(
+        tone(ColorRole::OnSurface),
+        tone(active_state_layer_role),
+        selection,
+    );
     ItemPalette {
-        icon_role,
         icon_color,
         label_color,
         selected_indicator,
         tab_indicator,
+        state_layer,
     }
 }

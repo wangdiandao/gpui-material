@@ -137,6 +137,13 @@ impl Render for Preview {
                     .h(px(24.))
                     .child("Workspace"),
             )
+            .footer(
+                div()
+                    .id("footer-body")
+                    .test_support()
+                    .h(px(28.))
+                    .child("Rail footer"),
+            )
             .divider_after(
                 "mail-destination",
                 div().id("rail-marker").test_support().h(px(2.)),
@@ -303,10 +310,15 @@ fn retained_rail_retargets_and_fits_the_resized_viewport(cx: &mut TestAppContext
     cx.update(|window, cx| {
         assert_eq!(rail.read(cx).current_value(), RailMode::Hidden);
         assert!(find(window, &[], &rail_item("mail-destination")).is_none());
+        assert!(find(window, &[], &"footer-body".into()).is_none());
         rail.update(cx, |rail, cx| rail.snap_to(RailMode::Collapsed, cx));
     });
     draw(cx);
     assert_eq!(frame(cx).size.width, px(96.));
+    assert!(
+        bounds(cx, "footer-body".into()).top()
+            >= bounds(cx, rail_item("archive-destination")).bottom()
+    );
 }
 
 #[gpui::test]
@@ -333,6 +345,11 @@ fn rail_indicator_padding_keeps_target_badge_and_layout_in_rtl(cx: &mut TestAppC
     let header = bounds(cx, "header-body".into());
     assert_eq!(header.left() - frame.left(), px(19.));
     assert_eq!(frame.right() - header.right(), px(7.));
+    let footer = bounds(cx, "footer-body".into());
+    assert_eq!(footer.left() - frame.left(), px(19.));
+    assert_eq!(frame.right() - footer.right(), px(7.));
+    assert!(footer.top() >= bounds(cx, rail_item("archive-destination")).bottom());
+    assert!((frame.bottom() - footer.bottom() - px(8.)).abs() <= px(1.));
     let mail = bounds(cx, rail_item("mail-destination"));
     assert!(mail.top() > header.bottom() + px(10.));
     assert!(bounds(cx, "rail-marker".into()).top() >= mail.bottom());
@@ -417,6 +434,7 @@ fn rapid_modal_reopen_uses_the_same_session_and_restores_the_entry(cx: &mut Test
     draw(cx);
     cx.update(|window, cx| {
         assert!(view.read(cx).modal.read(cx).is_open());
+        assert!(find(window, &[], &"footer-body".into()).is_some());
         assert_eq!(
             snapshots(window)
                 .iter()

@@ -53,6 +53,7 @@ pub(crate) struct NavigationExamples {
     story: Story,
     selected: SharedString,
     rail_state: Entity<NavigationRailState>,
+    standard_drawer_open: bool,
     font_scale: f32,
     modal: Entity<DialogState>,
     scroll: ScrollHandle,
@@ -71,6 +72,7 @@ impl NavigationExamples {
             story,
             selected: "inbox".into(),
             rail_state: cx.new(|_| NavigationRailState::default()),
+            standard_drawer_open: true,
             font_scale: 1.,
             modal: cx.new(DialogState::new),
             scroll: ScrollHandle::new(),
@@ -371,6 +373,25 @@ impl NavigationExamples {
                                         })
                                         .ok();
                                 }),
+                            )
+                            .footer(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap_1()
+                                    .child(Divider::horizontal())
+                                    .child(
+                                        div().px_3().py_1().child(
+                                            Text::new(if mode == RailMode::Expanded {
+                                                "Storage: 64% used"
+                                            } else {
+                                                "64%"
+                                            })
+                                            .id("rail-footer-status")
+                                            .role(TypeRole::LabelSmall)
+                                            .muted(),
+                                        ),
+                                    ),
                             ),
                     )
                     .child(
@@ -575,6 +596,8 @@ impl NavigationExamples {
 
     fn drawer(&self, cx: &mut Context<Self>) -> AnyElement {
         let open_modal = self.modal.clone();
+        let toggle_standard = cx.entity();
+        let standard_open = self.standard_drawer_open;
         let make_drawer_items = |id: &'static str, close_modal: bool| {
             NavigationItems::new(id, "Workspace navigation", [])
                 .selected(self.selected.clone())
@@ -621,12 +644,32 @@ impl NavigationExamples {
         stack()
             .child(
                 section("Standard navigation drawer")
-                    .description("Docked 360 dp drawer with grouped sections, dividers, and pill indicators.")
+                    .description("Docked 360 dp drawer with animated open/close width transitions, grouped sections, dividers, and pill indicators.")
                     .child(
-                        div().h(px(360.)).flex().child(populate(NavigationDrawer::new(
-                            "standard-drawer",
-                            make_drawer_items("standard-drawer-items", false),
-                        ))),
+                        Button::new(
+                            "toggle-standard-drawer",
+                            if standard_open {
+                                "Collapse drawer"
+                            } else {
+                                "Expand drawer"
+                            },
+                        )
+                        .variant(ButtonVariant::Outlined)
+                        .on_activate(move |_, cx| {
+                            toggle_standard.update(cx, |this, cx| {
+                                this.standard_drawer_open = !this.standard_drawer_open;
+                                cx.notify();
+                            });
+                        }),
+                    )
+                    .child(
+                        div().h(px(360.)).flex().child(
+                            populate(NavigationDrawer::new(
+                                "standard-drawer",
+                                make_drawer_items("standard-drawer-items", false),
+                            ))
+                            .open(standard_open),
+                        ),
                     ),
             )
             .child(

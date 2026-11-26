@@ -221,7 +221,14 @@ impl RenderOnce for NavigationRail {
                     ),
                 )
             })
-            .child(destinations);
+            .child(destinations)
+            .children(self.footer.map(|footer| {
+                div()
+                    .id((self.id.clone(), "rail-footer"))
+                    .test_support()
+                    .flex_none()
+                    .child(footer)
+            }));
 
         let shape = docked_shape(self.shapes, frame.expansion, frame.width, viewport.height);
         let surface = Surface::new(ColorRole::Surface)

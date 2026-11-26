@@ -10,6 +10,9 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ### Components
 
+- Paint pill-clipped animated Material 3 state layers and bounded press ripples via `InteractionFeedback::paint_with_opacity` across `NavigationDrawer`, `NavigationRail`, `NavigationBar`, and `Tabs` destinations without requiring an explicit `interaction_source`.
+- Animate active pill indicator horizontal expansion, indicator opacity, and icon/label color interpolation across `NavigationDrawer`, `NavigationRail`, and `NavigationBar` (and smooth icon/label color transitions on `Tabs`), honoring reduced motion.
+- Add `NavigationDrawer::open(bool)` for smooth Standard-mode docked width collapse/expand transitions and `NavigationRail::footer(...)` for bottom-anchored rail content across collapsed, expanded, and modal presentations.
 - Fix `Snackbar` overlay hit-testing and click-through by occluding active snackbar surfaces (`.occlude()`) and stopping click event propagation on snackbar action and dismiss buttons (`cx.stop_propagation()`).
 
 ## 0.4.0 - 2026-11-25

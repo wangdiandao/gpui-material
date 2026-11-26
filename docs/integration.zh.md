@@ -12,7 +12,7 @@
 [dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.14" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.14", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui-material = "0.4.0"
+gpui-material = "0.4.1"
 ```
 
 应用直接使用 Base 时也应固定 `gpui-base = "=0.11.0"`。从源码集成时，使用 `{ path = "../gpui-material/crates/material" }` 并固定检出提交。升级后运行 `cargo tree -d` 检查是否存在重复包版本。
@@ -46,7 +46,7 @@ fn main() {
 
 ## Material Symbols
 
-需要完整图标目录时，在 `gpui-material` 之外添加 `gpui-material-design-symbols = "0.4.0"`。从源码集成时使用 `gpui-material-design-symbols = { path = "../gpui-material/crates/design-symbols" }`。图标目录包含固定版本的全部 4,304 个名称，包括别名。通过 `Symbol::ALL` 遍历，或通过 `Symbol::from_name("favorite")` 查找上游名称。[上游码点表和字体资源](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
+需要完整图标目录时，在 `gpui-material` 之外添加 `gpui-material-design-symbols = "0.4.1"`。从源码集成时使用 `gpui-material-design-symbols = { path = "../gpui-material/crates/design-symbols" }`。图标目录包含固定版本的全部 4,304 个名称，包括别名。通过 `Symbol::ALL` 遍历，或通过 `Symbol::from_name("favorite")` 查找上游名称。[上游码点表和字体资源](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/variablefont)
 
 桌面端为 `gpui-material-design-symbols` 启用 `embed-assets`，调用 `SymbolFont::embedded` 加载 Outlined、Rounded 或 Sharp 字体。字体保留 `FILL` 和 `wght`，grade 固定为 0，光学尺寸固定为 24。`SymbolAxes::default()`（在 `const` 上下文中可使用 `SymbolAxes::new()`）使用未填充样式和 400 字重。`.filled(true)` 选择 FILL=1，`Weight::new(550)` 可指定 100–700 范围内的任意整数值，`is_filled()` 和 `get_weight()` 可读取已配置的轴值。
 
@@ -116,7 +116,7 @@ Search 和 dropdown 的虚拟化无需调用方迁移。结果和选项的 ID �
 ```toml
 [dev-dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.14", features = ["test-support"] }
-gpui-material = { version = "0.4.0", features = ["test-support"] }
+gpui-material = { version = "0.4.1", features = ["test-support"] }
 ```
 
 启用 `test-support` 后，`gpui_material::test` 会导出完全基于 GPUI 与 `gpui-base` 公开 API 构建的无头 UI 测试工具（`TestWindowExt`、`ScopedWindow`、`ClickOptions`、`TestQueryExt`、`TestEventExt`、`TestInput`、`TestAppContextExt::wait_for`、`ElementSnapshot` 与 `TestSupportExt`）。自定义元素通过 `div().id("status").test_support()` 注册观测（可聚焦元素须置于 `.track_focus(&handle)` 之前），测试窗口使用 `MaterialRoot::open_window` 打开，并同时断言原生无障碍快照与应用业务状态：

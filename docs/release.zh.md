@@ -6,7 +6,7 @@
 
 ## 版本规则
 
-最新版本为 0.4.0。Material 各库与 Gallery 统一使用根清单 `[workspace.package]` 的版本。[公开门面及集成契约](integration.zh.md#api-与迁移)界定兼容范围，包括文档列出的 feature、公开签名中的上游类型及受支持的平台行为。
+最新版本为 0.4.1。Material 各库与 Gallery 统一使用根清单 `[workspace.package]` 的版本。[公开门面及集成契约](integration.zh.md#api-与迁移)界定兼容范围，包括文档列出的 feature、公开签名中的上游类型及受支持的平台行为。
 
 - 在 `1.0.0` 之前，向后兼容的修复递增 patch，向后兼容的新功能或破坏性变更递增 minor（同时将 patch 归零）。同一版本包含多种变更时采用最高适用级别。
 - 从 `1.0.0` 起遵循 [SemVer](https://semver.org/lang/zh-CN/)：公开 API 不兼容变更递增 major，兼容新功能和公开弃用递增 minor，兼容修复递增 patch。

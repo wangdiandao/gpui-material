@@ -4,6 +4,10 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+## 0.4.1 - 2026-11-26
+
+Changes since [v0.4.0](https://github.com/wangdiandao/gpui-material/releases/tag/v0.4.0).
+
 ### Theme, foundation, and facade
 
 - Add opt-in `test-support` feature forwarding across `gpui-material-foundation`, `gpui-material-components`, `gpui-material-extras`, and `gpui-material`, and expose `gpui_material::test` (`TestWindowExt`, `ScopedWindow`, `ClickOptions`, `TestQueryExt`, `TestEventExt`, `TestInput`, `TestAppContextExt`, `ElementSnapshot`, `TestSupportExt`, and `painted_quads`) for headless UI integration testing built solely on public GPUI and `gpui-base` APIs.
@@ -14,6 +18,12 @@ See [versioning and releases](docs/release.md) for the release process.
 - Animate active pill indicator horizontal expansion, indicator opacity, and icon/label color interpolation across `NavigationDrawer`, `NavigationRail`, and `NavigationBar` (and smooth icon/label color transitions on `Tabs`), honoring reduced motion.
 - Add `NavigationDrawer::open(bool)` for smooth Standard-mode docked width collapse/expand transitions and `NavigationRail::footer(...)` for bottom-anchored rail content across collapsed, expanded, and modal presentations.
 - Fix `Snackbar` overlay hit-testing and click-through by occluding active snackbar surfaces (`.occlude()`) and stopping click event propagation on snackbar action and dismiss buttons (`cx.stop_propagation()`).
+
+### Contributors
+
+- [@wangdiandao](https://github.com/wangdiandao)
+
+**Full Changelog** [`v0.4.0...v0.4.1`](https://github.com/wangdiandao/gpui-material/compare/v0.4.0...v0.4.1)
 
 ## 0.4.0 - 2026-11-25
 

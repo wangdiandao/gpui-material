@@ -739,7 +739,7 @@ fn custom_backdrop(on_dismiss: impl Fn(&mut Window, &mut App) + 'static) -> impl
 [dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.14" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.14", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui-material = { version = "0.4.0", default-features = false, features = [
+gpui-material = { version = "0.4.1", default-features = false, features = [
     "actions",
     "inputs",
     "surfaces",

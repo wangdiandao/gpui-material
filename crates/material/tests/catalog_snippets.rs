@@ -1400,6 +1400,120 @@ mod catalog {
             };
         }
 
+        #[cfg(feature = "disclosure")]
+        #[allow(clippy::all)]
+        fn snippet_collapsible(
+            &mut self,
+            window: &mut gpui::Window,
+            cx: &mut gpui::Context<Self>,
+            is_pinned: bool,
+            is_favorite: bool,
+            is_sync_enabled: bool,
+            is_unread_only: bool,
+            auto_save: bool,
+            selected_density: &str,
+            width: gpui::Pixels,
+            content: gpui::AnyElement,
+        ) {
+            use gpui_material::{Collapsible, Text};
+            let _ = {
+                Collapsible::new("release-notes", "Release notes", true)
+                    .supporting("Desktop highlights")
+                    .content(Text::new("Material 3 disclosure container."))
+                    .on_open_change(|open, _, _| println!("Open: {open}"))
+            };
+        }
+
+        #[cfg(feature = "disclosure")]
+        #[allow(clippy::all)]
+        fn snippet_accordion(
+            &mut self,
+            window: &mut gpui::Window,
+            cx: &mut gpui::Context<Self>,
+            is_pinned: bool,
+            is_favorite: bool,
+            is_sync_enabled: bool,
+            is_unread_only: bool,
+            auto_save: bool,
+            selected_density: &str,
+            width: gpui::Pixels,
+            content: gpui::AnyElement,
+        ) {
+            use gpui_material::{Accordion, AccordionItem, AccordionMode, AccordionVariant, Text};
+            let _ = {
+                Accordion::new(
+                    "faq",
+                    [
+                        AccordionItem::new("overview", "Workspace overview")
+                            .content(Text::new("Organized across theme, foundation, components, and extras.")),
+                        AccordionItem::new("keyboard", "Keyboard navigation")
+                            .content(Text::new("Use Up, Down, Home, End, Enter, and Space.")),
+                    ],
+                )
+                .mode(AccordionMode::Single)
+                .variant(AccordionVariant::Segmented)
+                .expanded(["overview"])
+                .on_change(|ids, _, _| println!("Expanded: {ids:?}"))
+            };
+        }
+
+        #[cfg(feature = "disclosure")]
+        #[allow(clippy::all)]
+        fn snippet_pagination(
+            &mut self,
+            window: &mut gpui::Window,
+            cx: &mut gpui::Context<Self>,
+            is_pinned: bool,
+            is_favorite: bool,
+            is_sync_enabled: bool,
+            is_unread_only: bool,
+            auto_save: bool,
+            selected_density: &str,
+            width: gpui::Pixels,
+            content: gpui::AnyElement,
+        ) {
+            use gpui_material::Pagination;
+            let _ = {
+                Pagination::new("results-pages", 5, 12)
+                    .accessible_label("Search results pages")
+                    .on_change(|page, _, _| println!("Page {page}"))
+            };
+        }
+
+        #[cfg(feature = "command-palette")]
+        #[allow(clippy::all)]
+        fn snippet_command_palette(
+            &mut self,
+            window: &mut gpui::Window,
+            cx: &mut gpui::Context<Self>,
+            is_pinned: bool,
+            is_favorite: bool,
+            is_sync_enabled: bool,
+            is_unread_only: bool,
+            auto_save: bool,
+            selected_density: &str,
+            width: gpui::Pixels,
+            content: gpui::AnyElement,
+        ) {
+            use gpui_material::{CommandGroup, CommandItem, CommandPalette, CommandPaletteState, IconName};
+            let _ = {
+                let palette = cx.new(|cx| CommandPaletteState::new(window, cx));
+
+                // In render
+                CommandPalette::grouped(
+                    "commands",
+                    &palette,
+                    [CommandGroup::new(
+                        "Navigation",
+                        [CommandItem::new("inbox", "Go to Inbox")
+                            .icon(IconName::Inbox)
+                            .shortcut("G I")],
+                    )],
+                )
+                .on_select(|item, _, _| println!("Run {}", item.label()))
+            };
+        }
+
     }
 }
 

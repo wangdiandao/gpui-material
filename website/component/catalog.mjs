@@ -1202,4 +1202,106 @@ use gpui_material::Skeleton;`,
     code: `TitleBar::new("main-title-bar")
     .title("Workspace")`,
   },
+  {
+    slug: "collapsible",
+    group: "layout",
+    title: "Collapsible",
+    source: "crates/extras/src/disclosure/collapsible.rs",
+    api: "struct.Collapsible.html",
+    feature: "disclosure",
+    description: {
+      en: "Reveal or hide supplementary details inside a Material 3 disclosure container.",
+      zh: "在 Material 3 可展开/收起容器中揭示或隐藏补充内容。",
+    },
+    usage: {
+      en: "Pass the controlled open flag to Collapsible::new and update it from on_open_change. Customize the header with supporting text, leading or trailing slots, bordered and divider toggles, and content padding.",
+      zh: "将受控展开状态传入 Collapsible::new，并在 on_open_change 中更新。可通过 supporting、leading、trailing、bordered、divider 和 content_padding 自定义外观。",
+    },
+    imports: "use gpui_material::{Collapsible, Text};",
+    code: `Collapsible::new("release-notes", "Release notes", true)
+    .supporting("Desktop highlights")
+    .content(Text::new("Material 3 disclosure container."))
+    .on_open_change(|open, _, _| println!("Open: {open}"))`,
+  },
+  {
+    slug: "accordion",
+    group: "layout",
+    title: "Accordion",
+    source: "crates/extras/src/disclosure/accordion.rs",
+    api: "struct.Accordion.html",
+    feature: "disclosure",
+    description: {
+      en: "Expand and collapse grouped sections in Standard or Segmented Material 3 layouts.",
+      zh: "以 Standard 或 Segmented 样式组织可展开与收起的分组内容。",
+    },
+    usage: {
+      en: "Pass ordered AccordionItem entries and the expanded item IDs to Accordion::new. Choose Single, SingleRequired, or Multiple via mode, and Standard or Segmented via variant. Enabled triggers support vertical roving focus.",
+      zh: "向 Accordion::new 传入有序的 AccordionItem 列表和当前展开 ID。通过 mode 选择单选、必选单选或多选，通过 variant 选择 Standard 或 Segmented 样式，并支持纵向漫游焦点。",
+    },
+    imports: "use gpui_material::{Accordion, AccordionItem, AccordionMode, AccordionVariant, Text};",
+    code: `Accordion::new(
+    "faq",
+    [
+        AccordionItem::new("overview", "Workspace overview")
+            .content(Text::new("Organized across theme, foundation, components, and extras.")),
+        AccordionItem::new("keyboard", "Keyboard navigation")
+            .content(Text::new("Use Up, Down, Home, End, Enter, and Space.")),
+    ],
+)
+.mode(AccordionMode::Single)
+.variant(AccordionVariant::Segmented)
+.expanded(["overview"])
+.on_change(|ids, _, _| println!("Expanded: {ids:?}"))`,
+  },
+  {
+    slug: "pagination",
+    group: "layout",
+    title: "Pagination",
+    source: "crates/extras/src/disclosure/pagination.rs",
+    api: "struct.Pagination.html",
+    feature: "disclosure",
+    description: {
+      en: "Navigate multi-page desktop collections with active page pills and ellipsis truncation.",
+      zh: "使用当前页高亮胶囊和省略号截断浏览多页桌面内容。",
+    },
+    usage: {
+      en: "Pass the 1-based current page and total page count to Pagination::new, and apply requested changes from on_change. Previous and next buttons disable automatically at boundaries and mirror in RTL.",
+      zh: "向 Pagination::new 传入从 1 开始的当前页与总页数，并在 on_change 中应用切页请求。上一页/下一页按钮在边界自动禁用并在 RTL 中镜像。",
+    },
+    imports: "use gpui_material::Pagination;",
+    code: `Pagination::new("results-pages", 5, 12)
+    .accessible_label("Search results pages")
+    .on_change(|page, _, _| println!("Page {page}"))`,
+  },
+  {
+    slug: "command-palette",
+    group: "advanced",
+    title: "CommandPalette",
+    source: "crates/extras/src/command_palette.rs",
+    api: "struct.CommandPalette.html",
+    feature: "command-palette",
+    description: {
+      en: "Filter and execute grouped desktop commands in a Ctrl/Cmd+K modal palette.",
+      zh: "在桌面端 Ctrl/Cmd+K 风格模态面板中过滤并执行分组命令。",
+    },
+    usage: {
+      en: "Retain a CommandPaletteState entity and call open or toggle from a shortcut or button. Supply typed CommandItem or CommandGroup lists, navigate with Up, Down, Home, and End, execute with Enter, and dismiss with Escape.",
+      zh: "保留 CommandPaletteState 实体，并在快捷键或按钮中调用 open 或 toggle。传入 CommandItem 或 CommandGroup 列表，支持上下、Home、End 导航，Enter 执行，Escape 关闭并恢复焦点。",
+    },
+    imports: "use gpui_material::{CommandGroup, CommandItem, CommandPalette, CommandPaletteState, IconName};",
+    code: `let palette = cx.new(|cx| CommandPaletteState::new(window, cx));
+
+// In render
+CommandPalette::grouped(
+    "commands",
+    &palette,
+    [CommandGroup::new(
+        "Navigation",
+        [CommandItem::new("inbox", "Go to Inbox")
+            .icon(IconName::Inbox)
+            .shortcut("G I")],
+    )],
+)
+.on_select(|item, _, _| println!("Run {}", item.label()))`,
+  },
 ].map((guide) => ({ story: guide.slug, ...guide }));

@@ -23,7 +23,9 @@ mod generated {
 
 #[cfg(feature = "dynamic-color")]
 pub use color::contrast_ratio_of_tones;
-pub use color::{Appearance, Argb, ColorPair, ColorScheme, ColorSpec, Elevation, StateLayer};
+pub use color::{
+    Appearance, AppearanceMode, Argb, ColorPair, ColorScheme, ColorSpec, Elevation, StateLayer,
+};
 #[cfg(feature = "dynamic-color")]
 pub use dynamic_color::{
     CustomColorGroup, DynamicVariant, SpecVersion, ThemePreset, harmonize_color,

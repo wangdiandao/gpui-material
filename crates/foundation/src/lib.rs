@@ -8,8 +8,10 @@ mod theme_scope;
 mod typography;
 
 pub use root::{
-    MaterialRoot, material_theme, project_base_theme, set_material_theme,
-    set_window_material_theme, window_material_theme,
+    MaterialRoot, ReduceMotionPreference, appearance_from_window, material_theme,
+    observe_system_appearance, observe_window_system_appearance, project_base_theme,
+    set_material_theme, set_reduce_motion_preference, set_window_material_theme,
+    sync_system_reduce_motion, system_appearance, window_material_theme,
 };
 pub use surface::{
     Surface, SurfaceBorder, SurfaceFeedback, color, elevation_shadow_pair, elevation_shadows,
@@ -29,7 +31,7 @@ pub use feedback::{
     FOCUS_RING_OUTER_OFFSET, FOCUS_RING_WIDTH, FocusRingPlacement, InteractionFeedback,
     InteractionState, Ripple,
 };
-pub use gpui_material_theme::MaterialShape;
+pub use gpui_material_theme::{AppearanceMode, MaterialShape};
 pub use motion::{
     LoopClock, MotionSample, MotionStatus, OverlayMotion, RetargetTransition, ScaledOverlay,
     animate, animate_with_status, is_bounds_visible, sanitize_overlay_scale,

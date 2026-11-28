@@ -363,6 +363,61 @@ fn apply_dynamic_theme(appearance: Appearance, cx: &mut App) {
 }
 ```
 
+### 跟随系统外观与减少动态效果
+
+结合 `AppearanceMode`（`Light`、`Dark`、`System`）、`system_appearance(cx)` 与 `observe_system_appearance(...)`（或 `MaterialRoot::sync_system_appearance`）跟踪系统浅色/深色切换，同时保留自定义种子色、排版、动效和密度。请在根视图中保存返回的 `Subscription`（或调用 `.detach()` 随窗口生命周期存活）。如果只需让单个子窗口跟随系统而不修改全局应用主题，请使用 `observe_window_system_appearance`（或 `MaterialRoot::sync_window_system_appearance`）。
+
+```rust
+use gpui::{AppContext, IntoElement, QuitMode, Render, Subscription, Window, WindowOptions};
+use gpui_material::{
+    AppearanceMode, MaterialRoot, MaterialTheme, ReduceMotionPreference,
+    observe_system_appearance, set_reduce_motion_preference, sync_system_reduce_motion,
+    system_appearance,
+    theme::{Appearance, Density, MotionScheme},
+};
+
+fn build_app_theme(appearance: Appearance) -> MaterialTheme {
+    MaterialTheme::baseline(appearance)
+        .motion(MotionScheme::Expressive)
+        .density(Density::Compact)
+}
+
+struct SyncedApp {
+    _appearance_sub: Subscription,
+}
+
+impl Render for SyncedApp {
+    fn render(&mut self, _: &mut Window, _: &mut gpui::Context<Self>) -> impl IntoElement {
+        "Synced with OS appearance"
+    }
+}
+
+fn main() {
+    gpui_platform::application()
+        .with_quit_mode(QuitMode::LastWindowClosed)
+        .run(|cx| {
+            gpui_material::init(build_app_theme(system_appearance(cx)), cx);
+            MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+                // Re-read the OS reduced-motion setting on demand (Windows/macOS),
+                // or choose an explicit ReduceMotionPreference.
+                sync_system_reduce_motion(cx);
+                set_reduce_motion_preference(ReduceMotionPreference::System, cx);
+
+                let appearance_sub = observe_system_appearance(
+                    window,
+                    cx,
+                    AppearanceMode::System,
+                    build_app_theme,
+                );
+                cx.new(|_| SyncedApp {
+                    _appearance_sub: appearance_sub,
+                })
+            })
+            .expect("open Material window");
+        });
+}
+```
+
 ### 语义色阶
 
 使用 `SemanticTone`（`Default`、`Danger`、`Success`、`Warning`、`Info`）可在 `Button`、`ToggleButton`、`IconButton`、`Chip`、`ChipGroupItem` 和 `Snackbar` 上直接应用 Material 3 语义色对，无需手动拼装单个颜色角色：
@@ -650,7 +705,7 @@ impl Render for ObservedAction {
 ### RTL 镜像与减少动态效果
 
 - **RTL**：通过 `MaterialTheme::with_direction(Direction::Rtl)` 或局部 `ThemeScope::new(child).direction(Direction::Rtl)` 启用从右到左布局。Material 控件会自动镜像排版、内边距和水平方向键导航。具有方向含义的图标需显式调用 `Icon::new(IconName::ArrowForward).mirror_in_rtl(true)`，自定义浮层锚点则通过 `foundation::logical_anchor(anchor, theme.layout.direction)` 镜像。
-- **减少动态效果**：通过 GPUI 的 `cx.reduce_motion()` 读取系统偏好。将其传入 `theme.motion.spec(MotionKind::Spatial, MotionSpeed::Default, cx.reduce_motion())` 会直接解析为 `MotionSpec::Instant`，`foundation::animate_with_status` 与 `LoopClock` 也会立即收敛而不额外调度动画帧。
+- **减少动态效果**：`gpui_material::init` 会通过 `gpui-base` 读取一次系统偏好；需要按需刷新时调用 `sync_system_reduce_motion(cx)`，需要显式覆盖或恢复跟随系统时调用 `set_reduce_motion_preference(ReduceMotionPreference::..., cx)`。通过 GPUI 的 `cx.reduce_motion()` 读取当前状态：将其传入 `theme.motion.spec(MotionKind::Spatial, MotionSpeed::Default, cx.reduce_motion())` 会直接解析为 `MotionSpec::Instant`，`foundation::animate_with_status` 与 `LoopClock` 也会立即收敛而不额外调度动画帧。
 
 <a id="building-custom-material-controls"></a>
 

@@ -4,6 +4,11 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Theme, foundation, and facade
+
+- Add `AppearanceMode` (`Light`, `Dark`, `System`) with `AppearanceMode::resolve` (and `serde` support when `feature = "serde"` is enabled) in `gpui-material-theme`.
+- Add system appearance and reduced-motion sync helpers in `gpui-material-foundation` (re-exported from `gpui-material`): `appearance_from_window`, `system_appearance`, `observe_system_appearance`, `observe_window_system_appearance`, `MaterialRoot::sync_system_appearance`, `MaterialRoot::sync_window_system_appearance`, `sync_system_reduce_motion`, and re-exported `ReduceMotionPreference` / `set_reduce_motion_preference`.
+
 ## 0.4.1 - 2026-11-26
 
 Changes since [v0.4.0](https://github.com/wangdiandao/gpui-material/releases/tag/v0.4.0).

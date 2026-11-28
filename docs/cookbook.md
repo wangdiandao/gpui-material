@@ -363,6 +363,61 @@ fn apply_dynamic_theme(appearance: Appearance, cx: &mut App) {
 }
 ```
 
+### Following system appearance and reduced motion
+
+Use `AppearanceMode` (`Light`, `Dark`, `System`) with `system_appearance(cx)` and `observe_system_appearance(...)` (or `MaterialRoot::sync_system_appearance`) to track OS light/dark changes while preserving custom seeds, typography, motion, and density. Retain the returned `Subscription` on your root view (or call `.detach()` for the lifetime of the window). For a secondary window that follows the OS without mutating the application-wide theme, use `observe_window_system_appearance` (or `MaterialRoot::sync_window_system_appearance`).
+
+```rust
+use gpui::{AppContext, IntoElement, QuitMode, Render, Subscription, Window, WindowOptions};
+use gpui_material::{
+    AppearanceMode, MaterialRoot, MaterialTheme, ReduceMotionPreference,
+    observe_system_appearance, set_reduce_motion_preference, sync_system_reduce_motion,
+    system_appearance,
+    theme::{Appearance, Density, MotionScheme},
+};
+
+fn build_app_theme(appearance: Appearance) -> MaterialTheme {
+    MaterialTheme::baseline(appearance)
+        .motion(MotionScheme::Expressive)
+        .density(Density::Compact)
+}
+
+struct SyncedApp {
+    _appearance_sub: Subscription,
+}
+
+impl Render for SyncedApp {
+    fn render(&mut self, _: &mut Window, _: &mut gpui::Context<Self>) -> impl IntoElement {
+        "Synced with OS appearance"
+    }
+}
+
+fn main() {
+    gpui_platform::application()
+        .with_quit_mode(QuitMode::LastWindowClosed)
+        .run(|cx| {
+            gpui_material::init(build_app_theme(system_appearance(cx)), cx);
+            MaterialRoot::open_window(WindowOptions::default(), cx, |window, cx| {
+                // Re-read the OS reduced-motion setting on demand (Windows/macOS),
+                // or choose an explicit ReduceMotionPreference.
+                sync_system_reduce_motion(cx);
+                set_reduce_motion_preference(ReduceMotionPreference::System, cx);
+
+                let appearance_sub = observe_system_appearance(
+                    window,
+                    cx,
+                    AppearanceMode::System,
+                    build_app_theme,
+                );
+                cx.new(|_| SyncedApp {
+                    _appearance_sub: appearance_sub,
+                })
+            })
+            .expect("open Material window");
+        });
+}
+```
+
 ### Semantic tones
 
 Use `SemanticTone` (`Default`, `Danger`, `Success`, `Warning`, `Info`) to apply Material 3 semantic color pairs across `Button`, `ToggleButton`, `IconButton`, `Chip`, `ChipGroupItem`, and `Snackbar` without hand-picking individual color roles:
@@ -650,7 +705,7 @@ impl Render for ObservedAction {
 ### RTL mirroring and reduced motion
 
 - **RTL**: Set `Direction::Rtl` on `MaterialTheme::with_direction(Direction::Rtl)` or a local `ThemeScope::new(child).direction(Direction::Rtl)`. Material controls mirror layout, padding, and horizontal keyboard navigation automatically. Opt directional icons into mirroring with `Icon::new(IconName::ArrowForward).mirror_in_rtl(true)`, and mirror custom overlay anchors with `foundation::logical_anchor(anchor, theme.layout.direction)`.
-- **Reduced motion**: Query the OS preference from GPUI with `cx.reduce_motion()`. Passing it to `theme.motion.spec(MotionKind::Spatial, MotionSpeed::Default, cx.reduce_motion())` returns `MotionSpec::Instant`, and `foundation::animate_with_status` / `LoopClock` settle immediately without scheduling motion frames.
+- **Reduced motion**: `gpui_material::init` syncs the OS preference once through `gpui-base`; call `sync_system_reduce_motion(cx)` to refresh it on demand or `set_reduce_motion_preference(ReduceMotionPreference::..., cx)` to override it explicitly. Query the active flag with `cx.reduce_motion()`: passing it to `theme.motion.spec(MotionKind::Spatial, MotionSpeed::Default, cx.reduce_motion())` returns `MotionSpec::Instant`, and `foundation::animate_with_status` / `LoopClock` settle immediately without scheduling motion frames.
 
 <a id="构建自定义-material-控件"></a>
 

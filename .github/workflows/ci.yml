@@ -175,7 +175,6 @@ jobs:
         run: cargo test --locked --workspace --all-features --doc
 
       - name: Run offscreen UI rendering tests
-        if: runner.os != 'Windows'
         run: cargo test --locked -p gpui-material-gallery --all-features --test rendering
 
       - name: Build native Gallery

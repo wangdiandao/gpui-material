@@ -39,7 +39,7 @@ Choose the lowest effective test layer for the behavior being verified:
 | Pure logic unit tests | Regular `#[test]` in `crates/` | Token tables, theme math, layout geometry, parsers, and state transitions that do not need a GPUI `App` or `Window`. |
 | Facade UI integration tests | Single-binary `#[gpui::test]` in `crates/material/tests/integration/` | Public facade contracts, `gpui_material::test` harness semantics, controlled callbacks, `ThemeScope` isolation, and downstream end-to-end flows using only `gpui_material` exports. |
 | Gallery headless UI tests | `#[gpui::test]` in `apps/gallery/src/` | Component presentation, Material quad/clip geometry, animations/reduced motion, Story & Gallery shell workflows. |
-| Offscreen pixel rendering tests | Opt-in `apps/gallery/tests/rendering.rs` (`--test rendering`, `test = false`, `harness = false`) | Real offscreen Metal (macOS) and WGPU/lavapipe (Linux) rasterization checks for embedded Material Symbols SVGs, GPUI `Path` shapes/checkmarks/progress arcs, text visibility, focus-ring contrast, and RTL mirroring that `painted_quads()` cannot prove. Windows reports an explicit skip because the pinned `gpui-pre` platform crate has no Windows headless renderer. |
+| Offscreen pixel rendering tests | Opt-in `apps/gallery/tests/rendering.rs` (`--test rendering`, `test = false`, `harness = false`) | Real offscreen DirectX (Windows hidden-window readback, with WARP fallback), Metal (macOS), and WGPU/lavapipe (Linux) rasterization checks for embedded Material Symbols SVGs, GPUI `Path` shapes/checkmarks/progress arcs, Expressive polygon `Surface` clipping, light/dark/high-contrast tonal surfaces, text visibility, focus-ring contrast, and RTL layout/icon mirroring that `painted_quads()` cannot prove. |
 | Native desktop & accessibility verification | Manual run of `cargo gallery` | Platform boundaries outside headless GPUI: OS IME candidate windows (such as Microsoft Pinyin), system clipboard services, screen-reader announcements (Windows UIA/Narrator, macOS VoiceOver), and native window chrome. |
 
 Follow these test authoring rules:
@@ -110,7 +110,7 @@ cargo check --locked -p gpui-material --no-default-features
 cargo check --locked -p gpui-material --no-default-features --features display
 ```
 
-`--test rendering` runs real offscreen Metal/WGPU pixel assertions on macOS and Linux (requiring a Metal device or Vulkan/lavapipe adapter) and prints an explicit skip on Windows. For token changes, follow the [generation steps](theme/theme.md#token-data).
+`--test rendering` runs real offscreen DirectX (Windows hidden-window readback, with WARP fallback), Metal (macOS), and WGPU/lavapipe (Linux) pixel assertions, printing an explicit diagnostic skip only if a non-interactive Windows session cannot attach DirectX. For token changes, follow the [generation steps](theme/theme.md#token-data).
 
 <a id="性能与构建工具"></a>
 
@@ -135,6 +135,18 @@ To measure cold and warm Gallery build times into a fresh report directory (the 
 cargo fetch --locked --target x86_64-pc-windows-msvc
 cargo xtask timings target/timings/gallery-timings
 ```
+
+To capture repeatable JSON baselines and compare revisions (frame metrics from `perf_bench`, cold/warm build times, and `gpui-material-gallery-web` WASM bundle sizes), write baseline files outside tracked paths (such as under `target/baselines/`):
+
+```powershell
+cargo xtask baseline capture target/baselines/base.json --perf
+cargo xtask baseline capture target/baselines/head.json --perf --timings --wasm
+cargo xtask baseline compare target/baselines/base.json target/baselines/head.json --threshold 10
+```
+
+- When no capture flag is provided, `baseline capture` defaults to `--perf` so routine runs avoid cold-build and WASM toolchain overhead.
+- Use `--wasm` to build `gpui-material-gallery-web` with the `wasm-release` profile into a temporary directory, or `--wasm-dir <dir>` to measure an existing `wasm-bindgen` output directory without rebuilding.
+- `baseline compare` prints a Markdown diff table (`Base`, `Head`, `Delta`, `%`) and exits non-zero when `--threshold <percent>` is exceeded. Do not commit generated baseline JSON files or reports.
 
 <a id="文档网站"></a>
 
@@ -174,7 +186,7 @@ In repository settings, set **Settings → Pages → Build and deployment → So
 | `Change scope` | Classifies changed files (`docs`, `website`, `checks`, `release_scripts`, `native`) and checks diff whitespace. |
 | `Repository checks` | Runs conditional repository-level checks in one job: `cargo xtask docs --check`, Rust formatting, generated tokens, three-platform dependency graphs, default workspace, default-feature Gallery, and slim-feature compile checks (`gpui-material` / `gpui-material-components` with `--no-default-features` and minimal slices), plus `release.py` syntax/unit tests. |
 | `Website / Build documentation` | Builds and link-checks the website with the WASM Gallery when website sources, `docs/`, or WASM build inputs change. |
-| `Windows MSVC`, `macOS ARM64`, `Linux x64` | Runs Clippy, workspace library/integration tests (`--lib --tests`), headless Gallery UI tests, native Gallery builds (`--all-features`), offscreen pixel rendering tests (`--test rendering` on macOS Metal and Linux WGPU/lavapipe), and Rustdoc + doctest checks (on Linux x64, with `mold` linking). |
+| `Windows MSVC`, `macOS ARM64`, `Linux x64` | Runs Clippy, workspace library/integration tests (`--lib --tests`), headless Gallery UI tests, native Gallery builds (`--all-features`), offscreen pixel rendering tests (`--test rendering` across Windows DirectX, macOS Metal, and Linux WGPU/lavapipe), and Rustdoc + doctest checks (on Linux x64, with `mold` linking). |
 | `CI required` | Confirms the selected jobs passed and unselected jobs were skipped. |
 
 Rust build caches are isolated by platform, saved on `main`, and restored by PRs. Changes to `main` require a PR that is up to date with its base and passes `CI required` under the [review and merge rules](../CONTRIBUTING.md#pr-review-and-merge). For releases, see [versioning and releases](release.md#prepare-and-publish).

@@ -1,16 +1,26 @@
 mod base_projection;
+mod system_sync;
 mod transition;
 
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use gpui::{AnyView, App, AppContext, Global, Render, Window, WindowHandle, WindowId};
+use gpui::{
+    AnyView, App, AppContext, Global, Render, Subscription, Window, WindowHandle, WindowId,
+};
 use gpui_base::{Root, Theme};
-use gpui_material_theme::{ColorScheme, MaterialTheme, MotionKind, MotionSpec, MotionSpeed};
+use gpui_material_theme::{
+    Appearance, AppearanceMode, ColorScheme, MaterialTheme, MotionKind, MotionSpec, MotionSpeed,
+};
 
 use crate::typography::{font_cache_revision, refresh_installed_fonts};
 
 pub use base_projection::project_base_theme;
 use base_projection::{project_base_colors, project_base_metrics};
+pub use system_sync::{
+    ReduceMotionPreference, appearance_from_window, observe_system_appearance,
+    observe_window_system_appearance, set_reduce_motion_preference, sync_system_reduce_motion,
+    system_appearance,
+};
 use transition::PaletteTransition;
 
 struct ActiveMaterialTheme(Rc<MaterialTheme>);
@@ -62,6 +72,30 @@ impl MaterialRoot {
             let view = AnyView::from(build(window, cx));
             cx.new(|cx| Root::new(view, window, cx))
         })
+    }
+
+    /// Synchronizes the application-wide Material theme with `window`'s appearance.
+    ///
+    /// Convenience alias for [`observe_system_appearance`].
+    pub fn sync_system_appearance(
+        window: &mut Window,
+        cx: &mut App,
+        mode: AppearanceMode,
+        build_theme: impl FnMut(Appearance) -> MaterialTheme + 'static,
+    ) -> Subscription {
+        observe_system_appearance(window, cx, mode, build_theme)
+    }
+
+    /// Synchronizes a single window's Material theme override with `window`'s appearance.
+    ///
+    /// Convenience alias for [`observe_window_system_appearance`].
+    pub fn sync_window_system_appearance(
+        window: &mut Window,
+        cx: &mut App,
+        mode: AppearanceMode,
+        build_theme: impl FnMut(Appearance) -> MaterialTheme + 'static,
+    ) -> Subscription {
+        observe_window_system_appearance(window, cx, mode, build_theme)
     }
 }
 

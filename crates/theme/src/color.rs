@@ -100,7 +100,7 @@ impl ColorRole {
 }
 
 /// The selected appearance. The host resolves any system preference.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Appearance {
     /// Light mode (default).
@@ -108,6 +108,40 @@ pub enum Appearance {
     Light,
     /// Dark mode.
     Dark,
+}
+
+/// How an application selects between light, dark, and OS-provided appearance.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum AppearanceMode {
+    /// Always use light appearance.
+    Light,
+    /// Always use dark appearance.
+    Dark,
+    /// Follow the operating system or host window appearance (default).
+    #[default]
+    System,
+}
+
+impl AppearanceMode {
+    /// Resolves this mode into a concrete [`Appearance`], falling back to `system`
+    /// when `self` is [`Self::System`].
+    pub const fn resolve(self, system: Appearance) -> Appearance {
+        match self {
+            Self::Light => Appearance::Light,
+            Self::Dark => Appearance::Dark,
+            Self::System => system,
+        }
+    }
+}
+
+impl From<Appearance> for AppearanceMode {
+    fn from(appearance: Appearance) -> Self {
+        match appearance {
+            Appearance::Light => Self::Light,
+            Appearance::Dark => Self::Dark,
+        }
+    }
 }
 
 /// A semantic Material [`ColorRole`] or an explicit literal [`Argb`] color.

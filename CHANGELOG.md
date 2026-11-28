@@ -20,6 +20,10 @@ See [versioning and releases](docs/release.md) for the release process.
 - Add pure-value `MaterialStrings` (with `Arc<str>` fields, fluent builders, English defaults, and optional `serde` support) in `gpui-material-theme`, plus `material_strings`, `set_material_strings`, `current_material_strings`, and `ThemeScope::strings` in `gpui-material-foundation` (re-exported from `gpui-material`), and wire built-in default labels across `Scrim`, components, and extras to fall back to `current_material_strings` while preserving explicit per-component setter precedence.
 - Add an automated public third-party API boundary check in `xtask` (`cargo xtask check`) enforcing the documented allowlist of intentional Base/third-party re-exports across `crates/*/src/**/*.rs`.
 
+### Extras and Gallery
+
+- Add opt-in `specialized-inputs` (`NumberInput`, `OtpInput`, `ColorPicker` with Material-owned states and `Argb`/`Hsla` conversions for `dynamic-color`) and slim `rich-text` (`SelectableText`, `RichText` with Material typography scale, code surfaces, links, blockquotes, and `ThemeScope` support) features in `gpui-material-extras`, forwarded cleanly from `gpui-material` with explicit `dep:` feature plumbing and interactive Gallery stories.
+
 ## 0.4.1 - 2026-11-26
 
 Changes since [v0.4.0](https://github.com/wangdiandao/gpui-material/releases/tag/v0.4.0).

@@ -27,6 +27,8 @@ expressive-groups = ["display", "dep:gpui-material-extras", "gpui-material-extra
 search = ["display", "dep:gpui-material-extras", "gpui-material-extras/search"]
 toolbars = ["display", "dep:gpui-material-extras", "gpui-material-extras/toolbars"]
 date-time = ["display", "dep:gpui-material-extras", "gpui-material-extras/date-time"]
+specialized-inputs = ["display", "dep:gpui-material-extras", "gpui-material-extras/specialized-inputs"]
+rich-text = ["dep:gpui-material-extras", "gpui-material-extras/rich-text"]
 window-chrome = ["dep:gpui-material-extras", "gpui-material-extras/window-chrome"]
 test-support = [
     "gpui/test-support",

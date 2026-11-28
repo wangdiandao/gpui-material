@@ -472,7 +472,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 
 ## 可选组件
 
-核心组件默认通过 `full` 全部启用。在 `gpui-material` 上关闭默认特性并启用 `display`（或在 `gpui-material-components` 上关闭默认特性），仅编译轻量展示核心（`Text`、`Icon`、`IconName`、`Avatar`、`AvatarGroup`、`EmptyView`、`Skeleton`、`Badge`、`Divider`、`DisplayScrollbar`、`ControlSize`、`LogicalEdges`、`SemanticTone`、`MaterialElementExt` 及 `init_components`）和所选分组；在 `gpui-material` 上仅启用 `carousel` 或 `window-chrome` 时完全不编译 `gpui-material-components` 及其内嵌 SVG：
+核心组件默认通过 `full` 全部启用。在 `gpui-material` 上关闭默认特性并启用 `display`（或在 `gpui-material-components` 上关闭默认特性），仅编译轻量展示核心（`Text`、`Icon`、`IconName`、`Avatar`、`AvatarGroup`、`EmptyView`、`Skeleton`、`Badge`、`Divider`、`DisplayScrollbar`、`ControlSize`、`LogicalEdges`、`SemanticTone`、`MaterialElementExt` 及 `init_components`）和所选分组；在 `gpui-material` 上仅启用 `carousel`、`rich-text` 或 `window-chrome` 时完全不编译 `gpui-material-components` 及其内嵌 SVG：
 
 | 核心特性 | 组件 | 隐含分组 |
 | --- | --- | --- |
@@ -495,6 +495,8 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `search` | `SearchBar`、`SearchView` | 收起的搜索栏及可自定义的 Docked、Full-screen 和 Contained 搜索视图。 | [搜索](https://m3.material.io/components/search/overview) |
 | `date-time` | `DatePicker`、`TimePicker`、`TimePickerDialog`、`VibrantTimePickerDialog`、`TimePickerPanel`、`TimeScroll`、`ScrollField` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input 和自适应 FullScreen。可组合独立面板或对话框。时间选择支持表盘、文本输入、循环滚动和 12、24 小时制。支持独立的滚动选择字段。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
 | `carousel` | `Carousel`、`CarouselParallax` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。 任意 GPUI 内容可使用独立滚动视差效果。 | [轮播](https://m3.material.io/components/carousel/overview) |
+| `specialized-inputs` | `NumberInput`、`OtpInput`、`ColorPicker` | 支持上下限与键盘步进的填充/描边数值输入框；支持掩码、粘贴与方向键导航的分段验证码输入；支持色板预设、HSLA 滑块、十六进制输入及与 `dynamic-color` 衔接的 `Argb` 转换的颜色选择器。 | [文本字段](https://m3.material.io/components/text-fields/overview) · [滑块](https://m3.material.io/components/sliders/overview) |
+| `rich-text` | `SelectableText`、`RichText` | 支持 Material 排版体系、指针拖拽选区、键盘复制与 `PrimaryContainer` 选区高亮的可选文本；支持 Material 排版层级、代码块表面、链接、引用与 `ThemeScope` 隔离的 Markdown/HTML 富文本视图。 | [排版](https://m3.material.io/styles/typography/overview) |
 
 <a id="window-chrome"></a>
 
@@ -615,3 +617,18 @@ Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供
 `.user_scroll_enabled(false)` 关闭滚轮、触控板、键盘导航及无障碍滚动，条目仍可激活，应用仍可定位。内含布局和 Full-screen 默认吸附到最近的定位线，非内含布局默认自由滚动，可通过 `.snap_scrolling(true)` 启用吸附。`.fling_behavior(...)` 可选择自由滚动、就近吸附、单条目推进，或根据 `CarouselFlingContext` 自定义最终条目。逐格滚轮与无障碍滚动请求按条目移动。定位动画和吸附遵循减少动态效果设置。
 
 在可滚动布局中，用 `CarouselParallax::new(content)` 包装任意 GPUI 内容。效果默认使用 GPUI 当前裁剪区域作为视口，也可通过 `.viewport(bounds)` 传入窗口坐标下的视口。纵向布局使用 `.axis(Axis::Vertical)`。条目进出视口时，内容逐步裁剪和平移，布局尺寸保持固定。减少动态效果设置保留视口裁剪，并跳过附加的视差平移。通过 `.shape(CornerShape)` 和 `.border(SurfaceBorder)` 配置匹配的圆角和描边。GPUI 使用矩形区域裁剪内容，圆角处通过 Material Surface 颜色覆盖，也可通过 `.backdrop(color)` 设置与均匀父背景匹配的不透明色。图案或透明背景可使用直角保留原背景。
+
+### 专用输入
+
+在 `gpui-material`（或 `gpui-material-extras`）上启用可选特性 `specialized-inputs`，即可使用 `NumberInput`、`OtpInput` 和 `ColorPicker` 及其由 Material 持有的状态实体（`NumberInputState`、`OtpInputState`、`ColorPickerState`）。启用 `specialized-inputs` 仅会激活 `gpui-material-components` 中的 `actions`、`inputs` 与 `selection` 分组。
+
+- **`NumberInput`**：为每个数值输入保留一个 `Entity<NumberInputState>`，可通过 `.default_value(f64)`、`.min(f64)`、`.max(f64)`（或 `.bounds(min, max)`）、`.step(f64)` 及可选的 `.precision(usize)` 配置范围与步进精度。使用 `NumberInput::new(id, label, &state)`（或 `.filled(...)` / `.outlined(...)`）渲染 Filled 或 Outlined 风格的数值输入框；通过 `.stepper(NumberInputStepper)` 配置步进按钮布局（`Split` 在逻辑首尾两侧分别放置 `IconName::Remove` 与 `IconName::Add`，`Trailing` 将二者并排置于逻辑末尾，`None` 隐藏按钮但保留键盘 `Up`/`Down` 步进），并支持 `.supporting_text(...)`、`.error(...)`、`.disabled(bool)`、`.prefix(...)`、`.suffix(...)` 与 `.on_change(...)` / `.on_step(...)`。步进按钮在到达上下限时自动禁用且点击不抢夺编辑器焦点，支持 RTL 镜像、主题密度适配与 `Role::SpinButton` 数值语义。可在 `NumberInputState` 上订阅 `NumberInputEvent`（`Change`、`Step`、`Submit`）。
+- **`OtpInput`**：通过 `OtpInputState::new(length, window, cx)` 创建保留实体（可选 `.default_value(...)` 与 `.masked(true, window, cx)`），传入 `OtpInput::new(id, label, &state)` 渲染 `OtpInputVariant::Outlined`（默认）或 `OtpInputVariant::Filled` 分段验证码槽位，支持 `.separator_after(index)`、`.masked(bool)`、`.error(...)`、`.supporting_text(...)`、`.disabled(bool)`、`.colors(OtpInputColors)` 及 `.on_change(...)` / `.on_complete(...)`。当前激活槽位使用 Material `Primary` 聚焦描边，未激活槽位使用 `Outline` 或 `SurfaceContainerHighest`，错误状态下切换为 `Error` 色板。支持数字输入（含全角数字）、剪贴板粘贴（`Ctrl/Cmd+V`）、`Backspace`/`Delete`、`Left`/`Right`/`Home`/`End` 槽位光标导航以及点击指定槽位聚焦。遵循 Material 3 与 Unicode BiDi 规范，数字验证码槽位在 RTL 窗口中仍保持自左向右排列。可订阅 `OtpInputEvent`（`Change`、`Complete`、`Focus`、`Blur`）。
+- **`ColorPicker`**：通过 `ColorPickerState::new(window, cx)` 创建保留实体（可选 `.default_argb(Argb, window, cx)` 或 `.default_color(Hsla, window, cx)`）。`ColorPicker::new(id, label, &state)` 渲染带触发器与可关闭弹出面板的拾色器，`ColorPicker::inline(id, label, &state)` 渲染常驻内联面板。内置 Material 3 色板预设（可通过 `.presets(...)` 或 `.swatches(...)` 自定义）、色相/饱和度/明度滑块（可选 `.show_alpha(true)` 启用透明度滑块）以及实时双向同步的 `#RRGGBB` / `#RRGGBBAA` 十六进制 `TextField`。通过 `ColorPickerState::argb`、`set_argb`、`select_argb`、`hsla_to_argb`、`argb_to_hsla`、`format_hex_argb` 与 `parse_hex_argb` 在 `Hsla` 与 `gpui_material_theme::Argb` 之间无缝转换，启用 `dynamic-color` 时可将选中颜色直接传入 `MaterialTheme::from_seed(...)`。
+
+### 富文本与可选文本
+
+在 `gpui-material`（或 `gpui-material-extras`）上启用可选特性 `rich-text`，即可使用 `SelectableText` 与 `RichText`。该特性仅依赖 `gpui`、`gpui-base`、`gpui-material-foundation` 与 `gpui-material-theme`，不会引入 `gpui-material-components`。
+
+- **`SelectableText`**：通过 `SelectableText::new(id, text)`（或 15 种 Material 排版快捷构造器，如 `SelectableText::body_large`、`headline_small`、`label_medium`）渲染可选中文本，支持 `.role(TypeRole)`、`.emphasized(bool)`、`.font_scale(f32)`、`.color(ColorRole)`、`.color_override(Hsla)`、`.muted()`、`.align(TextAlign)`、`.wrap(bool)`、`.selection_color(Hsla)` 与 `.highlights(...)`。自动接入 `MaterialRoot` 的窗口级选区层，支持指针拖拽选择与 `Ctrl/Cmd+C` 复制，默认使用 Material `PrimaryContainer` 选区高亮；可通过共享 `SelectableTextGroup` 搭配 `.group(&group).document_order(n)` 实现跨段落选区。
+- **`RichText`**：通过 `RichText::markdown(id, source)` / `RichText::html(id, source)` 渲染无状态 Markdown 或 HTML，或保留 `Entity<RichTextState>`（`RichTextState::markdown` / `RichTextState::html`，支持 `set_text`、流式追加 `push_str`、`selected_text`、`rendered_text` 与 `is_clamped`）并传给 `RichText::from_state(id, &state)`。自动将当前窗口或 `ThemeScope` 的 Material 主题投影至各级标题（`HeadlineLarge`–`TitleSmall`）、正文排版（`.body_role(TypeRole)`）、`SurfaceContainerHighest` 等宽代码块与行内代码、`Primary` 链接、`OutlineVariant` 引用块/分隔线/表格及 `PrimaryContainer` 选区高亮。支持 `.selectable(bool)`、`.selection_format(RichTextSelectionFormat)`、`.scrollable(bool)`、`.max_lines(usize)`、`.font_scale(f32)`、`.rich_style(RichTextStyle)`、`.on_link_click(...)` 与 `.on_task_toggle(...)`，并自动遵循减少动态效果设置。

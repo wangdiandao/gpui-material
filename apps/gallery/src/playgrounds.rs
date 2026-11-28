@@ -28,6 +28,9 @@ pub fn playground_for(story: Story) -> Option<&'static Playground> {
         Story::Slider => &selection::SLIDER,
         Story::Switch => &selection::SWITCH,
         Story::TextField => &selection::TEXT_FIELD,
+        Story::NumberInput => &selection::NUMBER_INPUT,
+        Story::OtpInput => &selection::OTP_INPUT,
+        Story::ColorPicker => &selection::COLOR_PICKER,
         Story::ExposedDropdown => &selection::EXPOSED_DROPDOWN,
         Story::Menu => &selection::MENU,
         Story::DatePicker => &selection::DATE_PICKER,
@@ -65,6 +68,8 @@ pub fn playground_for(story: Story) -> Option<&'static Playground> {
         Story::Skeleton => &communication::SKELETON,
         Story::Snackbar => &communication::SNACKBAR,
         Story::Text => &communication::TEXT,
+        Story::SelectableText => &communication::SELECTABLE_TEXT,
+        Story::RichText => &communication::RICH_TEXT,
         Story::Tooltip => &communication::TOOLTIP,
     })
 }
@@ -109,6 +114,6 @@ mod tests {
                 }
             }
         }
-        assert_eq!(count, 50);
+        assert_eq!(count, 55);
     }
 }

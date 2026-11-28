@@ -29,6 +29,14 @@ mod split_button;
 #[cfg(feature = "expressive-groups")]
 pub use split_button::SplitButton;
 
+#[cfg(feature = "rich-text")]
+mod rich_text;
+#[cfg(feature = "rich-text")]
+pub use rich_text::{
+    RichText, RichTextSelectionFormat, RichTextState, RichTextStyle, RichTextTaskToggle,
+    SelectableText, SelectableTextGroup,
+};
+
 #[cfg(feature = "search")]
 mod search;
 #[cfg(feature = "search")]
@@ -36,6 +44,16 @@ pub use search::{
     SearchBar, SearchEvent, SearchMotion, SearchOutcome, SearchPopupOptions, SearchRequest,
     SearchResult, SearchScrim, SearchScrollState, SearchState, SearchStyle, SearchValue,
     SearchView, SearchViewVariant, SearchWindowOptions,
+};
+
+#[cfg(feature = "specialized-inputs")]
+mod specialized_inputs;
+#[cfg(feature = "specialized-inputs")]
+pub use specialized_inputs::{
+    ColorPicker, ColorPickerColors, ColorPickerEvent, ColorPickerPreset, ColorPickerState,
+    NumberInput, NumberInputEvent, NumberInputState, NumberInputStepper, NumberStepAction,
+    OtpInput, OtpInputColors, OtpInputEvent, OtpInputState, OtpInputVariant, argb_to_hsla,
+    format_hex_argb, hsla_to_argb, parse_hex_argb,
 };
 
 #[cfg(feature = "toolbars")]

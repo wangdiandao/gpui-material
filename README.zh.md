@@ -49,6 +49,8 @@ let save = Button::new("save", "Save")
 | `search` | 搜索栏和搜索视图 |
 | `date-time` | 日期、日期范围和时间选择器 |
 | `carousel` | 六种轮播布局 |
+| `specialized-inputs` | 数值步进输入、验证码输入和颜色选择器 |
+| `rich-text` | 可选 Material 文本和 Markdown/HTML 富文本视图 |
 | `window-chrome` | 跨平台自绘标题栏和窗口控制按钮 |
 | `dynamic-color` | 从种子色生成配色方案 |
 | `serde` | 主题数据序列化 |

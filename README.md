@@ -49,6 +49,8 @@ Enable optional features on `gpui-material` for additional components and theme 
 | `search` | Search bars and search views |
 | `date-time` | Date, date range, and time pickers |
 | `carousel` | Six carousel layouts |
+| `specialized-inputs` | Numeric steppers, OTP code inputs, and color pickers |
+| `rich-text` | Selectable Material text and Markdown/HTML rich-text views |
 | `window-chrome` | Cross-platform custom title bar and window controls |
 | `dynamic-color` | Color schemes generated from a seed color |
 | `serde` | Serialization for theme data |

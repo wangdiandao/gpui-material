@@ -56,6 +56,22 @@ date-time = [
     "dep:gpui-material-foundation",
     "dep:gpui-material-theme",
 ]
+specialized-inputs = [
+    "dep:gpui",
+    "dep:gpui-base",
+    "dep:gpui-material-components",
+    "gpui-material-components/actions",
+    "gpui-material-components/inputs",
+    "gpui-material-components/selection",
+    "dep:gpui-material-foundation",
+    "dep:gpui-material-theme",
+]
+rich-text = [
+    "dep:gpui",
+    "dep:gpui-base",
+    "dep:gpui-material-foundation",
+    "dep:gpui-material-theme",
+]
 window-chrome = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-foundation", "dep:gpui-material-theme", "dep:raw-window-handle", "dep:windows"]
 
 [dependencies]
@@ -75,7 +91,9 @@ features = [
     "carousel",
     "date-time",
     "expressive-groups",
+    "rich-text",
     "search",
+    "specialized-inputs",
     "toolbars",
     "window-chrome",
 ]

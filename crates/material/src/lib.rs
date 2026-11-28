@@ -25,12 +25,24 @@ pub use gpui_material_extras::{
     Carousel, CarouselAlignment, CarouselFling, CarouselFlingContext, CarouselItem,
     CarouselParallax, CarouselState, CarouselVariant,
 };
+#[cfg(feature = "specialized-inputs")]
+pub use gpui_material_extras::{
+    ColorPicker, ColorPickerColors, ColorPickerEvent, ColorPickerPreset, ColorPickerState,
+    NumberInput, NumberInputEvent, NumberInputState, NumberInputStepper, NumberStepAction,
+    OtpInput, OtpInputColors, OtpInputEvent, OtpInputState, OtpInputVariant, argb_to_hsla,
+    format_hex_argb, hsla_to_argb, parse_hex_argb,
+};
 #[cfg(feature = "toolbars")]
 pub use gpui_material_extras::{
     FabMenu, FabMenuAlignment, FabMenuItem, FabMenuItemColors, FabMenuTriggerAppearance,
     FabMenuTriggerStyle, Toolbar, ToolbarAction, ToolbarColor, ToolbarColors, ToolbarExitDirection,
     ToolbarFabPosition, ToolbarFling, ToolbarOrientation, ToolbarPlacement, ToolbarScrollBehavior,
     ToolbarScrollState,
+};
+#[cfg(feature = "rich-text")]
+pub use gpui_material_extras::{
+    RichText, RichTextSelectionFormat, RichTextState, RichTextStyle, RichTextTaskToggle,
+    SelectableText, SelectableTextGroup,
 };
 #[cfg(feature = "search")]
 pub use gpui_material_extras::{

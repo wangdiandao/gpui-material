@@ -1,7 +1,8 @@
-use gpui::{AppContext, Entity, IntoElement, ParentElement, Styled, div, px};
+use gpui::{AppContext, Entity, IntoElement, ParentElement, SharedString, Styled, div, px};
 use gpui_material::{
-    Button, ButtonVariant, Card, CardVariant, Carousel, CarouselItem, CarouselVariant, ControlSize,
-    Dialog, DialogState, Divider, DropTarget, Icon, IconName, List, ListItem, SemanticTone, Sheet,
+    Accordion, AccordionItem, AccordionMode, AccordionVariant, Button, ButtonVariant, Card,
+    CardVariant, Carousel, CarouselItem, CarouselVariant, Collapsible, ControlSize, Dialog,
+    DialogState, Divider, DropTarget, Icon, IconName, List, ListItem, SemanticTone, Sheet,
     SheetEdge, Surface, Text, VerticalDragHandle,
     data_views::{
         ColumnAlignment, DataTable, DataTableCell, DataTableColumn, DataTableRow, SortDirection,
@@ -825,6 +826,201 @@ pub static DROP_TARGET: Playground = Playground {
         format!(
             "DropTarget::<()>::new(\"uploads\")\n    .title({:?})\n    .supporting(\"Supports .zip, .tar.gz, and .json files\")\n    .disabled({})",
             cfg.text("label"),
+            cfg.bool("disabled")
+        )
+    },
+};
+
+// --- Accordion ---
+pub static ACCORDION: Playground = Playground {
+    scenarios: &[
+        Scenario {
+            name: "Segmented multi",
+            values: &[
+                ("variant", Set::Option("Segmented")),
+                ("mode", Set::Option("Multiple")),
+            ],
+        },
+        Scenario {
+            name: "Single required",
+            values: &[("mode", Set::Option("SingleRequired"))],
+        },
+    ],
+    sections: &[Section {
+        title: "Behavior & style",
+        controls: &[
+            Control::Choice {
+                id: "variant",
+                label: "Variant",
+                options: &["Standard", "Segmented"],
+                default: 0,
+            },
+            Control::Choice {
+                id: "mode",
+                label: "Mode",
+                options: &["Single", "SingleRequired", "Multiple"],
+                default: 0,
+            },
+            Control::Switch {
+                id: "disabled",
+                label: "Disabled",
+                default: false,
+            },
+        ],
+    }],
+    preview: |cfg, ctx, _, cx| {
+        let expanded = ctx
+            .local::<Entity<Vec<SharedString>>>("accordion-expanded", || {
+                cx.new(|_| vec![SharedString::from("general")])
+            })
+            .clone();
+        let current = expanded.read(cx).clone();
+        let on_status = ctx.on_status(cx);
+        let variant = match cfg.option("variant") {
+            "Segmented" => AccordionVariant::Segmented,
+            _ => AccordionVariant::Standard,
+        };
+        let mode = match cfg.option("mode") {
+            "SingleRequired" => AccordionMode::SingleRequired,
+            "Multiple" => AccordionMode::Multiple,
+            _ => AccordionMode::Single,
+        };
+        div()
+            .w(px(380.))
+            .child(
+                Accordion::new(
+                    "pg-accordion",
+                    [
+                        AccordionItem::new("general", "General preferences")
+                            .supporting("Startup, updates, and window layout")
+                            .content(
+                                Text::new("Configure desktop startup behavior and window sizing.")
+                                    .role(TypeRole::BodySmall)
+                                    .color(ColorRole::OnSurfaceVariant)
+                                    .wrap(),
+                            ),
+                        AccordionItem::new("shortcuts", "Keyboard shortcuts")
+                            .supporting("Global bindings and navigation keys")
+                            .content(
+                                Text::new("Use Up, Down, Home, and End to move between triggers.")
+                                    .role(TypeRole::BodySmall)
+                                    .color(ColorRole::OnSurfaceVariant)
+                                    .wrap(),
+                            ),
+                        AccordionItem::new("privacy", "Privacy & diagnostics")
+                            .supporting("Local telemetry controls")
+                            .content(
+                                Text::new(
+                                    "All theme calculations run offline with zero network calls.",
+                                )
+                                .role(TypeRole::BodySmall)
+                                .color(ColorRole::OnSurfaceVariant)
+                                .wrap(),
+                            ),
+                    ],
+                )
+                .variant(variant)
+                .mode(mode)
+                .disabled(cfg.bool("disabled"))
+                .expanded(current)
+                .on_change(move |ids, _, cx| {
+                    let summary = if ids.is_empty() {
+                        "All collapsed".to_owned()
+                    } else {
+                        format!(
+                            "Expanded: {}",
+                            ids.iter()
+                                .map(|s| s.as_ref())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                    };
+                    expanded.update(cx, |state, cx| {
+                        *state = ids;
+                        cx.notify();
+                    });
+                    on_status(summary, cx);
+                }),
+            )
+            .into_any_element()
+    },
+    code: |cfg| {
+        format!(
+            "Accordion::new(\"settings\", items)\n    .variant(AccordionVariant::{})\n    .mode(AccordionMode::{})\n    .disabled({})\n    .expanded(expanded)\n    .on_change(|ids, _, _| {{}})",
+            cfg.option("variant"),
+            cfg.option("mode"),
+            cfg.bool("disabled")
+        )
+    },
+};
+
+// --- Collapsible ---
+pub static COLLAPSIBLE: Playground = Playground {
+    scenarios: &[
+        Scenario {
+            name: "Expanded",
+            values: &[("open", Set::Bool(true))],
+        },
+        Scenario {
+            name: "Disabled",
+            values: &[("disabled", Set::Bool(true))],
+        },
+    ],
+    sections: &[Section {
+        title: "State & chrome",
+        controls: &[
+            Control::Text {
+                id: "title",
+                label: "Title",
+                default: "Build diagnostics",
+            },
+            Control::Switch {
+                id: "open",
+                label: "Expanded",
+                default: true,
+            },
+            Control::Switch {
+                id: "bordered",
+                label: "Bordered",
+                default: true,
+            },
+            Control::Switch {
+                id: "disabled",
+                label: "Disabled",
+                default: false,
+            },
+        ],
+    }],
+    preview: |cfg, ctx, _, cx| {
+        let on_toggle = ctx.on_bool("open", cx);
+        div()
+            .w(px(360.))
+            .child(
+                Collapsible::new(
+                    "pg-collapsible",
+                    cfg.text("title").to_owned(),
+                    cfg.bool("open"),
+                )
+                .supporting("Click header or press Enter/Space")
+                .leading(Icon::new(IconName::Description).size(px(20.)))
+                .bordered(cfg.bool("bordered"))
+                .disabled(cfg.bool("disabled"))
+                .content(
+                    Text::new("Compiler cache hit rate: 98.4% · Target: x86_64-pc-windows-msvc.")
+                        .role(TypeRole::BodySmall)
+                        .color(ColorRole::OnSurfaceVariant)
+                        .wrap(),
+                )
+                .on_open_change(move |next, window, cx| on_toggle(next, window, cx)),
+            )
+            .into_any_element()
+    },
+    code: |cfg| {
+        format!(
+            "Collapsible::new(\"details\", {:?}, {})\n    .bordered({})\n    .disabled({})\n    .content(Text::new(\"Details\"))\n    .on_open_change(|open, _, _| {{}})",
+            cfg.text("title"),
+            cfg.bool("open"),
+            cfg.bool("bordered"),
             cfg.bool("disabled")
         )
     },

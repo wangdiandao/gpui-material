@@ -147,8 +147,8 @@
   en: "a9f65f19836e4b8a"
   zh: "b34085a5fd68678f"
 /components/optional-components:
-  en: "936e1240e266b35b"
-  zh: "cbc4a1975be04a98"
+  en: "73ab9a0a43f8eb15"
+  zh: "b6988e627b5d09e3"
 /components/optional-components/window-chrome:
   en: "90b7978cbd0f9268"
   zh: "4466ad4e1cd4b7b7"
@@ -180,5 +180,11 @@
   en: "1421246995fd586d"
   zh: "e558d786ab9a6f29"
 /components/optional-components/data-views:
-  en: "d315c5b68564889a"
-  zh: "d6e387fa5fbfd3c2"
+  en: "1ee9f5960c9257b1"
+  zh: "63a2834195bef929"
+/components/optional-components/disclosure-and-pagination:
+  en: "13ff3ba2da7e6902"
+  zh: "9bc5e80b03f955aa"
+/components/optional-components/command-palette:
+  en: "c1431c2c8b16a917"
+  zh: "53a76409b5884e3c"

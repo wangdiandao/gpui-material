@@ -50,6 +50,8 @@ let save = Button::new("save", "Save")
 | `date-time` | 日期、日期范围和时间选择器 |
 | `carousel` | 六种轮播布局 |
 | `data-views` | 数据表、虚拟化层级树和虚拟列表 |
+| `disclosure` | 可展开/收起容器、手风琴与桌面分页栏 |
+| `command-palette` | `Ctrl+K` / `Cmd+K` 风格模态命令面板 |
 | `window-chrome` | 跨平台自绘标题栏和窗口控制按钮 |
 | `dynamic-color` | 从种子色生成配色方案 |
 | `serde` | 主题数据序列化 |

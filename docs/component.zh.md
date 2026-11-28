@@ -496,6 +496,8 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `date-time` | `DatePicker`、`TimePicker`、`TimePickerDialog`、`VibrantTimePickerDialog`、`TimePickerPanel`、`TimeScroll`、`ScrollField` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input 和自适应 FullScreen。可组合独立面板或对话框。时间选择支持表盘、文本输入、循环滚动和 12、24 小时制。支持独立的滚动选择字段。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
 | `carousel` | `Carousel`、`CarouselParallax` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。 任意 GPUI 内容可使用独立滚动视差效果。 | [轮播](https://m3.material.io/components/carousel/overview) |
 | `data-views` | `DataTable`、`Tree`、`VirtualList` | Material 3 Expressive 数据表，支持类型化列、排序、行选择与密度自适应行高；虚拟化层级树，支持 RTL 镜像展开箭头与 WAI-ARIA 键盘导航；集成 `DisplayScrollbar` 的 Material 风格虚拟列表。 | [数据表](https://m3.material.io/components) · [列表](https://m3.material.io/components/lists/overview) |
+| `disclosure` | `Collapsible`、`Accordion`、`AccordionItem`、`Pagination` | Material 3 可展开/收起容器、支持单选与多选（Standard 与 Segmented 变体）的手风琴，以及带当前页高亮胶囊与省略号截断的桌面分页栏。 | [列表](https://m3.material.io/components/lists/overview) · [导航](https://m3.material.io/components) |
+| `command-palette` | `CommandPalette`、`CommandPaletteState`、`CommandItem`、`CommandGroup` | 基于 `Dialog` 和 `TextField` 构建的桌面端 `Ctrl+K` / `Cmd+K` 风格模态命令面板，支持分组过滤、键盘导航与快捷键提示徽标。 | [对话框](https://m3.material.io/components/dialogs/overview) · [搜索](https://m3.material.io/components/search/overview) |
 
 <a id="window-chrome"></a>
 
@@ -628,3 +630,25 @@ Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供
 **Tree** 将 `gpui-base` 的虚拟化 `Tree` 与 `TreeState` 封装在 Material 自有的 `TreeNode`、`TreeState`、`TreeEvent`、`TreeRowInfo` 和 `TreeColors` 类型之后。通过 `cx.new(|cx| TreeState::new(cx).items(nodes))` 持有 `Entity<TreeState>`，再渲染 `Tree::new(id, &state)`。层级节点沿逻辑起始边缩进，在 RTL 中自动镜像行排布与收起态 `IconName::ChevronRight` 展开箭头，行高随 `theme.layout.density` 自适应，绘制 `SecondaryContainer` 选中胶囊与 Material 状态层，并默认挂载 `DisplayScrollbar`（可通过 `.show_scrollbar`、`.scrollbar_style`、`.scrollbar_fade` 配置）。键盘导航遵循 WAI-ARIA 树控件规范，同时尊重局部 `ThemeScope` 文本方向并自动跳过禁用节点：`Up`/`Down`/`Home`/`End` 在可见启用节点间移动选中项；逻辑末尾方向键（LTR 下 `Right`、RTL 下 `Left`）展开收起的分支或进入其首个启用子节点；逻辑起始方向键（LTR 下 `Left`、RTL 下 `Right`）收起已展开分支或跳回最近的启用祖先节点；`Enter`/`Space` 激活叶子节点或切换分支展开状态。使用 `.render_row(|info, window, cx| ...)` 可在 Material 行外壳内自定义节点内容，并可订阅 `TreeEvent`（`Expanded`、`Collapsed`、`Selected`、`Activated`）或绑定 `.on_select`、`.on_activate`、`.on_toggle` 回调。
 
 **VirtualList** 基于 `gpui-base` 的可变尺寸 `VirtualList` 提供 `VirtualList::vertical`、`VirtualList::horizontal` 与 `VirtualList::new`，将虚拟化渲染与 Material 自有的 `VirtualListScrollHandle`、`DisplayScrollbar`、可选 `.variant(VirtualListVariant::Contained)` 表面样式、`LogicalEdges` 内边距以及键盘滚动（纵向 `Up`/`Down`/`PageUp`/`PageDown`/`Home`/`End`，横向方向感知的 `Left`/`Right`/`Home`/`End`）结合，完整支持 Material 键盘焦点反馈与 RTL 滚动条位置。
+
+<a id="disclosure-and-pagination"></a>
+
+### 折叠展开与分页
+
+启用可选特性 `disclosure` 后，可从 `gpui_material` 导入 `Collapsible`、`CollapsibleColors`、`Accordion`、`AccordionItem`、`AccordionMode`、`AccordionVariant`、`AccordionColors`、`Pagination` 和 `PaginationColors`。
+
+`Collapsible::new(id, title, open)` 渲染封装 `gpui_base::Collapsible` 的 Material 3 可展开/收起容器。通过 `.content(element)` 传入折叠内容，通过 `.on_open_change(|next_open, window, cx| ...)` 更新受控展开状态。可通过 `.supporting(text)`、`.leading(element)`、`.trailing(element)`、`.header_content(element)`、`.indicator(element)`、`.show_indicator(bool)`、`.keep_mounted(bool)`、`.bordered(bool)`、`.divider(bool)`、`.shape(CornerShape)`、`.colors(CollapsibleColors)`、`.content_padding(LogicalEdges)`、`.disabled(bool)`、`.track_focus(&focus)` 和 `.interaction_source(&source)` 自定义外观与状态观察。触发区暴露 `Role::Button` 和 `aria_expanded`，支持点击、`Enter`、`Space` 与 `AccessibleAction::Click`，高度随 `theme.layout.density` 调整并在 RTL 中镜像，默认平滑旋转展开箭头并纵向揭示内容，在减少动态效果下立即落位。
+
+`Accordion::new(id, items)` 基于 `gpui_base::Accordion`（`Role::Group`、标题、触发按钮和 `Role::Region` 面板）协调受控的 `AccordionItem` 列表。通过 `.mode(AccordionMode)` 选择 `Single`、`SingleRequired` 或 `Multiple`，通过 `.variant(AccordionVariant)` 选择 `Standard`（带 `OutlineVariant` 分隔线）或 `Segmented`（Material 3 Expressive 分段卡片圆角与间距）。通过 `.expanded(ids)`（或 `.expanded_id(Option<id>)`）传入当前展开的条目 ID，并通过 `.on_change(|ids, window, cx| ...)`（或 `.on_single_change(|id, window, cx| ...)`）处理状态请求。可用触发按钮组成纵向漫游焦点组（`Up`、`Down`、`Home`、`End`，自动跳过禁用项），同时保持展开面板内部控件的独立焦点。支持单项 `.disabled(bool)`、`.keep_mounted(bool)`、`.heading_level(usize)`、`.track_focus(&focus)`、`.interaction_source(&source)`，以及整组 `.disabled(bool)`、`.spacing(px)`、`.content_padding(LogicalEdges)`、`.bordered(bool)` 和 `.colors(AccordionColors)`。
+
+`Pagination::new(id, current_page, total_pages)` 基于 `gpui_base::Pagination` 渲染 Material 3 桌面端分页导航栏（`Role::Navigation`）。组件会将 `current_page` 限制在 `1..=total_pages` 范围内，渲染支持 RTL 镜像且在边界自动禁用的上一页/下一页 `IconButton`，使用 `PrimaryContainer` / `OnPrimaryContainer` 高亮当前页胶囊按钮，并按 `.visible_pages(count)` 用省略号（`…`）截断较长页码区间。通过 `.on_change(|page, window, cx| ...)` 处理切页请求，支持 `.disabled(bool)`、`.accessible_label(label)`、`.previous_label(label)`、`.next_label(label)`、`.shape(CornerShape)` 与 `.colors(PaginationColors)`，可用 `Left`/`Right`/`Home`/`End`（随书写方向镜像）或 `Tab` 在可用按钮间移动焦点。
+
+<a id="command-palette"></a>
+
+### 命令面板
+
+启用可选特性 `command-palette` 后，可从 `gpui_material` 导入 `CommandPalette`、`CommandPaletteState`、`CommandPaletteEvent`、`CommandPaletteColors`、`CommandItem` 和 `CommandGroup`。
+
+通过 `cx.new(|cx| CommandPaletteState::new(window, cx))`（或 `CommandPaletteState::with_editor(&text_field_state, window, cx)`）为每个命令面板保留一个 `Entity<CommandPaletteState>`。调用 `open(window, cx)`、`close(window, cx)` 或 `toggle(window, cx)`（例如绑定到 `Ctrl+K` / `Cmd+K` 快捷键或按钮）以打开或关闭模态面板。打开时会自动记录先前焦点、在 `.clear_on_open(true)`（默认）下清空上次查询并立即聚焦搜索输入框；通过 `Escape`、点击外部遮罩、关闭按钮、执行命令或调用 `close(...)` 关闭时会自动恢复先前焦点。
+
+在窗口视图中挂载 `CommandPalette::new(id, &state, items)`（或 `CommandPalette::grouped(id, &state, groups)`）。使用 `CommandItem::new(id, label)`、`.supporting(text)`、`.group(heading)`、`.icon(IconName)`、`.shortcut(hint)`、`.keywords(terms)` 和 `.disabled(bool)` 定义命令，或通过 `CommandGroup::new(heading, items)` 成组声明。默认内置大小写不敏感的多词子串过滤器，会匹配 `label`、`supporting`、`group`、`id` 和 `keywords`，也可用 `.filter(|item, query| ...)` 替换过滤逻辑。默认提示语、空结果文案和关闭按钮名称会回退至 `current_material_strings`（`search_prompt`、`no_results`、`close`），并可通过 `.placeholder(...)`、`.empty_label(...)`、`.close_label(...)` 和 `.accessible_label(...)` 覆盖。输入时，`Up`、`Down`、`Home` 和 `End` 在可用匹配项间移动高亮，`Enter` 执行当前高亮命令，`Escape` 关闭面板（优先结束活动中的输入法组合）。可通过 `.on_select(|item, window, cx| ...)` 或订阅 `CommandPaletteEvent`（`Execute`、`QueryChange`、`Close`）响应事件，并通过 `.close_on_select(bool)`、`.width(px)`、`.max_results_height(px)`、`.layer(usize)`、`.properties(DialogProperties)`、`.shape(CornerShape)`、`.colors(CommandPaletteColors)`、`.scrim_opacity(f32)`、`.footer(element)`、`.on_dismiss_request(...)` 和 `.on_closed(...)` 定制模态行为与外观。布局与快捷键徽标均支持 RTL 与减少动态效果。

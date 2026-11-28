@@ -1202,4 +1202,114 @@ use gpui_material::Skeleton;`,
     code: `TitleBar::new("main-title-bar")
     .title("Workspace")`,
   },
+  {
+    slug: "number-input",
+    group: "form",
+    title: "NumberInput",
+    source: "crates/extras/src/specialized_inputs/number_input.rs",
+    api: "struct.NumberInput.html",
+    feature: "specialized-inputs",
+    description: {
+      en: "Edit bounded numeric values with decrement and increment steppers and keyboard Up/Down stepping.",
+      zh: "通过加减步进按钮与键盘上下键编辑带范围限制的数值。",
+    },
+    usage: {
+      en: "Retain a NumberInputState entity configured with bounds, step, and optional decimal precision. Choose Filled or Outlined variants and Split, Trailing, or None stepper layouts.",
+      zh: "持久化持有配置了上下限、步长和可选小数精度的 NumberInputState 实体。按需选择 Filled 或 Outlined 外观以及 Split、Trailing 或 None 步进按钮布局。",
+    },
+    imports: "use gpui_material::{NumberInput, NumberInputState, NumberInputStepper};",
+    code: `let state = cx.new(|cx| {
+    NumberInputState::new(window, cx)
+        .bounds(0.0, 20.0)
+        .step(1.0)
+        .default_value(4.0, window, cx)
+});
+NumberInput::outlined("quantity", "Quantity", &state)
+    .stepper(NumberInputStepper::Split)`,
+  },
+  {
+    slug: "otp-input",
+    group: "form",
+    title: "OtpInput",
+    source: "crates/extras/src/specialized_inputs/otp_input.rs",
+    api: "struct.OtpInput.html",
+    feature: "specialized-inputs",
+    description: {
+      en: "Capture fixed-length verification codes with segmented slots, masking, paste, and slot cursor navigation.",
+      zh: "以分段槽位采集定长验证码，支持掩码、剪贴板粘贴与槽位光标导航。",
+    },
+    usage: {
+      en: "Retain an OtpInputState entity with the desired slot count. Supports Outlined or Filled slots, optional separator dashes, masked bullets, Ctrl/Cmd+V paste, and LTR-safe numeric slot order in RTL windows.",
+      zh: "持久化持有指定长度的 OtpInputState 实体。支持 Outlined/Filled 槽位、可选分隔短横线、圆点掩码、Ctrl/Cmd+V 粘贴，以及在 RTL 窗口中保持自左向右的数字槽位顺序。",
+    },
+    imports: "use gpui_material::{OtpInput, OtpInputState};",
+    code: `let state = cx.new(|cx| OtpInputState::new(6, window, cx));
+OtpInput::new("verify-code", "Verification code", &state)
+    .separator_after(3)`,
+  },
+  {
+    slug: "color-picker",
+    group: "form",
+    title: "ColorPicker",
+    source: "crates/extras/src/specialized_inputs/color_picker.rs",
+    api: "struct.ColorPicker.html",
+    feature: "specialized-inputs",
+    description: {
+      en: "Choose colors with Material 3 swatch presets, HSLA sliders, and live hex synchronized with Argb.",
+      zh: "通过 Material 3 预设色板、HSLA 滑块与实时十六进制输入选色，并与 Argb 无缝衔接。",
+    },
+    usage: {
+      en: "Retain a ColorPickerState entity and render either an inline panel or a popover trigger. Read state.argb(cx) to feed picked colors straight into MaterialTheme::from_seed when dynamic-color is enabled.",
+      zh: "持久化持有 ColorPickerState 实体，可渲染为常驻内联面板或可关闭弹出触发器。通过 state.argb(cx) 可将选中色直接传给 dynamic-color 的 MaterialTheme::from_seed。",
+    },
+    imports: `use gpui_material::{ColorPicker, ColorPickerState};
+use gpui_material::theme::Argb;`,
+    code: `let state = cx.new(|cx| {
+    ColorPickerState::new(window, cx)
+        .default_argb(Argb::from_rgb(0x67, 0x50, 0xA4), window, cx)
+});
+ColorPicker::inline("seed-color", "Seed color", &state)`,
+  },
+  {
+    slug: "selectable-text",
+    group: "basic",
+    title: "SelectableText",
+    source: "crates/extras/src/rich_text/selectable_text.rs",
+    api: "struct.SelectableText.html",
+    feature: "rich-text",
+    description: {
+      en: "Render Material 3 typography that supports pointer drag selection and keyboard copy.",
+      zh: "渲染支持指针拖拽选区与键盘复制的 Material 3 排版文本。",
+    },
+    usage: {
+      en: "Use any Material type-role shorthand with color roles, wrapping, and PrimaryContainer selection highlights. Attach a shared SelectableTextGroup with document_order for multi-paragraph selection.",
+      zh: "可使用全部 Material 排版快捷构造器、语义色板、自动换行与 PrimaryContainer 选区高亮；搭配共享的 SelectableTextGroup 与 document_order 实现跨段落选区。",
+    },
+    imports: "use gpui_material::SelectableText;",
+    code: `SelectableText::body_large(
+    "summary",
+    "Drag to select this text and press Ctrl/Cmd+C to copy.",
+)`,
+  },
+  {
+    slug: "rich-text",
+    group: "advanced",
+    title: "RichText",
+    source: "crates/extras/src/rich_text/viewer.rs",
+    api: "struct.RichText.html",
+    feature: "rich-text",
+    description: {
+      en: "Render Markdown and HTML with Material 3 typography, code surfaces, links, blockquotes, and ThemeScope support.",
+      zh: "以 Material 3 排版体系、代码块表面、链接、引用与 ThemeScope 投影渲染 Markdown 和 HTML。",
+    },
+    usage: {
+      en: "Use RichText::markdown or RichText::html for stateless documents, or retain a RichTextState entity for incremental streaming with push_str, selection inspection, and max_lines clamping.",
+      zh: "静态内容可直接使用 RichText::markdown 或 RichText::html；流式追加、选区读取或行数截断状态检测可持久化持有 RichTextState 实体。",
+    },
+    imports: "use gpui_material::RichText;",
+    code: `RichText::markdown(
+    "release-notes",
+    "### Release notes\\n\\nIncludes \`SurfaceContainerHighest\` code spans and [Material 3 links](https://m3.material.io).",
+)`,
+  },
 ].map((guide) => ({ story: guide.slug, ...guide }));

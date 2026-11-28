@@ -1400,6 +1400,131 @@ mod catalog {
             };
         }
 
+        #[cfg(feature = "specialized-inputs")]
+        #[allow(clippy::all)]
+        fn snippet_number_input(
+            &mut self,
+            window: &mut gpui::Window,
+            cx: &mut gpui::Context<Self>,
+            is_pinned: bool,
+            is_favorite: bool,
+            is_sync_enabled: bool,
+            is_unread_only: bool,
+            auto_save: bool,
+            selected_density: &str,
+            width: gpui::Pixels,
+            content: gpui::AnyElement,
+        ) {
+            use gpui_material::{NumberInput, NumberInputState, NumberInputStepper};
+            let _ = {
+                let state = cx.new(|cx| {
+                    NumberInputState::new(window, cx)
+                        .bounds(0.0, 20.0)
+                        .step(1.0)
+                        .default_value(4.0, window, cx)
+                });
+                NumberInput::outlined("quantity", "Quantity", &state)
+                    .stepper(NumberInputStepper::Split)
+            };
+        }
+
+        #[cfg(feature = "specialized-inputs")]
+        #[allow(clippy::all)]
+        fn snippet_otp_input(
+            &mut self,
+            window: &mut gpui::Window,
+            cx: &mut gpui::Context<Self>,
+            is_pinned: bool,
+            is_favorite: bool,
+            is_sync_enabled: bool,
+            is_unread_only: bool,
+            auto_save: bool,
+            selected_density: &str,
+            width: gpui::Pixels,
+            content: gpui::AnyElement,
+        ) {
+            use gpui_material::{OtpInput, OtpInputState};
+            let _ = {
+                let state = cx.new(|cx| OtpInputState::new(6, window, cx));
+                OtpInput::new("verify-code", "Verification code", &state)
+                    .separator_after(3)
+            };
+        }
+
+        #[cfg(feature = "specialized-inputs")]
+        #[allow(clippy::all)]
+        fn snippet_color_picker(
+            &mut self,
+            window: &mut gpui::Window,
+            cx: &mut gpui::Context<Self>,
+            is_pinned: bool,
+            is_favorite: bool,
+            is_sync_enabled: bool,
+            is_unread_only: bool,
+            auto_save: bool,
+            selected_density: &str,
+            width: gpui::Pixels,
+            content: gpui::AnyElement,
+        ) {
+            use gpui_material::{ColorPicker, ColorPickerState};
+            use gpui_material::theme::Argb;
+            let _ = {
+                let state = cx.new(|cx| {
+                    ColorPickerState::new(window, cx)
+                        .default_argb(Argb::from_rgb(0x67, 0x50, 0xA4), window, cx)
+                });
+                ColorPicker::inline("seed-color", "Seed color", &state)
+            };
+        }
+
+        #[cfg(feature = "rich-text")]
+        #[allow(clippy::all)]
+        fn snippet_selectable_text(
+            &mut self,
+            window: &mut gpui::Window,
+            cx: &mut gpui::Context<Self>,
+            is_pinned: bool,
+            is_favorite: bool,
+            is_sync_enabled: bool,
+            is_unread_only: bool,
+            auto_save: bool,
+            selected_density: &str,
+            width: gpui::Pixels,
+            content: gpui::AnyElement,
+        ) {
+            use gpui_material::SelectableText;
+            let _ = {
+                SelectableText::body_large(
+                    "summary",
+                    "Drag to select this text and press Ctrl/Cmd+C to copy.",
+                )
+            };
+        }
+
+        #[cfg(feature = "rich-text")]
+        #[allow(clippy::all)]
+        fn snippet_rich_text(
+            &mut self,
+            window: &mut gpui::Window,
+            cx: &mut gpui::Context<Self>,
+            is_pinned: bool,
+            is_favorite: bool,
+            is_sync_enabled: bool,
+            is_unread_only: bool,
+            auto_save: bool,
+            selected_density: &str,
+            width: gpui::Pixels,
+            content: gpui::AnyElement,
+        ) {
+            use gpui_material::RichText;
+            let _ = {
+                RichText::markdown(
+                    "release-notes",
+                    "### Release notes\n\nIncludes `SurfaceContainerHighest` code spans and [Material 3 links](https://m3.material.io).",
+                )
+            };
+        }
+
     }
 }
 

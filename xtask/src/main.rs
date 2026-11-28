@@ -1,3 +1,4 @@
+mod baseline;
 mod docs;
 mod graph;
 mod snippets;
@@ -19,7 +20,9 @@ const USAGE: &str = "Usage:
   cargo xtask graph
   cargo xtask snippets [--check]
   cargo xtask tokens [--check]
-  cargo xtask timings <new-report-directory>";
+  cargo xtask timings <new-report-directory>
+  cargo xtask baseline capture <output-json> [--perf] [--timings] [--wasm] [--wasm-dir <dir>]
+  cargo xtask baseline compare <base-json> <head-json> [--threshold <percent>]";
 
 fn main() -> ExitCode {
     match run() {
@@ -50,6 +53,7 @@ fn run() -> Result {
         ["tokens"] => tokens::run(false)?,
         ["tokens", "--check"] => tokens::run(true)?,
         ["timings", path] => timings::measure(path.as_ref())?,
+        ["baseline", rest @ ..] => baseline::run(rest)?,
         _ => return Err(USAGE.into()),
     }
     Ok(())

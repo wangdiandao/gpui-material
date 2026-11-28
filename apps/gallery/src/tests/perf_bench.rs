@@ -810,6 +810,34 @@ fn print_benchmark_summary(results: &[BenchStats]) {
             s
         );
     }
+    println!("PERF_BENCH_JSON:{}", format_benchmark_json(results));
+}
+
+fn format_benchmark_json(results: &[BenchStats]) -> String {
+    use std::fmt::Write as _;
+
+    let mut json = format!(
+        "{{\"viewport_width\":{VIEWPORT_WIDTH},\"viewport_height\":{VIEWPORT_HEIGHT},\"warmup_frames\":{WARMUP_FRAMES},\"sample_frames\":{SAMPLE_FRAMES},\"benchmarks\":["
+    );
+    for (index, r) in results.iter().enumerate() {
+        if index > 0 {
+            json.push(',');
+        }
+        let _ = write!(
+            json,
+            "{{\"name\":\"{}\",\"layer\":\"{}\",\"p50_us\":{:.3},\"p95_us\":{:.3},\"p99_us\":{:.3},\"mean_us\":{:.3},\"quads\":{},\"scheduled_frames\":{}}}",
+            r.name.replace('\\', "\\\\").replace('"', "\\\""),
+            r.layer.replace('\\', "\\\\").replace('"', "\\\""),
+            r.p50_us,
+            r.p95_us,
+            r.p99_us,
+            r.mean_us,
+            r.quads,
+            r.scheduled_frames
+        );
+    }
+    json.push_str("]}");
+    json
 }
 
 fn assert_animation_invariants(results: &[BenchStats]) {

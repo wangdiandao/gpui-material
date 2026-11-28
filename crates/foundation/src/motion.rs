@@ -5,8 +5,7 @@ mod tests;
 use std::time::Duration;
 
 use gpui::{App, Bounds, ElementId, Pixels, SpringConfig, SpringState, Window, px};
-pub use gpui_base::motion::MotionStatus;
-use gpui_base::motion::{Easing, TransitionId};
+use gpui_base::motion::Easing;
 use gpui_material_theme::{CubicBezier, MotionSpec, Spring};
 use web_time::Instant;
 
@@ -14,6 +13,29 @@ pub use overlay::{OverlayMotion, ScaledOverlay, sanitize_overlay_scale};
 
 const SPRING_EPSILON: f32 = 0.001;
 const TARGET_EPSILON: f32 = 1e-5;
+
+/// Lifecycle status of a Material motion channel.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MotionStatus {
+    /// Channel is already settled at its target with no motion this frame.
+    Idle,
+    /// Channel is actively advancing toward its target.
+    Running,
+    /// Channel reached its target and settled on this sample.
+    Finished,
+}
+
+impl MotionStatus {
+    /// Returns `true` while the animation is actively advancing.
+    pub const fn is_running(self) -> bool {
+        matches!(self, Self::Running)
+    }
+
+    /// Returns `true` when the animation is not advancing (`Idle` or `Finished`).
+    pub const fn is_settled(self) -> bool {
+        !self.is_running()
+    }
+}
 
 /// Sample returned by [`animate_with_status`].
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -25,10 +47,17 @@ pub struct MotionSample {
 }
 
 impl MotionSample {
-    /// Returns `true` while the animation is delayed or actively advancing.
+    /// Returns `true` while the animation is actively advancing.
     pub const fn is_running(self) -> bool {
-        matches!(self.status, MotionStatus::Delayed | MotionStatus::Running)
+        self.status.is_running()
     }
+}
+
+fn bezier_to_easing(easing: CubicBezier) -> Option<Easing> {
+    if easing == CubicBezier::LINEAR {
+        return Some(Easing::Linear);
+    }
+    Easing::cubic_bezier(easing.x1, easing.y1, easing.x2, easing.y2).ok()
 }
 
 /// Returns whether `bounds` is visible in `window` and intersects the active
@@ -176,13 +205,13 @@ impl RetargetTransition {
     /// Starts or retargets an eased transition toward `target`.
     ///
     /// Non-finite targets settle immediately at the current value. Reversing mid-flight
-    /// proportionally shortens the duration; `reduced_motion` or a zero duration snaps
-    /// immediately to `target`.
+    /// proportionally shortens the duration; `reduced_motion`, an invalid cubic Bézier,
+    /// or a zero duration snaps immediately to `target`.
     pub fn animate_to(
         &mut self,
         target: f32,
         duration: Duration,
-        easing: Easing,
+        easing: CubicBezier,
         now: Instant,
         reduced_motion: bool,
     ) {
@@ -191,6 +220,10 @@ impl RetargetTransition {
             self.snap_to(self.value);
             return;
         }
+        let Some(curve) = bezier_to_easing(easing) else {
+            self.snap_to(target);
+            return;
+        };
         if reduced_motion || duration.is_zero() || (self.value - target).abs() <= TARGET_EPSILON {
             self.snap_to(target);
             return;
@@ -217,7 +250,7 @@ impl RetargetTransition {
             started_at: now,
             duration: effective_duration,
             reversing_factor,
-            easing,
+            easing: curve,
         });
     }
 
@@ -469,16 +502,13 @@ pub(crate) fn spring_config(spec: Spring) -> Option<SpringConfig> {
 /// under reduced motion or non-finite targets, and suppressing frame requests
 /// while the window is hidden.
 pub fn animate_with_status(
-    id: impl Into<TransitionId>,
+    id: impl Into<ElementId>,
     target: f32,
     spec: MotionSpec,
     window: &mut Window,
     cx: &mut App,
 ) -> MotionSample {
-    let id = ElementId::NamedChild(
-        ElementId::from(id.into()).into(),
-        "__material-motion".into(),
-    );
+    let id = ElementId::NamedChild(id.into().into(), "__material-motion".into());
     let state = window.use_keyed_state(id, cx, |_, _| ChannelState::settled(target));
     let now = cx.background_executor().now();
     let reduced = cx.reduce_motion();
@@ -508,7 +538,7 @@ pub fn animate_with_status(
 
 /// Samples a stable motion channel during rendering.
 pub fn animate(
-    id: impl Into<TransitionId>,
+    id: impl Into<ElementId>,
     target: f32,
     spec: MotionSpec,
     window: &mut Window,

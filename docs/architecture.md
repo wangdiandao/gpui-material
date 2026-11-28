@@ -57,6 +57,20 @@ Pin Base and GPUI as listed in [design sources](design-sources.md#gpui-and-base)
 | `jiff 1.0` and [Base Calendar][calendar] | The `date-time` feature enables a direct `jiff` dependency in extras with default features disabled, without pulling in `chrono` or `web-time`. MIT or Unlicense. | Base owns calendar and range draft transitions; `jiff::civil::{Date, Time, Weekday}` supplies checked calendar arithmetic and typed civil dates/times; application formatters and parsers control locale presentation. |
 | [`rust-i18n 4.2.4`][i18n] | Optional application adapter, MIT. The project uses overridable text and formatters by default; this candidate introduces a macro and support crate. | Keep translation library types inside the application adapter. |
 
+Lightweight value types (`MotionStatus`, `ReduceMotionPreference`, `CheckboxState`, `TooltipPositioner`, and `CubicBezier` presets) are owned by Material crates with internal `gpui-base` adapters so downstream callers do not depend on upstream value type identities. Public third-party re-exports are restricted to an explicit allowlist enforced by `cargo xtask check`:
+
+| Intentional public boundary | Location | Rationale |
+| --- | --- | --- |
+| `gpui_base::input::{InputState, TextareaState, InputEvent, MaskPattern}` | `components::input` (`TextFieldState`, `TextAreaState`, `TextFieldEvent`, `TextFieldMaskPattern`) | Retained Base text-editing state entities, events, and structured mask patterns. |
+| `gpui_base::slider::{SliderState, SliderEvent, SliderScale, SliderValue}` | `components::slider` and `foundation::range` | Retained Base slider state entity, events, scale, and value. |
+| `gpui_base::ScrollbarHandle` | `components::display_scrollbar` | Scroll-handle trait implemented by GPUI and Base scroll containers. |
+| `gpui_base::Root` and `gpui_base::Theme` | `foundation::MaterialRoot::open_window`, `foundation::current_base_theme`, `foundation::project_base_theme` | Base window overlay root and local Base theme projection for standalone Base widgets. |
+| `gpui_base::TestSupportExt` and `gpui_base::test_support::{ElementSnapshot, TextSnapshot}` | `foundation::test` (`test-support` feature) | Opt-in headless UI test observation trait and immutable accessibility snapshots. |
+| `web_time::Instant` | `foundation::Instant` (not re-exported at `gpui_material` root) | WASM-compatible monotonic timestamp matching `gpui::BackgroundExecutor::now()`. |
+| `jiff::civil::{Date, Time, Weekday}` | `extras::date_time` (`date-time` feature) | Checked civil calendar and time values for date/time pickers. |
+
+`material-color-utils`, `polymorpher`, `windows`, and `raw-window-handle` stay strictly private inside their owning crates.
+
 Extras define families such as `expressive-groups`, `search`, `date-time`, and `carousel` as needed. Theme supports static data with `dynamic-color` and `serde` on demand. Keep image-based color extraction in tooling where possible. Required keyboard, semantics, and motion are part of complete component behavior.
 
 Use package-level commands in CI and development to isolate theme, components, and Gallery. Prefer concrete internal types with type erasure where needed.

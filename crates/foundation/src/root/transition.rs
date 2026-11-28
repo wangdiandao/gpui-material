@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use gpui::{SpringConfig, SpringState};
-use gpui_base::motion::Easing;
 use gpui_material_theme::{ColorScheme, MotionSpec};
 use web_time::Instant;
 
@@ -45,13 +44,18 @@ impl PaletteTransition {
                 easing,
             } => {
                 let duration = Duration::from_millis(u64::from(duration_ms));
-                let curve =
-                    Easing::cubic_bezier(easing.x1, easing.y1, easing.x2, easing.y2).ok()?;
-                if duration.is_zero() {
+                if duration.is_zero()
+                    || !easing.x1.is_finite()
+                    || !easing.x2.is_finite()
+                    || !(0.0..=1.0).contains(&easing.x1)
+                    || !(0.0..=1.0).contains(&easing.x2)
+                    || !easing.y1.is_finite()
+                    || !easing.y2.is_finite()
+                {
                     return None;
                 }
                 let mut transition = RetargetTransition::settled(0.0);
-                transition.animate_to(1.0, duration, curve, now, false);
+                transition.animate_to(1.0, duration, easing, now, false);
                 PaletteCurve::Tween(transition)
             }
         };

@@ -3,8 +3,8 @@ use std::{rc::Rc, time::Duration};
 use gpui::{
     App, Context, ElementId, Pixels, ScrollHandle, ScrollSource, Window, WindowId, point, px,
 };
-use gpui_base::motion::Easing;
 use gpui_material_foundation::RetargetTransition;
+use gpui_material_theme::CubicBezier;
 
 const DRAG_MULTIPLIER: f32 = 0.5;
 const SETTLE: Duration = Duration::from_millis(180);
@@ -176,8 +176,13 @@ impl PullToRefreshState {
 
     pub(super) fn settle_to(&mut self, target: f32, cx: &App) {
         let now = cx.background_executor().now();
-        self.motion
-            .animate_to(target, SETTLE, Easing::EaseOut, now, cx.reduce_motion());
+        self.motion.animate_to(
+            target,
+            SETTLE,
+            CubicBezier::EASE_OUT,
+            now,
+            cx.reduce_motion(),
+        );
         self.fraction = self.motion.value();
     }
 

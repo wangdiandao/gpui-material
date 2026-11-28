@@ -15,8 +15,7 @@ use gpui_material_theme::{ColorRole, Density, Direction, StateLayer};
 
 use crate::action::ripple_ink;
 
-pub use checkbox::{Checkbox, CheckboxColors, CheckboxStateColors};
-pub use gpui_base::CheckboxState;
+pub use checkbox::{Checkbox, CheckboxColors, CheckboxState, CheckboxStateColors};
 pub use radio::{Radio, RadioColors, RadioGroup};
 pub use switch::{Switch, SwitchColors, SwitchStateColors};
 

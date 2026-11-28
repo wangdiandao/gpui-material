@@ -271,21 +271,22 @@ impl RenderOnce for Tooltip {
             let positioner = self.positioner.map_or_else(
                 || {
                     TooltipPositioner::side(anchor)
-                        .placement(self.placement.physical(direction))
+                        .placement(self.placement)
                         .offset(self.offset)
                 },
                 |positioner| positioner(anchor, viewport, direction),
             );
             positioner
+                .into_base(direction)
                 .margin(margin)
-                .when(!label, TooltipPositioner::occlude)
+                .when(!label, gpui_base::Positioner::occlude)
                 .on_position(move |resolved| {
                     geometry.placed.set(resolved.bounds);
                     geometry.side.set(resolved.placement);
                 })
                 .child(scaled)
         } else {
-            TooltipPositioner::corner(Anchor::TopLeft, last.origin)
+            gpui_base::Positioner::corner(Anchor::TopLeft, last.origin)
                 .margin(margin)
                 .child(scaled.width(last.size.width))
         };

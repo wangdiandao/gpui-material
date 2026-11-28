@@ -9,12 +9,28 @@ pub use arrangement::ContentArrangement;
 
 #[cfg(feature = "carousel")]
 mod carousel;
+#[cfg(feature = "command-palette")]
+mod command_palette;
+#[cfg(feature = "data-views")]
+pub mod data_views;
 #[cfg(feature = "date-time")]
 pub mod date_time;
+#[cfg(feature = "disclosure")]
+mod disclosure;
 #[cfg(feature = "carousel")]
 pub use carousel::{
     Carousel, CarouselAlignment, CarouselFling, CarouselFlingContext, CarouselItem,
     CarouselParallax, CarouselState, CarouselVariant,
+};
+#[cfg(feature = "command-palette")]
+pub use command_palette::{
+    CommandGroup, CommandItem, CommandPalette, CommandPaletteColors, CommandPaletteEvent,
+    CommandPaletteState,
+};
+#[cfg(feature = "disclosure")]
+pub use disclosure::{
+    Accordion, AccordionColors, AccordionItem, AccordionMode, AccordionVariant, Collapsible,
+    CollapsibleColors, Pagination, PaginationColors,
 };
 
 #[cfg(feature = "expressive-groups")]

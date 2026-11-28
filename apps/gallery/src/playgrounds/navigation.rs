@@ -1,11 +1,12 @@
 use gpui::{AppContext, Entity, IntoElement, ParentElement, Styled, Window, div, px};
 use gpui_material::{
-    AppBar, AppBarVariant, BottomAppBar, BreadcrumbItem, Breadcrumbs, Fab, Icon, IconButton,
+    AppBar, AppBarVariant, BottomAppBar, BreadcrumbItem, Breadcrumbs, Button, ButtonVariant,
+    CommandGroup, CommandItem, CommandPalette, CommandPaletteState, Fab, Icon, IconButton,
     IconName, NavigationBar, NavigationDrawer, NavigationItem, NavigationItems, NavigationRail,
-    RailMode, SearchBar, SearchState, TabVariant, Tabs, Toolbar, ToolbarAction, ToolbarColor,
-    ToolbarPlacement,
+    Pagination, RailMode, SearchBar, SearchState, TabVariant, Tabs, Text, Toolbar, ToolbarAction,
+    ToolbarColor, ToolbarPlacement,
     foundation::{color, window_material_theme},
-    theme::ColorRole,
+    theme::{ColorRole, TypeRole},
 };
 
 use crate::playground::{Control, Playground, Scenario, Section, Set};
@@ -649,5 +650,171 @@ pub static BREADCRUMBS: Playground = Playground {
         } else {
             "Breadcrumbs::new(\"path\", [\n    BreadcrumbItem::new(\"home\", \"Workspace\"),\n    BreadcrumbItem::new(\"projects\", \"Projects\"),\n    BreadcrumbItem::new(\"roadmap\", \"2026 Roadmap\"),\n])\n.on_select(|id, _, _| {})".into()
         }
+    },
+};
+
+// --- Pagination ---
+pub static PAGINATION: Playground = Playground {
+    scenarios: &[
+        Scenario {
+            name: "Middle page",
+            values: &[("page", Set::Number(6.)), ("total", Set::Number(12.))],
+        },
+        Scenario {
+            name: "Disabled",
+            values: &[("disabled", Set::Bool(true))],
+        },
+    ],
+    sections: &[Section {
+        title: "Pages",
+        controls: &[
+            Control::Slider {
+                id: "page",
+                label: "Current page",
+                min: 1.,
+                max: 12.,
+                step: 1.,
+                default: 5.,
+            },
+            Control::Slider {
+                id: "total",
+                label: "Total pages",
+                min: 1.,
+                max: 12.,
+                step: 1.,
+                default: 12.,
+            },
+            Control::Switch {
+                id: "disabled",
+                label: "Disabled",
+                default: false,
+            },
+        ],
+    }],
+    preview: |cfg, ctx, window, cx| {
+        let on_status = ctx.on_status(cx);
+        let page_state = ctx
+            .local::<Entity<usize>>("pagination-page", || cx.new(|_| 5usize))
+            .clone();
+        let total = cfg.number("total").round().max(1.) as usize;
+        let current = (*page_state.read(cx)).clamp(1, total);
+        app_frame(window, cx)
+            .child(mock_body(
+                "Catalog results",
+                "Navigate pages with pointer clicks or Left/Right/Home/End keys.",
+                window,
+                cx,
+            ))
+            .child(
+                div()
+                    .w_full()
+                    .px_4()
+                    .pb_4()
+                    .flex()
+                    .flex_col()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        Pagination::new("pg-pagination", current, total)
+                            .disabled(cfg.bool("disabled"))
+                            .on_change(move |next, _, cx| {
+                                page_state.update(cx, |page, cx| {
+                                    *page = next;
+                                    cx.notify();
+                                });
+                                on_status(format!("Switched to page {next}"), cx);
+                            }),
+                    )
+                    .child(
+                        Text::new(format!("Page {current} of {total}"))
+                            .role(TypeRole::LabelSmall)
+                            .color(ColorRole::OnSurfaceVariant),
+                    ),
+            )
+            .into_any_element()
+    },
+    code: |cfg| {
+        format!(
+            "Pagination::new(\"pages\", {}, {})\n    .disabled({})\n    .on_change(|page, _, _| {{}})",
+            cfg.number("page").round().max(1.) as usize,
+            cfg.number("total").round().max(1.) as usize,
+            cfg.bool("disabled")
+        )
+    },
+};
+
+// --- CommandPalette ---
+pub static COMMAND_PALETTE: Playground = Playground {
+    scenarios: &[Scenario {
+        name: "Keep open on select",
+        values: &[("close_on_select", Set::Bool(false))],
+    }],
+    sections: &[Section {
+        title: "Behavior",
+        controls: &[
+            Control::Text {
+                id: "placeholder",
+                label: "Placeholder",
+                default: "Type a command...",
+            },
+            Control::Switch {
+                id: "close_on_select",
+                label: "Close on select",
+                default: true,
+            },
+        ],
+    }],
+    preview: |cfg, ctx, window, cx| {
+        let state = ctx
+            .local::<Entity<CommandPaletteState>>("command-palette-state", || {
+                cx.new(|cx| CommandPaletteState::new(window, cx))
+            })
+            .clone();
+        let open_state = state.clone();
+        let on_status = ctx.on_status(cx);
+        let groups = vec![
+            CommandGroup::new(
+                "Navigation",
+                [
+                    CommandItem::new("inbox", "Go to Inbox")
+                        .icon(IconName::Inbox)
+                        .shortcut("G I"),
+                    CommandItem::new("docs", "Open Documentation")
+                        .icon(IconName::Description)
+                        .shortcut("Ctrl+D"),
+                ],
+            ),
+            CommandGroup::new(
+                "Theme",
+                [CommandItem::new("dark", "Switch to Dark Mode")
+                    .icon(IconName::DarkMode)
+                    .shortcut("Ctrl+Shift+L")],
+            ),
+        ];
+        div()
+            .child(
+                Button::new("pg-open-palette", "Open command palette")
+                    .variant(ButtonVariant::FilledTonal)
+                    .leading_icon(Icon::new(IconName::Search))
+                    .on_activate(move |window, cx| {
+                        open_state.update(cx, |s, cx| s.open(window, cx));
+                    }),
+            )
+            .child(
+                CommandPalette::grouped("pg-command-palette", &state, groups)
+                    .placeholder(cfg.text("placeholder").to_owned())
+                    .close_on_select(cfg.bool("close_on_select"))
+                    .on_select(move |item, _, cx| {
+                        on_status(format!("Command: {}", item.label()), cx);
+                    }),
+            )
+            .into_any_element()
+    },
+    code: |cfg| {
+        format!(
+            "CommandPalette::grouped(\"commands\", &state, groups)\n    .placeholder({:?})\n    .close_on_select({})\n    .on_select(|item, _, _| {{}})",
+            cfg.text("placeholder"),
+            cfg.bool("close_on_select")
+        )
     },
 };

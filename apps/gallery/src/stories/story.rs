@@ -12,7 +12,10 @@ use super::{
     action_examples::ActionExamples,
     adaptive_examples::AdaptiveExamples,
     carousel_examples::CarouselExamples,
+    command_palette_examples::CommandPaletteExamples,
+    data_views_examples::DataViewsExamples,
     date_time_examples::DateTimeExamples,
+    disclosure_examples::DisclosureExamples,
     display_examples::DisplayExamples,
     drag_handle_examples::DragHandleExamples,
     group_examples::GroupExamples,
@@ -34,6 +37,7 @@ use super::{
 pub enum Story {
     #[default]
     Introduction,
+    Accordion,
     AdaptiveLayout,
     AppBar,
     Avatar,
@@ -48,7 +52,10 @@ pub enum Story {
     Checkbox,
     Chip,
     ChipGroup,
+    Collapsible,
     ColorPicker,
+    CommandPalette,
+    DataViews,
     DatePicker,
     DateRangePicker,
     Dialog,
@@ -69,6 +76,7 @@ pub enum Story {
     NavigationRail,
     NumberInput,
     OtpInput,
+    Pagination,
     Progress,
     Radio,
     RichText,
@@ -96,6 +104,7 @@ impl Story {
     /// The Gallery landing page followed by examples in display-name order.
     pub const ALL: &[Self] = &[
         Self::Introduction,
+        Self::Accordion,
         Self::AdaptiveLayout,
         Self::AppBar,
         Self::Avatar,
@@ -110,7 +119,10 @@ impl Story {
         Self::Checkbox,
         Self::Chip,
         Self::ChipGroup,
+        Self::Collapsible,
         Self::ColorPicker,
+        Self::CommandPalette,
+        Self::DataViews,
         Self::DatePicker,
         Self::DateRangePicker,
         Self::Dialog,
@@ -131,6 +143,7 @@ impl Story {
         Self::NavigationRail,
         Self::NumberInput,
         Self::OtpInput,
+        Self::Pagination,
         Self::Progress,
         Self::Radio,
         Self::RichText,
@@ -159,6 +172,7 @@ impl Story {
         match self {
             Self::ButtonGroup => "button-group",
             Self::Introduction => "introduction",
+            Self::Accordion => "accordion",
             Self::AdaptiveLayout => "adaptive-layout",
             Self::AppBar => "app-bar",
             Self::Avatar => "avatar",
@@ -172,7 +186,10 @@ impl Story {
             Self::Checkbox => "checkbox",
             Self::Chip => "chip",
             Self::ChipGroup => "chip-group",
+            Self::Collapsible => "collapsible",
             Self::ColorPicker => "color-picker",
+            Self::CommandPalette => "command-palette",
+            Self::DataViews => "data-views",
             Self::DatePicker => "date-picker",
             Self::DateRangePicker => "date-range-picker",
             Self::Dialog => "dialog",
@@ -193,6 +210,7 @@ impl Story {
             Self::NavigationRail => "navigation-rail",
             Self::NumberInput => "number-input",
             Self::OtpInput => "otp-input",
+            Self::Pagination => "pagination",
             Self::Progress => "progress",
             Self::Radio => "radio",
             Self::RichText => "rich-text",
@@ -222,6 +240,7 @@ impl Story {
         match self {
             Self::ButtonGroup => "Button group",
             Self::Introduction => "Introduction",
+            Self::Accordion => "Accordion",
             Self::AdaptiveLayout => "Adaptive layout",
             Self::AppBar => "App bar",
             Self::Avatar => "Avatar",
@@ -235,7 +254,10 @@ impl Story {
             Self::Checkbox => "Checkbox",
             Self::Chip => "Chip",
             Self::ChipGroup => "Chip group",
+            Self::Collapsible => "Collapsible",
             Self::ColorPicker => "Color picker",
+            Self::CommandPalette => "Command palette",
+            Self::DataViews => "Data views",
             Self::DatePicker => "Date picker",
             Self::DateRangePicker => "Date range picker",
             Self::Dialog => "Dialog",
@@ -256,6 +278,7 @@ impl Story {
             Self::NavigationRail => "Navigation rail",
             Self::NumberInput => "Number input",
             Self::OtpInput => "OTP input",
+            Self::Pagination => "Pagination",
             Self::Progress => "Progress",
             Self::Radio => "Radio group",
             Self::RichText => "Rich text",
@@ -289,6 +312,9 @@ impl Story {
             Self::Introduction => {
                 "Interactive examples from the Material 3 Expressive library for GPUI."
             }
+            Self::Accordion => {
+                "Expand and collapse grouped sections in Standard or Segmented Material 3 layouts."
+            }
             Self::AdaptiveLayout => {
                 "Resize the window and switch between Inbox, Activity, and Feed to compare the layouts."
             }
@@ -314,8 +340,17 @@ impl Story {
             Self::ChipGroup => {
                 "Coordinate controlled chip selection with roving focus and wrapping or scrolling rows."
             }
+            Self::Collapsible => {
+                "Reveal or hide supplementary content inside a Material 3 disclosure container."
+            }
             Self::ColorPicker => {
                 "Pick colors with Material 3 presets, HSLA sliders, and live hex synced with Argb."
+            }
+            Self::CommandPalette => {
+                "Filter and execute grouped desktop commands in a Ctrl/Cmd+K modal palette."
+            }
+            Self::DataViews => {
+                "Inspect sortable data tables, virtualized hierarchical trees, and variable-size virtual lists."
             }
             Self::DatePicker => "Choose an available date in a docked calendar or a dialog.",
             Self::DateRangePicker => {
@@ -354,6 +389,9 @@ impl Story {
             }
             Self::OtpInput => {
                 "Capture fixed-length verification codes with paste, masking, and slot navigation."
+            }
+            Self::Pagination => {
+                "Navigate multi-page desktop collections with active page pills and ellipsis truncation."
             }
             Self::Progress => "Visualize measured or indeterminate work as a line or a circle.",
             Self::Radio => "Choose one option from a group.",
@@ -409,6 +447,11 @@ impl Story {
                 cx.new(|cx| DateTimeExamples::new(self, window, cx)).into()
             }
             Self::Carousel => cx.new(|_| CarouselExamples::default()).into(),
+            Self::Accordion | Self::Collapsible | Self::Pagination => {
+                cx.new(|_| DisclosureExamples::new(self)).into()
+            }
+            Self::CommandPalette => cx.new(|cx| CommandPaletteExamples::new(window, cx)).into(),
+            Self::DataViews => cx.new(DataViewsExamples::new).into(),
             Self::ButtonGroup | Self::SplitButton => {
                 cx.new(|cx| GroupExamples::new(self, cx)).into()
             }

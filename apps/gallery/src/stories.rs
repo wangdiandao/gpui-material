@@ -1,7 +1,10 @@
 mod action_examples;
 mod adaptive_examples;
 mod carousel_examples;
+mod command_palette_examples;
+mod data_views_examples;
 mod date_time_examples;
+mod disclosure_examples;
 mod display_examples;
 mod drag_handle_examples;
 mod group_examples;

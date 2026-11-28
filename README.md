@@ -49,6 +49,9 @@ Enable optional features on `gpui-material` for additional components and theme 
 | `search` | Search bars and search views |
 | `date-time` | Date, date range, and time pickers |
 | `carousel` | Six carousel layouts |
+| `data-views` | Data tables, virtualized trees, and virtualized lists |
+| `disclosure` | Collapsible containers, accordions, and desktop pagination |
+| `command-palette` | `Ctrl+K` / `Cmd+K`-style modal command palette |
 | `specialized-inputs` | Numeric steppers, OTP code inputs, and color pickers |
 | `rich-text` | Selectable Material text and Markdown/HTML rich-text views |
 | `window-chrome` | Cross-platform custom title bar and window controls |

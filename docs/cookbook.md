@@ -702,10 +702,47 @@ impl Render for ObservedAction {
 }
 ```
 
-### RTL mirroring and reduced motion
+### RTL mirroring, reduced motion, and localized default labels
 
-- **RTL**: Set `Direction::Rtl` on `MaterialTheme::with_direction(Direction::Rtl)` or a local `ThemeScope::new(child).direction(Direction::Rtl)`. Material controls mirror layout, padding, and horizontal keyboard navigation automatically. Opt directional icons into mirroring with `Icon::new(IconName::ArrowForward).mirror_in_rtl(true)`, and mirror custom overlay anchors with `foundation::logical_anchor(anchor, theme.layout.direction)`.
+- **RTL**: Set `Direction::Rtl` on `MaterialTheme::direction(Direction::Rtl)` or a local `ThemeScope::new(child).direction(Direction::Rtl)`. Material controls mirror layout, padding, and horizontal keyboard navigation automatically. Opt directional icons into mirroring with `Icon::new(IconName::ArrowForward).mirror_in_rtl(true)`, and mirror custom overlay anchors with `foundation::logical_anchor(anchor, theme.layout.direction)`.
 - **Reduced motion**: `gpui_material::init` syncs the OS preference once through `gpui-base`; call `sync_system_reduce_motion(cx)` to refresh it on demand or `set_reduce_motion_preference(ReduceMotionPreference::..., cx)` to override it explicitly. Query the active flag with `cx.reduce_motion()`: passing it to `theme.motion.spec(MotionKind::Spatial, MotionSpeed::Default, cx.reduce_motion())` returns `MotionSpec::Instant`, and `foundation::animate_with_status` / `LoopClock` settle immediately without scheduling motion frames.
+- **Localized default labels (`MaterialStrings`)**: Install localized built-in labels once with `set_material_strings(strings, cx)` or override a subtree (including its deferred overlays) with `ThemeScope::new(child).strings(strings)`. Explicit per-component setters (such as `.dismiss_label(...)` or `.clear_label(...)`) always override `MaterialStrings`:
+
+```rust
+use gpui::{App, IntoElement};
+use gpui_material::{
+    Banner, MaterialStrings, ThemeScope, set_material_strings,
+};
+
+fn install_zh_strings(cx: &mut App) {
+    let zh = MaterialStrings::default()
+        .dismiss("关闭")
+        .dismiss_message("关闭提示")
+        .dismiss_overlay("关闭遮罩")
+        .close("关闭")
+        .cancel("取消")
+        .confirm("确定")
+        .clear("清除")
+        .show_password("显示密码")
+        .hide_password("隐藏密码")
+        .open_options("展开选项")
+        .close_options("收起选项")
+        .more_actions("更多操作")
+        .refresh("刷新");
+    set_material_strings(zh, cx);
+}
+
+fn scoped_preview(content: impl IntoElement) -> impl IntoElement {
+    let preview_strings = MaterialStrings::default().dismiss("Fermer").cancel("Annuler");
+    ThemeScope::new(content).strings(preview_strings)
+}
+
+fn explicit_override_wins(on_dismiss: impl Fn(&mut gpui::Window, &mut App) + 'static) -> Banner {
+    Banner::new("notice", "Sync paused")
+        .on_dismiss(on_dismiss)
+        .dismiss_label("Ignore")
+}
+```
 
 <a id="构建自定义-material-控件"></a>
 
@@ -715,7 +752,7 @@ Use `gpui_material::foundation` when you need a bespoke control that still honor
 
 - `Surface::clickable(id, label, role)`, `Surface::selectable(id, label, role, selected)`, and `Surface::toggleable(id, label, role, checked)` provide themed background and foreground pairs, state layers, press ripples, keyboard focus rings, accessibility roles, and `.on_activate` / `.on_checked_change`.
 - Apply rounded corners with `.shape(CornerRole::Medium.shape())` or any of the 35 Expressive polygons with `.polygon_shape(MaterialShape::Cookie7Sided)` (with shape-aware pointer hit testing enabled by default).
-- Call `foundation::current_material_theme(window, cx)` to resolve the nearest `ThemeScope`, window override, or application theme, and `foundation::color(theme.colors.color(role))` to convert `Argb` to `gpui::Hsla`.
+- Call `foundation::current_material_theme(window, cx)` to resolve the nearest `ThemeScope`, window override, or application theme, `foundation::current_material_strings(window, cx)` to read localized built-in strings from the nearest `ThemeScope` or application global, and `foundation::color(theme.colors.color(role))` to convert `Argb` to `gpui::Hsla`.
 - Call `foundation::current_base_theme(window, cx)` when styling standalone `gpui_base` widgets inside a `ThemeScope` or window override so they match the local scope without mutating `gpui_base::Theme::global`.
 - Use `foundation::Shape` (`Shape::rounded` / `Shape::polygon`) for custom canvas drawing and `foundation::Scrim::new(id).opacity(0.32).on_click(...)` for custom modal backdrops.
 

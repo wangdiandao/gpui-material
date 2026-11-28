@@ -7,7 +7,8 @@ use gpui::{
 };
 use gpui_base::{Button as BaseButton, TestSupportExt};
 use gpui_material_foundation::{
-    InteractionSource, InteractionState, ThemeScope, color, current_material_theme,
+    InteractionSource, InteractionState, ThemeScope, color, current_material_strings,
+    current_material_theme,
 };
 use gpui_material_theme::{ColorRole, CornerRole, CornerShape, Direction, StateLayer, TypeRole};
 
@@ -268,12 +269,13 @@ fn apply_corner_shape<E: Styled>(element: E, shape: CornerShape, direction: Dire
 impl<T: 'static> RenderOnce for DropTarget<T> {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = current_material_theme(window, cx);
+        let strings = current_material_strings(window, cx);
         let direction = theme.layout.direction;
         let palette = self.colors.resolve(self.disabled, window, cx);
         let accessible_name = self
             .accessible_label
             .or_else(|| self.title.clone())
-            .unwrap_or_else(|| "Drop target".into());
+            .unwrap_or_else(|| SharedString::from(strings.drop_target.clone()));
         let enabled = !self.disabled;
         let tracker = self
             .source
@@ -286,7 +288,9 @@ impl<T: 'static> RenderOnce for DropTarget<T> {
                 let icon = self
                     .icon
                     .unwrap_or_else(|| Icon::new(IconName::Add).size(px(28.)).into_any_element());
-                let title = self.title.unwrap_or_else(|| "Drop files here".into());
+                let title = self
+                    .title
+                    .unwrap_or_else(|| SharedString::from(strings.drop_files_here.clone()));
                 div()
                     .w_full()
                     .min_h(px(120.))

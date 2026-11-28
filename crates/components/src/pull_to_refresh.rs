@@ -9,7 +9,7 @@ use gpui::{
     Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{StyledExt, TestSupportExt};
-use gpui_material_foundation::current_material_theme;
+use gpui_material_foundation::{current_material_strings, current_material_theme};
 use gpui_material_theme::Direction;
 
 use crate::{Button, ButtonVariant, LoadingIndicator};
@@ -31,7 +31,7 @@ pub struct PullToRefresh {
     refreshing: bool,
     enabled: bool,
     refresh: Refresh,
-    label: SharedString,
+    label: Option<SharedString>,
     threshold: Pixels,
     indicator_distance: Pixels,
     binding: Option<ScrollBinding>,
@@ -54,7 +54,7 @@ impl PullToRefresh {
             refreshing,
             enabled: true,
             refresh: Rc::new(on_refresh),
-            label: "Refresh".into(),
+            label: None,
             threshold: DEFAULT_DISTANCE,
             indicator_distance: DEFAULT_DISTANCE,
             binding: None,
@@ -70,9 +70,10 @@ impl PullToRefresh {
         self
     }
 
-    /// Sets the label used for both the accessible refresh button and default loading indicator. Defaults to `"Refresh"`.
+    /// Sets the label used for both the accessible refresh button and default loading indicator.
+    /// Defaults to [`gpui_material_theme::MaterialStrings::refresh`] (`"Refresh"`).
     pub fn refresh_label(mut self, label: impl Into<SharedString>) -> Self {
-        self.label = label.into();
+        self.label = Some(label.into());
         self
     }
 
@@ -170,12 +171,15 @@ impl RenderOnce for PullToRefresh {
             binding: self.binding.unwrap_or(ScrollBinding::Handle(scroll)),
         };
         let command = driver.clone();
+        let label = self.label.unwrap_or_else(|| {
+            SharedString::from(current_material_strings(window, cx).refresh.clone())
+        });
         let indicator = (progress.distance_fraction > 0.).then(|| {
             let element = match self.indicator {
                 Some(indicator) => indicator(progress, window, cx),
                 None => {
-                    let loading = LoadingIndicator::new("refresh-progress", self.label.clone())
-                        .contained(true);
+                    let loading =
+                        LoadingIndicator::new("refresh-progress", label.clone()).contained(true);
                     if progress.refreshing {
                         loading.into_any_element()
                     } else {
@@ -206,7 +210,7 @@ impl RenderOnce for PullToRefresh {
                     .when(rtl, Styled::justify_start)
                     .when(!rtl, Styled::justify_end)
                     .child(
-                        Button::new("refresh-action", self.label)
+                        Button::new("refresh-action", label)
                             .variant(ButtonVariant::Text)
                             .disabled(!can_request)
                             .on_activate(move |window, cx| command.request(window, cx)),

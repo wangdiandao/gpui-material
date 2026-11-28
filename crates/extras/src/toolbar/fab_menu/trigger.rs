@@ -2,11 +2,12 @@ use std::rc::Rc;
 
 use gpui::{
     AnyElement, App, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels, Rgba,
-    Role, StatefulInteractiveElement, Styled, Window, canvas, div, prelude::FluentBuilder, px,
+    Role, SharedString, StatefulInteractiveElement, Styled, Window, canvas, div,
+    prelude::FluentBuilder, px,
 };
 use gpui_base::{Button, Popup};
 use gpui_material_components::{FabSize, Icon, IconName};
-use gpui_material_foundation::{ThemeScope, elevation_shadows};
+use gpui_material_foundation::{ThemeScope, current_material_strings, elevation_shadows};
 use gpui_material_theme::{CornerShape, Direction, Elevation};
 
 use super::{
@@ -222,7 +223,9 @@ impl FabMenu {
         let trigger = Button::new((ctx.id.clone(), "trigger"))
             .track_focus(&ctx.focus.trigger)
             .accessibility_label(if open {
-                self.close_label.clone()
+                self.close_label.clone().unwrap_or_else(|| {
+                    SharedString::from(current_material_strings(window, cx).close_actions.clone())
+                })
             } else {
                 self.open_label.clone()
             })

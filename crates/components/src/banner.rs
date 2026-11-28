@@ -7,7 +7,7 @@ use gpui::{
 };
 use gpui_base::TestSupportExt;
 use gpui_material_foundation::{
-    Surface, SurfaceBorder, color, current_material_theme, wrapped_text,
+    Surface, SurfaceBorder, color, current_material_strings, current_material_theme, wrapped_text,
 };
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Direction, TypeRole, TypographyEmphasis,
@@ -78,7 +78,7 @@ pub struct Banner {
     secondary_action: Option<(SharedString, Activate)>,
     actions_content: Option<AnyElement>,
     on_dismiss: Option<Activate>,
-    dismiss_label: SharedString,
+    dismiss_label: Option<SharedString>,
     shape: CornerShape,
     colors: BannerColors,
     alert: Option<bool>,
@@ -97,7 +97,7 @@ impl Banner {
             secondary_action: None,
             actions_content: None,
             on_dismiss: None,
-            dismiss_label: "Dismiss".into(),
+            dismiss_label: None,
             shape: CornerRole::Medium.shape(),
             colors: BannerColors::default(),
             alert: None,
@@ -157,9 +157,10 @@ impl Banner {
         self
     }
 
-    /// Sets the accessible label for the optional dismiss button. Defaults to `"Dismiss"`.
+    /// Sets the accessible label for the optional dismiss button. Defaults to
+    /// [`gpui_material_theme::MaterialStrings::dismiss`] (`"Dismiss"`).
     pub fn dismiss_label(mut self, label: impl Into<SharedString>) -> Self {
-        self.dismiss_label = label.into();
+        self.dismiss_label = Some(label.into());
         self
     }
 
@@ -300,11 +301,14 @@ impl RenderOnce for Banner {
                 .children(self.actions_content)
         });
 
+        let dismiss_label = self.dismiss_label.unwrap_or_else(|| {
+            SharedString::from(current_material_strings(window, cx).dismiss.clone())
+        });
         let dismiss_slot = self.on_dismiss.map(|handler| {
             div().flex_none().child(
                 IconButton::standard(
                     (self.id.clone(), "dismiss"),
-                    self.dismiss_label,
+                    dismiss_label,
                     Icon::new(IconName::Close),
                 )
                 .size(ControlSize::ExtraSmall)

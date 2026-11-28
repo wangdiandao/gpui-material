@@ -2,12 +2,14 @@ use std::{cell::Cell, rc::Rc};
 
 use gpui::{
     App, Axis, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce, Role,
-    ScrollHandle, Size, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
-    px,
+    ScrollHandle, SharedString, Size, StatefulInteractiveElement, Styled, Window, div,
+    prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
 use gpui_material_components::ControlElevations;
-use gpui_material_foundation::{animate, color, current_material_theme, move_roving_focus};
+use gpui_material_foundation::{
+    animate, color, current_material_strings, current_material_theme, move_roving_focus,
+};
 use gpui_material_theme::{CornerShape, Direction, Elevation, MotionKind, MotionSpec, MotionSpeed};
 
 use super::{
@@ -180,9 +182,12 @@ impl RenderOnce for Toolbar {
             render_visible_actions(&self.id, visible, first_tab, action_size, palette);
         if has_more {
             let count = bar_order.len();
+            let overflow_label = self.overflow_label.unwrap_or_else(|| {
+                SharedString::from(current_material_strings(window, cx).more_actions.clone())
+            });
             commands.push(render_overflow_menu(
                 &self.id,
-                self.overflow_label,
+                overflow_label,
                 hidden,
                 overflow_focus,
                 first_tab == Some(count - 1),

@@ -321,7 +321,7 @@ pub struct ButtonGroup {
     selection: ButtonGroupSelection,
     selected: Vec<SharedString>,
     on_change: Option<SelectionChange>,
-    overflow_label: SharedString,
+    overflow_label: Option<SharedString>,
     shape: ButtonShape,
     shapes: ButtonGroupConnectedShapes,
     alignment: ContentArrangement,
@@ -352,7 +352,7 @@ impl ButtonGroup {
             selection: ButtonGroupSelection::default(),
             selected: Vec::new(),
             on_change: None,
-            overflow_label: "More actions".into(),
+            overflow_label: None,
             shape: ButtonShape::Round,
             shapes: ButtonGroupConnectedShapes::default(),
             alignment: ContentArrangement::default(),
@@ -453,7 +453,7 @@ impl ButtonGroup {
 
     /// Sets the accessible name for the overflow menu trigger button. Defaults to `"More actions"`.
     pub fn overflow_label(mut self, label: impl Into<SharedString>) -> Self {
-        self.overflow_label = label.into();
+        self.overflow_label = Some(label.into());
         self
     }
 

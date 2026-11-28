@@ -17,6 +17,7 @@ See [versioning and releases](docs/release.md) for the release process.
 
 - Add `AppearanceMode` (`Light`, `Dark`, `System`) with `AppearanceMode::resolve` (and `serde` support when `feature = "serde"` is enabled) in `gpui-material-theme`, plus standard easing constants (`LINEAR`, `EASE`, `EASE_IN`, `EASE_OUT`, `EASE_IN_OUT`) on `CubicBezier`.
 - Add system appearance and reduced-motion sync helpers in `gpui-material-foundation` (re-exported from `gpui-material`): `appearance_from_window`, `system_appearance`, `observe_system_appearance`, `observe_window_system_appearance`, `MaterialRoot::sync_system_appearance`, `MaterialRoot::sync_window_system_appearance`, `sync_system_reduce_motion`, and Material-owned `ReduceMotionPreference` / `set_reduce_motion_preference`.
+- Add pure-value `MaterialStrings` (with `Arc<str>` fields, fluent builders, English defaults, and optional `serde` support) in `gpui-material-theme`, plus `material_strings`, `set_material_strings`, `current_material_strings`, and `ThemeScope::strings` in `gpui-material-foundation` (re-exported from `gpui-material`), and wire built-in default labels across `Scrim`, components, and extras to fall back to `current_material_strings` while preserving explicit per-component setter precedence.
 - Add an automated public third-party API boundary check in `xtask` (`cargo xtask check`) enforcing the documented allowlist of intentional Base/third-party re-exports across `crates/*/src/**/*.rs`.
 
 ## 0.4.1 - 2026-11-26

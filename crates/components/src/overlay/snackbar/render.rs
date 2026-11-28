@@ -1,9 +1,12 @@
 use gpui::{
     App, ClickEvent, Context, Hsla, InteractiveElement, IntoElement, KeyDownEvent, ParentElement,
-    Pixels, Role, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
+    Pixels, Role, SharedString, StatefulInteractiveElement, Styled, Window, div,
+    prelude::FluentBuilder,
 };
 use gpui_base::TestSupportExt as _;
-use gpui_material_foundation::{OverlayMotion, color, current_material_theme, elevation_shadows};
+use gpui_material_foundation::{
+    OverlayMotion, color, current_material_strings, current_material_theme, elevation_shadows,
+};
 use gpui_material_theme::{ColorRole, CornerShape, Direction, Elevation, TypeRole};
 
 use crate::SemanticTone;
@@ -137,20 +140,17 @@ pub(super) fn snackbar_surface(
         }
     });
     let dismiss_part = message.show_dismiss.then(|| {
-        let (label, content) = message.dismiss_content.as_ref().map_or_else(
-            || {
-                (
-                    message
-                        .dismiss_label
-                        .clone()
-                        .unwrap_or_else(|| "Dismiss message".into()),
-                    crate::Icon::new(crate::IconName::Close)
-                        .size(motion.px(24.))
-                        .into_any_element(),
-                )
-            },
-            |(label, content)| (label.clone(), content(window, cx)),
-        );
+        let (label, content) = match message.dismiss_content.as_ref() {
+            None => (
+                message.dismiss_label.clone().unwrap_or_else(|| {
+                    SharedString::from(current_material_strings(window, cx).dismiss_message.clone())
+                }),
+                crate::Icon::new(crate::IconName::Close)
+                    .size(motion.px(24.))
+                    .into_any_element(),
+            ),
+            Some((label, content)) => (label.clone(), content(window, cx)),
+        };
         render_control(
             1,
             "snackbar-dismiss",

@@ -125,7 +125,7 @@ pub struct Sheet {
     show_header: bool,
     back: Option<AnyElement>,
     close_content: Option<CloseSlot>,
-    close_label: SharedString,
+    close_label: Option<SharedString>,
     show_close: bool,
     footer: Option<AnyElement>,
     footer_divider: bool,
@@ -148,7 +148,7 @@ pub struct Sheet {
     drag_enabled: bool,
     show_handle: bool,
     handle_content: Option<AnyElement>,
-    handle_label: SharedString,
+    handle_label: Option<SharedString>,
     thresholds: BottomSheetThresholds,
     content_insets: LogicalEdges,
 }
@@ -205,7 +205,7 @@ impl Sheet {
             show_header: true,
             back: None,
             close_content: None,
-            close_label: "Close".into(),
+            close_label: None,
             show_close: true,
             footer: None,
             footer_divider: false,
@@ -228,7 +228,7 @@ impl Sheet {
             drag_enabled: true,
             show_handle: true,
             handle_content: None,
-            handle_label: "Resize bottom sheet".into(),
+            handle_label: None,
             thresholds: BottomSheetThresholds::default(),
             content_insets: LogicalEdges::ZERO,
         }
@@ -276,9 +276,10 @@ impl Sheet {
         self
     }
 
-    /// Names the resize action for keyboard and assistive technology.
+    /// Names the resize action for keyboard and assistive technology. Defaults to
+    /// [`gpui_material_theme::MaterialStrings::resize_bottom_sheet`] (`"Resize bottom sheet"`).
     pub fn handle_label(mut self, label: impl Into<SharedString>) -> Self {
-        self.handle_label = label.into();
+        self.handle_label = Some(label.into());
         self
     }
 
@@ -377,9 +378,10 @@ impl Sheet {
         self
     }
 
-    /// Overrides the accessible label of the default close button (default `"Close"`).
+    /// Overrides the accessible label of the default close button (defaults to
+    /// [`gpui_material_theme::MaterialStrings::close`], `"Close"`).
     pub fn close_label(mut self, label: impl Into<SharedString>) -> Self {
-        self.close_label = label.into();
+        self.close_label = Some(label.into());
         self
     }
 

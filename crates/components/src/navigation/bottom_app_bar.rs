@@ -4,7 +4,9 @@ use gpui::{
     Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
-use gpui_material_foundation::{Surface, animate, current_material_theme, resolve_edges};
+use gpui_material_foundation::{
+    Surface, animate, current_material_strings, current_material_theme, resolve_edges,
+};
 use gpui_material_theme::{
     ColorRole, CornerRole, Direction, Elevation, LogicalEdges, MotionKind, MotionSpec, MotionSpeed,
 };
@@ -33,7 +35,7 @@ pub struct BottomAppBar {
     elevation: Elevation,
     scroll: Option<ScrollHandle>,
     scroll_behavior: Option<(AppBarScrollBehavior, Entity<AppBarScrollState>)>,
-    accessible_label: SharedString,
+    accessible_label: Option<SharedString>,
 }
 
 impl BottomAppBar {
@@ -55,7 +57,7 @@ impl BottomAppBar {
             elevation: Elevation::Level2,
             scroll: None,
             scroll_behavior: None,
-            accessible_label: "Bottom app bar".into(),
+            accessible_label: None,
         }
     }
 
@@ -120,9 +122,10 @@ impl BottomAppBar {
         self
     }
 
-    /// Sets the accessible name for the `Role::Toolbar` landmark.
+    /// Sets the accessible name for the `Role::Toolbar` landmark. Defaults to
+    /// [`gpui_material_theme::MaterialStrings::bottom_app_bar`] (`"Bottom app bar"`).
     pub fn accessible_label(mut self, label: impl Into<SharedString>) -> Self {
-        self.accessible_label = label.into();
+        self.accessible_label = Some(label.into());
         self
     }
 }
@@ -248,11 +251,15 @@ impl RenderOnce for BottomAppBar {
             .overflow_hidden()
             .child(bar_row);
 
+        let accessible_label = self.accessible_label.unwrap_or_else(|| {
+            SharedString::from(current_material_strings(window, cx).bottom_app_bar.clone())
+        });
+
         div()
             .id(self.id)
             .test_support()
             .role(Role::Toolbar)
-            .aria_label(self.accessible_label)
+            .aria_label(accessible_label)
             .track_focus(&scope)
             .w_full()
             .h(visible_height)

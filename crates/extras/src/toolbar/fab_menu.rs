@@ -165,7 +165,7 @@ pub struct FabMenuTriggerStyle {
 pub struct FabMenu {
     id: ElementId,
     open_label: SharedString,
-    close_label: SharedString,
+    close_label: Option<SharedString>,
     icon: IconName,
     open_content: Option<TriggerContent>,
     close_content: Option<TriggerContent>,
@@ -192,7 +192,7 @@ impl FabMenu {
         Self {
             id: id.into(),
             open_label: open_label.into(),
-            close_label: "Close actions".into(),
+            close_label: None,
             icon,
             open_content: None,
             close_content: None,
@@ -210,9 +210,9 @@ impl FabMenu {
     }
 
     /// Sets the accessible label used on the trigger button while the menu is expanded.
-    /// Defaults to `"Close actions"`.
+    /// Defaults to [`gpui_material_theme::MaterialStrings::close_actions`] (`"Close actions"`).
     pub fn close_label(mut self, label: impl Into<SharedString>) -> Self {
-        self.close_label = label.into();
+        self.close_label = Some(label.into());
         self
     }
 

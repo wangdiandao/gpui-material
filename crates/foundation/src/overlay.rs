@@ -5,9 +5,10 @@ use gpui::{
     ScrollHandle, SharedString, Stateful, StatefulInteractiveElement, Styled, Window,
     accesskit::Action, div,
 };
+use gpui_base::TestSupportExt as _;
 use gpui_material_theme::Direction;
 
-use crate::{current_material_theme, scrim_color};
+use crate::{current_material_strings, current_material_theme, scrim_color};
 
 type ScrimClick = Rc<dyn Fn(&mut Window, &mut App)>;
 
@@ -52,7 +53,8 @@ impl Scrim {
         self
     }
 
-    /// Names the clickable scrim for assistive technology. Defaults to “Dismiss overlay.”
+    /// Names the clickable scrim for assistive technology. Defaults to
+    /// [`crate::MaterialStrings::dismiss_overlay`] (`"Dismiss overlay"`).
     pub fn accessibility_label(mut self, label: impl Into<SharedString>) -> Self {
         self.accessibility_label = Some(label.into());
         self
@@ -72,17 +74,22 @@ impl RenderOnce for Scrim {
             || scrim_color(&current_material_theme(window, cx), self.opacity),
             |color| color.opacity(self.opacity),
         );
-        let backdrop = div().id(self.id).absolute().inset_0().bg(fill);
+        let backdrop = div()
+            .id(self.id)
+            .test_support()
+            .absolute()
+            .inset_0()
+            .bg(fill);
         match self.on_click {
             Some(on_click) => {
                 let on_accessibility_click = on_click.clone();
+                let label = self.accessibility_label.unwrap_or_else(|| {
+                    SharedString::from(current_material_strings(window, cx).dismiss_overlay.clone())
+                });
                 backdrop
                     .occlude()
                     .role(Role::Button)
-                    .aria_label(
-                        self.accessibility_label
-                            .unwrap_or_else(|| "Dismiss overlay".into()),
-                    )
+                    .aria_label(label)
                     // GPUI's default accessibility click targets the center,
                     // where the foreground surface may cover the scrim.
                     .on_a11y_action(Action::Click, move |_, window, cx| {

@@ -6,6 +6,7 @@ use gpui::{
 };
 use gpui_base::TestSupportExt;
 use gpui_material_components::{Icon, ListItem, LoadingIndicator, Text};
+use gpui_material_foundation::current_material_strings;
 use gpui_material_theme::TypeRole;
 
 use super::SearchView;
@@ -45,12 +46,21 @@ impl SearchView {
         if let Some(builder) = self.result_content.take() {
             results = results.child(builder(&self.state, window, cx));
         } else {
-            let status = status_info(
-                self.state.read(cx),
-                &self.prompt,
-                &self.loading_label,
-                &self.empty_label,
-            );
+            let strings = current_material_strings(window, cx);
+            let prompt = self
+                .prompt
+                .clone()
+                .unwrap_or_else(|| SharedString::from(strings.search_prompt.clone()));
+            let loading_label = self
+                .loading_label
+                .clone()
+                .unwrap_or_else(|| SharedString::from(strings.searching.clone()));
+            let empty_label = self
+                .empty_label
+                .clone()
+                .unwrap_or_else(|| SharedString::from(strings.no_results.clone()));
+            drop(strings);
+            let status = status_info(self.state.read(cx), &prompt, &loading_label, &empty_label);
             if let Some((message, loading, error)) = status {
                 results = results.child(search_status(&self.id, message, loading, error));
             } else {

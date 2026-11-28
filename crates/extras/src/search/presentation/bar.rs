@@ -258,7 +258,7 @@ fn render_docked_overlay(
     cx: &mut App,
 ) -> AnyElement {
     let label = view.label.clone();
-    let close_label = view.close_label.clone();
+    let close_label = view.resolved_close_label(window, cx);
     let motion = view.motion;
     let options = view.popup;
     let outside = state.clone();
@@ -337,7 +337,7 @@ fn render_fullscreen_overlay(
     cx: &mut App,
 ) -> AnyElement {
     let label = view.label.clone();
-    let close_label = view.close_label.clone();
+    let close_label = view.resolved_close_label(window, cx);
     let motion = view.motion;
     let options = view.window;
     let insets = options.insets;

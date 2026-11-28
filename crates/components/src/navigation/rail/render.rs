@@ -1,9 +1,11 @@
 use gpui::{
-    App, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce, Styled, Window, div,
-    prelude::FluentBuilder, px,
+    App, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce, SharedString, Styled,
+    Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
-use gpui_material_foundation::{Surface, animate, current_material_theme, resolve_edges};
+use gpui_material_foundation::{
+    Surface, animate, current_material_strings, current_material_theme, resolve_edges,
+};
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, LogicalEdges, MotionKind, MotionSpeed, TypeRole,
 };
@@ -145,7 +147,9 @@ impl RenderOnce for NavigationRail {
             frame.mode
         };
         let expanded = mode == RailMode::Expanded;
-        let title = self.title.unwrap_or_else(|| "Navigation".into());
+        let title = self.title.unwrap_or_else(|| {
+            SharedString::from(current_material_strings(window, cx).navigation.clone())
+        });
         let theme = current_material_theme(window, cx);
         let viewport = window.viewport_size();
         let colors = self.colors;

@@ -1,9 +1,9 @@
 use gpui_material_theme::{
     Appearance, AppearanceMode, Argb, ColorRole, ColorScheme, ColorSpec, CornerRole, CornerShape,
     Density, Direction, Elevation, FontFamilies, LayoutPolicy, LogicalEdges, MaterialShape,
-    MaterialTheme, MotionKind, MotionScheme, MotionSpec, MotionSpeed, PolygonRole, PolygonSpec,
-    Spring, StateLayer, TokenValue, TypeRole, Typeface, TypographyEmphasis, WidthClass,
-    non_negative_f32, token,
+    MaterialStrings, MaterialTheme, MotionKind, MotionScheme, MotionSpec, MotionSpeed, PolygonRole,
+    PolygonSpec, Spring, StateLayer, TokenValue, TypeRole, Typeface, TypographyEmphasis,
+    WidthClass, non_negative_f32, token,
 };
 
 #[test]
@@ -529,4 +529,109 @@ fn appearance_mode_round_trips_through_serde() {
         let decoded: AppearanceMode = serde_json::from_str(&encoded).unwrap();
         assert_eq!(decoded, mode);
     }
+}
+
+#[test]
+fn material_strings_defaults_builders_and_arc_sharing() {
+    let a = MaterialStrings::default();
+    let b = MaterialStrings::default();
+    assert_eq!(a, b);
+    assert!(std::sync::Arc::ptr_eq(&a.dismiss, &b.dismiss));
+    assert_eq!(a.dismiss.as_ref(), "Dismiss");
+    assert_eq!(a.dismiss_message.as_ref(), "Dismiss message");
+    assert_eq!(a.dismiss_overlay.as_ref(), "Dismiss overlay");
+    assert_eq!(a.close.as_ref(), "Close");
+    assert_eq!(a.close_actions.as_ref(), "Close actions");
+    assert_eq!(a.close_search.as_ref(), "Close search");
+    assert_eq!(a.cancel.as_ref(), "Cancel");
+    assert_eq!(a.confirm.as_ref(), "OK");
+    assert_eq!(a.clear.as_ref(), "Clear");
+    assert_eq!(a.show_password.as_ref(), "Show password");
+    assert_eq!(a.hide_password.as_ref(), "Hide password");
+    assert_eq!(a.open_options.as_ref(), "Open options");
+    assert_eq!(a.close_options.as_ref(), "Close options");
+    assert_eq!(a.no_matching_options.as_ref(), "No matching options");
+    assert_eq!(a.more_actions.as_ref(), "More actions");
+    assert_eq!(a.app_bar_actions.as_ref(), "App bar actions");
+    assert_eq!(a.bottom_app_bar.as_ref(), "Bottom app bar");
+    assert_eq!(a.breadcrumb.as_ref(), "Breadcrumb");
+    assert_eq!(a.more_breadcrumbs.as_ref(), "More breadcrumbs");
+    assert_eq!(a.navigation.as_ref(), "Navigation");
+    assert_eq!(a.steps.as_ref(), "Steps");
+    assert_eq!(a.refresh.as_ref(), "Refresh");
+    assert_eq!(a.resize_bottom_sheet.as_ref(), "Resize bottom sheet");
+    assert_eq!(a.expand.as_ref(), "Expand");
+    assert_eq!(a.collapse.as_ref(), "Collapse");
+    assert_eq!(a.drop_target.as_ref(), "Drop target");
+    assert_eq!(a.drop_files_here.as_ref(), "Drop files here");
+    assert_eq!(a.searching.as_ref(), "Searching");
+    assert_eq!(a.no_results.as_ref(), "No results");
+    assert_eq!(a.search_prompt.as_ref(), "Enter a search term");
+    assert_eq!(a.minimize.as_ref(), "Minimize");
+    assert_eq!(a.maximize.as_ref(), "Maximize");
+    assert_eq!(a.restore.as_ref(), "Restore");
+
+    let custom = MaterialStrings::default()
+        .dismiss("关闭")
+        .dismiss_message("关闭提示")
+        .dismiss_overlay("关闭遮罩")
+        .close("关闭面板")
+        .close_actions("关闭操作")
+        .close_search("关闭搜索")
+        .cancel("取消")
+        .confirm("确定")
+        .clear("清除")
+        .show_password("显示密码")
+        .hide_password("隐藏密码")
+        .open_options("展开选项")
+        .close_options("收起选项")
+        .no_matching_options("无匹配项")
+        .more_actions("更多操作")
+        .app_bar_actions("应用栏操作")
+        .bottom_app_bar("底部应用栏")
+        .breadcrumb("面包屑")
+        .more_breadcrumbs("更多路径")
+        .navigation("导航")
+        .steps("步骤")
+        .refresh("刷新")
+        .resize_bottom_sheet("调整底部抽屉高度")
+        .expand("展开")
+        .collapse("收起")
+        .drop_target("拖放区域")
+        .drop_files_here("将文件拖放到此处")
+        .searching("搜索中")
+        .no_results("无结果")
+        .search_prompt("输入搜索关键词")
+        .minimize("最小化")
+        .maximize("最大化")
+        .restore("还原");
+
+    assert_ne!(custom, a);
+    assert_eq!(custom.dismiss.as_ref(), "关闭");
+    assert_eq!(custom.cancel.as_ref(), "取消");
+    assert_eq!(custom.restore.as_ref(), "还原");
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn material_strings_round_trips_and_supports_partial_deserialization() {
+    let custom = MaterialStrings::default()
+        .dismiss("关闭")
+        .cancel("取消")
+        .show_password("显示密码")
+        .hide_password("隐藏密码")
+        .dismiss_overlay("关闭遮罩");
+    let encoded = serde_json::to_string(&custom).unwrap();
+    let decoded: MaterialStrings = serde_json::from_str(&encoded).unwrap();
+    assert_eq!(decoded, custom);
+
+    let partial: MaterialStrings =
+        serde_json::from_str(r#"{"cancel":"Annuler","clear":"Effacer"}"#).unwrap();
+    assert_eq!(partial.cancel.as_ref(), "Annuler");
+    assert_eq!(partial.clear.as_ref(), "Effacer");
+    assert_eq!(partial.dismiss, MaterialStrings::default().dismiss);
+    assert_eq!(
+        partial.dismiss_overlay,
+        MaterialStrings::default().dismiss_overlay
+    );
 }

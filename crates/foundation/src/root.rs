@@ -12,7 +12,10 @@ use gpui_material_theme::{
     Appearance, AppearanceMode, ColorScheme, MaterialTheme, MotionKind, MotionSpec, MotionSpeed,
 };
 
-use crate::typography::{font_cache_revision, refresh_installed_fonts};
+use crate::{
+    strings::init_default_strings,
+    typography::{font_cache_revision, refresh_installed_fonts},
+};
 
 pub use base_projection::project_base_theme;
 use base_projection::{project_base_colors, project_base_metrics};
@@ -59,6 +62,7 @@ impl MaterialRoot {
             animator.driver = None;
         }
         refresh_installed_fonts(cx);
+        init_default_strings(cx);
         apply_material_theme(theme, true, cx);
     }
 

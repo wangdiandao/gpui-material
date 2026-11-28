@@ -57,7 +57,7 @@ pub struct TitleBar {
     traffic_light_padding: Pixels,
     colors: TitleBarColors,
     caption_colors: CaptionButtonColors,
-    caption_labels: CaptionButtonLabels,
+    caption_labels: Option<CaptionButtonLabels>,
     caption_button_width: Option<Pixels>,
     show_caption_buttons: Option<bool>,
     on_close: Option<CloseHandler>,
@@ -81,7 +81,7 @@ impl TitleBar {
             traffic_light_padding: DEFAULT_MACOS_TRAFFIC_LIGHT_PADDING,
             colors: TitleBarColors::default(),
             caption_colors: CaptionButtonColors::default(),
-            caption_labels: CaptionButtonLabels::default(),
+            caption_labels: None,
             caption_button_width: None,
             show_caption_buttons: None,
             on_close: None,
@@ -166,7 +166,7 @@ impl TitleBar {
 
     /// Overrides the localized accessible names for the caption buttons.
     pub fn caption_labels(mut self, labels: CaptionButtonLabels) -> Self {
-        self.caption_labels = labels;
+        self.caption_labels = Some(labels);
         self
     }
 
@@ -287,7 +287,7 @@ impl RenderOnce for TitleBar {
 
         let caption_buttons = CaptionButtons::new((self.id.clone(), "caption-buttons"))
             .colors(self.caption_colors)
-            .labels(self.caption_labels)
+            .when_some(self.caption_labels, CaptionButtons::labels)
             .with_button_width_override(self.caption_button_width)
             .platform(platform)
             .with_show_override(self.show_caption_buttons)

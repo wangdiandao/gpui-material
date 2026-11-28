@@ -9,7 +9,9 @@ use gpui::{
     StatefulInteractiveElement, Styled, Window, canvas, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{Popup, TestSupportExt};
-use gpui_material_foundation::{OverlayMotion, animate, color, current_material_theme};
+use gpui_material_foundation::{
+    OverlayMotion, animate, color, current_material_strings, current_material_theme,
+};
 use gpui_material_theme::{ColorRole, MotionKind, MotionSpeed};
 
 use super::{
@@ -24,6 +26,7 @@ use super::{
 fn build_secondary_trigger(
     id: &ElementId,
     secondary: Option<(SharedString, AnchorContent)>,
+    default_label: SharedString,
     secondary_enabled: bool,
     secondary_focus: &FocusHandle,
     open: bool,
@@ -34,17 +37,7 @@ fn build_secondary_trigger(
     interaction: Interaction,
 ) -> AnyElement {
     let (secondary_label, secondary_content) = secondary.map_or_else(
-        || {
-            let label = if open {
-                "Close options"
-            } else {
-                "Open options"
-            };
-            (
-                SharedString::from(label),
-                dropdown_arrow(arrow, ink).into_any_element(),
-            )
-        },
+        || (default_label, dropdown_arrow(arrow, ink).into_any_element()),
         |(label, content)| (label, content(open)),
     );
     if secondary_enabled {
@@ -227,9 +220,18 @@ impl RenderOnce for ExposedDropdown {
                 interaction.request(Some(open), primary, window, cx);
             }) as OpenChange
         });
+        let default_secondary_label = {
+            let strings = current_material_strings(window, cx);
+            SharedString::from(if open {
+                strings.close_options.clone()
+            } else {
+                strings.open_options.clone()
+            })
+        };
         let secondary = build_secondary_trigger(
             &self.id,
             self.secondary,
+            default_secondary_label,
             secondary_enabled,
             &secondary_focus,
             open,

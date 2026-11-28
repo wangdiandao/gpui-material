@@ -3,6 +3,7 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 
 mod root;
+mod strings;
 mod surface;
 mod theme_scope;
 mod typography;
@@ -13,11 +14,14 @@ pub use root::{
     set_material_theme, set_reduce_motion_preference, set_window_material_theme,
     sync_system_reduce_motion, system_appearance, window_material_theme,
 };
+pub use strings::{material_strings, set_material_strings};
 pub use surface::{
     Surface, SurfaceBorder, SurfaceFeedback, color, elevation_shadow_pair, elevation_shadows,
     resolve_color_spec, resolve_edges, scrim_color,
 };
-pub use theme_scope::{ThemeScope, current_base_theme, current_material_theme};
+pub use theme_scope::{
+    ThemeScope, current_base_theme, current_material_strings, current_material_theme,
+};
 #[doc(hidden)]
 pub use typography::font_cache_revision;
 pub use typography::{ShapedText, font_for_style, shape_text, text_style, wrapped_text};
@@ -31,7 +35,7 @@ pub use feedback::{
     FOCUS_RING_OUTER_OFFSET, FOCUS_RING_WIDTH, FocusRingPlacement, InteractionFeedback,
     InteractionState, Ripple,
 };
-pub use gpui_material_theme::{AppearanceMode, MaterialShape};
+pub use gpui_material_theme::{AppearanceMode, MaterialShape, MaterialStrings};
 pub use motion::{
     LoopClock, MotionSample, MotionStatus, OverlayMotion, RetargetTransition, ScaledOverlay,
     animate, animate_with_status, is_bounds_visible, sanitize_overlay_scale,

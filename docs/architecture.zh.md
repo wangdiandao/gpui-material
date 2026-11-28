@@ -12,7 +12,7 @@ GPUI Material 提供 Material 的 Token、主题、视觉状态、布局和组�
 
 | Crate | 依赖与责任 |
 | --- | --- |
-| `gpui-material-theme` | 纯 Rust。维护 Token、语义色、排版、形状描述、动效参数和布局策略。公开纯值类型。 |
+| `gpui-material-theme` | 纯 Rust。维护 Token、语义色、排版、形状描述、动效参数、布局策略和默认文案（`MaterialStrings`）。公开纯值类型。 |
 | `gpui-material-foundation` | → theme、gpui-base、同源 GPUI。提供 MaterialRoot、主题投影、绘制、状态层、ripple、几何与动效适配。 |
 | `gpui-material-components` | → foundation，必要时 → theme。提供轻量核心展示原语及按组划分的核心组件特性（`actions`、`selection`、`inputs`、`surfaces`、`feedback`、`navigation`；`default = ["full"]`）。 |
 | `gpui-material-extras` | → components（仅启用各组件族所需的组件分组）、foundation 和所需的 theme API。按组件族启用，独立声明额外依赖。 |
@@ -36,7 +36,7 @@ Dropdown 在 Base Input 和 Popup 之上保留处理 IME 的窄键盘适配层�
 
 - 调用者拥有业务值和稳定标识。Base 持有交互所需的状态、输入、选择和焦点。Material 持有主题、状态呈现策略及新增组合状态。受控组件通过同一路径请求变更，文档注明回调的执行次序及同步重入边界。
 - 组件按语义公开 variant、size、disabled、selected、on_change 等必要契约，开放与组成部分对应的 slot。共享接口以具体类型为主，第三方颜色/形状类型留在适配层。
-- `MaterialTheme` 是项目的主题源。固定版本的 Base `Theme` 通过 App `Global` 读取，包含 appearance、语义 Token、滚动条、分割调整、plot 与光标闪烁默认值。`project_base_theme` / `current_base_theme` 提供统一的 Material→Base 投影（色彩、排版、圆角、阴影、滚动条样式和分隔手柄），同时服务于应用级 Base 全局投影与窗口/子树作用域内的局部 Base 样式。Material 在元素布局时解析窗口和子树主题，为多行 `TextField` 编辑器接入局部 Material 滚动条，并将当前作用域传递到浮层内容和绑定回调，而不篡改 Base 全局主题。
+- `MaterialTheme` 是项目的主题源，`MaterialStrings` 是纯值的默认控件标签与无障碍文案表（通过 `set_material_strings` / `material_strings` 存入 App `Global`，并可通过 `ThemeScope::strings` / `current_material_strings` 按子树覆盖）。固定版本的 Base `Theme` 通过 App `Global` 读取，包含 appearance、语义 Token、滚动条、分割调整、plot 与光标闪烁默认值。`project_base_theme` / `current_base_theme` 提供统一的 Material→Base 投影（色彩、排版、圆角、阴影、滚动条样式和分隔手柄），同时服务于应用级 Base 全局投影与窗口/子树作用域内的局部 Base 样式。Material 在元素布局时解析窗口和子树主题与文案表，为多行 `TextField` 编辑器接入局部 Material 滚动条，并将当前作用域传递到浮层内容和绑定回调，而不篡改 Base 全局主题。显式的组件级标签设置器始终优先于 `MaterialStrings`。
 - foundation 将 Base 交互状态映射为 Material 呈现。禁用会压制 hover 和 active 样式。
 - Token 用受控数据文件作唯一数值源。xtask 生成 Rust 表和索引并提交生成物，日常构建使用仓库内数据。Foundation 统一封装 `polymorpher` 以提供全部 35 种 Expressive Material 形状、通用变形、几何裁剪、外部遮罩与形状感知命中检测，使各组件共享同一套形状管线而无需直接依赖 `polymorpher`。
 

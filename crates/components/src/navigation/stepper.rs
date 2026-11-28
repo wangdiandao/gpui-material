@@ -149,7 +149,7 @@ pub struct Stepper {
     pub(super) non_linear: bool,
     pub(super) colors: StepperColors,
     pub(super) on_select: Option<StepSelect>,
-    pub(super) accessible_label: SharedString,
+    pub(super) accessible_label: Option<SharedString>,
 }
 
 impl Stepper {
@@ -163,7 +163,7 @@ impl Stepper {
             non_linear: false,
             colors: StepperColors::default(),
             on_select: None,
-            accessible_label: "Steps".into(),
+            accessible_label: None,
         }
     }
 
@@ -198,9 +198,10 @@ impl Stepper {
         self
     }
 
-    /// Sets the accessible name for the stepper container. Defaults to `"Steps"`.
+    /// Sets the accessible name for the stepper container. Defaults to
+    /// [`gpui_material_theme::MaterialStrings::steps`] (`"Steps"`).
     pub fn accessible_label(mut self, label: impl Into<SharedString>) -> Self {
-        self.accessible_label = label.into();
+        self.accessible_label = Some(label.into());
         self
     }
 }

@@ -12,6 +12,7 @@ use super::{
     action_examples::ActionExamples,
     adaptive_examples::AdaptiveExamples,
     carousel_examples::CarouselExamples,
+    data_views_examples::DataViewsExamples,
     date_time_examples::DateTimeExamples,
     display_examples::DisplayExamples,
     drag_handle_examples::DragHandleExamples,
@@ -46,6 +47,7 @@ pub enum Story {
     Checkbox,
     Chip,
     ChipGroup,
+    DataViews,
     DatePicker,
     DateRangePicker,
     Dialog,
@@ -103,6 +105,7 @@ impl Story {
         Self::Checkbox,
         Self::Chip,
         Self::ChipGroup,
+        Self::DataViews,
         Self::DatePicker,
         Self::DateRangePicker,
         Self::Dialog,
@@ -160,6 +163,7 @@ impl Story {
             Self::Checkbox => "checkbox",
             Self::Chip => "chip",
             Self::ChipGroup => "chip-group",
+            Self::DataViews => "data-views",
             Self::DatePicker => "date-picker",
             Self::DateRangePicker => "date-range-picker",
             Self::Dialog => "dialog",
@@ -218,6 +222,7 @@ impl Story {
             Self::Checkbox => "Checkbox",
             Self::Chip => "Chip",
             Self::ChipGroup => "Chip group",
+            Self::DataViews => "Data views",
             Self::DatePicker => "Date picker",
             Self::DateRangePicker => "Date range picker",
             Self::Dialog => "Dialog",
@@ -291,6 +296,9 @@ impl Story {
             Self::Chip => "Offer suggestions, filter results, or represent removable inputs.",
             Self::ChipGroup => {
                 "Coordinate controlled chip selection with roving focus and wrapping or scrolling rows."
+            }
+            Self::DataViews => {
+                "Inspect sortable data tables, virtualized hierarchical trees, and variable-size virtual lists."
             }
             Self::DatePicker => "Choose an available date in a docked calendar or a dialog.",
             Self::DateRangePicker => {
@@ -372,6 +380,7 @@ impl Story {
                 cx.new(|cx| DateTimeExamples::new(self, window, cx)).into()
             }
             Self::Carousel => cx.new(|_| CarouselExamples::default()).into(),
+            Self::DataViews => cx.new(DataViewsExamples::new).into(),
             Self::ButtonGroup | Self::SplitButton => {
                 cx.new(|cx| GroupExamples::new(self, cx)).into()
             }

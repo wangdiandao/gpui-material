@@ -17,6 +17,13 @@ test-support = [
     "gpui-material-components?/test-support",
 ]
 carousel = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
+data-views = [
+    "dep:gpui",
+    "dep:gpui-base",
+    "dep:gpui-material-components",
+    "dep:gpui-material-foundation",
+    "dep:gpui-material-theme",
+]
 expressive-groups = [
     "dep:gpui",
     "dep:gpui-material-components",
@@ -73,6 +80,7 @@ windows = { workspace = true, features = ["Win32_UI_WindowsAndMessaging"], optio
 [package.metadata.docs.rs]
 features = [
     "carousel",
+    "data-views",
     "date-time",
     "expressive-groups",
     "search",

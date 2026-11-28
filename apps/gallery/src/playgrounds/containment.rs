@@ -3,6 +3,9 @@ use gpui_material::{
     Button, ButtonVariant, Card, CardVariant, Carousel, CarouselItem, CarouselVariant, ControlSize,
     Dialog, DialogState, Divider, DropTarget, Icon, IconName, List, ListItem, SemanticTone, Sheet,
     SheetEdge, Surface, Text, VerticalDragHandle,
+    data_views::{
+        ColumnAlignment, DataTable, DataTableCell, DataTableColumn, DataTableRow, SortDirection,
+    },
     foundation::{color, window_material_theme},
     theme::{ColorRole, CornerRole, Direction, Elevation, TypeRole},
 };
@@ -823,6 +826,99 @@ pub static DROP_TARGET: Playground = Playground {
             "DropTarget::<()>::new(\"uploads\")\n    .title({:?})\n    .supporting(\"Supports .zip, .tar.gz, and .json files\")\n    .disabled({})",
             cfg.text("label"),
             cfg.bool("disabled")
+        )
+    },
+};
+
+// --- DataViews ---
+pub static DATA_VIEWS: Playground = Playground {
+    scenarios: &[
+        Scenario {
+            name: "Striped descending",
+            values: &[
+                ("striped", Set::Bool(true)),
+                ("sort", Set::Option("Descending")),
+            ],
+        },
+        Scenario {
+            name: "No row dividers",
+            values: &[("dividers", Set::Bool(false))],
+        },
+    ],
+    sections: &[Section {
+        title: "Table presentation",
+        controls: &[
+            Control::Choice {
+                id: "sort",
+                label: "Sort direction",
+                options: &["Ascending", "Descending"],
+                default: 0,
+            },
+            Control::Switch {
+                id: "striped",
+                label: "Striped rows",
+                default: false,
+            },
+            Control::Switch {
+                id: "dividers",
+                label: "Row dividers",
+                default: true,
+            },
+        ],
+    }],
+    preview: |cfg, ctx, _, cx| {
+        let sort_dir = match cfg.option("sort") {
+            "Descending" => SortDirection::Descending,
+            _ => SortDirection::Ascending,
+        };
+        let on_sort = ctx.on_status(cx);
+        let on_select = ctx.on_status(cx);
+        let mut rows = [
+            ("alpha", "API Gateway", "18 ms", false),
+            ("beta", "Search Indexer", "41 ms", false),
+            ("gamma", "Cold Archive", "120 ms", true),
+        ];
+        if sort_dir == SortDirection::Descending {
+            rows.reverse();
+        }
+        div()
+            .w(px(420.))
+            .child(
+                DataTable::new("pg-data-table")
+                    .accessible_label("Preview services")
+                    .striped(cfg.bool("striped"))
+                    .show_row_dividers(cfg.bool("dividers"))
+                    .columns([
+                        DataTableColumn::new("name", "Service")
+                            .weight(2.0)
+                            .sort_direction(Some(sort_dir)),
+                        DataTableColumn::new("latency", "Latency")
+                            .width(px(110.))
+                            .alignment(ColumnAlignment::End),
+                    ])
+                    .rows(rows.into_iter().map(|(id, name, latency, disabled)| {
+                        DataTableRow::new(
+                            id,
+                            [DataTableCell::text(name), DataTableCell::text(latency)],
+                        )
+                        .selected(id == "alpha")
+                        .disabled(disabled)
+                    }))
+                    .on_sort(move |col, next, _, cx| {
+                        on_sort(format!("Sort {col} -> {next:?}"), cx);
+                    })
+                    .on_row_select(move |id, _, cx| {
+                        on_select(format!("Selected row {id}"), cx);
+                    }),
+            )
+            .into_any_element()
+    },
+    code: |cfg| {
+        format!(
+            "DataTable::new(\"services\")\n    .striped({})\n    .show_row_dividers({})\n    .columns([\n        DataTableColumn::new(\"name\", \"Service\").sort_direction(Some(SortDirection::{})),\n        DataTableColumn::new(\"latency\", \"Latency\").alignment(ColumnAlignment::End),\n    ])",
+            cfg.bool("striped"),
+            cfg.bool("dividers"),
+            cfg.option("sort")
         )
     },
 };

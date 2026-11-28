@@ -1,15 +1,16 @@
 use std::{cell::Cell, rc::Rc, time::Duration};
 
 use gpui::{
-    Bounds, Entity, FocusHandle, Hsla, Modifiers, MouseButton, Pixels, Point, Quad, Role,
-    ScrollDelta, ScrollEvent, Size, TestAppContext, TouchPhase, VisualTestContext, rgb, size,
+    Axis, Bounds, Context, Entity, FocusHandle, Hsla, InteractiveElement, IntoElement, Modifiers,
+    MouseButton, ParentElement, Pixels, Point, Quad, Render, Role, ScrollDelta, ScrollEvent,
+    ScrollHandle, Size, StatefulInteractiveElement, Styled, TestAppContext, TouchPhase,
+    VisualTestContext, Window, div, point, px, rgb, size,
 };
 use gpui_base::test_support::find;
 use gpui_material::{
-    MaterialRoot, MaterialTheme, foundation::set_window_material_theme, theme::Direction,
+    DisplayScrollbar, DisplayScrollbarFade, DisplayScrollbarStyle, MaterialRoot, MaterialTheme,
+    foundation::set_window_material_theme, theme::Direction,
 };
-
-use super::*;
 
 const VERTICAL_THUMB: u32 = 0x28675e;
 const VERTICAL_TRACK: u32 = 0x9fccb3;

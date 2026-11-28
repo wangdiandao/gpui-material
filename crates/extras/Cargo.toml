@@ -17,6 +17,25 @@ test-support = [
     "gpui-material-components?/test-support",
 ]
 carousel = ["dep:gpui", "dep:gpui-base", "dep:gpui-material-foundation", "dep:gpui-material-theme"]
+command-palette = [
+    "dep:gpui",
+    "dep:gpui-base",
+    "dep:gpui-material-components",
+    "gpui-material-components/actions",
+    "gpui-material-components/inputs",
+    "gpui-material-components/surfaces",
+    "gpui-material-components/feedback",
+    "dep:gpui-material-foundation",
+    "dep:gpui-material-theme",
+]
+disclosure = [
+    "dep:gpui",
+    "dep:gpui-base",
+    "dep:gpui-material-components",
+    "gpui-material-components/actions",
+    "dep:gpui-material-foundation",
+    "dep:gpui-material-theme",
+]
 expressive-groups = [
     "dep:gpui",
     "dep:gpui-material-components",
@@ -73,7 +92,9 @@ windows = { workspace = true, features = ["Win32_UI_WindowsAndMessaging"], optio
 [package.metadata.docs.rs]
 features = [
     "carousel",
+    "command-palette",
     "date-time",
+    "disclosure",
     "expressive-groups",
     "search",
     "toolbars",

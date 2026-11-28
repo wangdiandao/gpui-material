@@ -15,6 +15,11 @@ pub use gpui_material_extras::ContentArrangement;
 pub use gpui_material_extras::date_time;
 #[cfg(feature = "window-chrome")]
 pub use gpui_material_extras::window_chrome;
+#[cfg(feature = "disclosure")]
+pub use gpui_material_extras::{
+    Accordion, AccordionColors, AccordionItem, AccordionMode, AccordionVariant, Collapsible,
+    CollapsibleColors, Pagination, PaginationColors,
+};
 #[cfg(feature = "expressive-groups")]
 pub use gpui_material_extras::{
     ButtonGroup, ButtonGroupConnectedShapes, ButtonGroupItem, ButtonGroupSelection,
@@ -24,6 +29,11 @@ pub use gpui_material_extras::{
 pub use gpui_material_extras::{
     Carousel, CarouselAlignment, CarouselFling, CarouselFlingContext, CarouselItem,
     CarouselParallax, CarouselState, CarouselVariant,
+};
+#[cfg(feature = "command-palette")]
+pub use gpui_material_extras::{
+    CommandGroup, CommandItem, CommandPalette, CommandPaletteColors, CommandPaletteEvent,
+    CommandPaletteState,
 };
 #[cfg(feature = "toolbars")]
 pub use gpui_material_extras::{

@@ -20,6 +20,12 @@ See [versioning and releases](docs/release.md) for the release process.
 - Add pure-value `MaterialStrings` (with `Arc<str>` fields, fluent builders, English defaults, and optional `serde` support) in `gpui-material-theme`, plus `material_strings`, `set_material_strings`, `current_material_strings`, and `ThemeScope::strings` in `gpui-material-foundation` (re-exported from `gpui-material`), and wire built-in default labels across `Scrim`, components, and extras to fall back to `current_material_strings` while preserving explicit per-component setter precedence.
 - Add an automated public third-party API boundary check in `xtask` (`cargo xtask check`) enforcing the documented allowlist of intentional Base/third-party re-exports across `crates/*/src/**/*.rs`.
 
+### Optional components and Gallery
+
+- Add opt-in `disclosure` feature (`gpui-material-extras` and `gpui-material`) providing Material 3 `Collapsible` (with `CollapsibleColors`), `Accordion` / `AccordionItem` (`AccordionMode::{Single, SingleRequired, Multiple}`, `AccordionVariant::{Standard, Segmented}`, `AccordionColors`, roving keyboard focus), and `Pagination` (with `PaginationColors`, boundary-disabled RTL-mirrored previous/next icon buttons, active `PrimaryContainer` page pills, and ellipsis truncation), built on `gpui-base` with density, RTL, and reduced-motion support.
+- Add opt-in `command-palette` feature (`gpui-material-extras` and `gpui-material`) providing desktop `Ctrl+K` / `Cmd+K`-style modal `CommandPalette`, `CommandPaletteState`, `CommandPaletteEvent`, `CommandPaletteColors`, `CommandItem`, and `CommandGroup` built on Material `Dialog` and `TextField` with grouped filtering, shortcut hint badges, keyboard navigation (`Up`/`Down`/`Home`/`End`/`Enter`/`Escape`), focus capture/restoration, `MaterialStrings` defaults, RTL, and reduced-motion support.
+- Add interactive `Accordion`, `Collapsible`, `Pagination`, and `CommandPalette` stories and playgrounds to the Gallery.
+
 ## 0.4.1 - 2026-11-26
 
 Changes since [v0.4.0](https://github.com/wangdiandao/gpui-material/releases/tag/v0.4.0).

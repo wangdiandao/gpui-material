@@ -42,11 +42,15 @@ pub fn playground_for(story: Story) -> Option<&'static Playground> {
         Story::NavigationDrawer => &navigation::NAVIGATION_DRAWER,
         Story::Tabs => &navigation::TABS,
         Story::Search => &navigation::SEARCH,
+        Story::CommandPalette => &navigation::COMMAND_PALETTE,
         Story::Toolbars => &navigation::TOOLBARS,
         Story::Breadcrumbs => &navigation::BREADCRUMBS,
+        Story::Pagination => &navigation::PAGINATION,
         // Containment
+        Story::Accordion => &containment::ACCORDION,
         Story::Card => &containment::CARD,
         Story::Carousel => &containment::CAROUSEL,
+        Story::Collapsible => &containment::COLLAPSIBLE,
         Story::Dialog => &containment::DIALOG,
         Story::Divider => &containment::DIVIDER,
         Story::List => &containment::LIST,
@@ -109,6 +113,6 @@ mod tests {
                 }
             }
         }
-        assert_eq!(count, 50);
+        assert_eq!(count, 54);
     }
 }

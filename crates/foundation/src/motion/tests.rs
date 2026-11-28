@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use gpui::{Bounds, point, px, size};
-use gpui_base::motion::Easing;
 use gpui_material_theme::{CubicBezier, MotionSpec, Spring};
 use web_time::Instant;
 
@@ -72,16 +71,10 @@ fn loop_clock_holds_phase_while_paused_and_resets_under_reduced_motion() {
 fn retarget_transition_shortens_mid_flight_reversals_and_settles_on_reduced_motion() {
     let t0 = Instant::now();
     let at = |ms| t0 + Duration::from_millis(ms);
-    let linear = Easing::Linear;
+    let linear = CubicBezier::LINEAR;
     let mut transition = RetargetTransition::settled(0.0);
 
-    transition.animate_to(
-        1.0,
-        Duration::from_millis(200),
-        linear.clone(),
-        at(0),
-        false,
-    );
+    transition.animate_to(1.0, Duration::from_millis(200), linear, at(0), false);
     assert!(transition.is_animating());
 
     // Advance to 25% (50 ms of 200 ms).
@@ -90,13 +83,7 @@ fn retarget_transition_shortens_mid_flight_reversals_and_settles_on_reduced_moti
     assert!((v - 0.25).abs() < 1e-4);
 
     // Reverse back to 0.0: duration must shorten to 25% (50 ms), not full 200 ms.
-    transition.animate_to(
-        0.0,
-        Duration::from_millis(200),
-        linear.clone(),
-        at(50),
-        false,
-    );
+    transition.animate_to(0.0, Duration::from_millis(200), linear, at(50), false);
     let (mid, running) = transition.sample(at(75), false);
     assert!(running);
     assert!((mid - 0.125).abs() < 1e-3, "mid={mid}");
@@ -176,13 +163,21 @@ fn non_finite_targets_settle_immediately_without_running() {
         transition.animate_to(
             invalid,
             Duration::from_millis(200),
-            Easing::Linear,
+            CubicBezier::LINEAR,
             t0,
             false,
         );
         assert!(!transition.is_animating());
         assert_eq!(transition.value(), 0.25);
     }
+    assert!(MotionStatus::Running.is_running());
+    assert!(!MotionStatus::Running.is_settled());
+    assert!(MotionStatus::Idle.is_settled());
+    assert!(MotionStatus::Finished.is_settled());
+    assert_ne!(
+        std::any::TypeId::of::<MotionStatus>(),
+        std::any::TypeId::of::<gpui_base::motion::MotionStatus>()
+    );
 }
 
 #[test]

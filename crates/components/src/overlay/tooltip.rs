@@ -7,19 +7,112 @@ mod surface;
 use std::{rc::Rc, time::Duration};
 
 use gpui::{
-    AnyElement, App, Bounds, ElementId, Entity, FocusHandle, IntoElement, KeyBinding, Pixels,
-    SharedString, Size, Window, px,
+    Anchor, AnyElement, App, Bounds, ElementId, Entity, FocusHandle, IntoElement, KeyBinding,
+    Pixels, Point, SharedString, Size, Window, px,
 };
 use gpui_material_theme::{CornerShape, Direction, Elevation};
 
 use appearance::Appearance;
 
 pub use appearance::{TooltipCaret, TooltipColors, TooltipPlacement};
-pub use gpui_base::Positioner as TooltipPositioner;
 pub use interaction::TooltipState;
 pub use label::Label;
 
 use crate::control_style::finite_length;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum PositionerStrategy {
+    Corner {
+        anchor: Anchor,
+        position: Point<Pixels>,
+    },
+    Side {
+        trigger_bounds: Bounds<Pixels>,
+        placement: Option<TooltipPlacement>,
+        offset: Pixels,
+    },
+}
+
+/// Positioning specification returned from [`Tooltip::positioner`].
+///
+/// Choose [`TooltipPositioner::side`] to place the tooltip along a side of a
+/// trigger with automatic viewport flipping, or [`TooltipPositioner::corner`]
+/// to anchor a corner of the tooltip at an explicit window coordinate. The
+/// tooltip host applies viewport margins and pointer occlusion automatically.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TooltipPositioner {
+    strategy: PositionerStrategy,
+}
+
+impl TooltipPositioner {
+    /// Places the tooltip on a side of `trigger_bounds`, flipping when needed.
+    pub fn side(trigger_bounds: Bounds<Pixels>) -> Self {
+        Self {
+            strategy: PositionerStrategy::Side {
+                trigger_bounds,
+                placement: None,
+                offset: px(0.),
+            },
+        }
+    }
+
+    /// Places `anchor`'s corner of the tooltip at `position`, clamping to the viewport.
+    pub fn corner(anchor: Anchor, position: Point<Pixels>) -> Self {
+        Self {
+            strategy: PositionerStrategy::Corner { anchor, position },
+        }
+    }
+
+    /// Updates the requested corner position. Has no effect on a side-positioned tooltip.
+    pub fn position(mut self, position: Point<Pixels>) -> Self {
+        if let PositionerStrategy::Corner {
+            position: current, ..
+        } = &mut self.strategy
+        {
+            *current = position;
+        }
+        self
+    }
+
+    /// Sets the preferred side. Only meaningful for [`TooltipPositioner::side`].
+    pub fn placement(mut self, placement: TooltipPlacement) -> Self {
+        if let PositionerStrategy::Side {
+            placement: slot, ..
+        } = &mut self.strategy
+        {
+            *slot = Some(placement);
+        }
+        self
+    }
+
+    /// Sets the gap between the trigger and the tooltip in logical pixels.
+    /// Only meaningful for [`TooltipPositioner::side`].
+    pub fn offset(mut self, offset: Pixels) -> Self {
+        if let PositionerStrategy::Side { offset: slot, .. } = &mut self.strategy {
+            *slot = finite_length(offset);
+        }
+        self
+    }
+
+    pub(super) fn into_base(self, direction: Direction) -> gpui_base::Positioner {
+        match self.strategy {
+            PositionerStrategy::Corner { anchor, position } => {
+                gpui_base::Positioner::corner(anchor, position)
+            }
+            PositionerStrategy::Side {
+                trigger_bounds,
+                placement,
+                offset,
+            } => {
+                let mut base = gpui_base::Positioner::side(trigger_bounds).offset(offset);
+                if let Some(placement) = placement {
+                    base = base.placement(placement.physical(direction));
+                }
+                base
+            }
+        }
+    }
+}
 
 gpui::actions!(
     material_tooltip,
@@ -306,5 +399,43 @@ impl Tooltip {
     pub fn shadow_elevation(mut self, elevation: Elevation) -> Self {
         self.appearance.shadow_elevation = Some(elevation);
         self
+    }
+}
+
+#[cfg(test)]
+mod positioner_tests {
+    use super::*;
+    use gpui::{point, size};
+
+    #[test]
+    fn tooltip_positioner_is_material_owned_and_sanitizes_builders() {
+        assert_ne!(
+            std::any::TypeId::of::<TooltipPositioner>(),
+            std::any::TypeId::of::<gpui_base::Positioner>()
+        );
+        let bounds = Bounds::new(point(px(10.), px(20.)), size(px(80.), px(30.)));
+        let side = TooltipPositioner::side(bounds)
+            .placement(TooltipPlacement::Start)
+            .offset(px(12.));
+        let invalid_offset = TooltipPositioner::side(bounds)
+            .placement(TooltipPlacement::Start)
+            .offset(px(f32::NAN));
+        assert_ne!(side, invalid_offset);
+        assert_eq!(
+            invalid_offset,
+            TooltipPositioner::side(bounds)
+                .placement(TooltipPlacement::Start)
+                .offset(px(0.))
+        );
+        let corner = TooltipPositioner::corner(Anchor::TopLeft, point(px(1.), px(2.)))
+            .position(point(px(30.), px(40.)));
+        assert_eq!(
+            corner,
+            TooltipPositioner::corner(Anchor::TopLeft, point(px(30.), px(40.)))
+        );
+        // Ensure conversion succeeds for both LTR and RTL without panicking.
+        let _ = side.into_base(Direction::Ltr);
+        let _ = side.into_base(Direction::Rtl);
+        let _ = corner.into_base(Direction::Ltr);
     }
 }

@@ -6,9 +6,9 @@ use gpui::{
     Pixels, Point, RenderOnce, Size, Style, Styled, Window, div, point, prelude::FluentBuilder,
     relative, size,
 };
-use gpui_base::{TestSupportExt, motion::Easing};
+use gpui_base::TestSupportExt;
 use gpui_material_foundation::{RetargetTransition, current_material_theme};
-use gpui_material_theme::{Direction, WidthClass};
+use gpui_material_theme::{CubicBezier, Direction, WidthClass};
 
 use super::{
     NavigationBar, NavigationBarLayout, NavigationItems, NavigationRail, RailMode, Scaffold,
@@ -164,7 +164,7 @@ impl AdaptiveNavigationState {
             self.transition.animate_to(
                 target.fraction(),
                 self.duration,
-                Easing::EaseInOut,
+                CubicBezier::EASE_IN_OUT,
                 now,
                 false,
             );

@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use gpui::Context;
-use gpui_base::motion::Easing;
 use gpui_material_foundation::RetargetTransition;
+use gpui_material_theme::CubicBezier;
 
 use super::RailMode;
 
@@ -123,14 +123,14 @@ impl NavigationRailState {
             self.collapsed.animate_to(
                 weights.collapsed,
                 self.duration,
-                Easing::EaseInOut,
+                CubicBezier::EASE_IN_OUT,
                 now,
                 false,
             );
             self.expanded.animate_to(
                 weights.expanded,
                 self.duration,
-                Easing::EaseInOut,
+                CubicBezier::EASE_IN_OUT,
                 now,
                 false,
             );

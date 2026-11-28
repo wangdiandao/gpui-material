@@ -22,6 +22,48 @@ pub struct CubicBezier {
     pub y2: f32,
 }
 
+impl CubicBezier {
+    /// Constant-rate linear interpolation (`(0.0, 0.0, 1.0, 1.0)`).
+    pub const LINEAR: Self = Self {
+        x1: 0.0,
+        y1: 0.0,
+        x2: 1.0,
+        y2: 1.0,
+    };
+
+    /// Standard CSS `ease` curve (`(0.25, 0.1, 0.25, 1.0)`).
+    pub const EASE: Self = Self {
+        x1: 0.25,
+        y1: 0.1,
+        x2: 0.25,
+        y2: 1.0,
+    };
+
+    /// Standard CSS `ease-in` curve (`(0.42, 0.0, 1.0, 1.0)`).
+    pub const EASE_IN: Self = Self {
+        x1: 0.42,
+        y1: 0.0,
+        x2: 1.0,
+        y2: 1.0,
+    };
+
+    /// Standard CSS `ease-out` curve (`(0.0, 0.0, 0.58, 1.0)`).
+    pub const EASE_OUT: Self = Self {
+        x1: 0.0,
+        y1: 0.0,
+        x2: 0.58,
+        y2: 1.0,
+    };
+
+    /// Standard CSS `ease-in-out` curve (`(0.42, 0.0, 0.58, 1.0)`).
+    pub const EASE_IN_OUT: Self = Self {
+        x1: 0.42,
+        y1: 0.0,
+        x2: 0.58,
+        y2: 1.0,
+    };
+}
+
 /// Resolved animation timing specification for a state transition.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum MotionSpec {

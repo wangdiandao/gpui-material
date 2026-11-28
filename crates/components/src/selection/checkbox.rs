@@ -7,7 +7,7 @@ use gpui::{
     RenderOnce, Rgba, SharedString, StrokeOptions, Styled, Window, canvas, div, point,
     prelude::FluentBuilder, px, quad,
 };
-use gpui_base::{Checkbox as BaseCheckbox, CheckboxState, TestSupportExt};
+use gpui_base::{Checkbox as BaseCheckbox, TestSupportExt};
 use gpui_material_foundation::{
     InteractionSource, animate, control_feedback::activate_feedback, current_material_theme,
 };
@@ -17,6 +17,68 @@ use super::{
     base::{BoundValueAction, SelectionControlBase},
     focus_style, selection_target, selection_tone, tone,
 };
+
+/// The semantic checked state of a controlled [`Checkbox`].
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum CheckboxState {
+    /// Not selected (default).
+    #[default]
+    Unchecked,
+    /// Selected.
+    Checked,
+    /// Partially selected (mixed), typically derived from child states via [`Checkbox::aggregate`].
+    Indeterminate,
+}
+
+impl CheckboxState {
+    /// Returns `true` when the state is [`CheckboxState::Checked`].
+    pub const fn is_checked(self) -> bool {
+        matches!(self, Self::Checked)
+    }
+
+    /// Returns `true` when the state is [`CheckboxState::Indeterminate`].
+    pub const fn is_indeterminate(self) -> bool {
+        matches!(self, Self::Indeterminate)
+    }
+
+    /// Returns the next state requested when the user activates the checkbox.
+    ///
+    /// Both [`CheckboxState::Unchecked`] and [`CheckboxState::Indeterminate`]
+    /// transition to [`CheckboxState::Checked`]; [`CheckboxState::Checked`]
+    /// transitions to [`CheckboxState::Unchecked`].
+    pub const fn next(self) -> Self {
+        match self {
+            Self::Unchecked | Self::Indeterminate => Self::Checked,
+            Self::Checked => Self::Unchecked,
+        }
+    }
+
+    pub(crate) const fn to_base(self) -> gpui_base::CheckboxState {
+        match self {
+            Self::Unchecked => gpui_base::CheckboxState::Unchecked,
+            Self::Checked => gpui_base::CheckboxState::Checked,
+            Self::Indeterminate => gpui_base::CheckboxState::Indeterminate,
+        }
+    }
+
+    pub(crate) const fn from_base(state: gpui_base::CheckboxState) -> Self {
+        match state {
+            gpui_base::CheckboxState::Unchecked => Self::Unchecked,
+            gpui_base::CheckboxState::Checked => Self::Checked,
+            gpui_base::CheckboxState::Indeterminate => Self::Indeterminate,
+        }
+    }
+}
+
+impl From<bool> for CheckboxState {
+    fn from(checked: bool) -> Self {
+        if checked {
+            Self::Checked
+        } else {
+            Self::Unchecked
+        }
+    }
+}
 
 type CheckboxChange = Rc<dyn Fn(CheckboxState, &mut Window, &mut App)>;
 
@@ -307,7 +369,7 @@ impl RenderOnce for Checkbox {
         let label = self.base.label.clone();
         let control = BaseCheckbox::new(self.base.id.clone())
             .track_focus(&interaction.focus)
-            .state(self.state)
+            .state(self.state.to_base())
             .when(self.error && !disabled, |control| {
                 control.a11y_synthetic_children(|node| {
                     node.parent_node()
@@ -328,11 +390,7 @@ impl RenderOnce for Checkbox {
         }
         match self.on_change {
             Some(handler) => {
-                let next = if self.state == CheckboxState::Checked {
-                    CheckboxState::Unchecked
-                } else {
-                    CheckboxState::Checked
-                };
+                let next = self.state.next();
                 let bound = BoundValueAction::new(next, handler, window, cx);
                 let a11y_bound = bound.clone();
                 control
@@ -342,7 +400,7 @@ impl RenderOnce for Checkbox {
                     .on_change(move |value, event, window, cx| {
                         cx.stop_propagation();
                         activate_feedback(event, &click_ripple, window, cx);
-                        bound.invoke(value, window, cx);
+                        bound.invoke(CheckboxState::from_base(value), window, cx);
                     })
                     .into_any_element()
             }
@@ -477,6 +535,40 @@ fn animate_checkbox_color(
 mod checkbox_tests {
     use super::*;
     use gpui::size;
+
+    #[test]
+    fn checkbox_state_is_material_owned_and_preserves_helpers_and_base_roundtrip() {
+        assert_ne!(
+            std::any::TypeId::of::<CheckboxState>(),
+            std::any::TypeId::of::<gpui_base::CheckboxState>()
+        );
+        assert_eq!(CheckboxState::default(), CheckboxState::Unchecked);
+        assert_eq!(CheckboxState::from(false), CheckboxState::Unchecked);
+        assert_eq!(CheckboxState::from(true), CheckboxState::Checked);
+        assert!(!CheckboxState::Unchecked.is_checked());
+        assert!(CheckboxState::Checked.is_checked());
+        assert!(!CheckboxState::Indeterminate.is_checked());
+        assert!(CheckboxState::Indeterminate.is_indeterminate());
+        assert_eq!(CheckboxState::Unchecked.next(), CheckboxState::Checked);
+        assert_eq!(CheckboxState::Indeterminate.next(), CheckboxState::Checked);
+        assert_eq!(CheckboxState::Checked.next(), CheckboxState::Unchecked);
+        assert_eq!(Checkbox::aggregate([]), CheckboxState::Unchecked);
+        assert_eq!(
+            Checkbox::aggregate([CheckboxState::Checked, CheckboxState::Checked]),
+            CheckboxState::Checked
+        );
+        assert_eq!(
+            Checkbox::aggregate([CheckboxState::Checked, CheckboxState::Unchecked]),
+            CheckboxState::Indeterminate
+        );
+        for state in [
+            CheckboxState::Unchecked,
+            CheckboxState::Checked,
+            CheckboxState::Indeterminate,
+        ] {
+            assert_eq!(CheckboxState::from_base(state.to_base()), state);
+        }
+    }
 
     #[test]
     fn checkbox_mark_strokes_fit_and_draw_checked_and_mixed_geometry() {

@@ -153,6 +153,6 @@ fn saves_form_through_the_ui(cx: &mut TestAppContext) {
 }
 ```
 
-Use `cx.wait_for(handle.into(), timeout, |window, cx| ...).await` outside `update_window` for deferred or asynchronous UI state. See the executable end-to-end example in [crates/material/tests/integration/ui.rs](../crates/material/tests/integration/ui.rs) and the [testing conventions](development.md#testing-conventions).
+Use `cx.wait_for(handle.into(), timeout, |window, cx| ...).await` outside `update_window` for deferred or asynchronous UI state. When tests also need real GPU rasterization checks, `Window::render_to_image` captures offscreen RGBA frames without presenting a visible window across Windows DirectX (with WARP fallback), macOS Metal, and Linux WGPU/lavapipe; see [apps/gallery/tests/rendering.rs](../apps/gallery/tests/rendering.rs). See the executable end-to-end example in [crates/material/tests/integration/ui.rs](../crates/material/tests/integration/ui.rs) and the [testing conventions](development.md#testing-conventions).
 
 [Cookbook](cookbook.md) · [Design sources](design-sources.md) · [Versioning and releases](release.md)

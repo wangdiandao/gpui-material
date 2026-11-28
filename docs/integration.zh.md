@@ -155,6 +155,6 @@ fn saves_form_through_the_ui(cx: &mut TestAppContext) {
 }
 ```
 
-对于延迟或异步 UI 状态，请在 `update_window` 外部调用 `cx.wait_for(handle.into(), timeout, |window, cx| ...).await`。可执行端到端示例见 [crates/material/tests/integration/ui.rs](../crates/material/tests/integration/ui.rs)，完整分层与约定见[测试规范](development.zh.md#testing-conventions)。
+对于延迟或异步 UI 状态，请在 `update_window` 外部调用 `cx.wait_for(handle.into(), timeout, |window, cx| ...).await`。若测试还需要真实 GPU 光栅化校验，可通过 `Window::render_to_image` 在 Windows（DirectX，含 WARP 回退）、macOS（Metal）与 Linux（WGPU / lavapipe）上无可见窗口地捕获离屏 RGBA 帧，示例见 [apps/gallery/tests/rendering.rs](../apps/gallery/tests/rendering.rs)。可执行端到端示例见 [crates/material/tests/integration/ui.rs](../crates/material/tests/integration/ui.rs)，完整分层与约定见[测试规范](development.zh.md#testing-conventions)。
 
 [实战手册](cookbook.zh.md) · [设计依据](design-sources.zh.md) · [版本与发布](release.zh.md)

@@ -136,6 +136,18 @@ cargo fetch --locked --target x86_64-pc-windows-msvc
 cargo xtask timings target/timings/gallery-timings
 ```
 
+如需采集可复现的 JSON 基线并跨版本对比（`perf_bench` 帧指标、冷/热构建耗时以及 `gpui-material-gallery-web` WASM 产物体积），将基线文件写入未跟踪路径（例如 `target/baselines/`）：
+
+```powershell
+cargo xtask baseline capture target/baselines/base.json --perf
+cargo xtask baseline capture target/baselines/head.json --perf --timings --wasm
+cargo xtask baseline compare target/baselines/base.json target/baselines/head.json --threshold 10
+```
+
+- 未指定采集标志时，`baseline capture` 默认仅运行 `--perf`，避免日常对比触发完整冷构建或依赖 WASM 工具链。
+- 使用 `--wasm` 会按 `wasm-release` 配置将 `gpui-material-gallery-web` 构建到临时目录并统计体积；使用 `--wasm-dir <dir>` 可直接统计现有 `wasm-bindgen` 输出目录而无需重新构建。
+- `baseline compare` 会输出 Markdown 对比表（`Base`、`Head`、`Delta`、`%`），并在超出 `--threshold <percent>` 时返回非零退出码。请勿提交生成的基线 JSON 或报告文件。
+
 <a id="documentation-website"></a>
 
 ## 文档网站

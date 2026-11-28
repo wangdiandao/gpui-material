@@ -136,6 +136,18 @@ cargo fetch --locked --target x86_64-pc-windows-msvc
 cargo xtask timings target/timings/gallery-timings
 ```
 
+To capture repeatable JSON baselines and compare revisions (frame metrics from `perf_bench`, cold/warm build times, and `gpui-material-gallery-web` WASM bundle sizes), write baseline files outside tracked paths (such as under `target/baselines/`):
+
+```powershell
+cargo xtask baseline capture target/baselines/base.json --perf
+cargo xtask baseline capture target/baselines/head.json --perf --timings --wasm
+cargo xtask baseline compare target/baselines/base.json target/baselines/head.json --threshold 10
+```
+
+- When no capture flag is provided, `baseline capture` defaults to `--perf` so routine runs avoid cold-build and WASM toolchain overhead.
+- Use `--wasm` to build `gpui-material-gallery-web` with the `wasm-release` profile into a temporary directory, or `--wasm-dir <dir>` to measure an existing `wasm-bindgen` output directory without rebuilding.
+- `baseline compare` prints a Markdown diff table (`Base`, `Head`, `Delta`, `%`) and exits non-zero when `--threshold <percent>` is exceeded. Do not commit generated baseline JSON files or reports.
+
 <a id="文档网站"></a>
 
 ## Documentation website

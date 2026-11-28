@@ -1,9 +1,9 @@
 use gpui_material_theme::{
-    Appearance, Argb, ColorRole, ColorScheme, ColorSpec, CornerRole, CornerShape, Density,
-    Direction, Elevation, FontFamilies, LayoutPolicy, LogicalEdges, MaterialShape, MaterialTheme,
-    MotionKind, MotionScheme, MotionSpec, MotionSpeed, PolygonRole, PolygonSpec, Spring,
-    StateLayer, TokenValue, TypeRole, Typeface, TypographyEmphasis, WidthClass, non_negative_f32,
-    token,
+    Appearance, AppearanceMode, Argb, ColorRole, ColorScheme, ColorSpec, CornerRole, CornerShape,
+    Density, Direction, Elevation, FontFamilies, LayoutPolicy, LogicalEdges, MaterialShape,
+    MaterialTheme, MotionKind, MotionScheme, MotionSpec, MotionSpeed, PolygonRole, PolygonSpec,
+    Spring, StateLayer, TokenValue, TypeRole, Typeface, TypographyEmphasis, WidthClass,
+    non_negative_f32, token,
 };
 
 #[test]
@@ -488,4 +488,45 @@ fn logical_edges_and_color_spec_sanitize_and_resolve() {
     let custom_spec: ColorSpec = custom_argb.into();
     assert_eq!(role_spec.resolve(&scheme), scheme.color(ColorRole::Primary));
     assert_eq!(custom_spec.resolve(&scheme), custom_argb);
+}
+
+#[test]
+fn appearance_mode_resolves_explicit_and_system_values() {
+    const LIGHT_ON_DARK: Appearance = AppearanceMode::Light.resolve(Appearance::Dark);
+    const DARK_ON_LIGHT: Appearance = AppearanceMode::Dark.resolve(Appearance::Light);
+    const SYSTEM_LIGHT: Appearance = AppearanceMode::System.resolve(Appearance::Light);
+    const SYSTEM_DARK: Appearance = AppearanceMode::System.resolve(Appearance::Dark);
+
+    assert_eq!(AppearanceMode::default(), AppearanceMode::System);
+    assert_eq!(LIGHT_ON_DARK, Appearance::Light);
+    assert_eq!(
+        AppearanceMode::Light.resolve(Appearance::Light),
+        Appearance::Light
+    );
+    assert_eq!(DARK_ON_LIGHT, Appearance::Dark);
+    assert_eq!(
+        AppearanceMode::Dark.resolve(Appearance::Dark),
+        Appearance::Dark
+    );
+    assert_eq!(SYSTEM_LIGHT, Appearance::Light);
+    assert_eq!(SYSTEM_DARK, Appearance::Dark);
+    assert_eq!(
+        AppearanceMode::from(Appearance::Light),
+        AppearanceMode::Light
+    );
+    assert_eq!(AppearanceMode::from(Appearance::Dark), AppearanceMode::Dark);
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn appearance_mode_round_trips_through_serde() {
+    for mode in [
+        AppearanceMode::Light,
+        AppearanceMode::Dark,
+        AppearanceMode::System,
+    ] {
+        let encoded = serde_json::to_string(&mode).unwrap();
+        let decoded: AppearanceMode = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(decoded, mode);
+    }
 }

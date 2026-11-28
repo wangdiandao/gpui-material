@@ -28,6 +28,13 @@ command-palette = [
     "dep:gpui-material-foundation",
     "dep:gpui-material-theme",
 ]
+data-views = [
+    "dep:gpui",
+    "dep:gpui-base",
+    "dep:gpui-material-components",
+    "dep:gpui-material-foundation",
+    "dep:gpui-material-theme",
+]
 disclosure = [
     "dep:gpui",
     "dep:gpui-base",
@@ -93,6 +100,7 @@ windows = { workspace = true, features = ["Win32_UI_WindowsAndMessaging"], optio
 features = [
     "carousel",
     "command-palette",
+    "data-views",
     "date-time",
     "disclosure",
     "expressive-groups",

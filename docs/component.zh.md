@@ -486,7 +486,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `navigation` | `AppBar`、`AppBarRow`、`AppBarColumn`、`BottomAppBar`、`Breadcrumbs`、`Tabs`、`NavigationBar`、`NavigationRail`、`NavigationDrawer`、`Stepper`、`AdaptiveNavigation`、`Scaffold`、`ListDetail`、`SupportingPane`、`Feed`、`AdaptivePane` | `display`、`actions`、`feedback` |
 | `full` | 启用上述全部核心组件分组（默认） | 全部核心分组 |
 
-在 `gpui-material` 依赖上启用可选组件族 feature，各组件族仅激活其依赖的核心组件分组。日期选择器、时间选择器和滚动选择字段从 `gpui_material::date_time` 导入。
+在 `gpui-material` 依赖上启用可选组件族 feature，各组件族仅激活其依赖的核心组件分组。日期选择器、时间选择器和滚动选择字段从 `gpui_material::date_time` 导入，数据视图（`DataTable`、`Tree`、`VirtualList`）从 `gpui_material::data_views` 导入。
 
 | Feature | 组件 | 支持的变体与行为 | Material 3 |
 | --- | --- | --- | --- |
@@ -495,6 +495,7 @@ Filter 和 Input 渲染调用方的 `.selected(value)`，并通过 `.on_change` 
 | `search` | `SearchBar`、`SearchView` | 收起的搜索栏及可自定义的 Docked、Full-screen 和 Contained 搜索视图。 | [搜索](https://m3.material.io/components/search/overview) |
 | `date-time` | `DatePicker`、`TimePicker`、`TimePickerDialog`、`VibrantTimePickerDialog`、`TimePickerPanel`、`TimeScroll`、`ScrollField` | 单日期和日期范围选择，支持 Docked、Modal、Modal Input 和自适应 FullScreen。可组合独立面板或对话框。时间选择支持表盘、文本输入、循环滚动和 12、24 小时制。支持独立的滚动选择字段。 | [日期选择](https://m3.material.io/components/date-pickers/overview) · [时间选择](https://m3.material.io/components/time-pickers/overview) |
 | `carousel` | `Carousel`、`CarouselParallax` | Multi-browse、Uncontained、Uncontained Multi-aspect Ratio、Hero、Centered Hero、Full-screen。 任意 GPUI 内容可使用独立滚动视差效果。 | [轮播](https://m3.material.io/components/carousel/overview) |
+| `data-views` | `DataTable`、`Tree`、`VirtualList` | Material 3 Expressive 数据表，支持类型化列、排序、行选择与密度自适应行高；虚拟化层级树，支持 RTL 镜像展开箭头与 WAI-ARIA 键盘导航；集成 `DisplayScrollbar` 的 Material 风格虚拟列表。 | [数据表](https://m3.material.io/components) · [列表](https://m3.material.io/components/lists/overview) |
 | `disclosure` | `Collapsible`、`Accordion`、`AccordionItem`、`Pagination` | Material 3 可展开/收起容器、支持单选与多选（Standard 与 Segmented 变体）的手风琴，以及带当前页高亮胶囊与省略号截断的桌面分页栏。 | [列表](https://m3.material.io/components/lists/overview) · [导航](https://m3.material.io/components) |
 | `command-palette` | `CommandPalette`、`CommandPaletteState`、`CommandItem`、`CommandGroup` | 基于 `Dialog` 和 `TextField` 构建的桌面端 `Ctrl+K` / `Cmd+K` 风格模态命令面板，支持分组过滤、键盘导航与快捷键提示徽标。 | [对话框](https://m3.material.io/components/dialogs/overview) · [搜索](https://m3.material.io/components/search/overview) |
 
@@ -617,6 +618,18 @@ Filled、Filled Tonal、Elevated 和 Outlined 预设为各 Material 尺寸提供
 `.user_scroll_enabled(false)` 关闭滚轮、触控板、键盘导航及无障碍滚动，条目仍可激活，应用仍可定位。内含布局和 Full-screen 默认吸附到最近的定位线，非内含布局默认自由滚动，可通过 `.snap_scrolling(true)` 启用吸附。`.fling_behavior(...)` 可选择自由滚动、就近吸附、单条目推进，或根据 `CarouselFlingContext` 自定义最终条目。逐格滚轮与无障碍滚动请求按条目移动。定位动画和吸附遵循减少动态效果设置。
 
 在可滚动布局中，用 `CarouselParallax::new(content)` 包装任意 GPUI 内容。效果默认使用 GPUI 当前裁剪区域作为视口，也可通过 `.viewport(bounds)` 传入窗口坐标下的视口。纵向布局使用 `.axis(Axis::Vertical)`。条目进出视口时，内容逐步裁剪和平移，布局尺寸保持固定。减少动态效果设置保留视口裁剪，并跳过附加的视差平移。通过 `.shape(CornerShape)` 和 `.border(SurfaceBorder)` 配置匹配的圆角和描边。GPUI 使用矩形区域裁剪内容，圆角处通过 Material Surface 颜色覆盖，也可通过 `.backdrop(color)` 设置与均匀父背景匹配的不透明色。图案或透明背景可使用直角保留原背景。
+
+<a id="data-views"></a>
+
+### 数据视图
+
+启用可选特性 `data-views` 后，可从 `gpui_material::data_views` 导入 `DataTable`、`DataTableColumn`、`DataTableRow`、`DataTableCell`、`DataTableColors`、`ColumnAlignment`、`SortDirection`、`Tree`、`TreeNode`、`TreeRowInfo`、`TreeState`、`TreeEvent`、`TreeColors`、`VirtualList`、`VirtualListScrollHandle`、`VirtualListVariant` 和 `VirtualListColors`。该特性仅启用轻量的 `display` 核心，不会拉入 `actions`、`inputs`、`surfaces`、`feedback` 或 `navigation`。
+
+**DataTable** 基于 `gpui-base` 的语义化 `Table` 原语（`Role::Table`、`Role::RowGroup`、`Role::Row`、`Role::ColumnHeader`、`Role::Cell`）提供 Material 3 Expressive 表面、分隔线和状态层表现。通过 `DataTableColumn::new(id, label)` 定义列，支持 `.alignment(ColumnAlignment)`（`Start`、`Center`、`End`）、`.width(Pixels)`、`.min_width(Pixels)`、`.weight(f32)`、`.sortable(bool)`、`.sort_direction(Option<SortDirection>)` 和 `.disabled(bool)`。通过 `DataTableRow::new(id, cells)`（`DataTableCell::text`、`DataTableCell::custom` 或 `From<&str>` / `From<String>` / `From<SharedString>`）提供行数据，支持 `.selected(bool)`、`.disabled(bool)`、`.accessible_label(label)`、`.on_activate(...)` 和 `.track_focus(&focus)`。表头与行高默认随 `theme.layout.density`（`Compact`、`Standard`、`Comfortable`）自适应，也可通过 `.header_height(...)` 或 `.row_height(...)` 覆盖。通过 `.on_sort(|column_id, next_direction, window, cx| ...)` 和 `.on_row_select(|row_id, window, cx| ...)` 由应用管理排序与选中状态。启用的可排序列头支持指针点击、`Enter` 和 `Space` 激活；启用的交互行支持纵向游走键盘焦点（`Up`/`Down`/`Home`/`End`，自动跳过禁用行）与 `Enter`/`Space` 激活、Material 悬停/聚焦/按压状态层与涟漪（减少动效时退化为静态按压层），以及列顺序、对齐方式和 `LogicalEdges` 单元格内边距的完整 RTL 镜像。
+
+**Tree** 将 `gpui-base` 的虚拟化 `Tree` 与 `TreeState` 封装在 Material 自有的 `TreeNode`、`TreeState`、`TreeEvent`、`TreeRowInfo` 和 `TreeColors` 类型之后。通过 `cx.new(|cx| TreeState::new(cx).items(nodes))` 持有 `Entity<TreeState>`，再渲染 `Tree::new(id, &state)`。层级节点沿逻辑起始边缩进，在 RTL 中自动镜像行排布与收起态 `IconName::ChevronRight` 展开箭头，行高随 `theme.layout.density` 自适应，绘制 `SecondaryContainer` 选中胶囊与 Material 状态层，并默认挂载 `DisplayScrollbar`（可通过 `.show_scrollbar`、`.scrollbar_style`、`.scrollbar_fade` 配置）。键盘导航遵循 WAI-ARIA 树控件规范，同时尊重局部 `ThemeScope` 文本方向并自动跳过禁用节点：`Up`/`Down`/`Home`/`End` 在可见启用节点间移动选中项；逻辑末尾方向键（LTR 下 `Right`、RTL 下 `Left`）展开收起的分支或进入其首个启用子节点；逻辑起始方向键（LTR 下 `Left`、RTL 下 `Right`）收起已展开分支或跳回最近的启用祖先节点；`Enter`/`Space` 激活叶子节点或切换分支展开状态。使用 `.render_row(|info, window, cx| ...)` 可在 Material 行外壳内自定义节点内容，并可订阅 `TreeEvent`（`Expanded`、`Collapsed`、`Selected`、`Activated`）或绑定 `.on_select`、`.on_activate`、`.on_toggle` 回调。
+
+**VirtualList** 基于 `gpui-base` 的可变尺寸 `VirtualList` 提供 `VirtualList::vertical`、`VirtualList::horizontal` 与 `VirtualList::new`，将虚拟化渲染与 Material 自有的 `VirtualListScrollHandle`、`DisplayScrollbar`、可选 `.variant(VirtualListVariant::Contained)` 表面样式、`LogicalEdges` 内边距以及键盘滚动（纵向 `Up`/`Down`/`PageUp`/`PageDown`/`Home`/`End`，横向方向感知的 `Left`/`Right`/`Home`/`End`）结合，完整支持 Material 键盘焦点反馈与 RTL 滚动条位置。
 
 <a id="disclosure-and-pagination"></a>
 

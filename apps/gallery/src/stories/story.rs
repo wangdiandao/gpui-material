@@ -13,6 +13,7 @@ use super::{
     adaptive_examples::AdaptiveExamples,
     carousel_examples::CarouselExamples,
     command_palette_examples::CommandPaletteExamples,
+    data_views_examples::DataViewsExamples,
     date_time_examples::DateTimeExamples,
     disclosure_examples::DisclosureExamples,
     display_examples::DisplayExamples,
@@ -51,6 +52,7 @@ pub enum Story {
     ChipGroup,
     Collapsible,
     CommandPalette,
+    DataViews,
     DatePicker,
     DateRangePicker,
     Dialog,
@@ -112,6 +114,7 @@ impl Story {
         Self::ChipGroup,
         Self::Collapsible,
         Self::CommandPalette,
+        Self::DataViews,
         Self::DatePicker,
         Self::DateRangePicker,
         Self::Dialog,
@@ -173,6 +176,7 @@ impl Story {
             Self::ChipGroup => "chip-group",
             Self::Collapsible => "collapsible",
             Self::CommandPalette => "command-palette",
+            Self::DataViews => "data-views",
             Self::DatePicker => "date-picker",
             Self::DateRangePicker => "date-range-picker",
             Self::Dialog => "dialog",
@@ -235,6 +239,7 @@ impl Story {
             Self::ChipGroup => "Chip group",
             Self::Collapsible => "Collapsible",
             Self::CommandPalette => "Command palette",
+            Self::DataViews => "Data views",
             Self::DatePicker => "Date picker",
             Self::DateRangePicker => "Date range picker",
             Self::Dialog => "Dialog",
@@ -318,6 +323,9 @@ impl Story {
             }
             Self::CommandPalette => {
                 "Filter and execute grouped desktop commands in a Ctrl/Cmd+K modal palette."
+            }
+            Self::DataViews => {
+                "Inspect sortable data tables, virtualized hierarchical trees, and variable-size virtual lists."
             }
             Self::DatePicker => "Choose an available date in a docked calendar or a dialog.",
             Self::DateRangePicker => {
@@ -406,6 +414,7 @@ impl Story {
                 cx.new(|_| DisclosureExamples::new(self)).into()
             }
             Self::CommandPalette => cx.new(|cx| CommandPaletteExamples::new(window, cx)).into(),
+            Self::DataViews => cx.new(DataViewsExamples::new).into(),
             Self::ButtonGroup | Self::SplitButton => {
                 cx.new(|cx| GroupExamples::new(self, cx)).into()
             }

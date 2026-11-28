@@ -1400,6 +1400,39 @@ mod catalog {
             };
         }
 
+        #[cfg(feature = "data-views")]
+        #[allow(clippy::all)]
+        fn snippet_data_views(
+            &mut self,
+            window: &mut gpui::Window,
+            cx: &mut gpui::Context<Self>,
+            is_pinned: bool,
+            is_favorite: bool,
+            is_sync_enabled: bool,
+            is_unread_only: bool,
+            auto_save: bool,
+            selected_density: &str,
+            width: gpui::Pixels,
+            content: gpui::AnyElement,
+        ) {
+            use gpui_material::data_views::{ColumnAlignment, DataTable, DataTableCell, DataTableColumn, DataTableRow, SortDirection};
+            let _ = {
+                DataTable::new("services")
+                    .accessible_label("Cluster services")
+                    .columns([
+                        DataTableColumn::new("name", "Service").sort_direction(Some(SortDirection::Ascending)),
+                        DataTableColumn::new("latency", "Latency").alignment(ColumnAlignment::End),
+                    ])
+                    .rows([
+                        DataTableRow::new("api", [DataTableCell::text("API Gateway"), DataTableCell::text("18 ms")])
+                            .selected(true),
+                        DataTableRow::new("billing", [DataTableCell::text("Billing"), DataTableCell::text("12 ms")]),
+                    ])
+                    .on_sort(|column, direction, _, _| println!("Sort {column} -> {direction:?}"))
+                    .on_row_select(|row, _, _| println!("Selected row: {row}"))
+            };
+        }
+
         #[cfg(feature = "disclosure")]
         #[allow(clippy::all)]
         fn snippet_collapsible(

@@ -274,6 +274,9 @@ pub const CATALOG: &[CatalogEntry] = &[
     story_entry(Story::Slider, SelectionInput),
     story_entry(Story::Switch, SelectionInput),
     story_entry(Story::TextField, SelectionInput),
+    story_entry(Story::NumberInput, SelectionInput),
+    story_entry(Story::OtpInput, SelectionInput),
+    story_entry(Story::ColorPicker, SelectionInput),
     story_entry(Story::ExposedDropdown, SelectionInput),
     story_entry(Story::Menu, SelectionInput),
     story_entry(Story::DatePicker, SelectionInput),
@@ -316,6 +319,8 @@ pub const CATALOG: &[CatalogEntry] = &[
     story_entry(Story::Skeleton, Communication),
     story_entry(Story::Snackbar, Communication),
     story_entry(Story::Text, Communication),
+    story_entry(Story::SelectableText, Communication),
+    story_entry(Story::RichText, Communication),
     story_entry(Story::Tooltip, Communication),
     // Styles
     style_entry(StylePage::Color),

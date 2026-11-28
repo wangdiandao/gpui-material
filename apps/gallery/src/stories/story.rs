@@ -21,9 +21,11 @@ use super::{
     group_examples::GroupExamples,
     navigation_examples::NavigationExamples,
     overlay_examples::{MenuTooltipExamples, ModalExamples, SnackbarExamples},
+    rich_text_examples::RichTextExamples,
     search_examples::SearchExamples,
     selection_examples::SelectionExamples,
     slider_examples::SliderExamples,
+    specialized_input_examples::SpecializedInputExamples,
     surface_examples::SurfaceExamples,
     text_field_examples::{DropdownExamples, TextFieldExamples},
     toolbar_examples::ToolbarExamples,
@@ -51,6 +53,7 @@ pub enum Story {
     Chip,
     ChipGroup,
     Collapsible,
+    ColorPicker,
     CommandPalette,
     DataViews,
     DatePicker,
@@ -71,10 +74,14 @@ pub enum Story {
     NavigationBar,
     NavigationDrawer,
     NavigationRail,
+    NumberInput,
+    OtpInput,
     Pagination,
     Progress,
     Radio,
+    RichText,
     Search,
+    SelectableText,
     Sheets,
     Skeleton,
     Slider,
@@ -113,6 +120,7 @@ impl Story {
         Self::Chip,
         Self::ChipGroup,
         Self::Collapsible,
+        Self::ColorPicker,
         Self::CommandPalette,
         Self::DataViews,
         Self::DatePicker,
@@ -133,10 +141,14 @@ impl Story {
         Self::NavigationBar,
         Self::NavigationDrawer,
         Self::NavigationRail,
+        Self::NumberInput,
+        Self::OtpInput,
         Self::Pagination,
         Self::Progress,
         Self::Radio,
+        Self::RichText,
         Self::Search,
+        Self::SelectableText,
         Self::Sheets,
         Self::Skeleton,
         Self::Slider,
@@ -175,6 +187,7 @@ impl Story {
             Self::Chip => "chip",
             Self::ChipGroup => "chip-group",
             Self::Collapsible => "collapsible",
+            Self::ColorPicker => "color-picker",
             Self::CommandPalette => "command-palette",
             Self::DataViews => "data-views",
             Self::DatePicker => "date-picker",
@@ -195,10 +208,14 @@ impl Story {
             Self::NavigationBar => "navigation-bar",
             Self::NavigationDrawer => "navigation-drawer",
             Self::NavigationRail => "navigation-rail",
+            Self::NumberInput => "number-input",
+            Self::OtpInput => "otp-input",
             Self::Pagination => "pagination",
             Self::Progress => "progress",
             Self::Radio => "radio",
+            Self::RichText => "rich-text",
             Self::Search => "search",
+            Self::SelectableText => "selectable-text",
             Self::Sheets => "sheets",
             Self::Skeleton => "skeleton",
             Self::Slider => "slider",
@@ -238,6 +255,7 @@ impl Story {
             Self::Chip => "Chip",
             Self::ChipGroup => "Chip group",
             Self::Collapsible => "Collapsible",
+            Self::ColorPicker => "Color picker",
             Self::CommandPalette => "Command palette",
             Self::DataViews => "Data views",
             Self::DatePicker => "Date picker",
@@ -258,10 +276,14 @@ impl Story {
             Self::NavigationBar => "Navigation bar",
             Self::NavigationDrawer => "Navigation drawer",
             Self::NavigationRail => "Navigation rail",
+            Self::NumberInput => "Number input",
+            Self::OtpInput => "OTP input",
             Self::Pagination => "Pagination",
             Self::Progress => "Progress",
             Self::Radio => "Radio group",
+            Self::RichText => "Rich text",
             Self::Search => "Search",
+            Self::SelectableText => "Selectable text",
             Self::Sheets => "Sheet",
             Self::Skeleton => "Skeleton",
             Self::Slider => "Slider",
@@ -321,6 +343,9 @@ impl Story {
             Self::Collapsible => {
                 "Reveal or hide supplementary content inside a Material 3 disclosure container."
             }
+            Self::ColorPicker => {
+                "Pick colors with Material 3 presets, HSLA sliders, and live hex synced with Argb."
+            }
             Self::CommandPalette => {
                 "Filter and execute grouped desktop commands in a Ctrl/Cmd+K modal palette."
             }
@@ -359,12 +384,24 @@ impl Story {
             Self::NavigationRail => {
                 "Keep destinations at the leading edge or open them in a modal rail."
             }
+            Self::NumberInput => {
+                "Enter bounded numeric values with decrement/increment steppers and Up/Down stepping."
+            }
+            Self::OtpInput => {
+                "Capture fixed-length verification codes with paste, masking, and slot navigation."
+            }
             Self::Pagination => {
                 "Navigate multi-page desktop collections with active page pills and ellipsis truncation."
             }
             Self::Progress => "Visualize measured or indeterminate work as a line or a circle.",
             Self::Radio => "Choose one option from a group.",
+            Self::RichText => {
+                "Render Markdown and HTML with Material typography, code surfaces, links, and ThemeScope."
+            }
             Self::Search => "Search from a docked surface or a full-screen app bar.",
+            Self::SelectableText => {
+                "Display Material typography with drag selection, keyboard copy, and PrimaryContainer highlights."
+            }
             Self::Sheets => "Reveal supplementary content at the bottom or trailing edge.",
             Self::Skeleton => {
                 "Display animated Material 3 loading placeholders with offscreen and reduced-motion discipline."
@@ -441,6 +478,12 @@ impl Story {
             Self::Menu | Self::Tooltip => cx.new(|cx| MenuTooltipExamples::new(self, cx)).into(),
             Self::Dialog | Self::Sheets => cx.new(|cx| ModalExamples::new(self, window, cx)).into(),
             Self::TextField => cx.new(|cx| TextFieldExamples::new(window, cx)).into(),
+            Self::NumberInput | Self::OtpInput | Self::ColorPicker => cx
+                .new(|cx| SpecializedInputExamples::new(self, window, cx))
+                .into(),
+            Self::SelectableText | Self::RichText => {
+                cx.new(|cx| RichTextExamples::new(self, cx)).into()
+            }
             Self::ExposedDropdown => cx.new(|cx| DropdownExamples::new(window, cx)).into(),
             Self::Snackbar => cx.new(SnackbarExamples::new).into(),
             Self::FabMenu | Self::Toolbars => cx.new(|cx| ToolbarExamples::new(self, cx)).into(),

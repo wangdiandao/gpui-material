@@ -52,6 +52,8 @@ let save = Button::new("save", "Save")
 | `data-views` | 数据表、虚拟化层级树和虚拟列表 |
 | `disclosure` | 可展开/收起容器、手风琴与桌面分页栏 |
 | `command-palette` | `Ctrl+K` / `Cmd+K` 风格模态命令面板 |
+| `specialized-inputs` | 数值步进输入、验证码输入和颜色选择器 |
+| `rich-text` | 可选 Material 文本和 Markdown/HTML 富文本视图 |
 | `window-chrome` | 跨平台自绘标题栏和窗口控制按钮 |
 | `dynamic-color` | 从种子色生成配色方案 |
 | `serde` | 主题数据序列化 |

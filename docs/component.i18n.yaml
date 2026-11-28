@@ -147,8 +147,8 @@
   en: "a9f65f19836e4b8a"
   zh: "b34085a5fd68678f"
 /components/optional-components:
-  en: "73ab9a0a43f8eb15"
-  zh: "b6988e627b5d09e3"
+  en: "312438c7eeeffa30"
+  zh: "7b66f1598df4b190"
 /components/optional-components/window-chrome:
   en: "90b7978cbd0f9268"
   zh: "4466ad4e1cd4b7b7"
@@ -186,5 +186,11 @@
   en: "13ff3ba2da7e6902"
   zh: "9bc5e80b03f955aa"
 /components/optional-components/command-palette:
-  en: "c1431c2c8b16a917"
-  zh: "53a76409b5884e3c"
+  en: "bd092297ea07e760"
+  zh: "0e0d437857f0b9ea"
+/components/optional-components/specialized-inputs:
+  en: "37204c2d7d56d67d"
+  zh: "d20bb0b6937081f2"
+/components/optional-components/rich-text:
+  en: "9ef9f7794f10baf7"
+  zh: "6d70d16547a9a43c"

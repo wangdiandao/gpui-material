@@ -2,7 +2,7 @@ use gpui::{AppContext, Entity, IntoElement, ParentElement, Styled, div, px};
 use gpui_material::{
     Avatar, AvatarGroup, AvatarSize, Badge, Banner, Button, ButtonVariant, CircularProgress,
     EmptyView, Icon, IconName, LinearProgress, LoadingIndicator, MaterialShape, ProgressShape,
-    SemanticTone, Skeleton, Snackbar, SnackbarHost, Text, Tooltip,
+    RichText, SelectableText, SemanticTone, Skeleton, Snackbar, SnackbarHost, Text, Tooltip,
     theme::{ColorRole, CornerRole, TypeRole},
 };
 
@@ -839,5 +839,138 @@ pub static TOOLTIP: Playground = Playground {
                 cfg.text("tip")
             )
         }
+    },
+};
+
+// --- SelectableText ---
+pub static SELECTABLE_TEXT: Playground = Playground {
+    scenarios: &[
+        Scenario {
+            name: "Muted body",
+            values: &[
+                ("role", Set::Option("Body Medium")),
+                ("muted", Set::Bool(true)),
+            ],
+        },
+        Scenario {
+            name: "Emphasized headline",
+            values: &[
+                ("role", Set::Option("Headline Small")),
+                ("emphasized", Set::Bool(true)),
+            ],
+        },
+    ],
+    sections: &[Section {
+        title: "Typography",
+        controls: &[
+            Control::Choice {
+                id: "role",
+                label: "Type role",
+                options: &["Headline Small", "Title Large", "Body Large", "Body Medium"],
+                default: 2,
+            },
+            Control::Switch {
+                id: "muted",
+                label: "Muted",
+                default: false,
+            },
+            Control::Switch {
+                id: "emphasized",
+                label: "Emphasized",
+                default: false,
+            },
+            Control::Text {
+                id: "sample",
+                label: "Text",
+                default: "Drag across this Material 3 text and press Ctrl/Cmd+C to copy.",
+            },
+        ],
+    }],
+    preview: |cfg, _, _, _| {
+        let role = match cfg.option("role") {
+            "Headline Small" => TypeRole::HeadlineSmall,
+            "Title Large" => TypeRole::TitleLarge,
+            "Body Medium" => TypeRole::BodyMedium,
+            _ => TypeRole::BodyLarge,
+        };
+        let mut el = SelectableText::new("pg-selectable-text", cfg.text("sample").to_owned())
+            .role(role)
+            .emphasized(cfg.bool("emphasized"));
+        if cfg.bool("muted") {
+            el = el.muted();
+        }
+        div().max_w(px(420.)).child(el).into_any_element()
+    },
+    code: |cfg| {
+        let role = match cfg.option("role") {
+            "Headline Small" => "TypeRole::HeadlineSmall",
+            "Title Large" => "TypeRole::TitleLarge",
+            "Body Medium" => "TypeRole::BodyMedium",
+            _ => "TypeRole::BodyLarge",
+        };
+        let mut s = format!(
+            "SelectableText::new(\"copy\", {:?})\n    .role({role})\n    .emphasized({})",
+            cfg.text("sample"),
+            cfg.bool("emphasized")
+        );
+        if cfg.bool("muted") {
+            s.push_str("\n    .muted()");
+        }
+        s
+    },
+};
+
+// --- RichText ---
+pub static RICH_TEXT: Playground = Playground {
+    scenarios: &[
+        Scenario {
+            name: "Compact body",
+            values: &[("body_role", Set::Option("BodyMedium"))],
+        },
+        Scenario {
+            name: "Non-selectable",
+            values: &[("selectable", Set::Bool(false))],
+        },
+    ],
+    sections: &[Section {
+        title: "Configuration",
+        controls: &[
+            Control::Choice {
+                id: "body_role",
+                label: "Body role",
+                options: &["BodyLarge", "BodyMedium"],
+                default: 0,
+            },
+            Control::Switch {
+                id: "selectable",
+                label: "Selectable",
+                default: true,
+            },
+        ],
+    }],
+    preview: |cfg, _, _, _| {
+        let body_role = if cfg.option("body_role") == "BodyMedium" {
+            TypeRole::BodyMedium
+        } else {
+            TypeRole::BodyLarge
+        };
+        div()
+            .w(px(440.))
+            .child(
+                RichText::markdown(
+                    "pg-rich-text",
+                    "### Release notes\n\nIncludes `SurfaceContainerHighest` code spans, [Material 3 links](https://m3.material.io), and **emphasized** headings.\n\n> Styled automatically from the active MaterialTheme.",
+                )
+                .body_role(body_role)
+                .selectable(cfg.bool("selectable")),
+            )
+            .into_any_element()
+    },
+    code: |cfg| {
+        format!(
+            "RichText::markdown(\n    \"notes\",\n    \"### Release notes\\n\\nSupports `code`, [links](https://m3.material.io), and **Markdown**.\",\n)\n.body_role(TypeRole::{})\n.selectable({})",
+            cfg.option("body_role"),
+            cfg.bool("selectable")
+        )
     },
 };

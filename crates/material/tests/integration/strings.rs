@@ -241,11 +241,13 @@ fn global_material_strings_update_default_component_labels(cx: &mut TestAppConte
 fn theme_scope_strings_override_subtree_and_deferred_overlays_without_mutating_global(
     cx: &mut TestAppContext,
 ) {
+    type BoundActionSlot = Rc<RefCell<Option<Box<dyn Fn(&mut Window, &mut gpui::App)>>>>;
+
     struct ScopedView {
         scoped_field: Entity<TextFieldState>,
         scoped_dialog: Entity<DialogState>,
         bound_action_observed: Rc<RefCell<Option<SharedString>>>,
-        bound_action: Rc<RefCell<Option<Box<dyn Fn(&mut Window, &mut gpui::App)>>>>,
+        bound_action: BoundActionSlot,
     }
 
     impl Render for ScopedView {
@@ -262,7 +264,7 @@ fn theme_scope_strings_override_subtree_and_deferred_overlays_without_mutating_g
             #[derive(gpui::IntoElement)]
             struct BindProbe {
                 observed: Rc<RefCell<Option<SharedString>>>,
-                slot: Rc<RefCell<Option<Box<dyn Fn(&mut Window, &mut gpui::App)>>>>,
+                slot: BoundActionSlot,
             }
 
             impl gpui::RenderOnce for BindProbe {

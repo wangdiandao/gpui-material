@@ -51,7 +51,7 @@ fn scoped_theme(window: &Window, cx: &App) -> Option<Rc<MaterialTheme>> {
             .rev()
             .find_map(|entry| {
                 (entry.key == key)
-                    .then(|| entry.material.as_ref())
+                    .then_some(entry.material.as_ref())
                     .flatten()
             })
             .cloned()
@@ -64,7 +64,11 @@ fn scoped_strings(window: &Window, cx: &App) -> Option<Rc<MaterialStrings>> {
         scopes
             .iter()
             .rev()
-            .find_map(|entry| (entry.key == key).then(|| entry.strings.as_ref()).flatten())
+            .find_map(|entry| {
+                (entry.key == key)
+                    .then_some(entry.strings.as_ref())
+                    .flatten()
+            })
             .cloned()
     })
 }

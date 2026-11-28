@@ -41,12 +41,12 @@
 /cookbook/focus-keyboard-navigation-interaction-observation-and-accessibility/observing-interaction-state-with-interactionsource:
   en: "1040159ab20b7fa4"
   zh: "600e00f4956db769"
-/cookbook/focus-keyboard-navigation-interaction-observation-and-accessibility/rtl-mirroring-and-reduced-motion:
-  en: "29b5881f541a52bb"
-  zh: "ccc59523b305eb2d"
+/cookbook/focus-keyboard-navigation-interaction-observation-and-accessibility/rtl-mirroring-reduced-motion-and-localized-default-labels:
+  en: "6ecae8915d9626a6"
+  zh: "7f4827547299b76a"
 /cookbook/building-custom-material-controls:
-  en: "6a7e85d63d08b99c"
-  zh: "d9c4e9b56716bf62"
+  en: "8bdfa73f7db30f4d"
+  zh: "7a0e2338cc37e8c1"
 /cookbook/feature-flags-and-slim-builds:
   en: "3e71bfd040cfede9"
   zh: "21a832e8d5fe14f6"

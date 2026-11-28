@@ -57,6 +57,20 @@ Foundation 为各组件族共享排版、涟漪反馈和桌面阴影投影。按
 | `jiff 1.0` 与 [Base Calendar][calendar] | `date-time` 特性在 extras 中启用直接 `jiff` 依赖并关闭默认特性，不拉入 `chrono` 或 `web-time`。MIT 或 Unlicense。 | Base 管理日历及日期范围的草稿状态；`jiff::civil::{Date, Time, Weekday}` 提供边界检查的日历运算与日期时间类型；应用通过格式化和解析接口控制本地化显示与输入。 |
 | [`rust-i18n 4.2.4`][i18n] | 可选应用适配，MIT。项目默认使用可覆盖文案和格式化器，该候选会引入宏与支持库。 | 翻译库类型由应用适配封装。 |
 
+轻量值类型（`MotionStatus`、`ReduceMotionPreference`、`CheckboxState`、`TooltipPositioner` 与 `CubicBezier` 预设）由 Material crate 自行定义并在内部适配 `gpui-base`，避免下游依赖上游值类型身份。公开的第三方重导出受 `cargo xtask check` 强制校验，仅允许下列显式边界：
+
+| 刻意保留的公开边界 | 所在位置 | 原因 |
+| --- | --- | --- |
+| `gpui_base::input::{InputState, TextareaState, InputEvent, MaskPattern}` | `components::input`（`TextFieldState`、`TextAreaState`、`TextFieldEvent`、`TextFieldMaskPattern`） | Base 持有的文本编辑状态实体、事件与结构化掩码模式。 |
+| `gpui_base::slider::{SliderState, SliderEvent, SliderScale, SliderValue}` | `components::slider` 与 `foundation::range` | Base 持有的滑块状态实体、事件、刻度与数值。 |
+| `gpui_base::ScrollbarHandle` | `components::display_scrollbar` | GPUI 与 Base 滚动容器实现的滚动句柄 trait。 |
+| `gpui_base::Root` 与 `gpui_base::Theme` | `foundation::MaterialRoot::open_window`、`foundation::current_base_theme`、`foundation::project_base_theme` | Base 窗口浮层根节点，以及供独立 Base 控件使用的局部主题投影。 |
+| `gpui_base::TestSupportExt` 与 `gpui_base::test_support::{ElementSnapshot, TextSnapshot}` | `foundation::test`（`test-support` 特性） | 按需启用的无头 UI 测试观测 trait 与不可变无障碍快照。 |
+| `web_time::Instant` | `foundation::Instant`（不在 `gpui_material` 根路径重导出） | 与 `gpui::BackgroundExecutor::now()` 一致的桌面/WASM 单调时间戳类型。 |
+| `jiff::civil::{Date, Time, Weekday}` | `extras::date_time`（`date-time` 特性） | 日期与时间选择器使用的民用日历与时间值类型。 |
+
+`material-color-utils`、`polymorpher`、`windows` 与 `raw-window-handle` 始终完全私有地封装在所属 crate 内部。
+
 extras 按实际需要定义 `expressive-groups`、`search`、`date-time`、`carousel` 等组件族。主题支持静态数据，`dynamic-color` 与 `serde` 按需启用，图片提色优先留在工具层。组件所需键盘、语义和动效属于完整行为。
 
 CI 和日常开发用包级命令隔离主题、组件及 Gallery，优先使用具体内部类型及按需的类型擦除。

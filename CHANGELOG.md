@@ -4,11 +4,21 @@ See [versioning and releases](docs/release.md) for the release process.
 
 ## Unreleased
 
+### Breaking API and migration
+
+- **Breaking (`gpui-material-foundation`, `gpui-material-components`, `gpui-material`)**: Replace leaked `gpui-base` lightweight value re-exports and motion signatures with Material-owned types:
+  - `foundation::MotionStatus` is now a Material-owned enum (`Idle | Running | Finished`, with `is_running()` and `is_settled()`) instead of `gpui_base::motion::MotionStatus`; `foundation::animate` and `foundation::animate_with_status` now accept `impl Into<gpui::ElementId>` instead of `gpui_base::motion::TransitionId`; `foundation::RetargetTransition::animate_to` now accepts `gpui_material_theme::CubicBezier` instead of `gpui_base::motion::Easing`.
+  - `ReduceMotionPreference` and `set_reduce_motion_preference` are now Material-owned wrappers in `gpui-material-foundation` (re-exported from `gpui-material`) instead of re-exports from `gpui-base`.
+  - `CheckboxState` (`Unchecked | Checked | Indeterminate`, with `is_checked()`, `is_indeterminate()`, `next()`, and `From<bool>`) is now Material-owned instead of `gpui_base::CheckboxState`.
+  - `TooltipPositioner` is now a Material-owned value type (`side`, `corner`, `position`, `placement(TooltipPlacement)`, `offset(Pixels)`) instead of re-exporting the `gpui_base::Positioner` element.
+  - Migration: import `CheckboxState`, `TooltipPositioner`, `ReduceMotionPreference`, and `foundation::MotionStatus` from `gpui_material` rather than `gpui_base`; pass `TooltipPlacement` to `TooltipPositioner::placement(...)` and `theme::CubicBezier` (such as `CubicBezier::EASE_OUT`) to `RetargetTransition::animate_to(...)`.
+
 ### Theme, foundation, and facade
 
-- Add `AppearanceMode` (`Light`, `Dark`, `System`) with `AppearanceMode::resolve` (and `serde` support when `feature = "serde"` is enabled) in `gpui-material-theme`.
-- Add system appearance and reduced-motion sync helpers in `gpui-material-foundation` (re-exported from `gpui-material`): `appearance_from_window`, `system_appearance`, `observe_system_appearance`, `observe_window_system_appearance`, `MaterialRoot::sync_system_appearance`, `MaterialRoot::sync_window_system_appearance`, `sync_system_reduce_motion`, and re-exported `ReduceMotionPreference` / `set_reduce_motion_preference`.
+- Add `AppearanceMode` (`Light`, `Dark`, `System`) with `AppearanceMode::resolve` (and `serde` support when `feature = "serde"` is enabled) in `gpui-material-theme`, plus standard easing constants (`LINEAR`, `EASE`, `EASE_IN`, `EASE_OUT`, `EASE_IN_OUT`) on `CubicBezier`.
+- Add system appearance and reduced-motion sync helpers in `gpui-material-foundation` (re-exported from `gpui-material`): `appearance_from_window`, `system_appearance`, `observe_system_appearance`, `observe_window_system_appearance`, `MaterialRoot::sync_system_appearance`, `MaterialRoot::sync_window_system_appearance`, `sync_system_reduce_motion`, and Material-owned `ReduceMotionPreference` / `set_reduce_motion_preference`.
 - Add pure-value `MaterialStrings` (with `Arc<str>` fields, fluent builders, English defaults, and optional `serde` support) in `gpui-material-theme`, plus `material_strings`, `set_material_strings`, `current_material_strings`, and `ThemeScope::strings` in `gpui-material-foundation` (re-exported from `gpui-material`), and wire built-in default labels across `Scrim`, components, and extras to fall back to `current_material_strings` while preserving explicit per-component setter precedence.
+- Add an automated public third-party API boundary check in `xtask` (`cargo xtask check`) enforcing the documented allowlist of intentional Base/third-party re-exports across `crates/*/src/**/*.rs`.
 
 ## 0.4.1 - 2026-11-26
 

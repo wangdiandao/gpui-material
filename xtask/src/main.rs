@@ -1,3 +1,4 @@
+mod api_boundary;
 mod baseline;
 mod docs;
 mod graph;
@@ -15,6 +16,7 @@ type Result<T = ()> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 const USAGE: &str = "Usage:
   cargo xtask check
+  cargo xtask api-boundary
   cargo xtask docs --check
   cargo xtask docs --write <english-markdown>...
   cargo xtask graph
@@ -45,6 +47,7 @@ fn run() -> Result {
     {
         [] | ["help" | "--help" | "-h"] => println!("{USAGE}"),
         ["check"] => check()?,
+        ["api-boundary"] => api_boundary::check()?,
         ["docs", "--check"] => docs::check()?,
         ["docs", "--write", paths @ ..] if !paths.is_empty() => docs::write_records(paths)?,
         ["graph"] => graph::check()?,
@@ -63,6 +66,7 @@ fn check() -> Result {
     docs::check()?;
     tokens::run(true)?;
     snippets::run(true)?;
+    api_boundary::check()?;
     graph::check()
 }
 

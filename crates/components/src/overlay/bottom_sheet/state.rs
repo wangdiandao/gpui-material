@@ -1,8 +1,8 @@
 use std::{rc::Rc, time::Duration};
 
 use gpui::{App, AppContext, Context, Entity, Pixels, Size, Subscription, Window, px};
-use gpui_base::motion::Easing;
 use gpui_material_foundation::{DragCapture, RetargetTransition};
+use gpui_material_theme::CubicBezier;
 use web_time::Instant;
 
 use super::super::{DialogState, SheetMode};
@@ -295,7 +295,7 @@ impl BottomSheetState {
             self.motion.snap_to(f32::from(target));
         } else {
             self.motion
-                .animate_to(f32::from(target), SETTLE, Easing::EaseOut, now, false);
+                .animate_to(f32::from(target), SETTLE, CubicBezier::EASE_OUT, now, false);
             self.height = px(self.motion.value());
             if !self.motion.is_animating() {
                 self.current = self.target;

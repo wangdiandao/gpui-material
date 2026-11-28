@@ -4,9 +4,9 @@ use gpui::{
     App, AppContext, Context, ElementId, Entity, EntityInputHandler, EventEmitter, FocusHandle,
     Focusable, ListAlignment, ListState, SharedString, Subscription, Window, px,
 };
-use gpui_base::motion::Easing;
 use gpui_material_components::{IconName, TextFieldEvent, TextFieldState};
 use gpui_material_foundation::RetargetTransition;
+use gpui_material_theme::CubicBezier;
 
 mod presentation;
 mod scroll;
@@ -360,8 +360,13 @@ impl SearchState {
         }
         self.target = target;
         let now = cx.background_executor().now();
-        self.animation
-            .animate_to(target.progress(), duration, Easing::EaseInOut, now, false);
+        self.animation.animate_to(
+            target.progress(),
+            duration,
+            CubicBezier::EASE_IN_OUT,
+            now,
+            false,
+        );
         self.progress = self.animation.value();
         self.last_sampled = None;
         if !self.animation.is_animating() && target == SearchValue::Collapsed {

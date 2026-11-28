@@ -1,8 +1,41 @@
 use gpui::{App, Subscription, Window, WindowAppearance};
-pub use gpui_base::{ReduceMotionPreference, set_reduce_motion_preference};
 use gpui_material_theme::{Appearance, AppearanceMode, MaterialTheme};
 
 use crate::root::{set_material_theme, set_window_material_theme};
+
+/// The source and value of the application's reduced-motion preference.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum ReduceMotionPreference {
+    /// Follow the operating system's reduced-motion setting.
+    #[default]
+    System,
+    /// Reduce motion regardless of the operating system preference.
+    Reduce,
+    /// Allow motion regardless of the operating system preference.
+    Allow,
+}
+
+impl ReduceMotionPreference {
+    pub(crate) const fn to_base(self) -> gpui_base::ReduceMotionPreference {
+        match self {
+            Self::System => gpui_base::ReduceMotionPreference::System,
+            Self::Reduce => gpui_base::ReduceMotionPreference::Reduce,
+            Self::Allow => gpui_base::ReduceMotionPreference::Allow,
+        }
+    }
+}
+
+/// Selects the application's reduced-motion preference.
+///
+/// [`ReduceMotionPreference::Reduce`] and [`ReduceMotionPreference::Allow`] update
+/// [`App::reduce_motion`] and prevent system preference readings from overriding it.
+/// [`ReduceMotionPreference::System`] releases explicit ownership and resumes
+/// following the operating system preference via [`sync_system_reduce_motion`].
+/// Under GPUI's test scheduler, explicit choices and cached readings still apply
+/// without querying the host platform.
+pub fn set_reduce_motion_preference(preference: ReduceMotionPreference, cx: &mut App) {
+    gpui_base::set_reduce_motion_preference(preference.to_base(), cx);
+}
 
 /// Maps a GPUI [`WindowAppearance`] to a Material [`Appearance`].
 ///
@@ -134,6 +167,30 @@ mod tests {
 
     use super::*;
     use gpui_material_theme::{Density, MotionScheme};
+
+    #[test]
+    fn reduce_motion_preference_is_material_owned_and_maps_all_variants() {
+        assert_ne!(
+            std::any::TypeId::of::<ReduceMotionPreference>(),
+            std::any::TypeId::of::<gpui_base::ReduceMotionPreference>()
+        );
+        assert_eq!(
+            ReduceMotionPreference::default(),
+            ReduceMotionPreference::System
+        );
+        assert_eq!(
+            ReduceMotionPreference::System.to_base(),
+            gpui_base::ReduceMotionPreference::System
+        );
+        assert_eq!(
+            ReduceMotionPreference::Reduce.to_base(),
+            gpui_base::ReduceMotionPreference::Reduce
+        );
+        assert_eq!(
+            ReduceMotionPreference::Allow.to_base(),
+            gpui_base::ReduceMotionPreference::Allow
+        );
+    }
 
     #[test]
     fn maps_all_window_appearances_to_material_appearance() {

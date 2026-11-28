@@ -16,8 +16,8 @@ use types::{BreadcrumbSelect, SeparatorFactory};
 pub struct Breadcrumbs {
     pub(super) id: ElementId,
     pub(super) items: Vec<BreadcrumbItem>,
-    pub(super) accessible_label: SharedString,
-    pub(super) overflow_label: SharedString,
+    pub(super) accessible_label: Option<SharedString>,
+    pub(super) overflow_label: Option<SharedString>,
     pub(super) on_select: Option<BreadcrumbSelect>,
     pub(super) max_items: Option<usize>,
     pub(super) separator: Option<SeparatorFactory>,
@@ -30,8 +30,8 @@ impl Breadcrumbs {
         Self {
             id: id.into(),
             items: items.into_iter().collect(),
-            accessible_label: "Breadcrumb".into(),
-            overflow_label: "More breadcrumbs".into(),
+            accessible_label: None,
+            overflow_label: None,
             on_select: None,
             max_items: None,
             separator: None,
@@ -39,15 +39,17 @@ impl Breadcrumbs {
         }
     }
 
-    /// Sets the `Role::Navigation` landmark label. Defaults to `"Breadcrumb"`.
+    /// Sets the `Role::Navigation` landmark label. Defaults to
+    /// [`gpui_material_theme::MaterialStrings::breadcrumb`] (`"Breadcrumb"`).
     pub fn accessible_label(mut self, label: impl Into<SharedString>) -> Self {
-        self.accessible_label = label.into();
+        self.accessible_label = Some(label.into());
         self
     }
 
     /// Sets the accessible name of the collapsed-segments overflow trigger button.
+    /// Defaults to [`gpui_material_theme::MaterialStrings::more_breadcrumbs`] (`"More breadcrumbs"`).
     pub fn overflow_label(mut self, label: impl Into<SharedString>) -> Self {
-        self.overflow_label = label.into();
+        self.overflow_label = Some(label.into());
         self
     }
 

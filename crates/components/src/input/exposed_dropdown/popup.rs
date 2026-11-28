@@ -2,11 +2,13 @@ use std::{cell::Cell, rc::Rc};
 
 use gpui::{
     Anchor, AnyElement, App, Bounds, ElementId, Entity, FocusHandle, Hsla, InteractiveElement,
-    IntoElement, ListSizingBehavior, ListState, ParentElement, Pixels, Role,
+    IntoElement, ListSizingBehavior, ListState, ParentElement, Pixels, Role, SharedString,
     StatefulInteractiveElement, Styled, Window, div, list, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt;
-use gpui_material_foundation::{OverlayMotion, ScaledOverlay, ThemeScope, logical_anchor};
+use gpui_material_foundation::{
+    OverlayMotion, ScaledOverlay, ThemeScope, current_material_strings, logical_anchor,
+};
 use gpui_material_theme::{Direction, MaterialTheme, TypeRole, TypographyEmphasis};
 
 use crate::{MenuSurfaceStyle, menu_appearance::menu_pivot};
@@ -132,7 +134,11 @@ pub(super) fn build_popup_content(
                 div()
                     .px(spacing * 0.75)
                     .py(spacing * 0.5)
-                    .child("No matching options"),
+                    .child(SharedString::from(
+                        current_material_strings(window, cx)
+                            .no_matching_options
+                            .clone(),
+                    )),
             )
             .into_any_element()
     } else {

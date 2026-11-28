@@ -179,7 +179,7 @@ pub struct Toolbar {
     expanded: bool,
     scroll: Option<ScrollHandle>,
     navigation: Option<AnyElement>,
-    overflow_label: SharedString,
+    overflow_label: Option<SharedString>,
     content: Option<AnyElement>,
     leading: Option<AnyElement>,
     trailing: Option<AnyElement>,
@@ -217,7 +217,7 @@ impl Toolbar {
             expanded: true,
             scroll: None,
             navigation: None,
-            overflow_label: "More actions".into(),
+            overflow_label: None,
             content: None,
             leading: None,
             trailing: None,
@@ -413,7 +413,7 @@ impl Toolbar {
 
     /// Sets the accessible label for the collapsed overflow trigger button. Defaults to `"More actions"`.
     pub fn overflow_label(mut self, label: impl Into<SharedString>) -> Self {
-        self.overflow_label = label.into();
+        self.overflow_label = Some(label.into());
         self
     }
 }

@@ -2,6 +2,7 @@ use gpui::{
     AnyElement, App, ElementId, FocusHandle, Hsla, InteractiveElement, IntoElement, MouseButton,
     ParentElement, SharedString, Styled, Window, div, prelude::FluentBuilder, px,
 };
+use gpui_material_foundation::current_material_strings;
 use gpui_material_theme::Density;
 
 use crate::{ButtonColors, ControlSize, Icon, IconButton, IconName, IconToggleButton};
@@ -44,7 +45,9 @@ pub(super) fn build_trailing_controls(
             })
             .read(cx)
             .clone();
-        let label = clear_label.unwrap_or_else(|| "Clear".into());
+        let label = clear_label.unwrap_or_else(|| {
+            SharedString::from(current_material_strings(window, cx).clear.clone())
+        });
         let editor_click = editor.clone();
         let focus_click = editor_focus.clone();
         let clear_btn = div()
@@ -82,8 +85,13 @@ pub(super) fn build_trailing_controls(
             })
             .read(cx)
             .clone();
-        let (show_label, hide_label) =
-            visibility_labels.unwrap_or_else(|| ("Show password".into(), "Hide password".into()));
+        let (show_label, hide_label) = visibility_labels.unwrap_or_else(|| {
+            let strings = current_material_strings(window, cx);
+            (
+                SharedString::from(strings.show_password.clone()),
+                SharedString::from(strings.hide_password.clone()),
+            )
+        });
         let label = if toggle.visible {
             hide_label
         } else {

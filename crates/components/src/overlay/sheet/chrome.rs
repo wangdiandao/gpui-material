@@ -105,6 +105,8 @@ pub(super) fn build_header(
     header_override: Option<AnyElement>,
     back: Option<AnyElement>,
     expansion: Option<(bool, Change)>,
+    expand_label: SharedString,
+    collapse_label: SharedString,
     close: Option<AnyElement>,
     bottom: bool,
     rtl: bool,
@@ -147,8 +149,13 @@ pub(super) fn build_header(
         .when_some(
             expansion.filter(|_| bottom),
             |header, (expanded, change)| {
+                let toggle_label = if expanded {
+                    collapse_label
+                } else {
+                    expand_label
+                };
                 header.child(
-                    Button::new("expand", if expanded { "Collapse" } else { "Expand" })
+                    Button::new("expand", toggle_label)
                         .variant(ButtonVariant::Text)
                         .on_activate(move |window, cx| {
                             if open {

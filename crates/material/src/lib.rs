@@ -45,15 +45,15 @@ pub use gpui_material_foundation::{
     InteractionSource, InteractionState, InteractionUpdate, MaterialRoot, PolygonMorph,
     ReduceMotionPreference, Scrim, Shape, ShapeFit, ShapeMorph, ShapeMorphSequence, ShapePolygon,
     Surface, SurfaceBorder, SurfaceFeedback, ThemeScope, appearance_from_window,
-    current_base_theme, current_material_theme, material_theme, observe_system_appearance,
-    observe_window_system_appearance, project_base_theme, set_material_theme,
-    set_reduce_motion_preference, set_window_material_theme, sync_system_reduce_motion,
-    system_appearance, window_material_theme,
+    current_base_theme, current_material_strings, current_material_theme, material_strings,
+    material_theme, observe_system_appearance, observe_window_system_appearance,
+    project_base_theme, set_material_strings, set_material_theme, set_reduce_motion_preference,
+    set_window_material_theme, sync_system_reduce_motion, system_appearance, window_material_theme,
 };
 pub use gpui_material_theme as theme;
 #[cfg(not(feature = "display"))]
 pub use gpui_material_theme::LogicalEdges;
-pub use gpui_material_theme::{AppearanceMode, MaterialShape, MaterialTheme};
+pub use gpui_material_theme::{AppearanceMode, MaterialShape, MaterialStrings, MaterialTheme};
 
 /// Installs the application [`MaterialTheme`], initializes [`MaterialRoot`], and
 /// registers component keybindings when component features are enabled.
@@ -84,6 +84,9 @@ mod tests {
         let _sync_reduce_motion: fn(&mut gpui::App) = sync_system_reduce_motion;
         let _set_reduce_motion: fn(ReduceMotionPreference, &mut gpui::App) =
             set_reduce_motion_preference;
+        let _get_strings: fn(&gpui::App) -> &MaterialStrings = material_strings;
+        let _set_strings: fn(MaterialStrings, &mut gpui::App) = set_material_strings;
+        assert_eq!(MaterialStrings::default().dismiss.as_ref(), "Dismiss");
         assert_eq!(
             AppearanceMode::System.resolve(theme::Appearance::Dark),
             theme::Appearance::Dark

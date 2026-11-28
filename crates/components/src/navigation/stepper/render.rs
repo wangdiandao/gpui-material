@@ -6,7 +6,9 @@ use gpui::{
     Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{Button as BaseButton, TestSupportExt};
-use gpui_material_foundation::{color, current_material_theme, move_roving_focus, text_style};
+use gpui_material_foundation::{
+    color, current_material_strings, current_material_theme, move_roving_focus, text_style,
+};
 use gpui_material_theme::{ColorRole, Direction, StateLayer, TypeRole, TypographyEmphasis};
 
 use crate::{Icon, IconName, Text};
@@ -309,11 +311,14 @@ impl RenderOnce for Stepper {
             .map(|(_, interactive)| *interactive)
             .collect();
 
+        let accessible_label = self.accessible_label.unwrap_or_else(|| {
+            SharedString::from(current_material_strings(window, cx).steps.clone())
+        });
         let container = div()
             .id(self.id.clone())
             .test_support()
             .role(Role::List)
-            .aria_label(self.accessible_label)
+            .aria_label(accessible_label)
             .w_full()
             .on_key_down(move |event, window, cx| {
                 if event.keystroke.modifiers.modified() {

@@ -6,6 +6,8 @@
 #[cfg(feature = "full")]
 mod facade_contracts;
 mod harness;
+#[cfg(feature = "full")]
+mod strings;
 mod system_sync;
 #[cfg(feature = "full")]
 mod ui;

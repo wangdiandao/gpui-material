@@ -122,7 +122,7 @@ pub struct Dialog {
     confirm_loading: bool,
     confirm_content: Option<ActionSlot>,
     dismiss_content: Option<ActionSlot>,
-    cancel: SharedString,
+    cancel: Option<SharedString>,
     show_cancel: bool,
     layer: usize,
     properties: DialogProperties,
@@ -161,7 +161,7 @@ impl Dialog {
             confirm_loading: false,
             confirm_content: None,
             dismiss_content: None,
-            cancel: "Cancel".into(),
+            cancel: None,
             show_cancel: true,
             layer: 0,
             properties: DialogProperties::default(),
@@ -375,9 +375,10 @@ impl Dialog {
         self
     }
 
-    /// Overrides the label of the default cancellation button (default `"Cancel"`).
+    /// Overrides the label of the default cancellation button (defaults to
+    /// [`gpui_material_theme::MaterialStrings::cancel`], `"Cancel"`).
     pub fn cancel_label(mut self, label: impl Into<SharedString>) -> Self {
-        self.cancel = label.into();
+        self.cancel = Some(label.into());
         self
     }
 

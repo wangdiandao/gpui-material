@@ -8,7 +8,7 @@ use gpui::{
 use gpui_material_components::{
     Button, ButtonVariant, Dialog, DialogAction, DialogCloseReason, DialogColors, DialogProperties,
 };
-use gpui_material_foundation::{color, current_material_theme};
+use gpui_material_foundation::{color, current_material_strings, current_material_theme};
 use gpui_material_theme::{ColorRole, CornerShape};
 use jiff::civil::Time;
 
@@ -293,25 +293,28 @@ impl<const VIBRANT: bool> RenderOnce for TimeDialog<VIBRANT> {
                     .child(body)
                     .children(toggle),
             )
-            .confirm("OK", move |window, cx| {
-                state.update(cx, |state, cx| {
-                    if state.has_composition(window, cx) {
-                        return false;
-                    }
-                    if state.mode != TimePickerVariant::Input {
-                        return true;
-                    }
-                    if let Some(segment) = state.invalid_segment(cx) {
-                        state.input_attempted = true;
-                        state.set_segment(segment, cx);
-                        state.focus_editor(window, cx);
-                        cx.notify();
-                        return false;
-                    }
-                    state.reconcile_input(cx);
-                    true
-                })
-            })
+            .confirm(
+                SharedString::from(current_material_strings(window, cx).confirm.clone()),
+                move |window, cx| {
+                    state.update(cx, |state, cx| {
+                        if state.has_composition(window, cx) {
+                            return false;
+                        }
+                        if state.mode != TimePickerVariant::Input {
+                            return true;
+                        }
+                        if let Some(segment) = state.invalid_segment(cx) {
+                            state.input_attempted = true;
+                            state.set_segment(segment, cx);
+                            state.focus_editor(window, cx);
+                            cx.notify();
+                            return false;
+                        }
+                        state.reconcile_input(cx);
+                        true
+                    })
+                },
+            )
             .on_dismiss_request(move |reason, window, cx| {
                 if reason == DialogCloseReason::Escape
                     && dismiss_state.update(cx, |state, cx| state.finish_composition(window, cx))

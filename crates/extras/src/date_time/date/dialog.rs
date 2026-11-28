@@ -1,13 +1,14 @@
 use gpui::{
     AnyElement, App, Entity, InteractiveElement as _, IntoElement, ParentElement as _, Pixels,
-    Role, StatefulInteractiveElement as _, Styled as _, Window, div, prelude::FluentBuilder as _,
-    px,
+    Role, SharedString, StatefulInteractiveElement as _, Styled as _, Window, div,
+    prelude::FluentBuilder as _, px,
 };
 use gpui_base::{Date as BaseDate, TestSupportExt as _};
 use gpui_material_components::{
     Button, ButtonVariant, Dialog, DialogCloseReason, DialogColors, DialogState, DialogVariant,
     Text, TextField, TextFieldState, TextFieldVariant,
 };
+use gpui_material_foundation::current_material_strings;
 use gpui_material_theme::TypeRole;
 
 use super::{
@@ -63,27 +64,30 @@ impl DatePicker {
                         .as_ref()
                         .is_none_or(|request| request(reason, window, cx))
             })
-            .confirm("OK", move |window, cx| {
-                let value = state.update(cx, |model, cx| {
-                    if model.input_mode && model.input_composing(window, cx) {
-                        return None;
+            .confirm(
+                SharedString::from(current_material_strings(window, cx).confirm.clone()),
+                move |window, cx| {
+                    let value = state.update(cx, |model, cx| {
+                        if model.input_mode && model.input_composing(window, cx) {
+                            return None;
+                        }
+                        let value = if model.input_mode {
+                            model.input_value(&locale, cx).ok()
+                        } else {
+                            complete(model.calendar.read(cx).date())
+                        };
+                        if value.is_none() {
+                            model.input_attempted = true;
+                            cx.notify();
+                        }
+                        value
+                    });
+                    if let (Some(value), Some(callback)) = (value, &callback) {
+                        callback(value, window, cx);
                     }
-                    let value = if model.input_mode {
-                        model.input_value(&locale, cx).ok()
-                    } else {
-                        complete(model.calendar.read(cx).date())
-                    };
-                    if value.is_none() {
-                        model.input_attempted = true;
-                        cx.notify();
-                    }
-                    value
-                });
-                if let (Some(value), Some(callback)) = (value, &callback) {
-                    callback(value, window, cx);
-                }
-                value.is_some()
-            });
+                    value.is_some()
+                },
+            );
         if let Some(build) = self.confirm_content {
             dialog = dialog.confirm_content(build);
         }

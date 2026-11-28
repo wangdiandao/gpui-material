@@ -11,6 +11,7 @@ mod dynamic_color;
 mod layout;
 mod motion;
 mod shape;
+mod strings;
 mod typography;
 
 mod generated {
@@ -34,6 +35,7 @@ pub use generated::ColorRole;
 pub use layout::{Density, Direction, LayoutPolicy, LogicalEdges, WidthClass, non_negative_f32};
 pub use motion::{CubicBezier, MotionKind, MotionScheme, MotionSpec, MotionSpeed, Spring};
 pub use shape::{CornerRole, CornerShape, MaterialShape, PolygonRole, PolygonSpec};
+pub use strings::MaterialStrings;
 pub use typography::{FontFamilies, TypeRole, TypeStyle, Typeface, Typography, TypographyEmphasis};
 
 /// Application-owned configuration consumed by the Material rendering layer.

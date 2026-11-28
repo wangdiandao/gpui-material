@@ -2,11 +2,13 @@ use std::{cell::RefCell, rc::Rc};
 
 use gpui::{
     AnyElement, App, ElementId, Entity, FocusHandle, Hsla, InteractiveElement, IntoElement,
-    ParentElement, Pixels, RenderOnce, Role, Size, StatefulInteractiveElement, Styled, Window, div,
-    prelude::FluentBuilder, px,
+    ParentElement, Pixels, RenderOnce, Role, SharedString, Size, StatefulInteractiveElement,
+    Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::TestSupportExt as _;
-use gpui_material_foundation::{Scrim, ThemeScope, color, current_material_theme};
+use gpui_material_foundation::{
+    Scrim, ThemeScope, color, current_material_strings, current_material_theme,
+};
 use gpui_material_theme::{ColorRole, MotionKind, MotionSpeed};
 
 use crate::Divider;
@@ -257,6 +259,16 @@ impl RenderOnce for Sheet {
             Some(session) => CloseAction::Modal(session),
             None => CloseAction::Standard(on_dismiss_request, on_closed),
         });
+        let strings = current_material_strings(window, cx);
+        let handle_label = self
+            .handle_label
+            .unwrap_or_else(|| SharedString::from(strings.resize_bottom_sheet.clone()));
+        let close_label = self
+            .close_label
+            .unwrap_or_else(|| SharedString::from(strings.close.clone()));
+        let expand_label = SharedString::from(strings.expand.clone());
+        let collapse_label = SharedString::from(strings.collapse.clone());
+        drop(strings);
         let side_color = color(theme.colors.color(ColorRole::OnSurfaceVariant));
         let handle = build_handle(
             &self.id,
@@ -269,7 +281,7 @@ impl RenderOnce for Sheet {
             geometry.travel,
             &close_action,
             self.handle_content,
-            self.handle_label,
+            handle_label,
             self.show_handle,
             self.thresholds,
             side_color,
@@ -282,7 +294,7 @@ impl RenderOnce for Sheet {
             self.show_close,
             show_default_close,
             bottom,
-            self.close_label,
+            close_label,
             self.close_content,
             close_action,
         );
@@ -292,6 +304,8 @@ impl RenderOnce for Sheet {
                 self.header,
                 self.back,
                 self.expansion,
+                expand_label,
+                collapse_label,
                 close,
                 bottom,
                 geometry.rtl,

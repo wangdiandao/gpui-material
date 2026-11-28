@@ -7,7 +7,7 @@ use gpui::{
 };
 use gpui_base::TestSupportExt;
 use gpui_material_components::{Icon, IconButton, IconName, ListItem, TextField, TextFieldState};
-use gpui_material_foundation::{Surface, current_material_theme};
+use gpui_material_foundation::{Surface, current_material_strings, current_material_theme};
 use gpui_material_theme::{ColorRole, CornerShape, Direction, Elevation};
 
 use super::{
@@ -29,10 +29,10 @@ pub struct SearchView {
     pub(super) label: SharedString,
     pub(super) state: Entity<SearchState>,
     pub(super) variant: SearchViewVariant,
-    pub(super) close_label: SharedString,
-    loading_label: SharedString,
-    empty_label: SharedString,
-    prompt: SharedString,
+    pub(super) close_label: Option<SharedString>,
+    loading_label: Option<SharedString>,
+    empty_label: Option<SharedString>,
+    prompt: Option<SharedString>,
     input: Option<InputBuilder>,
     filters: Option<AnyElement>,
     row: Option<RowBuilder>,
@@ -48,7 +48,8 @@ pub struct SearchView {
 }
 
 impl SearchView {
-    /// Creates an expanded search view bound to `state` with default English status labels.
+    /// Creates an expanded search view bound to `state`, falling back to
+    /// [`gpui_material_theme::MaterialStrings`] for default close and status labels.
     pub fn new(
         id: impl Into<ElementId>,
         label: impl Into<SharedString>,
@@ -59,10 +60,10 @@ impl SearchView {
             label: label.into(),
             state: state.clone(),
             variant: SearchViewVariant::default(),
-            close_label: "Close search".into(),
-            loading_label: "Searching".into(),
-            empty_label: "No results".into(),
-            prompt: "Enter a search term".into(),
+            close_label: None,
+            loading_label: None,
+            empty_label: None,
+            prompt: None,
             input: None,
             filters: None,
             row: None,
@@ -76,6 +77,12 @@ impl SearchView {
             window: SearchWindowOptions::default(),
             sampled_in_bar: false,
         }
+    }
+
+    pub(super) fn resolved_close_label(&self, window: &Window, cx: &App) -> SharedString {
+        self.close_label.clone().unwrap_or_else(|| {
+            SharedString::from(current_material_strings(window, cx).close_search.clone())
+        })
     }
 
     /// Sets the presentation variant (`Docked`, `FullScreen`, or `FullScreenContained`).
@@ -92,10 +99,10 @@ impl SearchView {
         empty: SharedString,
         prompt: SharedString,
     ) -> Self {
-        self.close_label = close;
-        self.loading_label = loading;
-        self.empty_label = empty;
-        self.prompt = prompt;
+        self.close_label = Some(close);
+        self.loading_label = Some(loading);
+        self.empty_label = Some(empty);
+        self.prompt = Some(prompt);
         self
     }
 
@@ -185,6 +192,8 @@ impl SearchView {
         editor_width: Option<Pixels>,
         direction: Direction,
         duration: Duration,
+        window: &Window,
+        cx: &App,
     ) -> impl IntoElement + use<> {
         let close = self.state.clone();
         let down_state = self.state.clone();
@@ -207,7 +216,7 @@ impl SearchView {
             .child(
                 IconButton::new(
                     (self.id.clone(), "close-search"),
-                    self.close_label.clone(),
+                    self.resolved_close_label(window, cx),
                     Icon::new(IconName::Close),
                 )
                 .on_activate(move |window, cx| {
@@ -342,7 +351,8 @@ impl RenderOnce for SearchView {
             self.window.dismiss_on_escape
         };
 
-        let input = self.render_input_region(&editor, editor_width, direction, duration);
+        let input =
+            self.render_input_region(&editor, editor_width, direction, duration, window, cx);
         let results = self.render_results_region(duration, window, cx);
 
         let panel = panel_surface(self.style, docked, false).w(width).h(height);

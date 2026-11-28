@@ -7,7 +7,7 @@ use gpui::{
     StatefulInteractiveElement, Style, Styled, Window, div, point, px, relative, size,
 };
 use gpui_base::Button;
-use gpui_material_foundation::current_material_theme;
+use gpui_material_foundation::{current_material_strings, current_material_theme};
 use gpui_material_theme::Direction;
 
 use crate::{
@@ -195,8 +195,8 @@ impl AppBarMenuState {
 struct Strip {
     id: ElementId,
     items: Vec<AppBarItem>,
-    label: SharedString,
-    overflow_label: SharedString,
+    label: Option<SharedString>,
+    overflow_label: Option<SharedString>,
     overflow_indicator: Option<OverflowIndicator>,
     max_item_count: usize,
 }
@@ -206,8 +206,8 @@ impl Strip {
         Self {
             id: id.into(),
             items: items.into_iter().collect(),
-            label: "App bar actions".into(),
-            overflow_label: "More actions".into(),
+            label: None,
+            overflow_label: None,
             overflow_indicator: None,
             max_item_count: usize::MAX,
         }
@@ -233,9 +233,10 @@ macro_rules! action_strip {
                 Self(Strip::new(id, items))
             }
 
-            /// Sets the accessible label of the action strip toolbar (default `"App bar actions"`).
+            /// Sets the accessible label of the action strip toolbar (defaults to
+            /// [`gpui_material_theme::MaterialStrings::app_bar_actions`], `"App bar actions"`).
             pub fn label(mut self, label: impl Into<SharedString>) -> Self {
-                self.0.label = label.into();
+                self.0.label = Some(label.into());
                 self
             }
 
@@ -245,9 +246,10 @@ macro_rules! action_strip {
                 self
             }
 
-            /// Sets the accessible label of the overflow menu trigger button (default `"More actions"`).
+            /// Sets the accessible label of the overflow menu trigger button (defaults to
+            /// [`gpui_material_theme::MaterialStrings::more_actions`], `"More actions"`).
             pub fn overflow_label(mut self, label: impl Into<SharedString>) -> Self {
-                self.0.overflow_label = label.into();
+                self.0.overflow_label = Some(label.into());
                 self
             }
 
@@ -323,6 +325,8 @@ impl Axis {
 
 struct StripLayout {
     strip: Strip,
+    label: SharedString,
+    overflow_label: SharedString,
     axis: Axis,
     direction: Direction,
     ink: Hsla,
@@ -330,10 +334,22 @@ struct StripLayout {
 }
 
 impl StripLayout {
-    fn new(strip: Strip, axis: Axis, window: &mut Window, cx: &mut App) -> Self {
+    fn new(mut strip: Strip, axis: Axis, window: &mut Window, cx: &mut App) -> Self {
+        let strings = current_material_strings(window, cx);
+        let label = strip
+            .label
+            .take()
+            .unwrap_or_else(|| SharedString::from(strings.app_bar_actions.clone()));
+        let overflow_label = strip
+            .overflow_label
+            .take()
+            .unwrap_or_else(|| SharedString::from(strings.more_actions.clone()));
+        drop(strings);
         let overflow = OverflowStripHandle::use_state(&strip.id, "app-bar-overflow", window, cx);
         Self {
             strip,
+            label,
+            overflow_label,
             axis,
             direction: current_material_theme(window, cx).layout.direction,
             ink: window.text_style().color,
@@ -387,7 +403,7 @@ impl StripLayout {
             .filter_map(|item| item.menu.take().map(|build| build(state.clone())))
             .collect();
         let trigger_focus = self.overflow.focus.clone();
-        let label = self.strip.overflow_label.clone();
+        let label = self.overflow_label.clone();
         let trigger_id = ElementId::from((self.strip.id.clone(), "overflow"));
         let ink = self.ink;
         let glyph = self.strip.overflow_indicator.take().map_or_else(
@@ -453,7 +469,7 @@ impl Element for StripLayout {
     }
 
     fn write_a11y_info(&self, node: &mut gpui::accesskit::Node) {
-        node.set_label(self.strip.label.as_ref());
+        node.set_label(self.label.as_ref());
     }
 
     fn request_layout(

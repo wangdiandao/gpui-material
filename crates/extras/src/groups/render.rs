@@ -16,7 +16,8 @@ use gpui_material_components::{
     },
 };
 use gpui_material_foundation::{
-    InteractionSource, animate, current_material_theme, font_cache_revision, move_roving_focus,
+    InteractionSource, animate, current_material_strings, current_material_theme,
+    font_cache_revision, move_roving_focus,
 };
 use gpui_material_theme::{Density, Direction, MotionKind, MotionSpeed, Typography};
 
@@ -577,13 +578,16 @@ impl RenderOnce for ButtonGroup {
             let content = self.overflow_trigger.map(|(_, content)| content);
             let menu_open = synced.menu_open;
             let overflow_focus = synced.overflow_focus;
+            let overflow_label = self.overflow_label.unwrap_or_else(|| {
+                SharedString::from(current_material_strings(window, cx).more_actions.clone())
+            });
             let menu = Menu::composed(
                 (self.id.clone(), "overflow-menu"),
                 hidden,
                 move |open, toggle| {
                     menu_open.set(open);
                     let return_focus = overflow_focus.clone();
-                    let button = ButtonPart::new(trigger_id, self.overflow_label, overflow_width)
+                    let button = ButtonPart::new(trigger_id, overflow_label, overflow_width)
                         .size(self.size)
                         .shape(self.shape)
                         .variant(self.appearance)

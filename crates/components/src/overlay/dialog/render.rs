@@ -5,7 +5,8 @@ use gpui::{
 };
 use gpui_base::{DialogChangeReason, TestSupportExt};
 use gpui_material_foundation::{
-    Scrim, Surface, ThemeScope, color, current_material_theme, isolated_scroll,
+    Scrim, Surface, ThemeScope, color, current_material_strings, current_material_theme,
+    isolated_scroll,
 };
 use gpui_material_theme::{
     ColorRole, CornerRole, CornerShape, Direction, Elevation, MotionKind, MotionSpeed, TypeRole,
@@ -422,6 +423,9 @@ impl RenderOnce for Dialog {
                 .max_w(width)
                 .children(body);
         } else {
+            let cancel_label = self.cancel.unwrap_or_else(|| {
+                SharedString::from(current_material_strings(window, cx).cancel.clone())
+            });
             let (cancel, confirm) = build_actions(
                 self.confirm,
                 self.confirm_tone,
@@ -433,7 +437,7 @@ impl RenderOnce for Dialog {
                 self.dismiss_content,
                 dismiss_action,
                 &cancel_focus,
-                self.cancel,
+                cancel_label,
                 self.show_cancel,
                 full_screen,
             );

@@ -702,10 +702,47 @@ impl Render for ObservedAction {
 }
 ```
 
-### RTL 镜像与减少动态效果
+### RTL 镜像、减少动态效果与内置默认文案本地化
 
-- **RTL**：通过 `MaterialTheme::with_direction(Direction::Rtl)` 或局部 `ThemeScope::new(child).direction(Direction::Rtl)` 启用从右到左布局。Material 控件会自动镜像排版、内边距和水平方向键导航。具有方向含义的图标需显式调用 `Icon::new(IconName::ArrowForward).mirror_in_rtl(true)`，自定义浮层锚点则通过 `foundation::logical_anchor(anchor, theme.layout.direction)` 镜像。
+- **RTL**：通过 `MaterialTheme::direction(Direction::Rtl)` 或局部 `ThemeScope::new(child).direction(Direction::Rtl)` 启用从右到左布局。Material 控件会自动镜像排版、内边距和水平方向键导航。具有方向含义的图标需显式调用 `Icon::new(IconName::ArrowForward).mirror_in_rtl(true)`，自定义浮层锚点则通过 `foundation::logical_anchor(anchor, theme.layout.direction)` 镜像。
 - **减少动态效果**：`gpui_material::init` 会通过 `gpui-base` 读取一次系统偏好；需要按需刷新时调用 `sync_system_reduce_motion(cx)`，需要显式覆盖或恢复跟随系统时调用 `set_reduce_motion_preference(ReduceMotionPreference::..., cx)`。通过 GPUI 的 `cx.reduce_motion()` 读取当前状态：将其传入 `theme.motion.spec(MotionKind::Spatial, MotionSpeed::Default, cx.reduce_motion())` 会直接解析为 `MotionSpec::Instant`，`foundation::animate_with_status` 与 `LoopClock` 也会立即收敛而不额外调度动画帧。
+- **内置默认文案本地化（`MaterialStrings`）**：通过 `set_material_strings(strings, cx)` 全局安装本地化内置文案，或用 `ThemeScope::new(child).strings(strings)` 为局部子树（包括延迟渲染的浮层）单独覆盖。显式的组件级设置器（如 `.dismiss_label(...)`、`.clear_label(...)`）始终优先于 `MaterialStrings`：
+
+```rust
+use gpui::{App, IntoElement};
+use gpui_material::{
+    Banner, MaterialStrings, ThemeScope, set_material_strings,
+};
+
+fn install_zh_strings(cx: &mut App) {
+    let zh = MaterialStrings::default()
+        .dismiss("关闭")
+        .dismiss_message("关闭提示")
+        .dismiss_overlay("关闭遮罩")
+        .close("关闭")
+        .cancel("取消")
+        .confirm("确定")
+        .clear("清除")
+        .show_password("显示密码")
+        .hide_password("隐藏密码")
+        .open_options("展开选项")
+        .close_options("收起选项")
+        .more_actions("更多操作")
+        .refresh("刷新");
+    set_material_strings(zh, cx);
+}
+
+fn scoped_preview(content: impl IntoElement) -> impl IntoElement {
+    let preview_strings = MaterialStrings::default().dismiss("Fermer").cancel("Annuler");
+    ThemeScope::new(content).strings(preview_strings)
+}
+
+fn explicit_override_wins(on_dismiss: impl Fn(&mut gpui::Window, &mut App) + 'static) -> Banner {
+    Banner::new("notice", "Sync paused")
+        .on_dismiss(on_dismiss)
+        .dismiss_label("Ignore")
+}
+```
 
 <a id="building-custom-material-controls"></a>
 
@@ -715,7 +752,7 @@ impl Render for ObservedAction {
 
 - `Surface::clickable(id, label, role)`、`Surface::selectable(id, label, role, selected)` 和 `Surface::toggleable(id, label, role, checked)` 内置主题前背景色对、状态层、按压水波纹、键盘焦点环、无障碍角色以及 `.on_activate` / `.on_checked_change`。
 - 使用 `.shape(CornerRole::Medium.shape())` 应用圆角，或用 `.polygon_shape(MaterialShape::Cookie7Sided)` 应用 35 种 Expressive 多边形之一（默认开启按形状轮廓的指针命中测试）。
-- 调用 `foundation::current_material_theme(window, cx)` 解析最近的 `ThemeScope`、窗口覆盖或应用主题，并用 `foundation::color(theme.colors.color(role))` 将 `Argb` 转为 `gpui::Hsla`。
+- 调用 `foundation::current_material_theme(window, cx)` 解析最近的 `ThemeScope`、窗口覆盖或应用主题，调用 `foundation::current_material_strings(window, cx)` 从最近的 `ThemeScope` 或应用全局读取本地化内置文案，并用 `foundation::color(theme.colors.color(role))` 将 `Argb` 转为 `gpui::Hsla`。
 - 在 `ThemeScope` 或窗口覆盖内为独立 `gpui_base` 控件配色时，调用 `foundation::current_base_theme(window, cx)` 获取匹配的局部 Base Token，而无需修改 `gpui_base::Theme::global`。
 - 自定义画布绘制可使用 `foundation::Shape`（`Shape::rounded` / `Shape::polygon`），自定义模态遮罩层可使用 `foundation::Scrim::new(id).opacity(0.32).on_click(...)`。
 

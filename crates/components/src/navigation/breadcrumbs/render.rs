@@ -7,7 +7,9 @@ use gpui::{
     Style, Styled, Window, div, point, prelude::FluentBuilder, px, relative, size,
 };
 use gpui_base::{Button as BaseButton, TestSupportExt};
-use gpui_material_foundation::{ThemeScope, current_material_theme, text_style};
+use gpui_material_foundation::{
+    ThemeScope, current_material_strings, current_material_theme, text_style,
+};
 use gpui_material_theme::{Direction, TypeRole, TypographyEmphasis};
 
 use crate::{Icon, IconName, Menu, MenuItem, navigation::overflow_strip::OverflowStripHandle};
@@ -26,7 +28,9 @@ const OVERFLOW_TRIGGER_HEIGHT: Pixels = px(32.);
 impl RenderOnce for Breadcrumbs {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let id = self.id.clone();
-        let label = self.accessible_label.clone();
+        let label = self.accessible_label.clone().unwrap_or_else(|| {
+            SharedString::from(current_material_strings(window, cx).breadcrumb.clone())
+        });
         div()
             .id(id)
             .test_support()
@@ -51,18 +55,27 @@ struct PreparedItem {
 
 struct BreadcrumbsLayout {
     breadcrumbs: Breadcrumbs,
+    overflow_label: SharedString,
     direction: Direction,
     colors: ResolvedColors,
     overflow: OverflowStripHandle<SharedString>,
 }
 
 impl BreadcrumbsLayout {
-    fn new(breadcrumbs: Breadcrumbs, window: &mut Window, cx: &mut App) -> Self {
+    fn new(mut breadcrumbs: Breadcrumbs, window: &mut Window, cx: &mut App) -> Self {
+        let overflow_label = breadcrumbs.overflow_label.take().unwrap_or_else(|| {
+            SharedString::from(
+                current_material_strings(window, cx)
+                    .more_breadcrumbs
+                    .clone(),
+            )
+        });
         let overflow =
             OverflowStripHandle::use_state(&breadcrumbs.id, "breadcrumbs-overflow", window, cx);
         Self {
             direction: current_material_theme(window, cx).layout.direction,
             colors: breadcrumbs.colors.resolve(window, cx),
+            overflow_label,
             overflow,
             breadcrumbs,
         }
@@ -333,7 +346,7 @@ impl BreadcrumbsLayout {
         let observed = controller.clone();
         let trigger_focus = self.overflow.focus.clone();
         let trigger_id = ElementId::from((self.breadcrumbs.id.clone(), "overflow"));
-        let label = self.breadcrumbs.overflow_label.clone();
+        let label = self.overflow_label.clone();
         let ink = self.colors.ancestor;
         let hover_bg = self.colors.hover;
         let focus_ring = self.colors.focus_ring;

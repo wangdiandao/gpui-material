@@ -5,7 +5,7 @@ use gpui::{
     transparent_black,
 };
 use gpui_base::TestSupportExt as _;
-use gpui_material_foundation::{color, current_material_theme};
+use gpui_material_foundation::{color, current_material_strings, current_material_theme};
 use gpui_material_theme::{ColorRole, Direction};
 
 use super::platform::{
@@ -83,7 +83,7 @@ impl CaptionButtonLabels {
 pub struct CaptionButtons {
     id: ElementId,
     colors: CaptionButtonColors,
-    labels: CaptionButtonLabels,
+    labels: Option<CaptionButtonLabels>,
     button_width: Option<Pixels>,
     platform: ChromePlatform,
     show: Option<bool>,
@@ -96,7 +96,7 @@ impl CaptionButtons {
         Self {
             id: id.into(),
             colors: CaptionButtonColors::default(),
-            labels: CaptionButtonLabels::default(),
+            labels: None,
             button_width: None,
             platform: ChromePlatform::current(),
             show: None,
@@ -111,8 +111,9 @@ impl CaptionButtons {
     }
 
     /// Overrides the localized accessible button names (Minimize, Maximize, Restore, Close).
+    /// When omitted, resolves from [`gpui_material_theme::MaterialStrings`].
     pub fn labels(mut self, labels: CaptionButtonLabels) -> Self {
-        self.labels = labels;
+        self.labels = Some(labels);
         self
     }
 
@@ -175,6 +176,15 @@ impl RenderOnce for CaptionButtons {
             |width| sanitize_positive(width, self.platform.default_caption_button_width()),
         );
         let rtl = current_material_theme(window, cx).layout.direction == Direction::Rtl;
+        let labels = self.labels.unwrap_or_else(|| {
+            let strings = current_material_strings(window, cx);
+            CaptionButtonLabels {
+                minimize: SharedString::from(strings.minimize.clone()),
+                maximize: SharedString::from(strings.maximize.clone()),
+                restore: SharedString::from(strings.restore.clone()),
+                close: SharedString::from(strings.close.clone()),
+            }
+        });
 
         let minimize = show_minimize.then(|| {
             title_bar_control(
@@ -183,7 +193,7 @@ impl RenderOnce for CaptionButtons {
                 self.platform,
                 button_width,
                 self.colors,
-                self.labels.for_control(CaptionButton::Minimize),
+                labels.for_control(CaptionButton::Minimize),
                 None,
                 window,
                 cx,
@@ -201,7 +211,7 @@ impl RenderOnce for CaptionButtons {
                 self.platform,
                 button_width,
                 self.colors,
-                self.labels.for_control(control),
+                labels.for_control(control),
                 None,
                 window,
                 cx,
@@ -213,7 +223,7 @@ impl RenderOnce for CaptionButtons {
             self.platform,
             button_width,
             self.colors,
-            self.labels.for_control(CaptionButton::Close),
+            labels.for_control(CaptionButton::Close),
             self.on_close,
             window,
             cx,

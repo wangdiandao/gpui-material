@@ -293,6 +293,7 @@ pub const CATALOG: &[CatalogEntry] = &[
     // Containment
     story_entry(Story::Card, Containment),
     story_entry(Story::Carousel, Containment),
+    story_entry(Story::DataViews, Containment),
     story_entry(Story::Dialog, Containment),
     story_entry(Story::Divider, Containment),
     story_entry(Story::List, Containment),

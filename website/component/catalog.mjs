@@ -1202,4 +1202,34 @@ use gpui_material::Skeleton;`,
     code: `TitleBar::new("main-title-bar")
     .title("Workspace")`,
   },
+  {
+    slug: "data-views",
+    group: "advanced",
+    title: "DataTable / Tree / VirtualList",
+    source: "crates/extras/src/data_views.rs",
+    feature: "data-views",
+    description: {
+      en: "Present sortable data tables, virtualized hierarchical trees, and variable-size virtual lists with Material 3 Expressive styling.",
+      zh: "以 Material 3 Expressive 风格展示可排序数据表、虚拟化层级树和可变尺寸虚拟列表。",
+    },
+    usage: {
+      en: "Enable the data-views feature and import DataTable, Tree, and VirtualList from gpui_material::data_views. Keep sorting and row selection in application state, retain TreeState for hierarchical trees, and pair VirtualList with VirtualListScrollHandle.",
+      zh: "启用 data-views 特性并从 gpui_material::data_views 导入 DataTable、Tree 与 VirtualList。由应用持有排序与行选中状态，为层级树保留 TreeState，并为 VirtualList 搭配 VirtualListScrollHandle。",
+    },
+    imports:
+      "use gpui_material::data_views::{ColumnAlignment, DataTable, DataTableCell, DataTableColumn, DataTableRow, SortDirection};",
+    code: `DataTable::new("services")
+    .accessible_label("Cluster services")
+    .columns([
+        DataTableColumn::new("name", "Service").sort_direction(Some(SortDirection::Ascending)),
+        DataTableColumn::new("latency", "Latency").alignment(ColumnAlignment::End),
+    ])
+    .rows([
+        DataTableRow::new("api", [DataTableCell::text("API Gateway"), DataTableCell::text("18 ms")])
+            .selected(true),
+        DataTableRow::new("billing", [DataTableCell::text("Billing"), DataTableCell::text("12 ms")]),
+    ])
+    .on_sort(|column, direction, _, _| println!("Sort {column} -> {direction:?}"))
+    .on_row_select(|row, _, _| println!("Selected row: {row}"))`,
+  },
 ].map((guide) => ({ story: guide.slug, ...guide }));

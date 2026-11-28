@@ -11,6 +11,8 @@
 pub use gpui_material_components::*;
 #[cfg(any(feature = "expressive-groups", feature = "toolbars"))]
 pub use gpui_material_extras::ContentArrangement;
+#[cfg(feature = "data-views")]
+pub use gpui_material_extras::data_views;
 #[cfg(feature = "date-time")]
 pub use gpui_material_extras::date_time;
 #[cfg(feature = "window-chrome")]

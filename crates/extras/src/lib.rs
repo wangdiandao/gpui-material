@@ -9,6 +9,8 @@ pub use arrangement::ContentArrangement;
 
 #[cfg(feature = "carousel")]
 mod carousel;
+#[cfg(feature = "data-views")]
+pub mod data_views;
 #[cfg(feature = "date-time")]
 pub mod date_time;
 #[cfg(feature = "carousel")]

@@ -147,8 +147,8 @@
   en: "a9f65f19836e4b8a"
   zh: "b34085a5fd68678f"
 /components/optional-components:
-  en: "71de123761456aa5"
-  zh: "b14564c0e608c476"
+  en: "936e1240e266b35b"
+  zh: "cbc4a1975be04a98"
 /components/optional-components/window-chrome:
   en: "90b7978cbd0f9268"
   zh: "4466ad4e1cd4b7b7"
@@ -177,5 +177,8 @@
   en: "5881f1d730e7138a"
   zh: "a30907506d331a76"
 /components/optional-components/carousels:
-  en: "3ee7402f117d1503"
-  zh: "6933d6466dc7e1f5"
+  en: "1421246995fd586d"
+  zh: "e558d786ab9a6f29"
+/components/optional-components/data-views:
+  en: "d315c5b68564889a"
+  zh: "d6e387fa5fbfd3c2"
